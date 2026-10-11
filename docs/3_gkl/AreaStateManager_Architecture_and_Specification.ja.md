@@ -5,6 +5,9 @@ last_updated: 2026-10-11
 domain: GKL (Spatial State / Exploration Knowledge / Rendering Bridge)
 related_code:
   - src/core/knowledge/state/AreaStateManager.js
+  - src/core/knowledge/state/area/TerrainInferenceEngine.js
+  - src/core/knowledge/state/area/DungeonLandmarkRegistry.js
+  - src/core/knowledge/state/area/ViewportTileProjector.js
   - src/core/knowledge/services/WasmDirectBindingService.js
 ---
 
@@ -15,19 +18,19 @@ related_code:
 `AreaStateManager` は、NetHack WASM WebUI の知識層（GKL: Game Knowledge Layer）において、**「現在探索中のダンジョン空間情報」を一元管理するSingle Source of Truth (SSOT)** です。
 
 NetHack の C コアは、画面描画を `print_glyph(x, y, glyph)` という「現在最前面に見えている単一のグリフ値」として送信します。
-しかし、モダンなWebクライアント（HD-2Dレンダラー、3Dジオラマ、詳細インスペクター、戦術アドバイザー等）が要求する「床の上にモンスターが乗り、アイテムが落ちている」という多層構造を復元・永続化するため、`AreaStateManager` は単なる配列保持を超えて、**推論・キャッシュ・台帳・投影・Cメモリ直結同期の 5 大責務** を担っています。
+しかし、モダンなWebクライアント（HD-2Dレンダラー、3Dジオラマ、詳細インスペクター、戦術アドバイザー等）が要求する「床の上にモンスターが乗り、アイテムが落ちている」という多層構造を復元・永続化するため、`AreaStateManager` は単なる配列保持を超えて、**推論・キャッシュ・台帳・投影・Cメモリ直結同期の 5 大責務** を 4 モジュール協調体制で担っています。
 
 ```mermaid
 flowchart TD
     WASM[NetHack C コア print_glyph / curs / shim_bridge.c] --> WebUICore
     WebUICore --> GKLPlugin
-    GKLPlugin --> ASM[AreaStateManager<br>空間状態総合オーケストレーター]
+    GKLPlugin --> ASM[AreaStateManager<br>空間状態コア ＆ Facade]
     
-    subgraph Core Responsibilities [5大責務]
+    subgraph Core Responsibilities [4モジュール協調・5大責務]
         ASM --> L1[① 4層セル状態＆差分追跡<br>bottom/middle/top/effect, dirtyCells]
-        ASM --> L2[② 地形・物理推論エンジン<br>bkglyphInfo判定, 仮床, 大岩押し出し推論]
-        ASM --> L3[③ 探索知識＆ランドマーク台帳<br>stairCache, 初手4002シード, landmarkCache]
-        ASM --> L4[④ 戦術視野＆カメラ投影<br>getAreaState, getFocusCameraTiles]
+        ASM --> L2[② TerrainInferenceEngine<br>bkglyphInfo判定, 仮床, 大岩押し出し推論]
+        ASM --> L3[③ DungeonLandmarkRegistry<br>stairCache, 初手4002シード, landmarkCache]
+        ASM --> L4[④ ViewportTileProjector<br>getAreaState, getFocusCameraTiles]
         ASM --> L5[⑤ Phase 8 Cメモリ直結同期<br>syncPlayerFeetFloor, dumpLevelTerrain]
     end
     
@@ -90,29 +93,31 @@ flowchart TD
 ```
 
 ### ① 背景グリフ (`bkglyphInfo`) 判定と安全ガード
-NetHack 5.0 C コア（`winshim.c`）から送られてくる背景グリフ情報を検証します：
+NetHack 5.0 C コア（`winshim.c`）から送られてくる背景グリフ情報を `TerrainInferenceEngine.resolveBackgroundTerrain` で検証します：
 - `bkglyphInfo.glyph >= 0` かつ `glyph < 9622 (GLYPH_UNEXPLORED_OFF)` であれば、真の地形として `cell.bottom` に確定格納。
-- **9622 ガード**: Cコアの設定により `9622` が送られてきた場合は、画面が黒くなるのを防ぐため自動的に安全な「仮床（`createInferredFloor()`: 3992番、`inferred: true`）」へフォールバック。
+- **9622 ガード**: Cコアの設定により `9622` が送られてきた場合は、画面が黒くなるのを防ぐため自動的に安全な「仮床（`createInferredFloor()`: 3992番、`inferred: true`）」またはメモリ直結の真床へフォールバック。
 
 ### ② 自己修復 (Self-Healing / Overwrite)
 モンスターやアイテムがマスから移動・消滅した際、Cコアから送られてくる正規の地形グリフを受信すると、以前設定された仮床は自動的に真の地形に上書きされ、`inferred` フラグが消去されます。
 
 ### ③ Phase 8 C メモリ直結同期 (`WasmDirectBindingService` 統合)
-Stage 8.2-B および Stage 8.3-A により、`AreaStateManager` は `WasmDirectBindingService` と連携した Ground Truth 同期機能を備えています：
-- **動作モード (`directBindingMode`)**: `'auto'`（既定：直結優先・自動フォールバック）、`'strict'`（直結強制）、`'fallback'`（従来の推論のみ）を切り替え可能であり、実行統計（`directBindingStats`）を記録します。
+Stage 8.2-B および Stage 8.3-A により、`AreaStateManager` / `TerrainInferenceEngine` は `WasmDirectBindingService` と連携した Ground Truth 同期機能を備えています：
+- **動作モード (`directBindingMode`)**: `'auto'`（既定：直結優先・自動フォールバック）、`'strict'`（直結強制）、`'fallback'`（従来の推論のみ）を切り替え可能であり、実行統計（`genuineFloorCount` / `inferredFloorCount`）を記録します。
 - **プレイヤー足元マスの即時同期 (`syncPlayerFeetFloor(x, y)`)**:
   自キャラが乗っていることで `print_glyph` が自キャラグリフで覆い隠している足元マスについて、`SHIM_CMD_GET_CELL_INFO (0x20)` により `levl[x][y].typ`（真の地形）と先頭アイテム (`fobj`)・重なり状態 (`isPile`) を 0ms で取得し、`cell.bottom` および `cell.middle` を即時同期します。
 - **全マップ 80×21 一括地形ダンプ (`dumpLevelTerrain()`)**:
-  `SHIM_CMD_DUMP_LEVEL_TERRAIN (0x62)` により、全 $80 \times 21$ セルの地形・アイテム・モンスター・部屋番号・可視性・足元記憶 (`seenv`) を 1 回の WASM 境界呼び出し（26,880 bytes）で一括取得し、3D ジオラマ（`WebGPUHD2DRenderer`）等へ完全な空間データを供給します。
+  `SHIM_CMD_DUMP_LEVEL_TERRAIN (0x62)` により、全 $80 \times 21$ セルの地形・階段を一括取得し、3D ジオラマ（`WebGPUHD2DRenderer`）等へ完全な空間データを供給します。
 
 ---
 
-## 4. 階段・ランドマーク台帳エンジン (Stair & Landmark Registry)
+## 4. 階段・ランドマーク台帳エンジン (`DungeonLandmarkRegistry.js`)
 
 ### ① 階段キャッシュ (`stairCache`)
 NetHack ではフロア移動（階段昇降）時にマップ全体が消去されます。再訪時に階段位置を見失わないよう、フロアキー（例: `Dlvl:1:x,y`）をプレフィックスとして階段情報を永続保持します。
 - **初手ブランチ階段先行シード (`seedInitialStair`)**:
   ゲーム開始時（Dlvl:1 の初手）のみ、自キャラ初期座標の足元に **地上脱出用のブランチ上り階段（グリフ番号 `4002`: `S_branch_upstair`）** を先行シード登録。1歩も動いていない状態でも足元を正確に描画します。
+- **到着階段シード (`seedArrivalStair`)**:
+  フロア移動直後、`WasmDirectBindingService.getCellInfo(x, y)` の `typ` が階段 (`26`) またはハシゴ (`27`) である場合のみ、階層遷移方向から上り/下りを確定して自動シードします（落とし穴やテレポート時は `typ !== 26/27` のため誤シードされません）。
 - **フロア再訪時の復元 (`applyStairCacheForFloor`)**:
   フロア移動直後、当該フロアの `stairCache` を走査し、`grid` の `cell.bottom` に階段を自動展開します。
 
@@ -122,25 +127,25 @@ NetHack ではフロア移動（階段昇降）時にマップ全体が消去さ
 - **祭壇**: `ALTAR` (4006〜4010)
 - **水場・泉**: `FOUNTAIN` (4014), `SINK` (4013)
 - **玉座**: `THRONE` (4012)
-- **店舗 (SHOP)**: 店主（Shopkeeper: monOffset 271, 267, 268）を検知した際、同一フロア内の店舗としてグループ化登録。
+- **店舗 (SHOP)**: 店主（Shopkeeper: monOffset 271, 267, 268）を検知した際、同一フロア内の店舗としてグループ化・座標更新登録。
 
 ---
 
-## 5. 特殊物理 ＆ ギミック推論エンジン
+## 5. 特殊物理 ＆ ギミック推論エンジン (`TerrainInferenceEngine.js`)
 
 NetHack の C コア仕様に起因する非同期的な描画ラグを吸収する推論ロジックです。
 
 ### ① 大岩（Boulder）押し出し推論
 プレイヤーが大岩（`isBoulderGlyph`）を押して移動した際、Cコアからのグリフ送信順序によって「足元に岩が残ったまま移動先に新しい岩が現れる」現象が発生します。
-- **Case A (移動先検知)**: プレイヤーの移動先マスにすでに大岩が存在する場合、足元マスの `cell.middle` をクリア。
-- **Case B (遅延到着検知)**: プレイヤー移動後に押し出し先マスへ大岩グリフが届いた場合、足元マスの `cell.middle` をクリア。
+- **Case A (`handleBoulderPushOnPlayerMove`)**: プレイヤーの移動先マスにすでに大岩が存在する場合、足元マスの `cell.middle` をクリア。
+- **Case B (`handleBoulderPushOnGlyphUpdate`)**: プレイヤー移動後に押し出し先マスへ大岩グリフが届いた場合、足元マスの `cell.middle` をクリア。
 
 ### ② 死亡時墓石置換
 プレイヤー死亡フラグ（`isDead`）が立った際、プレイヤー座標の `cell.top` を自動的に墓石（`DEFAULT_TOMBSTONE_GLYPH`: 4011番）へ置換して描画します。
 
 ---
 
-## 6. 空間・戦術視野 ＆ カメラ投影インターフェース
+## 6. 空間・戦術視野 ＆ カメラ投影インターフェース (`ViewportTileProjector.js`)
 
 ### ① 戦術視野 (`getAreaState`)
 - 自キャラを中心とした半径 $R$（既定 $3 \times 3$）マスの周囲状態を抽出。
@@ -154,28 +159,23 @@ NetHack の C コア仕様に起因する非同期的な描画ラグを吸収す
 
 ---
 
-## 7. 空間幾何学認識エンジン ＆ ダンジョントラッカー連携とモジュール分割計画
+## 7. 4モジュール分割アーキテクチャ ＆ 将来拡張連携 (`🟢 implemented`: 2026-10-11 完遂)
 
-### 将来計画との依存関係
-ロードマップ上の以下の2大バックログ構想は、`AreaStateManager` のグリッド・ランドマーク情報を前提としています：
-1. **[Spatial_Pattern_Engine_Architecture.md](./Spatial_Pattern_Engine_Architecture.md) (空間幾何学認識エンジン)**:
-   - 部屋の矩形形状、通路のトポロジー、刻み文字の幾何配置パターンを検知。
-2. **[Dungeon_Tracker_and_Checkpoint_Architecture.md](./Dungeon_Tracker_and_Checkpoint_Architecture.md) (ダンジョントラッカー)**:
-   - 全階層の重要拠点マーカー（🚩）やセーブデータ非破壊のチェックポイント管理。
+### モジュール構成（Phase 8 先行着手 3 完了）
 
-これらの機能を将来拡張する際に単一クラスの肥大化を防ぐため、以下の**4モジュール分割・リファクタリング構想**を定義しています。
-
-### モジュール分割構想 (Target Architecture)
+単一ファイル 1,552 行に達していた `AreaStateManager.js` を、100% 後方互換性（Zero Breaking Change）を維持したまま以下の 4 モジュールへ分離しました（`AreaStateManager.js` を **1,552行 ➔ 437行、約71.8%削減**）。
 
 ```mermaid
 flowchart TD
-    subgraph TargetDecoupledArchitecture [将来の責務分離アーキテクチャ]
-        ASM_Core[AreaStateManager<br>純粋空間グリッド＆差分管理]
+    subgraph DecoupledArchitecture [現行の4モジュール分離アーキテクチャ]
+        ASM_Core["AreaStateManager.js (437行)<br>純粋空間グリッド・差分管理・DirectBinding同期・Facade"]
         
-        TIE[TerrainInferenceEngine<br>地形・物理推論エンジン]
-        DLR[DungeonLandmarkRegistry<br>階段・ランドマーク・店舗台帳]
-        VTP[ViewportTileProjector<br>カメラ投影・視野変換プロジェクター]
-        
+        TIE["area/TerrainInferenceEngine.js (269行)<br>地形typ変換・真床解決・bkglyph判定・大岩押し推論"]
+        DLR["area/DungeonLandmarkRegistry.js (440行)<br>階段キャッシュ・ランドマーク・店舗台帳・フロア遷移"]
+        VTP["area/ViewportTileProjector.js (301行)<br>戦術視野 getAreaState・カメラ投影 getFocusCameraTiles"]
+    end
+
+    subgraph FutureExtensions [将来拡張モジュール]
         SPE[SpatialPatternEngine<br>空間幾何学認識エンジン]
         DT[DungeonTracker<br>ダンジョントラッカー]
     end
@@ -188,14 +188,15 @@ flowchart TD
     DLR -.-> DT
 ```
 
-| 新モジュール名 | 移譲される責務 |
-| :--- | :--- |
-| **`AreaStateManager.js` (コア)** | 純粋な $80 \times 24$ セルグリッド保持、`cell.top/middle/bottom/effect` 読み書き、`dirtyCells` 管理、Direct Binding 同期 |
-| **`TerrainInferenceEngine.js`** | `bkglyphInfo` 判定、仮床フォールバック、自己修復、大岩押し推論、墓石置換 |
-| **`DungeonLandmarkRegistry.js`** | `stairCache`、`landmarkCache`、初手ブランチ階段シード、店舗同定・グループ化、フロア再訪復元 |
-| **`ViewportTileProjector.js`** | `getFocusCameraTiles`、`getAreaState`（描画・UI向けデータ変換・キー情報付与） |
+| モジュールパス | 行数 | 担当責務 |
+| :--- | :---: | :--- |
+| **`src/core/knowledge/state/AreaStateManager.js`** | **437 行** | 純粋な $80 \times 24$ セルグリッド保持、`cell.top/middle/bottom/effect` 読み書き、`dirtyCells` 管理、Direct Binding 同期 (`syncPlayerFeetFloor`, `syncFromDirectBinding`, `dumpLevelTerrain`)、後方互換プロキシ＆委譲 Facade |
+| **`src/core/knowledge/state/area/TerrainInferenceEngine.js`** | **269 行** | `getGlyphForTerrainType`、`getGenuineFloor`、`bkglyphInfo` 判定、仮床(`3992`)生成ガード、自己修復、大岩押し推論 |
+| **`src/core/knowledge/state/area/DungeonLandmarkRegistry.js`** | **440 行** | `stairCache`、`landmarkCache`、初手ブランチ階段シード(`4002`)、到着階段シード、店舗同定・グループ化、フロア再訪復元 |
+| **`src/core/knowledge/state/area/ViewportTileProjector.js`** | **301 行** | `getAreaState`（周囲戦術視野・方向キー付与）、`getFocusCameraTiles`（カメラ投影・墓石置換・構造化知識結合） |
 
-### 移行ステップ（ロードマップ連携）
-1. **Step 1: 仕様書固定（本ドキュメント）**: 現有の全振る舞い・インターフェースを確定。
-2. **Step 2: 内部デリゲーション抽出**: 外部 API（`updateGlyph` 等）の後方互換性を 100% 維持したまま、内部処理を上記 3 クラスへ委譲。
-3. **Step 3: 空間幾何学認識エンジン ＆ ダンジョントラッカーの接続**: クリーンになった `DungeonLandmarkRegistry` および `AreaStateManager` の上に、`SpatialPatternEngine` と `DungeonTracker` を相乗り配備。
+### 移行ステップ進捗
+- [x] **Step 1: 仕様書固定（本ドキュメント）**: 現有の全振る舞い・インターフェースを確定。
+- [x] **Step 2: 4モジュール分割 ＆ 内部デリゲーション抽出 (2026-10-11 完了)**: 外部 API（`updateGlyph` や `stairCache` プロパティ等）の後方互換性を 100% 維持したまま、上記 3 サブモジュールへ分離（全 138 スイート・1,707 テスト PASS）。
+- [ ] **Step 3: Stage 8.3-B 確定同期型レンダリング ＆ 将来拡張の接続**: クリーンに分離された `TerrainInferenceEngine` / `ViewportTileProjector` 上で投機的仮床撤廃・Commit 駆動投影を実施し、将来構想の `SpatialPatternEngine` と `DungeonTracker` を接続。
+

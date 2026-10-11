@@ -116,18 +116,19 @@ NetHack の 1 ターンを以下の 4 つのフェーズに厳格にモデル化
 flowchart TD
     subgraph 先行リファクタリング基盤
         R21["✅ 【先行 1 完了】ROADMAP 2.1: main.js モジュール分割<br>(2,364行➔618行: レンダラー・DOM・操作を疎結合化)"]
-        R22["【先行 2】ROADMAP 2.2: GKLPlugin.js モジュール分割<br>(2,551行➔450行: GKLEventRouter, SilentSync 抽出)"]
+        R22["✅ 【先行 2 完了】ROADMAP 2.2: GKLPlugin.js モジュール分割<br>(2,613行➔482行: GKLEventRouter, SilentSync 抽出)"]
+        R23["✅ 【先行 3 完了】AreaStateManager.js 4モジュール分割<br>(1,552行➔437行: TerrainInference, Landmark, Projector 分離)"]
     end
 
     subgraph Stage 8.3-A & 8.3-B 実装
         S0["✅ 【Stage 8.3-A 完了】dumpLevelTerrain C/Wasm/GKL 実装<br>(WasmDirectBindingService & AreaStateManager)"]
         S1["Step 1: GKLEventRouter への Turn Lifecycle (Sync Barrier) 配備"]
-        S2["Step 2: AreaStateManager の投機的仮床副作用の完全排除"]
+        S2["Step 2: TerrainInferenceEngine / ViewportTileProjector の投機的仮床副作用排除"]
         S3["Step 3: dumpLevelTerrain 自動ロード ＆ VirtualDungeonScreen Commit駆動化"]
         S4["Step 4: Auto / Strict / Fallback 各モード結合テスト ＆ 全面検証"]
     end
 
-    R21 --> R22 --> S1
+    R21 --> R22 --> R23 --> S1
     S0 --> S1 --> S2 --> S3 --> S4
 ```
 
@@ -137,12 +138,14 @@ flowchart TD
   - レンダリングループ・オフスクリーンフラッシュをオーケストレーターから明瞭に分離し、Commit駆動描画を受け入れ可能にした。
 - [x] **Stage 8.3-A: 全フロア地形ダンプ基盤 (`dumpLevelTerrain`)** `[完了: 2026-10-10]`
   - `sys/wasm/shim_bridge.c` (`SHIM_CMD_DUMP_LEVEL_TERRAIN = 12`)、`WasmDirectBindingService.dumpLevelTerrain()`、および `AreaStateManager.dumpLevelTerrain()` による 80×21 セル一括同期を実装完了。
-- [ ] **先行 Step 2: ROADMAP 2.2 (`GKLPlugin.js` モジュール分割)**
-  - `coordinators/GKLEventRouter.js`、`coordinators/SilentSyncCoordinator.js`、`coordinators/GKLFxCoordinator.js` の分離。
-  - Coreイベントルーティングと非同期同期調停を独立させ、ターン確定ライフサイクル（Phase 1〜4）をクリーンに導入可能にする。
+- [x] **先行 Step 2: ROADMAP 2.2 (`GKLPlugin.js` モジュール分割)** `[完了: 2026-10-11]`
+  - `coordinators/GKLEventRouter.js`、`coordinators/SilentSyncCoordinator.js`、`coordinators/GKLFxCoordinator.js`、`services/InspectionService.js`、`services/AutoTravelService.js` の分離（`GKLPlugin.js` を 2,613行 ➔ 482行へ削減）。
+  - Coreイベントルーティングと非同期同期調停を独立させ、ターン確定ライフサイクル（Phase 1〜4）をクリーンに導入可能にした。
+- [x] **先行 Step 3: `AreaStateManager.js` 4モジュール分割** `[完了: 2026-10-11]`
+  - `area/TerrainInferenceEngine.js`、`area/DungeonLandmarkRegistry.js`、`area/ViewportTileProjector.js` を分離（`AreaStateManager.js` を 1,552行 ➔ 437行へ削減）。
 - [ ] **Stage 8.3-B 本番実装**:
   - `GKLEventRouter` への Sync Barrier 組み込み（`areaStateCommitted` シグナル）
-  - `AreaStateManager` の `createInferredFloor` 投機的副作用排除
+  - `TerrainInferenceEngine` / `ViewportTileProjector` の `createInferredFloor` 投機的副作用排除
   - `MainViewportRenderer` / `VirtualDungeonScreen` の Commit 駆動型描画制御
   - `dumpLevelTerrain()` のフロア移動時自動ロード連携
   - 各モード結合テスト（Zero Regression 維持）

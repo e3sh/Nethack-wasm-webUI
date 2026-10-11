@@ -1,5 +1,10 @@
 export { GKLPlugin } from './GKLPlugin.js';
-export { AreaStateManager } from "./state/AreaStateManager.js";
+export {
+    AreaStateManager,
+    TerrainInferenceEngine,
+    DungeonLandmarkRegistry,
+    ViewportTileProjector
+} from "./state/AreaStateManager.js";
 export { InventoryStateManager } from "./state/InventoryStateManager.js";
 export { SpellStateManager } from "./state/SpellStateManager.js";
 export { SkillStateManager, SKILL_RANKS } from "./state/SkillStateManager.js";

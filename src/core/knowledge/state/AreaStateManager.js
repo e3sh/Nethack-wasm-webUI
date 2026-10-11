@@ -1,65 +1,34 @@
 /**
  * AreaStateManager.js
- * 80x21 マップの 3 階層 (Bottom: 地形, Middle: アイテム/設置物, Top: モンスター/プレイヤー)
- * セル状態キャッシュを自走管理し、自キャラ周辺の構造化 State を提供するクラス
+ * 80x24 マップの多層セル状態キャッシュ (bottom/middle/top/effect/engraving) の保持、
+ * dirtyCells 差分追跡、WasmDirectBindingService 同期、および
+ * 各サブモジュール (TerrainInferenceEngine, DungeonLandmarkRegistry, ViewportTileProjector) への統括窓口 (Core & Facade)
  */
 
-import { classifyGlyph, ENTITY_TYPES, GLYPH_OFFSETS, isShopkeeperMonster, isBoulderGlyph, isBoulderEntity } from "../engines/glyphClassifier.js";
+import { classifyGlyph, ENTITY_TYPES } from "../engines/glyphClassifier.js";
+import {
+    TerrainInferenceEngine,
+    DEFAULT_INFERRED_FLOOR_GLYPH,
+    DEFAULT_TOMBSTONE_GLYPH,
+    createInferredFloor
+} from "./area/TerrainInferenceEngine.js";
+import {
+    DungeonLandmarkRegistry,
+    normalizeFloorKey,
+    parseFloorLevel
+} from "./area/DungeonLandmarkRegistry.js";
+import { ViewportTileProjector } from "./area/ViewportTileProjector.js";
 
-export const DEFAULT_INFERRED_FLOOR_GLYPH = 3992;
-export const DEFAULT_TOMBSTONE_GLYPH = 4011;
-
-/**
- * ダンジョンフロア識別子を正規化 (例: "Dlvl: 1" -> "Dlvl:1", 2 -> "Dlvl:2", "Minetown: 3" -> "Minetown:3")
- * @param {string|number} floorKey
- * @returns {string} 正規化されたフロア識別子
- */
-export function normalizeFloorKey(floorKey) {
-    if (floorKey === null || floorKey === undefined) return 'Dlvl:1';
-    const str = String(floorKey).trim();
-    if (!str) return 'Dlvl:1';
-
-    // "Minetown:3", "Mines: 2", "Dlvl: 1", "Sokoban: 1" 等のコロン区切り形式
-    if (str.includes(':')) {
-        const parts = str.split(':');
-        const branch = parts[0].trim() || 'Dlvl';
-        const level = parseInt(parts[1], 10) || 1;
-        return `${branch}:${level}`;
-    }
-
-    const match = str.match(/^([a-zA-Z\s]+)?\s*(\d+)$/i);
-    if (match) {
-        const branch = match[1] ? match[1].trim() : 'Dlvl';
-        const level = parseInt(match[2], 10) || 1;
-        return `${branch || 'Dlvl'}:${level}`;
-    }
-    return str;
-}
-
-/**
- * ダンジョンフロア識別子から階層番号を取得 (例: "Dlvl:3" -> 3, "Minetown:2" -> 2)
- * @param {string|number} floorKey
- * @returns {number}
- */
-export function parseFloorLevel(floorKey) {
-    const normalized = normalizeFloorKey(floorKey);
-    const match = normalized.match(/:(\d+)$/);
-    return match ? parseInt(match[1], 10) : 1;
-}
-
-/**
- * 足元またはエンティティ出現マス用の仮床オブジェクトを生成
- * @returns {Object}
- */
-export function createInferredFloor() {
-    const info = classifyGlyph(DEFAULT_INFERRED_FLOOR_GLYPH);
-    return {
-        ...info,
-        glyph: DEFAULT_INFERRED_FLOOR_GLYPH,
-        rawGlyph: DEFAULT_INFERRED_FLOOR_GLYPH,
-        inferred: true
-    };
-}
+export {
+    DEFAULT_INFERRED_FLOOR_GLYPH,
+    DEFAULT_TOMBSTONE_GLYPH,
+    createInferredFloor,
+    normalizeFloorKey,
+    parseFloorLevel,
+    TerrainInferenceEngine,
+    DungeonLandmarkRegistry,
+    ViewportTileProjector
+};
 
 export class AreaStateManager {
     constructor(width = 80, height = 24, monsterTracker = null, directBindingService = null) {
@@ -74,15 +43,12 @@ export class AreaStateManager {
         this.keyMode = 'numpad'; // キーモード ('vi' | 'numpad')
         this.monsterTracker = monsterTracker;
         this.directBindingService = directBindingService;
-        this.currentFloor = normalizeFloorKey('Dlvl:1'); // 現在のフロア識別子 (例: "Dlvl:1", "Minetown:3")
-        this.prevFloor = null;           // 直前のフロア識別子 (フロア遷移時の階層方向判定用)
-        this.justTransitionedFloor = false; // 直前にフロア遷移が発生したフラグ
-        this.stairCache = new Map();     // フロア別階段キャッシュ ("floor:x,y" => terrainEntity) (後方互換性維持)
-        this.landmarkCache = new Map();  // フロア別ランドマーク台帳キャッシュ ("floor:x,y:type" => LandmarkEntity)
-        this._hasSeededInitialStair = false; // ゲーム開始時 (Dlvl:1) 初手足元上り階段の先行シード済みフラグ
-        this.isFloorPending = false;     // clear_nhwindow 後のフロア確定待ちフラグ
-        this.pendingStairs = [];         // フロア確定待ち中に受信した階段一覧
-        this.pendingLandmarks = [];      // フロア確定待ち中に受信したランドマーク一覧
+
+        // サブモジュールの初期化 (Phase 8 先行着手 3: 4モジュール責務分離)
+        this.landmarkRegistry = new DungeonLandmarkRegistry(this);
+        this.terrainInference = new TerrainInferenceEngine(this);
+        this.viewportProjector = new ViewportTileProjector(this);
+
         this.engravingCache = new Map(); // 現在フロアの床文字同定キャッシュ ("x,y" => EngravingData)
         this.dirtyCells = new Set();     // 変更があったセルの座標キャッシュ ("x,y")
         this.grid = [];
@@ -98,6 +64,26 @@ export class AreaStateManager {
         this.genuineFloorCount = 0;
         this.lastFloorSync = { source: 'NONE', glyph: -1, typ: -1, isGenuine: false };
     }
+
+    // --- 後方互換性のための状態プロキシ (DungeonLandmarkRegistry への透過アクセサ) ---
+    get currentFloor() { return this.landmarkRegistry.currentFloor; }
+    set currentFloor(val) { this.landmarkRegistry.currentFloor = val; }
+    get prevFloor() { return this.landmarkRegistry.prevFloor; }
+    set prevFloor(val) { this.landmarkRegistry.prevFloor = val; }
+    get justTransitionedFloor() { return this.landmarkRegistry.justTransitionedFloor; }
+    set justTransitionedFloor(val) { this.landmarkRegistry.justTransitionedFloor = val; }
+    get stairCache() { return this.landmarkRegistry.stairCache; }
+    set stairCache(val) { this.landmarkRegistry.stairCache = val; }
+    get landmarkCache() { return this.landmarkRegistry.landmarkCache; }
+    set landmarkCache(val) { this.landmarkRegistry.landmarkCache = val; }
+    get _hasSeededInitialStair() { return this.landmarkRegistry._hasSeededInitialStair; }
+    set _hasSeededInitialStair(val) { this.landmarkRegistry._hasSeededInitialStair = val; }
+    get isFloorPending() { return this.landmarkRegistry.isFloorPending; }
+    set isFloorPending(val) { this.landmarkRegistry.isFloorPending = val; }
+    get pendingStairs() { return this.landmarkRegistry.pendingStairs; }
+    set pendingStairs(val) { this.landmarkRegistry.pendingStairs = val; }
+    get pendingLandmarks() { return this.landmarkRegistry.pendingLandmarks; }
+    set pendingLandmarks(val) { this.landmarkRegistry.pendingLandmarks = val; }
 
     /**
      * 動作モード ('auto' | 'strict' | 'fallback') の設定
@@ -129,202 +115,24 @@ export class AreaStateManager {
     }
 
     /**
-     * 地形 typ から適切な地形グリフIDを算出 (Stage 8.3-A)
-     * @param {number} typ 
-     * @param {number} [x=0] 
-     * @param {number} [y=0] 
-     * @param {Object} [doorState=null] 
-     * @returns {number} glyphId
+     * MonsterTracker インスタンスを設定
+     * @param {Object} tracker 
      */
-    getGlyphForTerrainType(typ, x = 0, y = 0, doorState = null) {
-        switch (typ) {
-            case 16: // POOL
-            case 17: // MOAT
-            case 18: // WATER
-                return 4015;
-            case 20: // LAVAPOOL
-            case 21: // LAVAWALL
-                return 4017;
-            case 22: // IRONBARS
-                return 3990;
-            case 23: // DOOR
-                return (doorState && doorState.isOpen) ? 3986 : 3988;
-            case 14: // SDOOR
-                return 3988;
-            case 24: // CORR
-            case 15: // SCORR
-                return 3995;
-            case 25: // ROOM
-                return 3992;
-            case 26: { // STAIRS
-                const stairKey = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
-                if (this.stairCache && this.stairCache.has(stairKey)) {
-                    return this.stairCache.get(stairKey).glyph;
-                } else if (this.prevFloor && parseFloorLevel(this.prevFloor) > parseFloorLevel(this.currentFloor)) {
-                    return 4001; // 浅い階に上がってきた場合: 下り階段
-                } else {
-                    return 4000; // 深い階に降りてきた場合: 上り階段
-                }
-            }
-            case 27: { // LADDER
-                const ladderKey = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
-                if (this.stairCache && this.stairCache.has(ladderKey)) {
-                    return this.stairCache.get(ladderKey).glyph;
-                } else if (this.prevFloor && parseFloorLevel(this.prevFloor) > parseFloorLevel(this.currentFloor)) {
-                    return 4005; // 下りハシゴ
-                } else {
-                    return 4004; // 上りハシゴ
-                }
-            }
-            case 28: // FOUNTAIN
-                return 4014;
-            case 29: // THRONE
-                return 4012;
-            case 30: // SINK
-                return 4013;
-            case 31: // GRAVE
-                return 4011;
-            case 32: // ALTAR
-                return 4008;
-            case 33: // ICE
-                return 4016;
-            case 35: // AIR
-                return 4023;
-            case 36: // CLOUD
-                return 4024;
-            default:
-                return (typ >= 1 && typ <= 12) ? 3930 : DEFAULT_INFERRED_FLOOR_GLYPH;
-        }
+    setMonsterTracker(tracker) {
+        this.monsterTracker = tracker;
     }
 
     /**
-     * Wasm メモリ直結からフロア全域 (80x21) の真の地形 (typ) を一括ダンプしグリッドへ反映 (Stage 8.3-A)
-     * @returns {boolean} 成功したか否か
+     * キーモードの指定 ('vi' または 'numpad')
+     * @param {'vi'|'numpad'} mode 
      */
-    dumpLevelTerrain() {
-        if (!this.directBindingService || typeof this.directBindingService.isAvailable !== 'function' || !this.directBindingService.isAvailable()) {
-            return false;
+    setKeyMode(mode) {
+        if (mode === 'numpad' || mode === 'vi') {
+            this.keyMode = mode;
         }
-
-        const terrain = this.directBindingService.dumpLevelTerrain();
-        if (!terrain || terrain.length < 80 * 21) {
-            return false;
-        }
-
-        const COLNO = 80;
-        const ROWNO = 21;
-        const currentNormalized = normalizeFloorKey(this.currentFloor);
-
-        for (let y = 0; y < ROWNO && y < this.height; y++) {
-            for (let x = 0; x < COLNO && x < this.width; x++) {
-                const typ = terrain[y * COLNO + x];
-                if (typ === undefined || typ === null) continue;
-
-                const cell = this.grid[y] && this.grid[y][x];
-                if (!cell) continue;
-
-                const glyphId = this.getGlyphForTerrainType(typ, x, y);
-                const classified = classifyGlyph(glyphId);
-
-                // 階段 (26) または ハシゴ (27) の場合はランドマーク台帳に登録
-                if (typ === 26 || typ === 27) {
-                    this._registerStairAt(x, y, glyphId, currentNormalized);
-                }
-
-                cell.bottom = {
-                    ...classified,
-                    glyph: glyphId,
-                    rawGlyph: glyphId,
-                    inferred: false,
-                    isGenuine: true,
-                    typ
-                };
-
-                this.markDirty(x, y);
-            }
-        }
-
-        return true;
     }
 
-    /**
-     * Wasm メモリ直結による真の床（地形・部屋・罠・刻み文字）エンティティを生成
-     * @param {number} x 
-     * @param {number} y 
-     * @returns {Object}
-     */
-    getGenuineFloor(x, y) {
-        if (this.directBindingMode !== 'fallback' &&
-            this.directBindingService &&
-            typeof this.directBindingService.isAvailable === 'function' &&
-            this.directBindingService.isAvailable()) {
-            const cellInfo = this.directBindingService.getCellInfo(x, y);
-            if (cellInfo) {
-                const glyphId = this.getGlyphForTerrainType(cellInfo.typ, x, y, cellInfo.door);
-                const classified = classifyGlyph(glyphId);
-                const genuineEntity = {
-                    ...classified,
-                    glyph: glyphId,
-                    rawGlyph: glyphId,
-                    inferred: false,
-                    isGenuine: true,
-                    typ: cellInfo.typ,
-                    door: cellInfo.door,
-                    cellInfo
-                };
-
-                // 部屋番号・店舗情報付与
-                if (cellInfo.roomno > 0) {
-                    const roomData = this.directBindingService.getRoomType(cellInfo.roomno);
-                    if (roomData) {
-                        genuineEntity.room = roomData;
-                    }
-                }
-
-                // 床の罠情報
-                const trapData = this.directBindingService.getTrapAt(x, y);
-                if (trapData) {
-                    genuineEntity.trap = trapData;
-                }
-
-                // 刻み文字情報
-                const engrData = this.directBindingService.getEngravingAt(x, y);
-                if (engrData) {
-                    genuineEntity.engraving = engrData;
-                    this.setEngravingAt(x, y, engrData);
-                }
-
-                this.genuineFloorCount++;
-                this.lastFloorMethod = 'SHIM_DIRECT';
-                this.lastFloorSync = { source: 'SHIM_DIRECT', glyph: glyphId, typ: cellInfo.typ, isGenuine: true };
-
-                return genuineEntity;
-            }
-        }
-
-        const currentNormalized = normalizeFloorKey(this.currentFloor);
-        const stairKey = `${currentNormalized}:${x},${y}`;
-        if (this.stairCache && this.stairCache.has(stairKey)) {
-            return { ...this.stairCache.get(stairKey) };
-        }
-
-        // strict モード時は推測仮床の生成を完全遮断 (Stage 8.2-B)
-        if (this.directBindingMode === 'strict') {
-            const coordKey = `${this.currentFloor}:${x},${y}`;
-            if (!this._warnedStrictCoords || !this._warnedStrictCoords.has(coordKey)) {
-                if (!this._warnedStrictCoords) this._warnedStrictCoords = new Set();
-                this._warnedStrictCoords.add(coordKey);
-                console.warn(`[AreaStateManager] getGenuineFloor: Inferred floor generation blocked under strict mode at (${x},${y}).`);
-            }
-            return null;
-        }
-
-        this.inferredFloorCount++;
-        this.lastFloorMethod = 'INFERRED_FALLBACK';
-        this.lastFloorSync = { source: 'INFERRED_FALLBACK', glyph: DEFAULT_INFERRED_FLOOR_GLYPH, typ: -1, isGenuine: false };
-
-        return createInferredFloor();
-    }
+    // --- 差分更新追跡 (Dirty Cells) & グリッド管理 ---
 
     /**
      * 指定セルの差分更新フラグを付与
@@ -364,471 +172,6 @@ export class AreaStateManager {
     }
 
     /**
-     * clear_nhwindow 受信時などにフロア遷移待機状態へ移行しグリッドを初期化
-     */
-    prepareFloorTransition() {
-        this.isFloorPending = true;
-        this.pendingStairs = [];
-        this.pendingLandmarks = [];
-        this.resetGrid();
-    }
-
-    /**
-     * 指定フロア（省略時は currentFloor）の全階段キャッシュをグリッドに一括反映
-     * ※ 未探索マスへの先行描画を防ぐため isCachedPreload: true を付与
-     * @param {string} [floorKey]
-     */
-    applyStairCacheForFloor(floorKey = this.currentFloor) {
-        const normalized = normalizeFloorKey(floorKey);
-        if (!normalized || !this.stairCache || this.stairCache.size === 0) return;
-        const prefix = `${normalized}:`;
-        for (const [key, stairEntity] of this.stairCache.entries()) {
-            if (key.startsWith(prefix)) {
-                const coordStr = key.slice(prefix.length);
-                const [xStr, yStr] = coordStr.split(',');
-                const x = parseInt(xStr, 10);
-                const y = parseInt(yStr, 10);
-                if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-                    if (this.grid[y] && this.grid[y][x]) {
-                        this.grid[y][x].bottom = { ...stairEntity, isCachedPreload: true };
-                        this.markDirty(x, y);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * 現在のダンジョン階層（フロア識別子）を設定し、該当フロアの階段キャッシュを反映
-     * @param {string|number} floorKey 
-     */
-    setCurrentFloor(floorKey) {
-        if (floorKey !== undefined && floorKey !== null) {
-            const normalized = normalizeFloorKey(floorKey);
-            const floorChanged = this.currentFloor !== normalized;
-            const wasPending = this.isFloorPending;
-
-            if (floorChanged) {
-                this.prevFloor = this.currentFloor;
-                this.justTransitionedFloor = true;
-            }
-
-            this.currentFloor = normalized;
-            this.isFloorPending = false;
-
-            // フロア遷移待ち中に受信した階段を正式登録
-            if (this.pendingStairs.length > 0) {
-                for (const item of this.pendingStairs) {
-                    const key = `${this.currentFloor}:${item.x},${item.y}`;
-                    this.stairCache.set(key, { ...item.entity });
-                }
-                this.pendingStairs = [];
-            }
-
-            // フロア遷移待ち中に受信したランドマークを正式登録
-            if (this.pendingLandmarks.length > 0) {
-                for (const item of this.pendingLandmarks) {
-                    this._saveLandmarkToCache(item.entity, item.x, item.y, this.currentFloor);
-                }
-                this.pendingLandmarks = [];
-            }
-
-            // clear_nhwindow (isFloorPending) を経由せず直接 setCurrentFloor でフロアが変更された場合はグリッドを初期化
-            if (floorChanged && !wasPending) {
-                this.resetGrid();
-            }
-
-            this.applyStairCacheForFloor(this.currentFloor);
-        }
-    }
-
-    /**
-     * 階段キャッシュを初期化（ゲームリスタート時など）
-     */
-    clearStairCache() {
-        this.stairCache.clear();
-        this.pendingStairs = [];
-        this._hasSeededInitialStair = false;
-        this.prevFloor = null;
-        this.justTransitionedFloor = false;
-    }
-
-    /**
-     * ランドマーク台帳キャッシュを初期化
-     */
-    clearLandmarkCache() {
-        this.landmarkCache.clear();
-        this.pendingLandmarks = [];
-        this.clearStairCache();
-    }
-
-    /**
-     * 指定座標に階段エンティティを生成し、キャッシュ・台帳・グリッドへ登録
-     * @param {number} x
-     * @param {number} y
-     * @param {number} stairGlyph
-     * @param {string} floorKey
-     * @returns {boolean}
-     */
-    _registerStairAt(x, y, stairGlyph, floorKey) {
-        const stairInfo = classifyGlyph(stairGlyph);
-        const stairEntity = {
-            ...stairInfo,
-            glyph: stairGlyph,
-            rawGlyph: stairGlyph,
-            inferred: false,
-            isGenuine: true
-        };
-
-        const key = `${floorKey}:${x},${y}`;
-        this.stairCache.set(key, stairEntity);
-
-        const landmark = this.extractLandmarkEntity(x, y, stairGlyph, stairInfo);
-        if (landmark) {
-            this._saveLandmarkToCache(landmark, x, y, floorKey);
-        }
-
-        const cell = this.grid[y] && this.grid[y][x];
-        if (cell && (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred)) {
-            cell.bottom = { ...stairEntity };
-            this.markDirty(x, y);
-        }
-
-        return true;
-    }
-
-    /**
-     * フロア移動時や初期開始時に、足元にある階段を判定・先行キャッシュ登録
-     * NetHack 5.0 では新フロア到着時にプレイヤー直下の階段グリフが送信されないため、
-     * メモリ直結情報および階層遷移の方向性（Dlvl 増減）から 100% 確実に上り/下り階段を同定して即時登録する
-     * ※ 落下やテレポートによるフロア移動時は typ !== 26/27 となるため階段は絶対にシードされない
-     * @param {number} x 
-     * @param {number} y 
-     * @returns {boolean} シード登録されたか否か
-     */
-    seedArrivalStair(x, y) {
-        if (x <= 0 || y <= 0 || x >= this.width || y >= this.height) return false;
-
-        const currentNormalized = normalizeFloorKey(this.currentFloor);
-        const key = `${currentNormalized}:${x},${y}`;
-
-        // すでにキャッシュ済みであれば再登録不要
-        if (this.stairCache && this.stairCache.has(key)) return false;
-
-        // セル情報の取得 (WasmDirectBindingService による直接取得)
-        let cellInfo = null;
-        if (this.directBindingService && typeof this.directBindingService.isAvailable === 'function' && this.directBindingService.isAvailable()) {
-            cellInfo = this.directBindingService.getCellInfo(x, y);
-        }
-
-        // 🎯 階段 (26) または ハシゴ (27) であることが真に確定している場合のみシード！
-        // （落下・テレポートで部屋床や通路等に落ちた場合は typ !== 26 && typ !== 27 のため絶対に階段は沸かない）
-        if (cellInfo && (cellInfo.typ === 26 || cellInfo.typ === 27)) {
-            const isLadder = cellInfo.typ === 27;
-            const prevLvl = this.prevFloor ? parseFloorLevel(this.prevFloor) : 1;
-            const currLvl = parseFloorLevel(currentNormalized);
-
-            // Dlvl:1 かつ prevFloor なしの初期開始位置階段であれば脱出階段 (4002)
-            if (currentNormalized === 'Dlvl:1' && !this.prevFloor && !isLadder) {
-                this._hasSeededInitialStair = true;
-                return this._registerStairAt(x, y, 4002, currentNormalized);
-            }
-
-            // 浅い階に上がってきた場合 -> 足元は前の階に戻る下り階段
-            // 深い階に降りてきた場合 (または同等) -> 足元は前の階に戻る上り階段
-            const isUp = !(this.prevFloor && prevLvl > currLvl);
-
-            let stairGlyph;
-            if (isLadder) {
-                stairGlyph = isUp ? 4004 : 4005;
-            } else {
-                stairGlyph = isUp ? 4000 : 4001;
-            }
-
-            return this._registerStairAt(x, y, stairGlyph, currentNormalized);
-        }
-
-        return false;
-    }
-
-    /**
-     * ゲーム開始時 (Dlvl:1) の初期位置に上り階段を先行キャッシュ登録 (後方互換性)
-     * @param {number} x
-     * @param {number} y
-     * @returns {boolean}
-     */
-    seedInitialStair(x, y) {
-        if (this._hasSeededInitialStair) return false;
-        if (normalizeFloorKey(this.currentFloor) !== 'Dlvl:1') return false;
-        if (x <= 0 || y <= 0 || x >= this.width || y >= this.height) return false;
-
-        this._hasSeededInitialStair = true;
-        const stairGlyph = 4002;
-        return this._registerStairAt(x, y, stairGlyph, 'Dlvl:1');
-    }
-
-    /**
-     * グリフ情報からランドマーク (LandmarkEntity) を抽出・判定
-     * @param {number} x 
-     * @param {number} y 
-     * @param {number} glyphId 
-     * @param {Object} [info] 
-     * @returns {Object|null} LandmarkEntity
-     */
-    extractLandmarkEntity(x, y, glyphId, info = null) {
-        const itemInfo = info || classifyGlyph(glyphId);
-        if (!itemInfo) return null;
-
-        const floorKey = normalizeFloorKey(this.currentFloor);
-        const baseId = `${floorKey}:${x},${y}`;
-
-        if (itemInfo.cmapFlags) {
-            const cf = itemInfo.cmapFlags;
-            if (cf.isStairUp) {
-                return {
-                    id: `${baseId}:STAIR_UP`,
-                    type: 'STAIR_UP',
-                    floorKey,
-                    x,
-                    y,
-                    glyphId,
-                    icon: '🪜',
-                    name: 'stair up',
-                    nameJa: '上り階段'
-                };
-            }
-            if (cf.isStairDown) {
-                return {
-                    id: `${baseId}:STAIR_DOWN`,
-                    type: 'STAIR_DOWN',
-                    floorKey,
-                    x,
-                    y,
-                    glyphId,
-                    icon: '🪜',
-                    name: 'stair down',
-                    nameJa: '下り階段'
-                };
-            }
-            if (cf.isAltar) {
-                const alignMap = {
-                    4006: { alignment: 'unaligned', alignmentJa: '無属性', nameJa: '祭壇 (無属性)' },
-                    4007: { alignment: 'lawful', alignmentJa: '秩序', nameJa: '祭壇 (秩序)' },
-                    4008: { alignment: 'neutral', alignmentJa: '中立', nameJa: '祭壇 (中立)' },
-                    4009: { alignment: 'chaotic', alignmentJa: '混沌', nameJa: '祭壇 (混沌)' },
-                    4010: { alignment: 'other', alignmentJa: '異教', nameJa: '祭壇 (異教)' }
-                };
-                const aInfo = alignMap[glyphId] || { alignment: 'neutral', alignmentJa: '中立', nameJa: '祭壇' };
-                return {
-                    id: `${baseId}:ALTAR`,
-                    type: 'ALTAR',
-                    floorKey,
-                    x,
-                    y,
-                    glyphId,
-                    icon: '⛪',
-                    name: `altar (${aInfo.alignment})`,
-                    nameJa: aInfo.nameJa,
-                    details: {
-                        alignment: aInfo.alignment,
-                        alignmentJa: aInfo.alignmentJa
-                    }
-                };
-            }
-            if (cf.isSink) {
-                return {
-                    id: `${baseId}:SINK`,
-                    type: 'SINK',
-                    floorKey,
-                    x,
-                    y,
-                    glyphId,
-                    icon: '🚰',
-                    name: 'sink',
-                    nameJa: '流し台'
-                };
-            }
-            if (cf.isFountain) {
-                return {
-                    id: `${baseId}:FOUNTAIN`,
-                    type: 'FOUNTAIN',
-                    floorKey,
-                    x,
-                    y,
-                    glyphId,
-                    icon: '⛲',
-                    name: 'fountain',
-                    nameJa: '噴水'
-                };
-            }
-            if (cf.isThrone) {
-                return {
-                    id: `${baseId}:THRONE`,
-                    type: 'THRONE',
-                    floorKey,
-                    x,
-                    y,
-                    glyphId,
-                    icon: '👑',
-                    name: 'throne',
-                    nameJa: '王座'
-                };
-            }
-        }
-
-        if (itemInfo.type === ENTITY_TYPES.MONSTER && (itemInfo.isShopkeeper || isShopkeeperMonster(itemInfo.monOffset))) {
-            return {
-                id: `${baseId}:SHOP`,
-                type: 'SHOP',
-                floorKey,
-                x,
-                y,
-                glyphId,
-                icon: '🏪',
-                name: 'shopkeeper',
-                nameJa: '商店 (店主)',
-                details: {
-                    shopkeeperType: 'shopkeeper'
-                }
-            };
-        }
-
-        return null;
-    }
-
-    /**
-     * 発見済みランドマーク配列から、HUD/バッジ用の集約サマリー配列を生成
-     * @param {Array<Object>} allEntities 
-     * @returns {Array<Object>} FloorLandmarkSummaryItem[]
-     */
-    static generateLandmarksSummary(allEntities = []) {
-        if (!Array.isArray(allEntities) || allEntities.length === 0) return [];
-
-        const groupMap = new Map();
-
-        allEntities.forEach(item => {
-            if (!item || !item.type) return;
-            const alignment = item.details?.alignment;
-            const groupKey = item.type === 'ALTAR' ? `ALTAR:${alignment || 'neutral'}` : item.type;
-
-            if (!groupMap.has(groupKey)) {
-                groupMap.set(groupKey, {
-                    id: groupKey,
-                    type: item.type,
-                    icon: item.icon || '📍',
-                    nameJa: item.nameJa || item.name,
-                    nameEn: item.name || item.nameJa,
-                    count: 0,
-                    coords: [],
-                    details: item.details || {}
-                });
-            }
-
-            const g = groupMap.get(groupKey);
-            g.count++;
-            g.coords.push({ x: item.x, y: item.y });
-        });
-
-        return Array.from(groupMap.values()).map(g => {
-            const coordStrs = g.coords.map(c => `(${c.x},${c.y})`).join(', ');
-            const locTextJa = g.count > 1 ? ` (${g.count}箇所)` : '';
-            const locTextEn = g.count > 1 ? ` (${g.count} locations)` : '';
-            return {
-                id: g.id,
-                type: g.type,
-                icon: g.icon,
-                nameJa: g.nameJa,
-                nameEn: g.nameEn,
-                count: g.count,
-                coords: g.coords,
-                tooltipJa: `${g.nameJa}${locTextJa}: ${coordStrs}`,
-                tooltipEn: `${g.nameEn}${locTextEn}: ${coordStrs}`,
-                details: g.details
-            };
-        });
-    }
-
-    /**
-     * 指定フロア（省略時は currentFloor）に存在するランドマーク一覧の集計概要を取得
-     * @param {string|number} [floorKey]
-     * @returns {Object} FloorLandmarksData
-     */
-    getFloorLandmarks(floorKey = this.currentFloor) {
-        const normalized = normalizeFloorKey(floorKey);
-        const prefix = `${normalized}:`;
-
-        const result = {
-            floorKey: normalized,
-            currentFloor: this.currentFloor,
-            totalCount: 0,
-            summary: [],
-            stairsUp: [],
-            stairsDown: [],
-            altars: [],
-            sinks: [],
-            fountains: [],
-            thrones: [],
-            shops: [],
-            all: []
-        };
-
-        if (!this.landmarkCache) return result;
-
-        for (const [key, landmark] of this.landmarkCache.entries()) {
-            if (key.startsWith(prefix) || landmark.floorKey === normalized) {
-                result.all.push(landmark);
-                switch (landmark.type) {
-                    case 'STAIR_UP':
-                        result.stairsUp.push(landmark);
-                        break;
-                    case 'STAIR_DOWN':
-                        result.stairsDown.push(landmark);
-                        break;
-                    case 'ALTAR':
-                        result.altars.push(landmark);
-                        break;
-                    case 'SINK':
-                        result.sinks.push(landmark);
-                        break;
-                    case 'FOUNTAIN':
-                        result.fountains.push(landmark);
-                        break;
-                    case 'THRONE':
-                        result.thrones.push(landmark);
-                        break;
-                    case 'SHOP':
-                        result.shops.push(landmark);
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-
-        result.totalCount = result.all.length;
-        result.summary = AreaStateManager.generateLandmarksSummary(result.all);
-
-        return result;
-    }
-
-    /**
-     * 全フロアで発見されたランドマーク一覧を取得
-     * @returns {Array<Object>} LandmarkEntity[]
-     */
-    getAllLandmarks() {
-        if (!this.landmarkCache) return [];
-        return Array.from(this.landmarkCache.values());
-    }
-
-    /**
-     * MonsterTracker インスタンスを設定
-     * @param {Object} tracker 
-     */
-    setMonsterTracker(tracker) {
-        this.monsterTracker = tracker;
-    }
-
-    /**
      * グリッドキャッシュを初期化
      */
     resetGrid() {
@@ -859,49 +202,6 @@ export class AreaStateManager {
     }
 
     /**
-     * 指定座標の床文字キャッシュを取得
-     * @param {number} x
-     * @param {number} y
-     * @returns {Object|null}
-     */
-    getEngravingAt(x, y) {
-        if (!this.engravingCache) return null;
-        return this.engravingCache.get(`${x},${y}`) || null;
-    }
-
-    /**
-     * 指定座標の床文字キャッシュを保存・更新
-     * @param {number} x
-     * @param {number} y
-     * @param {Object} data
-     */
-    setEngravingAt(x, y, data) {
-        if (!this.engravingCache || !data) return;
-        this.engravingCache.set(`${x},${y}`, data);
-    }
-
-    /**
-     * 指定座標の床文字キャッシュを消去 (完全に踏み消されて床に戻った場合など)
-     * @param {number} x
-     * @param {number} y
-     */
-    clearEngravingAt(x, y) {
-        if (!this.engravingCache) return;
-        this.engravingCache.delete(`${x},${y}`);
-    }
-
-    /**
-     * ランドマーク台帳・階段キャッシュを完全に初期化
-     */
-    clearLandmarks() {
-        if (this.stairCache) this.stairCache.clear();
-        if (this.landmarkCache) this.landmarkCache.clear();
-        this.pendingStairs = [];
-        this.pendingLandmarks = [];
-        this.currentFloor = normalizeFloorKey('Dlvl:1');
-    }
-
-    /**
      * グリッドおよび全キャッシュを完全リセット
      */
     resetAll() {
@@ -909,31 +209,103 @@ export class AreaStateManager {
         this.clearLandmarks();
     }
 
-    /**
-     * ランドマークを台帳（landmarkCache）に登録・更新
-     * @param {Object} landmark 
-     * @param {number} x 
-     * @param {number} y 
-     * @param {string} [floorKey] 
-     */
-    _saveLandmarkToCache(landmark, x, y, floorKey = null) {
-        if (!landmark || !landmark.type) return;
-        const floor = normalizeFloorKey(floorKey || this.currentFloor);
+    // --- 床文字 (Engraving) キャッシュ管理 ---
 
-        if (landmark.type === 'SHOP') {
-            // 店主 (SHOP) はフロア内を歩き回るため、同一フロア内の既存 SHOP ランドマークがあれば古い座標を削除して更新
-            for (const [k, v] of this.landmarkCache.entries()) {
-                if (k.startsWith(`${floor}:`) && (k.endsWith(':SHOP') || v.type === 'SHOP')) {
-                    this.landmarkCache.delete(k);
-                }
-            }
-            const key = `${floor}:${x},${y}:SHOP`;
-            this.landmarkCache.set(key, { ...landmark, floorKey: floor, x, y });
-        } else {
-            const key = `${floor}:${x},${y}:${landmark.type}`;
-            this.landmarkCache.set(key, { ...landmark, floorKey: floor, x, y });
-        }
+    getEngravingAt(x, y) {
+        if (!this.engravingCache) return null;
+        return this.engravingCache.get(`${x},${y}`) || null;
     }
+
+    setEngravingAt(x, y, data) {
+        if (!this.engravingCache || !data) return;
+        this.engravingCache.set(`${x},${y}`, data);
+    }
+
+    clearEngravingAt(x, y) {
+        if (!this.engravingCache) return;
+        this.engravingCache.delete(`${x},${y}`);
+    }
+
+    // --- TerrainInferenceEngine 委譲メソッド ---
+
+    getGlyphForTerrainType(typ, x = 0, y = 0, doorState = null) {
+        return this.terrainInference.getGlyphForTerrainType(typ, x, y, doorState);
+    }
+
+    getGenuineFloor(x, y) {
+        return this.terrainInference.getGenuineFloor(x, y);
+    }
+
+    // --- DungeonLandmarkRegistry 委譲メソッド ---
+
+    prepareFloorTransition() {
+        this.landmarkRegistry.prepareFloorTransition();
+        this.resetGrid();
+    }
+
+    applyStairCacheForFloor(floorKey = this.currentFloor) {
+        return this.landmarkRegistry.applyStairCacheForFloor(floorKey);
+    }
+
+    setCurrentFloor(floorKey) {
+        return this.landmarkRegistry.setCurrentFloor(floorKey);
+    }
+
+    clearStairCache() {
+        return this.landmarkRegistry.clearStairCache();
+    }
+
+    clearLandmarkCache() {
+        return this.landmarkRegistry.clearLandmarkCache();
+    }
+
+    clearLandmarks() {
+        return this.landmarkRegistry.clearLandmarks();
+    }
+
+    _registerStairAt(x, y, stairGlyph, floorKey) {
+        return this.landmarkRegistry.registerStairAt(x, y, stairGlyph, floorKey);
+    }
+
+    seedArrivalStair(x, y) {
+        return this.landmarkRegistry.seedArrivalStair(x, y);
+    }
+
+    seedInitialStair(x, y) {
+        return this.landmarkRegistry.seedInitialStair(x, y);
+    }
+
+    extractLandmarkEntity(x, y, glyphId, info = null) {
+        return this.landmarkRegistry.extractLandmarkEntity(x, y, glyphId, info);
+    }
+
+    _saveLandmarkToCache(landmark, x, y, floorKey = null) {
+        return this.landmarkRegistry.saveLandmarkToCache(landmark, x, y, floorKey);
+    }
+
+    static generateLandmarksSummary(allEntities = []) {
+        return DungeonLandmarkRegistry.generateLandmarksSummary(allEntities);
+    }
+
+    getFloorLandmarks(floorKey = this.currentFloor) {
+        return this.landmarkRegistry.getFloorLandmarks(floorKey);
+    }
+
+    getAllLandmarks() {
+        return this.landmarkRegistry.getAllLandmarks();
+    }
+
+    // --- ViewportTileProjector 委譲メソッド ---
+
+    getAreaState(cx = this.playerX, cy = this.playerY, radius = 1) {
+        return this.viewportProjector.getAreaState(cx, cy, radius);
+    }
+
+    getFocusCameraTiles(radiusX = 10, radiusY = 4, options = {}) {
+        return this.viewportProjector.getFocusCameraTiles(radiusX, radiusY, options);
+    }
+
+    // --- グリフ更新・プレイヤー位置同期・Wasm Direct Binding 同期 ---
 
     /**
      * 描画グリフの更新を受信し、3 階層キャッシュ＋エフェクトを即座に適用
@@ -962,7 +334,6 @@ export class AreaStateManager {
         switch (info.type) {
             case ENTITY_TYPES.TERRAIN:
             case ENTITY_TYPES.UNEXPLORED:
-                // 地形が届いた場合、Bottom に上書き。以前モンスターが存在していた場合は MonsterTracker にロストを通知
                 if (cell.top && this.monsterTracker && typeof this.monsterTracker.notifyCellLostMonster === 'function') {
                     this.monsterTracker.notifyCellLostMonster(x, y);
                 }
@@ -972,7 +343,6 @@ export class AreaStateManager {
                 cell.effect = null;
                 this.markDirty(x, y);
 
-                // 階段・ハシゴであればフロア別キャッシュに記録 (後方互換性)
                 if (info.cmapFlags && (info.cmapFlags.isStairUp || info.cmapFlags.isStairDown)) {
                     if (this.isFloorPending) {
                         this.pendingStairs.push({ x, y, entity: { ...cell.bottom } });
@@ -986,76 +356,26 @@ export class AreaStateManager {
             case ENTITY_TYPES.ITEM:
             case ENTITY_TYPES.BODY:
             case ENTITY_TYPES.STATUE:
-                // アイテム類が届いた場合、Middle に記録。以前モンスターが存在していた場合は MonsterTracker にロストを通知
                 if (cell.top && this.monsterTracker && typeof this.monsterTracker.notifyCellLostMonster === 'function') {
                     this.monsterTracker.notifyCellLostMonster(x, y);
                 }
-                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred) {
-                    let genuineTerrain = null;
-                    if (bkglyphInfo && bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
-                        const bgClassified = classifyGlyph(bkglyphInfo.glyph);
-                        if (bgClassified.type === ENTITY_TYPES.TERRAIN) {
-                            genuineTerrain = {
-                                ...bgClassified,
-                                glyphInfo: bkglyphInfo,
-                                glyph: bkglyphInfo.glyph,
-                                rawGlyph: bkglyphInfo.glyph
-                            };
-                        }
-                    }
-                    const resolvedFloor = genuineTerrain || this.getGenuineFloor(x, y);
-                    if (resolvedFloor) {
-                        cell.bottom = resolvedFloor;
-                        this.markDirty(x, y);
-                    }
-                }
+                this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
                 cell.effect = null;
                 this.markDirty(x, y);
 
-                // 🎯 押し出し先への岩出現検知 (Case B: プレイヤー移動後に押し出し先マスへ岩グリフが届いた場合)
-                if (isBoulderGlyph(glyphId) && (this.lastMoveDx !== 0 || this.lastMoveDy !== 0)) {
-                    const expectedPushedX = this.playerX + this.lastMoveDx;
-                    const expectedPushedY = this.playerY + this.lastMoveDy;
-                    if (x === expectedPushedX && y === expectedPushedY) {
-                        const feetCell = this.grid[this.playerY] && this.grid[this.playerY][this.playerX];
-                        if (feetCell && feetCell.middle && isBoulderEntity(feetCell.middle)) {
-                            // 押し出し先に岩が届いたため、足元の岩をクリア
-                            feetCell.middle = null;
-                            this.markDirty(this.playerX, this.playerY);
-                        }
-                    }
-                }
+                // 押し出し先への大岩出現検知 (Case B)
+                this.terrainInference.handleBoulderPushOnGlyphUpdate(x, y, glyphId);
                 break;
 
             case ENTITY_TYPES.MONSTER:
-            case ENTITY_TYPES.PET:
-                // モンスターが届いた場合、Top に記録 (同じモンスターなら確定動的状態 dynamicState も保持)
+            case ENTITY_TYPES.PET: {
                 const existingDynamic = (cell.top && (cell.top.monOffset === info.monOffset || cell.top.glyph === glyphId))
                     ? cell.top.dynamicState
                     : null;
-                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred) {
-                    let genuineTerrain = null;
-                    if (bkglyphInfo && bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
-                        const bgClassified = classifyGlyph(bkglyphInfo.glyph);
-                        if (bgClassified.type === ENTITY_TYPES.TERRAIN) {
-                            genuineTerrain = {
-                                ...bgClassified,
-                                glyphInfo: bkglyphInfo,
-                                glyph: bkglyphInfo.glyph,
-                                rawGlyph: bkglyphInfo.glyph
-                            };
-                        }
-                    }
-                    const resolvedFloor = genuineTerrain || this.getGenuineFloor(x, y);
-                    if (resolvedFloor) {
-                        cell.bottom = resolvedFloor;
-                        this.markDirty(x, y);
-                    }
-                }
+                this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
 
-                // モンスターメモリ直結情報の取得
                 let directMon = null;
                 if (this.directBindingService && typeof this.directBindingService.getFullMonsterAt === 'function') {
                     directMon = this.directBindingService.getFullMonsterAt(x, y);
@@ -1091,24 +411,14 @@ export class AreaStateManager {
                     this.monsterTracker.updateVisibleMonster(x, y, glyphId, glyphInfo, { x: this.playerX, y: this.playerY });
                 }
                 break;
+            }
 
             case ENTITY_TYPES.EFFECT:
-                // エフェクト（ビーム・稲妻・爆発等）を最前面エフェクトレイヤーとして保持
                 cell.effect = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 break;
 
             default:
                 break;
-        }
-    }
-
-    /**
-     * キーモードの指定 ('vi' または 'numpad')
-     * @param {'vi'|'numpad'} mode 
-     */
-    setKeyMode(mode) {
-        if (mode === 'numpad' || mode === 'vi') {
-            this.keyMode = mode;
         }
     }
 
@@ -1119,7 +429,6 @@ export class AreaStateManager {
      */
     updatePlayerPosition(x, y) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-            // フロア移動時や移動先に未キャッシュの階段があれば先行判定・即時登録
             this.seedArrivalStair(x, y);
             this.justTransitionedFloor = false;
 
@@ -1144,7 +453,6 @@ export class AreaStateManager {
                     }
                 }
 
-                // 足元の刻み文字をメモリ直結から最新化
                 if (this.directBindingService && typeof this.directBindingService.isAvailable === 'function' && this.directBindingService.isAvailable()) {
                     const engr = this.directBindingService.getEngravingAt(x, y);
                     if (engr) {
@@ -1166,22 +474,8 @@ export class AreaStateManager {
             this.playerX = x;
             this.playerY = y;
 
-            // 🎯 押し出し先への岩出現検知 (Case A: 押し出し先マスに既に岩が届いている場合)
-            if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && (dx !== 0 || dy !== 0)) {
-                if (cell && cell.middle && isBoulderEntity(cell.middle)) {
-                    const pushedX = x + dx;
-                    const pushedY = y + dy;
-                    if (pushedX >= 0 && pushedX < this.width && pushedY >= 0 && pushedY < this.height) {
-                        const pushedCell = this.grid[pushedY] && this.grid[pushedY][pushedX];
-                        if (pushedCell && pushedCell.middle && isBoulderEntity(pushedCell.middle)) {
-                            // 押し出し先に既に岩が存在するため、足元の岩をクリア
-                            cell.middle = null;
-                            this.markDirty(x, y);
-                            this.markDirty(pushedX, pushedY);
-                        }
-                    }
-                }
-            }
+            // 押し出し先への大岩出現検知 (Case A)
+            this.terrainInference.handleBoulderPushOnPlayerMove(x, y, dx, dy);
 
             return true;
         }
@@ -1189,8 +483,7 @@ export class AreaStateManager {
     }
 
     /**
-     * WasmDirectBindingService から同期された最新の足元セル情報を
-     * プレイヤー現在地の cell.bottom に即時反映 (Stage 8.2-B)
+     * WasmDirectBindingService から同期された最新の足元セル情報をプレイヤー現在地の cell.bottom に即時反映 (Stage 8.2-B)
      * @returns {boolean}
      */
     syncPlayerFeetFloor() {
@@ -1229,13 +522,11 @@ export class AreaStateManager {
                 const cell = this.grid[y] && this.grid[y][x];
                 if (!cell) continue;
 
-                // 未探索または推測床の場合、真の床を同期
                 if (cell.bottom === null || cell.bottom.inferred) {
                     cell.bottom = this.getGenuineFloor(x, y);
                     this.markDirty(x, y);
                 }
 
-                // モンスターが存在する場合、詳細（HP・平和・店主等）を同期
                 if (cell.top && typeof this.directBindingService.getFullMonsterAt === 'function') {
                     const mon = this.directBindingService.getFullMonsterAt(x, y);
                     if (mon) {
@@ -1263,289 +554,51 @@ export class AreaStateManager {
     }
 
     /**
-     * 指定セル (デフォルト: プレイヤー現在地) の周辺 N マスの構造化エリア状態を取得
-     * @param {number} [cx] 中心 X (省略時は playerX)
-     * @param {number} [cy] 中心 Y (省略時は playerY)
-     * @param {number} [radius=1] 半径 (1 で 3x3)
-     * @returns {Object} 構造化 AreaState
+     * Wasm メモリ直結からフロア全域 (80x21) の真の地形 (typ) を一括ダンプしグリッドへ反映 (Stage 8.3-A)
+     * @returns {boolean} 成功したか否か
      */
-    getAreaState(cx = this.playerX, cy = this.playerY, radius = 1) {
-        const cells = [];
-        const adjacentMonsters = [];
-        const adjacentEntities = [];
+    dumpLevelTerrain() {
+        if (!this.directBindingService || typeof this.directBindingService.isAvailable !== 'function' || !this.directBindingService.isAvailable()) {
+            return false;
+        }
 
-        // 方角マップ (keyMode に応じて Vi-keys / NumPad キーを動的切替)
-        const getDirectionName = (dx, dy) => {
-            const isNumpad = (this.keyMode === 'numpad');
-            if (dx === 0 && dy === -1) return { code: 'N', name: '北', key: isNumpad ? '8' : 'k' };
-            if (dx === 1 && dy === -1) return { code: 'NE', name: '北東', key: isNumpad ? '9' : 'u' };
-            if (dx === 1 && dy === 0) return { code: 'E', name: '東', key: isNumpad ? '6' : 'l' };
-            if (dx === 1 && dy === 1) return { code: 'SE', name: '南東', key: isNumpad ? '3' : 'n' };
-            if (dx === 0 && dy === 1) return { code: 'S', name: '南', key: isNumpad ? '2' : 'j' };
-            if (dx === -1 && dy === 1) return { code: 'SW', name: '南西', key: isNumpad ? '1' : 'b' };
-            if (dx === -1 && dy === 0) return { code: 'W', name: '西', key: isNumpad ? '4' : 'h' };
-            if (dx === -1 && dy === -1) return { code: 'NW', name: '北西', key: isNumpad ? '7' : 'y' };
-            return { code: 'SELF', name: '足元', key: isNumpad ? '5' : '.' };
-        };
+        const terrain = this.directBindingService.dumpLevelTerrain();
+        if (!terrain || terrain.length < 80 * 21) {
+            return false;
+        }
 
-        let feetState = null;
+        const COLNO = 80;
+        const ROWNO = 21;
+        const currentNormalized = normalizeFloorKey(this.currentFloor);
 
-        for (let dy = -radius; dy <= radius; dy++) {
-            const row = [];
-            for (let dx = -radius; dx <= radius; dx++) {
-                const targetX = cx + dx;
-                const targetY = cy + dy;
+        for (let y = 0; y < ROWNO && y < this.height; y++) {
+            for (let x = 0; x < COLNO && x < this.width; x++) {
+                const typ = terrain[y * COLNO + x];
+                if (typ === undefined || typ === null) continue;
 
-                let cellData = null;
-                if (targetX >= 0 && targetX < this.width && targetY >= 0 && targetY < this.height) {
-                    cellData = { ...this.grid[targetY][targetX] };
-                } else {
-                    cellData = { x: targetX, y: targetY, bottom: null, middle: null, top: null };
+                const cell = this.grid[y] && this.grid[y][x];
+                if (!cell) continue;
+
+                const glyphId = this.getGlyphForTerrainType(typ, x, y);
+                const classified = classifyGlyph(glyphId);
+
+                if (typ === 26 || typ === 27) {
+                    this._registerStairAt(x, y, glyphId, currentNormalized);
                 }
 
-                const dir = getDirectionName(dx, dy);
-                const enrichedCell = {
-                    ...cellData,
-                    relX: dx,
-                    relY: dy,
-                    dir
+                cell.bottom = {
+                    ...classified,
+                    glyph: glyphId,
+                    rawGlyph: glyphId,
+                    inferred: false,
+                    isGenuine: true,
+                    typ
                 };
 
-                row.push(enrichedCell);
-
-                if (dx === 0 && dy === 0) {
-                    if (enrichedCell.bottom === null || enrichedCell.bottom.inferred) {
-                        enrichedCell.bottom = this.getGenuineFloor(targetX, targetY);
-                    }
-                    feetState = enrichedCell;
-                } else {
-                    // 隣接するモンスター検出
-                    if (enrichedCell.top && (enrichedCell.top.type === ENTITY_TYPES.MONSTER || enrichedCell.top.type === ENTITY_TYPES.PET)) {
-                        adjacentMonsters.push({
-                            dir,
-                            cell: enrichedCell,
-                            entity: enrichedCell.top
-                        });
-                    }
-                    adjacentEntities.push({
-                        dir,
-                        cell: enrichedCell
-                    });
-                }
-            }
-            cells.push(row);
-        }
-
-        const trackedMonsters = (this.monsterTracker && typeof this.monsterTracker.getTrackedMonsters === 'function')
-            ? this.monsterTracker.getTrackedMonsters()
-            : [];
-
-        const perceivedMonsters = (this.monsterTracker && typeof this.monsterTracker.getPerceivedMonstersSummary === 'function')
-            ? this.monsterTracker.getPerceivedMonstersSummary({ playerX: this.playerX, playerY: this.playerY, grid: this.grid })
-            : [];
-
-        const landmarks = this.getFloorLandmarks(this.currentFloor);
-
-        return {
-            center: { x: cx, y: cy },
-            radius,
-            playerX: this.playerX,
-            playerY: this.playerY,
-            playerLocation: { x: this.playerX, y: this.playerY },
-            keyMode: this.keyMode,
-            currentFloor: this.currentFloor,
-            landmarks,
-            width: this.width,
-            height: this.height,
-            grid: this.grid,
-            feet: feetState,
-            cells,
-            adjacentMonsters,
-            adjacentEntities,
-            trackedMonsters,
-            perceivedMonsters
-        };
-    }
-
-    /**
-     * フォーカスカメラ・ズームビュー用の整形済みタイル一覧を取得
-     * @param {number} [radiusX=10] - 横方向半径 (デフォルト: 10 => 21列)
-     * @param {number} [radiusY=4] - 縦方向半径 (デフォルト: 4 => 9行)
-     * @param {Object} [options={}] - オプション
-     * @param {number} [options.centerX] - 中心X座標 (省略時はプレイヤーX)
-     * @param {number} [options.centerY] - 中心Y座標 (省略時はプレイヤーY)
-     * @param {Array<Array<Object>>} [options.glyphGridBuffer] - ドライバーの GlyphBuffer
-     * @param {Object} [options.structuredKnowledge] - StructuredKnowledgeEngine
-     * @param {'ja'|'en'} [options.language='ja'] - 表示言語
-     * @returns {Array<Object>} 整形済みタイル配列
-     */
-    getFocusCameraTiles(radiusX = 10, radiusY = 4, options = {}) {
-        const cx = (typeof options.centerX === 'number') ? options.centerX : this.playerX;
-        const cy = (typeof options.centerY === 'number') ? options.centerY : this.playerY;
-        const glyphGridBuffer = options.glyphGridBuffer || null;
-        const sk = options.structuredKnowledge || null;
-        const language = options.language || 'ja';
-        const isEn = (language === 'en');
-
-        const isDead = Boolean(options.isDead);
-        const tiles = [];
-
-        for (let dy = -radiusY; dy <= radiusY; dy++) {
-            for (let dx = -radiusX; dx <= radiusX; dx++) {
-                const tx = cx + dx;
-                const ty = cy + dy;
-                const isPlayer = (dx === 0 && dy === 0);
-                const inBounds = (tx >= 0 && tx < this.width && ty >= 0 && ty < this.height);
-
-                let cell = inBounds && this.grid[ty] ? this.grid[ty][tx] : null;
-                let gData = inBounds && glyphGridBuffer && glyphGridBuffer[ty] ? glyphGridBuffer[ty][tx] : null;
-
-                const isPreloadOnly = cell && cell.bottom && cell.bottom.isCachedPreload && !cell.middle && !cell.top;
-                const hasNetHackGlyph = gData && gData.glyph >= 0 && gData.ch !== ' ';
-                const hasExploredMemory = cell && ((cell.bottom && !cell.bottom.isCachedPreload) || cell.middle || cell.top);
-                const hasMemory = hasExploredMemory || hasNetHackGlyph || (isPreloadOnly && isPlayer);
-                const isUnexplored = !inBounds || (!hasMemory && !hasNetHackGlyph);
-
-                let glyphId = -1;
-                let symbol = ' ';
-                let color = 7;
-                let knowledge = null;
-                let name = isEn ? 'Out of Sight' : '視界外';
-                let nameJa = '視界外';
-
-                // レイヤー別グリフの完全解決
-                let bottomGlyph = -1;
-                let middleGlyph = -1;
-                let topGlyph = -1;
-                let effectGlyph = -1;
-                const renderGlyphs = [];
-
-                if (!isUnexplored) {
-                    if (cell && (cell.bottom || cell.middle || cell.top || cell.effect)) {
-                        // Bottom (地形)
-                        if (cell.bottom && cell.bottom.rawGlyph >= 0 && (!cell.bottom.isCachedPreload || isPlayer)) {
-                            bottomGlyph = cell.bottom.rawGlyph;
-                        } else if (isPlayer) {
-                            // プレイヤー足元は最優先で真の床を取得・反映
-                            const genuine = this.getGenuineFloor(tx, ty);
-                            if (genuine && genuine.rawGlyph >= 0) {
-                                bottomGlyph = genuine.rawGlyph;
-                            } else if (this.directBindingMode === 'strict') {
-                                bottomGlyph = -1;
-                            } else {
-                                this.inferredFloorCount++;
-                                bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH;
-                            }
-                        } else if (cell.middle || cell.top) {
-                            if (this.directBindingMode === 'strict') {
-                                bottomGlyph = -1;
-                            } else {
-                                this.inferredFloorCount++;
-                                bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH; // 3992
-                            }
-                        } else if (gData && gData.glyph >= 0) {
-                            bottomGlyph = gData.glyph;
-                        }
-
-                        // Middle (アイテム)
-                        if (cell.middle && cell.middle.rawGlyph >= 0) {
-                            middleGlyph = cell.middle.rawGlyph;
-                        }
-
-                        // Top (モンスター/プレイヤー または 死亡時の墓石)
-                        if (isDead && isPlayer) {
-                            topGlyph = DEFAULT_TOMBSTONE_GLYPH; // 4011
-                        } else if (cell.top && cell.top.rawGlyph >= 0) {
-                            topGlyph = cell.top.rawGlyph;
-                        }
-
-                        // Effect (エフェクト)
-                        if (cell.effect && cell.effect.rawGlyph >= 0) {
-                            effectGlyph = cell.effect.rawGlyph;
-                        }
-                    } else if (gData && gData.glyph >= 0) {
-                        if (isDead && isPlayer) {
-                            topGlyph = DEFAULT_TOMBSTONE_GLYPH;
-                        } else {
-                            bottomGlyph = gData.glyph;
-                        }
-                    }
-
-                    if (bottomGlyph >= 0) renderGlyphs.push(bottomGlyph);
-                    if (middleGlyph >= 0) renderGlyphs.push(middleGlyph);
-                    if (topGlyph >= 0) renderGlyphs.push(topGlyph);
-                    if (effectGlyph >= 0) renderGlyphs.push(effectGlyph);
-
-                    // 代表グリフの特定 (top > middle > bottom > gData)
-                    if (topGlyph >= 0) {
-                        glyphId = topGlyph;
-                        if (cell && cell.top && !isDead) {
-                            symbol = cell.top.symbol || cell.top.ch || '@';
-                            color = cell.top.color ?? 7;
-                            nameJa = cell.top.nameJa || cell.top.name || 'モンスター';
-                        } else if (isDead && isPlayer) {
-                            symbol = '|';
-                            color = 15;
-                            nameJa = '墓石';
-                        }
-                    } else if (middleGlyph >= 0) {
-                        glyphId = middleGlyph;
-                        if (cell && cell.middle) {
-                            symbol = cell.middle.symbol || cell.middle.ch || ')';
-                            color = cell.middle.color ?? 7;
-                            nameJa = cell.middle.nameJa || cell.middle.name || 'アイテム';
-                        }
-                    } else if (bottomGlyph >= 0) {
-                        glyphId = bottomGlyph;
-                        if (cell && cell.bottom) {
-                            symbol = cell.bottom.symbol || cell.bottom.ch || '.';
-                            color = cell.bottom.color ?? 7;
-                            nameJa = cell.bottom.nameJa || cell.bottom.name || '地形';
-                        } else if (gData) {
-                            symbol = gData.ch || '.';
-                            color = gData.color ?? 7;
-                        }
-                    }
-
-                    if (glyphId >= 0 && sk && typeof sk.getKnowledgeByGlyph === 'function') {
-                        knowledge = sk.getKnowledgeByGlyph(glyphId);
-                        if (knowledge) {
-                            nameJa = knowledge.nameJa || knowledge.name || nameJa;
-                            name = isEn ? (knowledge.name || knowledge.nameJa) : (knowledge.nameJa || knowledge.name);
-                        }
-                    } else {
-                        name = isEn ? (nameJa || 'Unknown') : nameJa;
-                    }
-                }
-
-                tiles.push({
-                    x: tx,
-                    y: ty,
-                    dx,
-                    dy,
-                    relX: dx,
-                    relY: dy,
-                    isPlayer,
-                    inBounds,
-                    isUnexplored,
-                    hasMemory,
-                    cell,
-                    glyphId,
-                    symbol,
-                    color,
-                    name,
-                    nameJa,
-                    knowledge,
-                    bottomGlyph,
-                    middleGlyph,
-                    topGlyph,
-                    effectGlyph,
-                    renderGlyphs
-                });
+                this.markDirty(x, y);
             }
         }
 
-        return tiles;
+        return true;
     }
 }
-
