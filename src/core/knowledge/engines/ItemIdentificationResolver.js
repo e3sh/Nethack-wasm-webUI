@@ -12,6 +12,9 @@
  */
 
 import { OBJECT_KNOWLEDGE_MAP } from '../data/OBJECT_KNOWLEDGE_FULL.js';
+import { APPEARANCE_DESCR_JA, APPEARANCE_NOUN_JA, formatAppearanceNameStatic } from '../data/OBJECT_APPEARANCE_DICT.js';
+export { APPEARANCE_DESCR_JA, APPEARANCE_NOUN_JA };
+
 
 // 識別の5段階レベル定数
 export const IDENTIFICATION_LEVELS = {
@@ -102,131 +105,6 @@ export const APPEARANCE_PATTERNS = {
     ]
 };
 
-// 外見の形容詞（色・素材・状態）に対する日本語辞書 (docs/5_gamedata/appearances.ja.md 準拠)
-export const APPEARANCE_DESCR_JA = {
-    // 薬 (Potions)
-    'ruby': 'ルビー色の',
-    'pink': 'ピンク色の',
-    'orange': 'オレンジ色の',
-    'yellow': '黄色の',
-    'emerald': 'エメラルド色の',
-    'dark green': '濃い緑色の',
-    'cyan': 'シアン色の',
-    'sky blue': '空色の',
-    'brilliant blue': '鮮やかな青色の',
-    'magenta': 'マゼンタ色の',
-    'purple-red': '赤紫色の',
-    'puce': '暗褐色の',
-    'milky': '乳白色の',
-    'swirly': '渦巻いた',
-    'bubbly': '泡立つ',
-    'smoky': '煙った',
-    'cloudy': '濁った',
-    'effervescent': '弾ける',
-    'black': '黒色の',
-    'golden': '金色の',
-    'brown': '茶色の',
-    'fizzy': 'シュワシュワする',
-    'dark': '暗い色の',
-    'white': '白色の',
-    'murky': '濁った',
-    'clear': '透明な',
-    // 杖 (Wands)
-    'glass': 'ガラスの',
-    'balsa': 'バルサ材の',
-    'crystal': '水晶の',
-    'maple': 'カエデの',
-    'pine': '松の',
-    'oak': '樫の',
-    'ebony': '黒檀の',
-    'marble': '大理石の',
-    'tin': '錫の',
-    'brass': '真鍮の',
-    'copper': '銅の',
-    'silver': '銀の',
-    'platinum': '白金の',
-    'iridium': 'イリジウムの',
-    'zinc': '亜鉛の',
-    'aluminum': 'アルミニウムの',
-    'uranium': 'ウランの',
-    'iron': '鉄の',
-    'steel': '鋼鉄の',
-    'hexagonal': '六角形の',
-    'short': '短い',
-    'runed': 'ルーンの刻まれた',
-    'long': '長い',
-    'curved': '曲がった',
-    'forked': '二股の',
-    'spiked': 'スパイク付きの',
-    'jeweled': '宝石付きの',
-    // 指輪 (Rings)
-    'wooden': '木製の',
-    'granite': '花崗岩の',
-    'opal': 'オパールの',
-    'clay': '粘土の',
-    'coral': '珊瑚の',
-    'black onyx': 'ブラックオニキスの',
-    'moonstone': 'ムーンストーンの',
-    'tiger eye': 'タイガーアイの',
-    'jade': '翡翠の',
-    'bronze': '青銅の',
-    'agate': '瑪瑙の',
-    'topaz': 'トパーズの',
-    'sapphire': 'サファイアの',
-    'diamond': 'ダイヤモンドの',
-    'pearl': '真珠の',
-    'twisted': 'ねじれた',
-    'gold': '金の',
-    'ivory': '象牙の',
-    'wire': '針金の',
-    'engagement': '婚約の',
-    'shiny': '輝く',
-    // アミュレット (Amulets)
-    'circular': '円形の',
-    'spherical': '球体の',
-    'oval': '楕円形の',
-    'triangular': '三角形の',
-    'pyramidal': 'ピラミッド型の',
-    'square': '四角形の',
-    'concave': '凹型の',
-    'octagonal': '八角形の',
-    'perforated': '穴の空いた',
-    'cubical': '立方体の',
-    // 魔法書 (Spellbooks)
-    'parchment': '羊皮紙の',
-    'vellum': '上質皮紙の',
-    'ragged': 'ボロボロの',
-    'dog eared': '耳折れの',
-    'mottled': 'まだらな',
-    'stained': '汚れた',
-    'cloth': '布の',
-    'leathery': '革の',
-    'red': '赤の',
-    'velvet': 'ベルベットの',
-    'light green': '明るい緑の',
-    'turquoise': 'ターコイズの',
-    'light blue': '明るい青の',
-    'dark blue': '濃い青の',
-    'indigo': '藍色の',
-    'purple': '紫の',
-    'violet': 'スミレ色の',
-    'tan': '黄褐色の',
-    'plaid': '格子縞の',
-    'light brown': '明るい茶色の',
-    'dark brown': '濃い茶色の',
-    'gray': '灰色の',
-    'wrinkled': 'しわくちゃの',
-    'dusty': '埃っぽい',
-    'glittering': 'きらめく',
-    'shining': '光り輝く',
-    'dull': '鈍い色の',
-    'thin': '薄い',
-    'thick': '厚い',
-    'checkered': '市松模様の',
-    'paperback': 'ペーパーバックの',
-    'papyrus': 'パピルスの'
-};
-
 // カテゴリ別鑑定ヒント (非推奨・廃止: ItemSpecPresenter および ITEM_INTERACTION_RULES へ移行完了)
 export const IDENTIFICATION_TIPS = {};
 export const IDENTIFICATION_TIPS_EN = {};
@@ -244,82 +122,9 @@ export class ItemIdentificationResolver {
      * @returns {string} 完全なアイテム外見名
      */
     static formatAppearanceName(descr, category, lang = 'ja') {
-        const cat = (category || '').toUpperCase();
-        const isEn = lang === 'en';
-
-        if (!descr || descr.trim().length === 0 || descr.trim().toLowerCase() === 'unidentified') {
-            if (cat === 'POTION') return isEn ? 'unidentified potion' : '未鑑定の薬';
-            if (cat === 'WAND') return isEn ? 'unidentified wand' : '未鑑定の杖';
-            if (cat === 'RING') return isEn ? 'unidentified ring' : '未鑑定の指輪';
-            if (cat === 'SCROLL') return isEn ? 'unidentified scroll' : '未鑑定の巻物';
-            if (cat === 'AMULET') return isEn ? 'unidentified amulet' : '未鑑定の魔除け';
-            if (cat === 'SPELLBOOK') return isEn ? 'unidentified spellbook' : '未鑑定の魔法書';
-            if (cat === 'ARMOR') return isEn ? 'unidentified armor' : '未鑑定の防具';
-            if (cat === 'WEAPON') return isEn ? 'unidentified weapon' : '未鑑定の武器';
-            if (cat === 'TOOL') return isEn ? 'unidentified tool' : '未鑑定の道具';
-            if (cat === 'GEM' || cat === 'GEM_STONE') return isEn ? 'unidentified gem' : '未鑑定の宝石';
-            return isEn ? `unidentified ${cat ? cat.toLowerCase() : 'item'}` : '未鑑定のアイテム';
-        }
-
-        const clean = descr.trim();
-
-        // すでにカテゴリ名が含まれている場合はそのまま（日本語変換は試みる）
-        const lower = clean.toLowerCase();
-        if (lower.includes('potion') || lower.includes('薬') ||
-            lower.includes('wand') || lower.includes('杖') ||
-            lower.includes('ring') || lower.includes('指輪') ||
-            lower.includes('scroll') || lower.includes('巻物') ||
-            lower.includes('amulet') || lower.includes('魔除け') ||
-            lower.includes('spellbook') || lower.includes('魔法書')) {
-            return clean;
-        }
-
-        if (!isEn) {
-            let jaAdj = APPEARANCE_DESCR_JA[lower];
-            if (!jaAdj) {
-                if (clean.endsWith('の') || clean.endsWith('色の')) {
-                    jaAdj = clean;
-                } else {
-                    jaAdj = `${clean}の`;
-                }
-            }
-            if (cat === 'POTION') return `${jaAdj}薬`;
-            if (cat === 'WAND') return `${jaAdj}杖`;
-            if (cat === 'RING') return `${jaAdj}指輪`;
-            if (cat === 'SCROLL') return `「${clean}」と書かれた巻物`;
-            if (cat === 'AMULET') return `${jaAdj}魔除け`;
-            if (cat === 'SPELLBOOK') return `${jaAdj}魔法書`;
-            if (cat === 'GEM' || cat === 'GEM_STONE') return `${jaAdj}宝石`;
-            return `${jaAdj}${cat.toLowerCase()}`;
-        }
-
-        if (cat === 'POTION') {
-            return `${clean} potion`;
-        }
-        if (cat === 'WAND') {
-            return `${clean} wand`;
-        }
-        if (cat === 'RING') {
-            return `${clean} ring`;
-        }
-        if (cat === 'SCROLL') {
-            return `scroll labeled ${clean}`;
-        }
-        if (cat === 'AMULET') {
-            return `${clean} amulet`;
-        }
-        if (cat === 'SPELLBOOK') {
-            return `${clean} spellbook`;
-        }
-        if (cat === 'ARMOR' || cat === 'WEAPON' || cat === 'TOOL') {
-            return clean;
-        }
-        if (cat === 'GEM' || cat === 'GEM_STONE') {
-            return `${clean} gem`;
-        }
-
-        return clean;
+        return formatAppearanceNameStatic(descr, category, lang);
     }
+
 
     /**
      * アイテム文字列またはオブジェクトから識別状態を包括的に解析・解決
@@ -406,6 +211,12 @@ export class ItemIdentificationResolver {
                 } else if (canBeUnidentified) {
                     // ランダム外見カテゴリ等で、ディスカバリー上で未判明の場合は未識別と判定（ネタバレ保護）
                     isUnidentified = true;
+                    if (!appearanceName && typeof options.discoveryStateManager.getAppearance === 'function') {
+                        const dynApp = options.discoveryStateManager.getAppearance(onum);
+                        if (dynApp) {
+                            appearanceName = this.formatAppearanceName(dynApp, category || master?.category, 'en');
+                        }
+                    }
                 }
             } else if (appearanceName && options.discoveryStateManager.isIdentified(appearanceName)) {
                 isUnidentified = false;

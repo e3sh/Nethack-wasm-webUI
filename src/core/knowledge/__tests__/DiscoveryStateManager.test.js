@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DiscoveryStateManager } from "../state/DiscoveryStateManager.js";
+import { getTileMapping } from "../../../driver/tileMapping.js";
 
 describe('DiscoveryStateManager', () => {
     it('1. `\\` コマンドの出力テキストから識別済みアイテムと外見マッピングを一括再生・同期できる', () => {
@@ -427,6 +428,58 @@ Weapons:
             expect(manager.isIdentified(310)).toBe(false);
             expect(manager.calledNamesMap.size).toBeGreaterThanOrEqual(1);
         });
+
+        it('16. syncWithLiveMemory (getDescrIndexes) でシャッフルされた外見 (fencing gloves = gauntlets of power 等) とマップタイルマッピングが正確に同期されること', () => {
+            // マップレンダラが参照する window.tileMapping / globalThis.tileMapping のモックを用意
+            globalThis.tileMapping = () => ({
+                [3448 + 161]: 605, // riding gloves の初期タイル
+                [3448 + 162]: 606, // fencing gloves の初期タイル
+                [7992 + 161]: 605,
+                [7992 + 162]: 606
+            });
+
+            const manager = new DiscoveryStateManager();
+            const mockDiscoveries = new Uint8Array(481);
+            const mockDescrIndexes = new Int32Array(481);
+            for (let i = 0; i < 481; i++) mockDescrIndexes[i] = i;
+
+            // 手袋のシャッフルを再現:
+            // onum 161 (gauntlets of power, 初期descr: riding gloves) に 162 (fencing gloves) を割り当て
+            // onum 162 (gauntlets of dexterity, 初期descr: fencing gloves) に 161 (riding gloves) を割り当て
+            mockDescrIndexes[161] = 162;
+            mockDescrIndexes[162] = 161;
+
+            const mockWasm = {
+                getDiscoveries: vi.fn(() => mockDiscoveries),
+                getDescrIndexes: vi.fn(() => mockDescrIndexes),
+                getObjectUname: vi.fn(() => null)
+            };
+
+            const success = manager.syncWithLiveMemory(mockWasm);
+            expect(success).toBe(true);
+
+            // 未識別状態のままでも、onum 161 の外見が riding gloves ではなく fencing gloves として取得できること
+            expect(manager.isIdentified(161)).toBe(false);
+            expect(manager.getAppearance(161)).toBe('fencing gloves');
+            expect(manager.getAppearance('gauntlets of power')).toBe('fencing gloves');
+            expect(manager.getAppearanceOnum(161)).toBe(162);
+
+            // 逆側の onum 162 は riding gloves になっていること
+            expect(manager.getAppearance(162)).toBe('riding gloves');
+            expect(manager.getAppearanceOnum(162)).toBe(161);
+
+            // インベントリ用 (getTileMapping) およびマップ描画用 (globalThis.tileMapping) の両方で
+            // 通常オブジェクト (3448+onum) と Piletop (7992+onum) のタイル番号がシャッフルされていること
+            expect(getTileMapping(3448 + 161)).toBe(606);
+            expect(getTileMapping(3448 + 162)).toBe(605);
+            expect(globalThis.tileMapping()[3448 + 161]).toBe(606);
+            expect(globalThis.tileMapping()[3448 + 162]).toBe(605);
+            expect(globalThis.tileMapping()[7992 + 161]).toBe(606);
+            expect(globalThis.tileMapping()[7992 + 162]).toBe(605);
+
+            manager.reset();
+        });
     });
 });
+
 

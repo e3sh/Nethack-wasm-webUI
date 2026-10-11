@@ -47,6 +47,7 @@ export const SHIM_CMD = {
 
     DUMP_DISCOVERIES: 0x60,
     GET_OBJECT_UNAME: 0x61,
+    DUMP_DESCR_INDEXES: 0x62,
 
     GET_SYMBOL_PTR: 0x70,
 };
@@ -288,6 +289,7 @@ export class WasmDirectBindingService {
         this._cachedLevelTerrain = null;
         this._cachedMonsters = new Map();
         this._cachedDiscoveries = null;
+        this._cachedDescrIndexes = null;
     }
 
     /**
@@ -610,6 +612,48 @@ export class WasmDirectBindingService {
     }
 
     /**
+     * 全アイテムの現在の外見インデックス (objects[i].oc_descr_idx) 配列を取得
+     * @returns {Int32Array|null} 各 onum の現在の外見インデックス (appearanceOnum)
+     */
+    getDescrIndexes() {
+        if (!this.isAvailable()) return null;
+
+        if (this.hasLiveMemory) {
+            const bufSize = 2400; // 600 ints = 2400 bytes
+            const bufPtr = this.memory.allocateBuffer(bufSize);
+            if (!bufPtr) return null;
+
+            try {
+                const res = this.memory.bridgeCall(SHIM_CMD.DUMP_DESCR_INDEXES, 0, 0, bufPtr, bufSize);
+                if (res > 0) {
+                    const count = Math.min(600, res + 1);
+                    const raw = this.memory.readInt32Array(bufPtr, count);
+                    const arr = new Int32Array(raw);
+                    this._cachedDescrIndexes = arr;
+                    return arr;
+                }
+            } finally {
+                this.memory.freeBuffer(bufPtr);
+            }
+            return null;
+        }
+
+        return this._cachedDescrIndexes || null;
+    }
+
+    /**
+     * テスト用 / Worker 受信用 外見インデックス配列キャッシュ設定
+     * @param {Int32Array|Array<number>|null} arr
+     */
+    setCachedDescrIndexes(arr) {
+        if (!arr) {
+            this._cachedDescrIndexes = null;
+        } else {
+            this._cachedDescrIndexes = arr instanceof Int32Array ? arr : new Int32Array(arr);
+        }
+    }
+
+    /**
      * 所持品リンクリストから真の総所持重量を取得 (Stage 8.2-C)
      * (手持ち品・金貨・Bag of Holding の補正を含む完全な公式計算値)
      * @returns {number} 総所持重量 (利用不可時: -1)
@@ -825,12 +869,21 @@ export class WasmDirectBindingService {
                     this._cachedInventoryWeight = items.reduce((sum, it) => sum + (it.weight || 0), 0);
                 }
 
-                // 5-c. 全アイテム識別状態 (objects[i].oc_name_known) の一括同期 (DUMP_DISCOVERIES: 0x60, 600 bytes)
+                // 5-c. 全アイテム識別状態 (objects[i].oc_name_known) および外見インデックス (objects[i].oc_descr_idx) の一括同期
                 if (options.syncDiscoveries !== false) {
                     try {
                         const discRes = await this.bridge.callShim(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, 600, 'uint8');
                         if (discRes && Array.isArray(discRes.buffer)) {
                             this._cachedDiscoveries = new Uint8Array(discRes.buffer);
+                        }
+                    } catch (e) {
+                        // ignore shim call errors in fallback/unsupported scenarios
+                    }
+                    try {
+                        const descrRes = await this.bridge.callShim(SHIM_CMD.DUMP_DESCR_INDEXES, 0, 0, 2400, 'int32');
+                        if (descrRes && typeof descrRes.result === 'number' && descrRes.result > 0 && Array.isArray(descrRes.buffer)) {
+                            const count = Math.min(descrRes.buffer.length, descrRes.result + 1);
+                            this._cachedDescrIndexes = new Int32Array(descrRes.buffer.slice(0, count));
                         }
                     } catch (e) {
                         // ignore shim call errors in fallback/unsupported scenarios

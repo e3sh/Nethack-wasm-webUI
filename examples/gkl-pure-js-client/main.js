@@ -434,6 +434,13 @@ class GklPureJSClient {
     this.core.on('attributesStateUpdated', () => this.renderGklUi());
     this.core.on('spellsStateUpdated', () => this.renderGklUi());
     this.core.on('skillsStateUpdated', () => this.renderGklUi());
+    this.core.on('discoveriesStateUpdated', () => {
+      this.virtualScreen?.markAllDirty();
+      this.mainViewportRenderer?.render();
+      this.webgpuRenderer?.markDirty();
+      this.webgpuRenderer?.wakeUp();
+      this.renderGklUi();
+    });
 
 
     // 9. Game Over & Exited

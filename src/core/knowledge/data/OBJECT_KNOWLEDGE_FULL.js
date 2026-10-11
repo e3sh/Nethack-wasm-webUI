@@ -9,8 +9,10 @@ import { getCategoryFromOnum, getItemInfoFromOnum } from "../engines/glyphClassi
 import { OBJECT_TILEMAP_NAMES } from './tilemappings_data.js';
 import { OBJECT_KNOWLEDGE_BASE } from './OBJECT_KNOWLEDGE_BASE.js';
 import { OBJECT_JP_MAP } from './OBJECT_JP_MAP.js';
+import { formatAppearanceNameStatic, OBJECT_SHUFFLE_RANGES, RANDOM_GEM_COLOR_RULES } from './OBJECT_APPEARANCE_DICT.js';
 
 export const OBJECT_KNOWLEDGE_MAP = new Map();
+
 
 /**
  * onum および category, itemInfo, detail からデフォルト推奨操作動詞情報を判定する
@@ -778,6 +780,9 @@ export function initFullObjectKnowledge() {
                             REVERSE_OBJECT_ALIASES_MAP.get(lowerTile) ||
                             [];
 
+        const unidentifiedNameEn = base.descr ? formatAppearanceNameStatic(base.descr, category, 'en') : null;
+        const unidentifiedNameJa = base.descr ? formatAppearanceNameStatic(base.descr, category, 'ja') : null;
+
         const entry = {
             id: `item_onum_${i}`,
             onum: i,
@@ -786,6 +791,15 @@ export function initFullObjectKnowledge() {
             aliases: itemAliases,
             baseName: base.name || tileName,
             descr: base.descr || null,
+            unidentifiedNameEn,
+            unidentifiedNameJa,
+            appearanceMode: 'KNOWN',
+            shuffleGroup: null,
+            shuffleRange: null,
+            shuffleGroupLabelJa: null,
+            shuffleGroupLabelEn: null,
+            shuffleCandidates: [],
+            sharedAppearancePeers: [],
             tileName: tileName,
             category: category,
             canBeUnidentified: !!canBeUnidentified,
@@ -857,6 +871,126 @@ export function initFullObjectKnowledge() {
 
         OBJECT_KNOWLEDGE_MAP.set(i, entry);
     }
+
+    // 第2パス: Cコア (src/o_init.c) 準拠の外見シャッフル区分・固定共有ピア情報の付与
+    for (let i = 0; i <= 480; i++) {
+        const entry = OBJECT_KNOWLEDGE_MAP.get(i);
+        if (!entry) continue;
+
+        if (i >= 1 && i <= 17) {
+            entry.appearanceMode = 'GENERIC';
+            entry.shuffleGroupLabelJa = 'システム内部の汎用クラステンプレート枠 (onum 1〜17)';
+            entry.shuffleGroupLabelEn = 'Internal generic class template slot (onum 1-17)';
+            continue;
+        }
+
+        const shuffleRangeDef = OBJECT_SHUFFLE_RANGES.find(r => i >= r.lo && i <= r.hi);
+        if (shuffleRangeDef) {
+            const isPoolSlot = (i < shuffleRangeDef.itemLo || i > shuffleRangeDef.itemHi);
+            entry.appearanceMode = isPoolSlot ? 'SHUFFLE_POOL' : 'SHUFFLED';
+            entry.shuffleGroup = shuffleRangeDef.id;
+            entry.shuffleRange = [shuffleRangeDef.lo, shuffleRangeDef.hi];
+            entry.shuffleGroupLabelJa = isPoolSlot
+                ? `${shuffleRangeDef.labelJa} の外見プール専用枠（実体アイテムなし・oc_descr_idx 供給用）`
+                : shuffleRangeDef.labelJa;
+            entry.shuffleGroupLabelEn = isPoolSlot
+                ? `${shuffleRangeDef.labelEn} appearance pool slot (provides extra oc_descr_idx)`
+                : shuffleRangeDef.labelEn;
+
+            // 防具系などの少数シャッフルグループ (12種以下) は候補外見とグループ内アイテム一覧を保持
+            if (shuffleRangeDef.hi - shuffleRangeDef.lo <= 12) {
+                const candidates = [];
+                const peers = [];
+                for (let k = shuffleRangeDef.lo; k <= shuffleRangeDef.hi; k++) {
+                    const peer = OBJECT_KNOWLEDGE_MAP.get(k);
+                    if (!peer) continue;
+                    if (peer.descr) {
+                        candidates.push({
+                            onum: k,
+                            descr: peer.descr,
+                            nameEn: peer.unidentifiedNameEn || peer.descr,
+                            nameJa: peer.unidentifiedNameJa || peer.descr
+                        });
+                    }
+                    if (k >= shuffleRangeDef.itemLo && k <= shuffleRangeDef.itemHi) {
+                        peers.push({
+                            onum: k,
+                            name: peer.name,
+                            nameJa: peer.nameJa,
+                            defaultDescr: peer.descr,
+                            defaultDescrJa: peer.unidentifiedNameJa
+                        });
+                    }
+                }
+                entry.shuffleCandidates = candidates;
+                entry.sharedAppearancePeers = peers;
+            }
+            continue;
+        }
+
+        const gemRule = RANDOM_GEM_COLOR_RULES[i];
+        if (gemRule) {
+            entry.appearanceMode = 'RANDOM_GEM';
+            entry.shuffleGroup = gemRule.id;
+            entry.shuffleGroupLabelJa = gemRule.labelJa;
+            entry.shuffleGroupLabelEn = gemRule.labelEn;
+            entry.shuffleCandidates = gemRule.colors.map(c => ({
+                descr: c,
+                nameEn: formatAppearanceNameStatic(c, 'GEM', 'en'),
+                nameJa: formatAppearanceNameStatic(c, 'GEM', 'ja')
+            }));
+            const peers = [];
+            for (let k = 439; k <= 469; k++) {
+                const peer = OBJECT_KNOWLEDGE_MAP.get(k);
+                if (!peer) continue;
+                const peerRule = RANDOM_GEM_COLOR_RULES[k];
+                const peerColors = peerRule ? peerRule.colors : (peer.descr ? [peer.descr] : []);
+                if (peerColors.some(c => gemRule.colors.includes(c))) {
+                    peers.push({ onum: k, name: peer.name, nameJa: peer.nameJa, defaultDescr: peer.descr });
+                }
+            }
+            entry.sharedAppearancePeers = peers;
+            continue;
+        }
+
+        if (!entry.descr) {
+            entry.appearanceMode = 'KNOWN';
+            entry.shuffleGroupLabelJa = '初期識別済み（未識別外見なし・常に真名で表示）';
+            entry.shuffleGroupLabelEn = 'Always identified (no alternate appearance)';
+            continue;
+        }
+
+        // 固定未識別外見 (FIXED_UNIQUE または FIXED_SHARED)
+        const peers = [];
+        for (let k = 18; k <= 480; k++) {
+            const peer = OBJECT_KNOWLEDGE_MAP.get(k);
+            if (!peer || peer.category !== entry.category) continue;
+            const peerGemRule = RANDOM_GEM_COLOR_RULES[k];
+            const matchesFixed = (peer.descr && peer.descr.toLowerCase() === entry.descr.toLowerCase());
+            const matchesRandomGem = (peerGemRule && peerGemRule.colors.includes(entry.descr.toLowerCase()));
+            if (matchesFixed || matchesRandomGem) {
+                peers.push({
+                    onum: k,
+                    name: peer.name,
+                    nameJa: peer.nameJa,
+                    isRandomColorGem: Boolean(peerGemRule)
+                });
+            }
+        }
+
+        if (peers.length > 1) {
+            entry.appearanceMode = 'FIXED_SHARED';
+            entry.sharedAppearancePeers = peers;
+            entry.shuffleGroupLabelJa = `固定未識別名「${entry.unidentifiedNameJa} (${entry.unidentifiedNameEn})」を ${peers.length} 種のアイテムで共有`;
+            entry.shuffleGroupLabelEn = `Fixed appearance "${entry.unidentifiedNameEn}" shared across ${peers.length} items`;
+        } else {
+            entry.appearanceMode = 'FIXED_UNIQUE';
+            entry.sharedAppearancePeers = peers;
+            entry.shuffleGroupLabelJa = `固定未識別名「${entry.unidentifiedNameJa} (${entry.unidentifiedNameEn})」（1対1固有・外見のみで正体確定）`;
+            entry.shuffleGroupLabelEn = `Unique fixed appearance "${entry.unidentifiedNameEn}" (1:1 correspondence)`;
+        }
+    }
 }
 
 initFullObjectKnowledge();
+

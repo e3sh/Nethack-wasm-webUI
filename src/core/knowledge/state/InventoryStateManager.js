@@ -494,16 +494,13 @@ export class InventoryStateManager {
             if (isIdentified || (objInfo && objInfo.canBeUnidentified === false)) {
                 baseName = objInfo ? (objInfo.name || `item #${onum}`) : `item #${onum}`;
             } else {
-                // 未鑑定アイテム: 外見名または仮名で構成
-                const descr = objInfo?.descr || objInfo?.appearance || '';
+                // 未鑑定アイテム: 動的シャッフル外見名 (getAppearance) を最優先で参照しフォーマット
+                const dynDescr = this.discoveryStateManager ? this.discoveryStateManager.getAppearance(onum) : null;
+                const descr = dynDescr || prevItem?.appearance || objInfo?.descr || objInfo?.appearance || '';
                 const cat = objInfo?.category || '';
-                const formattedDescr = (descr && cat)
+                const appName = (descr && cat)
                     ? ItemIdentificationResolver.formatAppearanceName(descr, cat, 'en')
                     : (descr || (cat ? cat.toLowerCase() : `item #${onum}`));
-
-                const appName = (this.discoveryStateManager ? this.discoveryStateManager.getAppearance(onum) : null)
-                    || prevItem?.appearance
-                    || formattedDescr;
 
                 const called = (this.discoveryStateManager ? this.discoveryStateManager.getCalledName(onum) : null)
                     || prevItem?.identification?.calledName;

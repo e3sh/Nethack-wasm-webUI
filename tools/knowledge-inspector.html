@@ -573,7 +573,19 @@
                         <option value="MATCH">✅ 完全一致</option>
                     </select>
                 </div>
+                <!-- 外見シャッフル区分フィルター (ITEM タブ用) -->
+                <select id="appFilter" style="display: none; width: 100%;">
+                    <option value="ALL">🎭 全外見区分 (シャッフル / 固定 / 識別済)</option>
+                    <option value="SHUFFLED">🎲 シャッフル外見 (毎ゲーム変動)</option>
+                    <option value="FIXED_UNIQUE">🔒 固定未識別名 (1対1固有)</option>
+                    <option value="FIXED_SHARED">👥 固定未識別名 (複数アイテム共有)</option>
+                    <option value="RANDOM_GEM">💎 宝石色ランダム変動 (3種)</option>
+                    <option value="KNOWN">👁️ 初期識別済み (外見名なし)</option>
+                    <option value="SHUFFLE_POOL">🏷️ 外見プール専用枠 (SC01〜SC20等)</option>
+                    <option value="GENERIC">⚙️ 汎用クラステンプレート (onum 1〜17)</option>
+                </select>
             </div>
+
             <ul class="entity-list" id="entityList"></ul>
         </div>
 
@@ -797,6 +809,7 @@
         const searchInput = document.getElementById('searchInput');
         const subFilter = document.getElementById('subFilter');
         const transFilter = document.getElementById('transFilter');
+        const appFilter = document.getElementById('appFilter');
         const entityList = document.getElementById('entityList');
         const knowledgeCard = document.getElementById('knowledgeCard');
         const emptyPlaceholder = document.getElementById('emptyPlaceholder');
@@ -839,6 +852,17 @@
                 transFilter.style.display = 'none';
                 transFilter.value = 'ALL';
             }
+
+            // ITEM タブ時のみ外見シャッフル区分フィルターを表示
+            if (appFilter) {
+                if (currentTab === 'ITEM') {
+                    appFilter.style.display = 'block';
+                } else {
+                    appFilter.style.display = 'none';
+                    appFilter.value = 'ALL';
+                }
+            }
+
 
             let categories = new Set();
             if (currentTab === 'MONSTER') {
@@ -1355,12 +1379,14 @@
         searchInput.addEventListener('input', renderList);
         subFilter.addEventListener('change', renderList);
         transFilter.addEventListener('change', renderList);
+        if (appFilter) appFilter.addEventListener('change', renderList);
 
         // --- 2. リスト描画 ---
         function renderList() {
             const query = searchInput.value.toLowerCase().trim();
             const filterVal = subFilter.value;
             const transFilterVal = transFilter.value;
+            const appFilterVal = appFilter ? appFilter.value : 'ALL';
             const currentList = ENTITIES_BY_TAB[currentTab] || [];
 
             const filtered = currentList.filter(e => {
@@ -1378,6 +1404,11 @@
                     if (currentTab === 'CHEMISTRY' && (e.action?.risk !== filterVal && (e.action?.risk || 'INFO') !== filterVal)) return false;
                     if (currentTab === 'ADVICE' && e.severity !== filterVal) return false;
                     if (currentTab === 'SIGNAL' && e.stance !== filterVal) return false;
+                }
+
+                // 外見シャッフル区分フィルター (ITEM)
+                if (currentTab === 'ITEM' && appFilterVal !== 'ALL') {
+                    if ((e.appearanceMode || 'KNOWN') !== appFilterVal) return false;
                 }
 
                 // 翻訳検証フィルター (MONSTER / ITEM)
@@ -1403,6 +1434,16 @@
                             if (comp.knowledgeNameJa.toLowerCase().includes(query)) compMatch = true;
                             if (comp.trName.toLowerCase().includes(query)) compMatch = true;
                             if (comp.aliases.some(a => a.toLowerCase().includes(query))) compMatch = true;
+                        }
+                        if (currentTab === 'ITEM') {
+                            const descrStr = (e.descr || '').toLowerCase();
+                            const unIdEn = (e.unidentifiedNameEn || '').toLowerCase();
+                            const unIdJa = (e.unidentifiedNameJa || '').toLowerCase();
+                            const appMode = (e.appearanceMode || '').toLowerCase();
+                            const shufLbl = ((e.shuffleGroupLabelJa || '') + ' ' + (e.shuffleGroupLabelEn || '')).toLowerCase();
+                            if (descrStr.includes(query) || unIdEn.includes(query) || unIdJa.includes(query) || appMode.includes(query) || shufLbl.includes(query)) {
+                                compMatch = true;
+                            }
                         }
                     } else if (currentTab === 'CLASS') {
                         const sym = (e.symbol || '').toLowerCase();
@@ -1480,23 +1521,48 @@
                     iconHtml = iconStyle ? `<div style="${iconStyle}"></div>` : '👾';
                 } else if (currentTab === 'ITEM') {
                     const comp = getTranslationComparison(e);
+                    const appMode = e.appearanceMode || 'KNOWN';
+                    let appNoteHtml = '';
+                    if (appMode === 'FIXED_UNIQUE') {
+                        const unIdDisp = currentLang === 'ja' ? `${e.unidentifiedNameJa} ("${e.descr}")` : `"${e.unidentifiedNameEn}"`;
+                        appNoteHtml = `<div style="font-size:0.7rem; color:#22c55e; margin-top:2px;">🔒 ${currentLang === 'ja' ? '固定未識別' : 'Fixed'}: ${escapeHtml(unIdDisp)}</div>`;
+                    } else if (appMode === 'FIXED_SHARED') {
+                        const peerCnt = Array.isArray(e.sharedAppearancePeers) ? e.sharedAppearancePeers.length : 2;
+                        const unIdDisp = currentLang === 'ja' ? `${e.unidentifiedNameJa} ("${e.descr}")` : `"${e.unidentifiedNameEn}"`;
+                        appNoteHtml = `<div style="font-size:0.7rem; color:#eab308; margin-top:2px;">👥 ${currentLang === 'ja' ? `固定共有(${peerCnt}種)` : `Shared(${peerCnt})`}: ${escapeHtml(unIdDisp)}</div>`;
+                    } else if (appMode === 'SHUFFLED') {
+                        const defDisp = currentLang === 'ja' ? `${e.unidentifiedNameJa} / "${e.descr}"` : `"${e.descr}"`;
+                        appNoteHtml = `<div style="font-size:0.7rem; color:#c084fc; margin-top:2px;">🎲 ${currentLang === 'ja' ? `シャッフル [C初期枠: ${escapeHtml(defDisp)}]` : `Shuffled [C-slot: ${escapeHtml(defDisp)}]`}</div>`;
+                    } else if (appMode === 'RANDOM_GEM') {
+                        appNoteHtml = `<div style="font-size:0.7rem; color:#38bdf8; margin-top:2px;">💎 ${currentLang === 'ja' ? `色ランダム変動 [初期: ${e.descr}]` : `Random Gem Color [init: ${e.descr}]`}</div>`;
+                    } else if (appMode === 'SHUFFLE_POOL') {
+                        const defDisp = currentLang === 'ja' ? `${e.unidentifiedNameJa} ("${e.descr}")` : `"${e.unidentifiedNameEn}"`;
+                        appNoteHtml = `<div style="font-size:0.7rem; color:#94a3b8; margin-top:2px;">🏷️ ${currentLang === 'ja' ? `外見プール専用枠: ${escapeHtml(defDisp)}` : `Pool Slot: ${escapeHtml(defDisp)}`}</div>`;
+                    }
+
                     if (currentLang === 'ja') {
-                        title = comp?.knowledgeNameJa || translateNameWithSlash(e.name);
+                        title = appMode === 'SHUFFLE_POOL'
+                            ? `[外見プール枠] ${e.unidentifiedNameJa || e.descr}`
+                            : (comp?.knowledgeNameJa || translateNameWithSlash(e.name));
+                        let baseSub = '';
                         if (comp && comp.status === 'MISMATCH') {
-                            subtitle = `⚠️ 辞書: ${comp.trName} | 原名: ${comp.rawName}`;
+                            baseSub = `⚠️ 辞書: ${comp.trName} | 原名: ${comp.rawName}`;
                             transBadgeHtml = `<span class="tag-badge trans-badge-MISMATCH" style="font-size:0.6rem; padding:1px 4px;">揺れ</span>`;
                         } else if (comp && comp.status === 'UNTRANSLATED' && !comp.hasTr) {
-                            subtitle = `❓ 辞書未訳 | 原名: ${comp.rawName}`;
+                            baseSub = `❓ 辞書未訳 | 原名: ${comp.rawName}`;
                             transBadgeHtml = `<span class="tag-badge trans-badge-UNTRANSLATED" style="font-size:0.6rem; padding:1px 4px;">未訳</span>`;
                         } else if (comp && comp.status === 'MATCH') {
-                            subtitle = `${comp.rawName} (onum: ${e.onum ?? 'N/A'})`;
+                            baseSub = `${comp.rawName} (onum: ${e.onum ?? 'N/A'})`;
                             transBadgeHtml = `<span class="tag-badge trans-badge-MATCH" style="font-size:0.6rem; padding:1px 4px;">一致</span>`;
                         } else {
-                            subtitle = comp ? `${comp.rawName} (onum: ${e.onum ?? 'N/A'})` : `onum: ${e.onum ?? 'N/A'}`;
+                            baseSub = comp ? `${comp.rawName} (onum: ${e.onum ?? 'N/A'})` : `onum: ${e.onum ?? 'N/A'}`;
                         }
+                        subtitle = `${escapeHtml(baseSub)}${appNoteHtml}`;
                     } else {
-                        title = comp?.rawName || e.name;
-                        subtitle = `${comp?.rawName || e.name} (onum: ${e.onum ?? 'N/A'})`;
+                        title = appMode === 'SHUFFLE_POOL'
+                            ? `[Pool Slot] ${e.unidentifiedNameEn || e.descr}`
+                            : (comp?.rawName || e.name);
+                        subtitle = `${escapeHtml(comp?.rawName || e.name)} (onum: ${e.onum ?? 'N/A'})${appNoteHtml}`;
                         transBadgeHtml = '';
                     }
                     badgeClass = 'tag-ITEM';
@@ -1505,6 +1571,7 @@
                     const iconStyle = getEntityGlyphStyleString(glyphId, 24);
                     iconHtml = iconStyle ? `<div style="${iconStyle}"></div>` : '🗡️';
                 } else if (currentTab === 'CLASS') {
+
                     title = currentLang === 'ja' ? e.nameJa : e.nameEn;
                     const symDisplay = e.symbol === ' ' ? '<space>' : e.symbol;
                     const trapText = e.raceTrap ? (currentLang === 'ja' ? ' ☠️自己虐殺注意' : ' ☠️Race Trap') : '';
@@ -2453,18 +2520,167 @@
             // 🎯 スペックグリッド (ItemSpecPresenter: 攻撃力, AC, MC, 重量等)
             const adaptiveSpecs = getAdaptiveItemSpecs(item, { language: currentLang });
 
-            // 未識別外見情報の抽出
-            const unIdAppearanceHtml = (item.descr || item.canBeUnidentified) ? `
-                <div style="background:rgba(234, 179, 8, 0.07); border:1px solid rgba(234, 179, 8, 0.3); padding:10px 14px; border-radius:6px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-                    <div>
-                        <span style="font-size:0.75rem; color:#eab308; font-weight:bold;">🔍 ${currentLang === 'ja' ? '未識別時の外見 (Appearance):' : 'Unidentified Appearance:'}</span>
-                        <strong style="margin-left:8px; font-size:0.95rem; color:#fef08a;">${item.descr ? `"${item.descr}"` : (currentLang === 'ja' ? '(外見名なし/固定)' : '(Fixed Appearance)')}</strong>
+            // 🎭 未識別外見 ＆ シャッフル仕様パネルの構築 (o_init.c 準拠)
+            const fullMaster = (item.onum !== undefined && item.onum >= 0) ? (OBJECT_KNOWLEDGE_MAP.get(item.onum) || item) : item;
+            const appMode = fullMaster.appearanceMode || item.appearanceMode || 'KNOWN';
+            const unIdEn = fullMaster.unidentifiedNameEn || item.unidentifiedNameEn || item.descr || '';
+            const unIdJa = fullMaster.unidentifiedNameJa || item.unidentifiedNameJa || item.descr || '';
+            const shufLabel = currentLang === 'ja'
+                ? (fullMaster.shuffleGroupLabelJa || item.shuffleGroupLabelJa || '')
+                : (fullMaster.shuffleGroupLabelEn || item.shuffleGroupLabelEn || '');
+            const shufCandidates = fullMaster.shuffleCandidates || item.shuffleCandidates || [];
+            const sharedPeers = fullMaster.sharedAppearancePeers || item.sharedAppearancePeers || [];
+
+            let appBadgeText = '';
+            let appBadgeStyle = '';
+            let appBoxBorder = 'border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.03);';
+            let appMainHtml = '';
+
+            if (appMode === 'FIXED_UNIQUE') {
+                appBadgeText = currentLang === 'ja' ? '🔒 固定未識別名 (1対1固有)' : '🔒 Fixed Appearance (1:1 Unique)';
+                appBadgeStyle = 'background:rgba(34,197,94,0.2); border:1px solid #22c55e; color:#86efac;';
+                appBoxBorder = 'border:1px solid rgba(34,197,94,0.35); background:rgba(34,197,94,0.06);';
+                appMainHtml = `
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:8px; margin-top:6px;">
+                        <div style="background:rgba(0,0,0,0.3); padding:8px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
+                            <div style="font-size:0.7rem; color:#94a3b8;">🇯🇵 ${currentLang === 'ja' ? '未識別表示名 (日本語)' : 'Japanese Appearance'}</div>
+                            <div style="font-size:0.95rem; font-weight:bold; color:#86efac; margin-top:2px;">${escapeHtml(unIdJa)}</div>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.3); padding:8px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
+                            <div style="font-size:0.7rem; color:#94a3b8;">🇺🇸 ${currentLang === 'ja' ? '未識別表示名 (英語 / oc_descr)' : 'English Appearance (oc_descr)'}</div>
+                            <div style="font-size:0.95rem; font-weight:bold; color:#f8fafc; font-family:monospace; margin-top:2px;">${escapeHtml(unIdEn)} <span style="font-size:0.75rem; color:#94a3b8;">(descr: "${escapeHtml(item.descr)}")</span></div>
+                        </div>
                     </div>
-                    <span class="tag-badge ${item.canBeUnidentified ? 'tag-WARNING' : 'tag-LOW'}" style="font-size:0.7rem;">
-                        ${item.canBeUnidentified ? (currentLang === 'ja' ? '未識別対象' : 'Can Be Unidentified') : (currentLang === 'ja' ? '外見判明済み' : 'Always Identified')}
-                    </span>
+                    <div style="font-size:0.78rem; color:#cbd5e1; margin-top:8px;">
+                        ✅ ${currentLang === 'ja'
+                            ? 'ゲーム開始時のシャッフル対象外（oc_descr_idx == onum 固定）であり、かつ同じ外見を持つ別アイテムも存在しないため、外見名だけで 100% 正体が確定します。'
+                            : 'Not shuffled at game start (oc_descr_idx == onum) and no other item shares this appearance.'}
+                    </div>
+                `;
+            } else if (appMode === 'FIXED_SHARED') {
+                appBadgeText = currentLang === 'ja' ? `👥 固定未識別名 (${sharedPeers.length}種共有)` : `👥 Fixed Appearance (Shared by ${sharedPeers.length})`;
+                appBadgeStyle = 'background:rgba(234,179,8,0.2); border:1px solid #eab308; color:#fde047;';
+                appBoxBorder = 'border:1px solid rgba(234,179,8,0.35); background:rgba(234,179,8,0.06);';
+                const peersHtml = sharedPeers.map(p => {
+                    const isSelf = p.onum === item.onum;
+                    const pLabel = currentLang === 'ja' ? `${p.nameJa} (${p.name})` : p.name;
+                    const randNote = p.isRandomColorGem ? (currentLang === 'ja' ? ' [確率色変動]' : ' [Random Color]') : '';
+                    return `<button class="peer-jump-btn" data-onum="${p.onum}" style="cursor:pointer; font-size:0.75rem; padding:3px 8px; border-radius:4px; border:1px solid ${isSelf ? '#eab308' : 'rgba(255,255,255,0.2)'}; background:${isSelf ? 'rgba(234,179,8,0.25)' : 'rgba(0,0,0,0.35)'}; color:${isSelf ? '#fef08a' : '#e2e8f0'}; font-weight:${isSelf ? 'bold' : 'normal'};">#${p.onum} ${escapeHtml(pLabel)}${randNote}</button>`;
+                }).join('');
+                appMainHtml = `
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:8px; margin-top:6px;">
+                        <div style="background:rgba(0,0,0,0.3); padding:8px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
+                            <div style="font-size:0.7rem; color:#94a3b8;">🇯🇵 ${currentLang === 'ja' ? '未識別表示名 (日本語)' : 'Japanese Appearance'}</div>
+                            <div style="font-size:0.95rem; font-weight:bold; color:#fde047; margin-top:2px;">${escapeHtml(unIdJa)}</div>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.3); padding:8px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
+                            <div style="font-size:0.7rem; color:#94a3b8;">🇺🇸 ${currentLang === 'ja' ? '未識別表示名 (英語 / oc_descr)' : 'English Appearance (oc_descr)'}</div>
+                            <div style="font-size:0.95rem; font-weight:bold; color:#f8fafc; font-family:monospace; margin-top:2px;">${escapeHtml(unIdEn)} <span style="font-size:0.75rem; color:#94a3b8;">(descr: "${escapeHtml(item.descr)}")</span></div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.78rem; color:#cbd5e1; margin-top:8px;">
+                        ⚠️ ${currentLang === 'ja'
+                            ? `このアイテム自体の外見は毎ゲーム「${escapeHtml(unIdJa)}」で固定ですが、以下の複数アイテムが同じ未識別外見を共有しているため、外見だけでは判別できず鑑定が必要です。`
+                            : `This item's appearance is fixed as "${escapeHtml(unIdEn)}", but multiple items share this exact appearance:`}
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${peersHtml}</div>
+                `;
+            } else if (appMode === 'SHUFFLED') {
+                appBadgeText = currentLang === 'ja' ? '🎲 シャッフル外見 (毎ゲーム変動)' : '🎲 Shuffled Appearance (Randomized)';
+                appBadgeStyle = 'background:rgba(168,85,247,0.25); border:1px solid #a855f7; color:#e9d5ff;';
+                appBoxBorder = 'border:1px solid rgba(168,85,247,0.4); background:rgba(168,85,247,0.07);';
+                const candidatesHtml = shufCandidates.length > 0 ? `
+                    <div style="margin-top:8px;">
+                        <div style="font-size:0.75rem; color:#d8b4fe; font-weight:bold; margin-bottom:4px;">🎭 ${currentLang === 'ja' ? `このグループ内でシャッフルされる外見候補 (${shufCandidates.length}種):` : `Candidate Appearances in Group (${shufCandidates.length}):`}</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${shufCandidates.map(c => `<span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:rgba(0,0,0,0.4); border:1px solid rgba(168,85,247,0.35); color:#f8fafc;">${escapeHtml(currentLang === 'ja' ? `${c.nameJa} ("${c.descr}")` : `"${c.nameEn}"`)}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : '';
+                const peersHtml = sharedPeers.length > 0 ? `
+                    <div style="margin-top:8px;">
+                        <div style="font-size:0.75rem; color:#d8b4fe; font-weight:bold; margin-bottom:4px;">🔄 ${currentLang === 'ja' ? `シャッフル対象の全アイテム (${sharedPeers.length}種・クリックで移動):` : `Items in Shuffle Range (${sharedPeers.length}):`}</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${sharedPeers.map(p => {
+                                const isSelf = p.onum === item.onum;
+                                const pLabel = currentLang === 'ja' ? `${p.nameJa} (${p.name})` : p.name;
+                                return `<button class="peer-jump-btn" data-onum="${p.onum}" style="cursor:pointer; font-size:0.75rem; padding:3px 8px; border-radius:4px; border:1px solid ${isSelf ? '#a855f7' : 'rgba(255,255,255,0.2)'}; background:${isSelf ? 'rgba(168,85,247,0.3)' : 'rgba(0,0,0,0.35)'}; color:${isSelf ? '#f3e8ff' : '#e2e8f0'}; font-weight:${isSelf ? 'bold' : 'normal'};">#${p.onum} ${escapeHtml(pLabel)}</button>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : '';
+                appMainHtml = `
+                    <div style="font-size:0.85rem; color:#f3e8ff; font-weight:600; margin-top:4px;">
+                        📌 ${escapeHtml(shufLabel)}
+                    </div>
+                    <div style="background:rgba(0,0,0,0.35); padding:8px 12px; border-radius:6px; border:1px dashed rgba(168,85,247,0.4); margin-top:8px; font-size:0.8rem; color:#cbd5e1;">
+                        <div>
+                            <strong style="color:#fcd34d;">⚠️ ${currentLang === 'ja' ? 'Cソース (objects.h) の初期スロット値:' : 'Initial C-Source Slot Value (Unshuffled):'}</strong>
+                            <span style="font-family:monospace; color:#f8fafc; margin-left:6px;">"${escapeHtml(item.descr)}"</span>
+                            <span style="color:#94a3b8; margin-left:4px;">(${escapeHtml(unIdJa)} / ${escapeHtml(unIdEn)})</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">
+                            ${currentLang === 'ja'
+                                ? '※この値はビルド時の初期配列で同じインデックスに並んでいるだけの値です。実際のゲームでは開始時の shuffle_all() によってグループ内でランダムに入れ替わるため、WebUI は SHIM_CMD_DUMP_DESCR_INDEXES (0x62) で実メモリ上の oc_descr_idx を同期して名称とグリフタイルを決定します。'
+                                : 'Note: This is only the unshuffled initial slot in objects.h. At runtime, shuffle_all() randomizes oc_descr_idx across the group (synced via 0x62).'}
+                        </div>
+                    </div>
+                    ${candidatesHtml}
+                    ${peersHtml}
+                `;
+            } else if (appMode === 'RANDOM_GEM') {
+                appBadgeText = currentLang === 'ja' ? '💎 宝石色ランダム変動' : '💎 Randomized Gem Color';
+                appBadgeStyle = 'background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#7dd3fc;';
+                appBoxBorder = 'border:1px solid rgba(56,189,248,0.35); background:rgba(56,189,248,0.06);';
+                appMainHtml = `
+                    <div style="font-size:0.85rem; color:#e0f2fe; font-weight:600; margin-top:4px;">
+                        📌 ${escapeHtml(shufLabel)}
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
+                        ${shufCandidates.map(c => `<span style="font-size:0.8rem; padding:3px 10px; border-radius:4px; background:rgba(0,0,0,0.4); border:1px solid #38bdf8; color:#f8fafc; font-weight:bold;">${escapeHtml(currentLang === 'ja' ? `${c.nameJa} (${c.nameEn})` : c.nameEn)}</span>`).join('')}
+                    </div>
+                    <div style="font-size:0.75rem; color:#cbd5e1; margin-top:6px;">
+                        ${currentLang === 'ja'
+                            ? `Cソースの初期定義値は "${escapeHtml(item.descr)}" (${escapeHtml(unIdJa)}) ですが、ゲーム開始時の randomize_gem_colors() によって上記の色に確率で書き換わります（0x62 で同期）。`
+                            : `Initial C definition is "${escapeHtml(item.descr)}", but randomize_gem_colors() randomly reassigns its color at game start.`}
+                    </div>
+                `;
+            } else if (appMode === 'SHUFFLE_POOL') {
+                appBadgeText = currentLang === 'ja' ? '🏷️ 外見プール専用枠 (実体なし)' : '🏷️ Appearance Pool Slot';
+                appBadgeStyle = 'background:rgba(148,163,184,0.2); border:1px solid #94a3b8; color:#cbd5e1;';
+                appBoxBorder = 'border:1px solid rgba(148,163,184,0.35); background:rgba(148,163,184,0.06);';
+                appMainHtml = `
+                    <div style="font-size:0.85rem; color:#f8fafc; font-weight:600; margin-top:4px;">
+                        🏷️ ${currentLang === 'ja' ? '供給される未識別外見:' : 'Provided Appearance:'} <span style="color:#fde047;">${escapeHtml(unIdJa)}</span> <span style="font-family:monospace;">("${escapeHtml(item.descr)}")</span>
+                    </div>
+                    <div style="font-size:0.78rem; color:#cbd5e1; margin-top:6px;">
+                        ${escapeHtml(shufLabel)}<br>
+                        ${currentLang === 'ja'
+                            ? '※NetHack では巻物（実体21種に対しラベル候補41種）や杖（実体25種に対し外見候補28種）の外見バリエーションを増やすため、アイテム名を持たない「外見専用スロット」が objects[] 配列内に定義されています。'
+                            : 'NetHack defines extra nameless object slots so scrolls (21 items, 41 labels) and wands (25 items, 28 appearances) have more possible appearances than items.'}
+                    </div>
+                `;
+            } else {
+                appBadgeText = currentLang === 'ja' ? '👁️ 初期識別済み (外見名なし)' : '👁️ Always Identified';
+                appBadgeStyle = 'background:rgba(148,163,184,0.15); border:1px solid #64748b; color:#cbd5e1;';
+                appMainHtml = `
+                    <div style="font-size:0.8rem; color:#94a3b8; margin-top:4px;">
+                        ${currentLang === 'ja'
+                            ? '未識別外見（oc_descr）を持たず、ゲーム開始時から常に真名（識別済み状態: oc_name_known = 1）で表示されるアイテムです。'
+                            : 'Has no unidentified appearance (oc_descr = NULL, oc_name_known = 1); always shown by its true name.'}
+                    </div>
+                `;
+            }
+
+            const unIdAppearanceHtml = `
+                <div style="${appBoxBorder} padding:12px 14px; border-radius:6px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                        <span style="font-size:0.8rem; color:#f8fafc; font-weight:bold;">🎭 ${currentLang === 'ja' ? '未識別時の外見 ＆ シャッフル区分 (Appearance & Shuffle Spec)' : 'Unidentified Appearance & Shuffle Spec'}</span>
+                        <span class="tag-badge" style="font-size:0.72rem; padding:2px 8px; ${appBadgeStyle}">${appBadgeText}</span>
+                    </div>
+                    ${appMainHtml}
                 </div>
-            ` : '';
+            `;
 
             // 未識別時の鑑定Tips
             const unIdTips = Array.isArray(item.unidentifiedTips) && item.unidentifiedTips.length > 0 ? item.unidentifiedTips : [];
@@ -2575,7 +2791,23 @@
 
                 ${buildRelatedLoreHtml('ITEM', item)}
             `;
+
+            // 同一外見・シャッフルグループ内ピアアイテムへのジャンプイベント
+            knowledgeCard.querySelectorAll('.peer-jump-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetOnum = parseInt(btn.dataset.onum, 10);
+                    if (isNaN(targetOnum)) return;
+                    selectedEntityId = `item_onum_${targetOnum}`;
+                    renderList();
+                    renderCard();
+                    const activeEl = entityList.querySelector('.entity-item.active');
+                    if (activeEl) {
+                        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+            });
         }
+
 
         // -------------------------------------------------------------
         // 3.3 キャラクター（種族・職業）カード描画

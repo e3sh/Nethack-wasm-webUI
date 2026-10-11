@@ -15,6 +15,7 @@ import { OBJECT_TILEMAP_NAMES } from "../data/tilemappings_data.js";
 import { OBJECT_KNOWLEDGE_MAP } from "../data/OBJECT_KNOWLEDGE_FULL.js";
 import { DISCOVERY_MESSAGE_MAP } from "../data/DISCOVERY_MESSAGE_MAP.js";
 import { APPEARANCE_PATTERNS } from "../engines/ItemIdentificationResolver.js";
+import { setDescrIndexesForTileMapping } from "../../../driver/tileMapping.js";
 
 // 初回から真名が自明な非ランダム外見カテゴリ（食料、基本道具など）
 export const INTRINSICALLY_KNOWN_CATEGORIES = new Set(['FOOD', 'TOOL', 'CONTAINER']);
@@ -42,6 +43,8 @@ export class DiscoveryStateManager {
         this.discoveredOnums = new Set();
         // 外見名 ➡ 真名マッピング (例: "ruby potion" -> "potion of healing")
         this.appearanceMap = new Map();
+        // onum ➡ 現在のゲームでシャッフルされた外見情報 { appearanceOnum, descr }
+        this.dynamicAppearanceByOnum = new Map();
         // 外見名/真名 ➡ プレイヤー仮名 (例: "silver wand" -> "digging?")
         this.calledNamesMap = new Map();
         // 翻訳エンジン (TranslationEngine)
@@ -143,22 +146,64 @@ export class DiscoveryStateManager {
     reset() {
         this.discoveredOnums.clear();
         this.appearanceMap.clear();
+        this.dynamicAppearanceByOnum.clear();
         this.calledNamesMap.clear();
         this.isSynced = false;
+        setDescrIndexesForTileMapping(null);
     }
 
     /**
-     * WasmDirectBindingService (またはライブメモリ) から発見状態を一括同期
+     * Wasm メモリから取得した外見インデックス配列 (objects[i].oc_descr_idx) を同期
+     * @param {Int32Array|Array<number>} descrIndexes
+     * @returns {boolean} 変更または同期が行われたか
+     */
+    syncDescrIndexes(descrIndexes) {
+        if (!descrIndexes || !descrIndexes.length) return false;
+        setDescrIndexesForTileMapping(descrIndexes);
+
+        let updated = false;
+        for (let onum = 0; onum < descrIndexes.length; onum++) {
+            const appOnum = descrIndexes[onum];
+            if (typeof appOnum === 'number' && appOnum >= 0 && OBJECT_KNOWLEDGE_MAP) {
+                const appItem = OBJECT_KNOWLEDGE_MAP.get(appOnum);
+                const descr = (appItem && appItem.descr) ? appItem.descr : '';
+                const prev = this.dynamicAppearanceByOnum.get(onum);
+                if (!prev || prev.appearanceOnum !== appOnum || prev.descr !== descr) {
+                    this.dynamicAppearanceByOnum.set(onum, {
+                        appearanceOnum: appOnum,
+                        descr
+                    });
+                    updated = true;
+                }
+            }
+        }
+        return updated;
+    }
+
+    /**
+     * WasmDirectBindingService (またはライブメモリ) から発見状態および外見インデックスを一括同期
      * @param {Object} wasmDirectBindingService 
-     * @returns {boolean} 同期が実行されたか
+     * @returns {boolean} 同期による状態変化があったか
      */
     syncWithLiveMemory(wasmDirectBindingService) {
-        if (!wasmDirectBindingService || typeof wasmDirectBindingService.getDiscoveries !== 'function') {
+        if (!wasmDirectBindingService) {
             return false;
         }
 
+        let descrUpdated = false;
+        if (typeof wasmDirectBindingService.getDescrIndexes === 'function') {
+            const descrIndexes = wasmDirectBindingService.getDescrIndexes();
+            if (descrIndexes && descrIndexes.length > 0) {
+                descrUpdated = this.syncDescrIndexes(descrIndexes);
+            }
+        }
+
+        if (typeof wasmDirectBindingService.getDiscoveries !== 'function') {
+            return descrUpdated;
+        }
+
         const discoveries = wasmDirectBindingService.getDiscoveries();
-        if (!discoveries) return false;
+        if (!discoveries) return descrUpdated;
 
         const newDiscoveredOnums = [];
 
@@ -177,6 +222,10 @@ export class DiscoveryStateManager {
                     if (item && item.name) {
                         this.calledNamesMap.set(item.name.toLowerCase(), uname);
                     }
+                    const dyn = this.dynamicAppearanceByOnum.get(onum);
+                    if (dyn && dyn.descr) {
+                        this.calledNamesMap.set(dyn.descr.toLowerCase(), uname);
+                    }
                 }
             }
         }
@@ -186,7 +235,7 @@ export class DiscoveryStateManager {
         }
 
         this.isSynced = true;
-        return newDiscoveredOnums.length > 0;
+        return newDiscoveredOnums.length > 0 || descrUpdated;
     }
 
     /**
@@ -444,6 +493,10 @@ export class DiscoveryStateManager {
             if (item && item.name && this.calledNamesMap.has(item.name.toLowerCase())) {
                 return this.calledNamesMap.get(item.name.toLowerCase());
             }
+            const dyn = this.dynamicAppearanceByOnum.get(onumOrName);
+            if (dyn && dyn.descr && this.calledNamesMap.has(dyn.descr.toLowerCase())) {
+                return this.calledNamesMap.get(dyn.descr.toLowerCase());
+            }
             return null;
         }
         if (typeof onumOrName === 'string') {
@@ -454,11 +507,18 @@ export class DiscoveryStateManager {
     }
 
     /**
-     * onum または真名に対応する外見名を取得（appearanceMap 逆引き）
+     * onum または真名に対応する外見名を取得（dynamicAppearanceByOnum 最優先 + appearanceMap 逆引き）
      * @param {number|string} onumOrName 
      * @returns {string|null}
      */
     getAppearance(onumOrName) {
+        if (typeof onumOrName === 'number') {
+            const dyn = this.dynamicAppearanceByOnum.get(onumOrName);
+            if (dyn && dyn.descr) {
+                return dyn.descr;
+            }
+        }
+
         let trueName = '';
         if (typeof onumOrName === 'number') {
             const item = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onumOrName) : null;
@@ -467,6 +527,13 @@ export class DiscoveryStateManager {
             }
         } else if (typeof onumOrName === 'string') {
             trueName = onumOrName.trim().toLowerCase();
+            const lookedUpOnum = this.lookupOnum(trueName);
+            if (lookedUpOnum !== null && lookedUpOnum >= 0) {
+                const dyn = this.dynamicAppearanceByOnum.get(lookedUpOnum);
+                if (dyn && dyn.descr) {
+                    return dyn.descr;
+                }
+            }
         }
         if (!trueName) return null;
 
@@ -476,6 +543,20 @@ export class DiscoveryStateManager {
             }
         }
         return null;
+    }
+
+    /**
+     * 指定 onum が現在まとっている外見の元の onum (oc_descr_idx) を取得
+     * @param {number} onum
+     * @returns {number} 外見に対応する onum
+     */
+    getAppearanceOnum(onum) {
+        if (typeof onum !== 'number' || onum < 0) return -1;
+        const dyn = this.dynamicAppearanceByOnum.get(onum);
+        if (dyn && typeof dyn.appearanceOnum === 'number' && dyn.appearanceOnum >= 0) {
+            return dyn.appearanceOnum;
+        }
+        return onum;
     }
 
     /**
@@ -582,12 +663,14 @@ export class DiscoveryStateManager {
                     seenNames.add(lowerName);
                     const called = this.calledNamesMap.get(lowerName) || null;
                     const nameJa = k.nameJa || this._translateText(name) || null;
+                    const dynApp = this.getAppearance(onum) || '';
+                    const appJa = dynApp ? this._translateText(dynApp) : null;
                     items.push({
                         onum,
                         trueName: name,
                         nameJa: nameJa,
-                        appearance: '',
-                        appearanceJa: null,
+                        appearance: dynApp,
+                        appearanceJa: appJa,
                         calledName: called,
                         category: (k.category ? k.category.toLowerCase() : this._inferCategory(name, '')),
                         knowledge: k,

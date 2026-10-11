@@ -522,12 +522,14 @@
         GET_INVENT_PTR: 0x40,
         GET_EQUIPMENT_PTRS: 0x41,
         DUMP_OBJECT_INFO: 0x42,
+        DUMP_ALL_INVENT: 0x43,
 
         DUMP_SPELL_BOOK: 0x50,
         DUMP_SKILLS: 0x51,
 
         DUMP_DISCOVERIES: 0x60,
         GET_OBJECT_UNAME: 0x61,
+        DUMP_DESCR_INDEXES: 0x62,
 
         GET_SYMBOL_PTR: 0x70,
     };

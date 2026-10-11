@@ -768,6 +768,59 @@ describe('InventoryStateManager', () => {
         // discoveryStateManager に自動登録されていること
         expect(mockDiscoveredSet.has(307)).toBe(true);
     });
+
+    it('syncFromDirectBinding: oc_descr_idx シャッフル同期済みの場合、未識別防具 (onum=161) が riding gloves ではなくシャッフル後の fencing gloves としてインベントリ構築されること', async () => {
+        const { DiscoveryStateManager } = await import('../state/DiscoveryStateManager.js');
+        const { StructuredKnowledgeEngine } = await import('../engines/StructuredKnowledgeEngine.js');
+
+        // onum 161 (gauntlets of power, 初期descr: riding gloves) に 162 (fencing gloves) が割り当てられたシャッフル配列
+        const descrIndexes = new Int32Array(481);
+        for (let i = 0; i < 481; i++) descrIndexes[i] = i;
+        descrIndexes[161] = 162;
+        descrIndexes[162] = 161;
+
+        const mockDiscoveries = new Uint8Array(481); // すべて未識別 (0)
+        const rawItems = [
+            {
+                invlet: 'g',
+                onum: 161, // gauntlets of power
+                quan: 1,
+                spe: 0,
+                ptr: 3000,
+                flags: { blessed: false, cursed: false, bknown: false, known: false, dknown: true }
+            }
+        ];
+
+        const mockWasm = {
+            isAvailable: () => true,
+            getInventory: () => rawItems,
+            getEquipmentPtrs: () => ({ slotByPtr: new Map() }),
+            getDiscoveries: () => mockDiscoveries,
+            getDescrIndexes: () => descrIndexes
+        };
+
+        const discoveryMgr = new DiscoveryStateManager({ wasmDirectBindingService: mockWasm });
+        discoveryMgr.syncWithLiveMemory();
+
+        const engine = new StructuredKnowledgeEngine({ discoveryStateManager: discoveryMgr });
+        const manager = new InventoryStateManager({
+            discoveryStateManager: discoveryMgr,
+            wasmDirectBindingService: mockWasm,
+            structuredKnowledgeEngine: engine,
+            language: 'ja'
+        });
+
+        manager.syncFromDirectBinding();
+
+        const item = manager.getItemByLetter('g');
+        expect(item).toBeDefined();
+        expect(item.rawText).toBe('fencing gloves');
+        expect(item.rawText).not.toContain('riding gloves');
+        expect(item.identification.isUnidentified).toBe(true);
+        expect(item.identification.appearanceName).toBe('fencing gloves');
+        expect(item.knowledge.name).toBe('フェンシング用の手袋');
+        expect(item.knowledge.nameEn).toBe('fencing gloves');
+    });
 });
 
 

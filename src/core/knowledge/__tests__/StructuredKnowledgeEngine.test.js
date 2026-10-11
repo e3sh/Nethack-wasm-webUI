@@ -611,6 +611,36 @@ describe('StructuredKnowledgeEngine', () => {
             expect(k.effectSummary).toContain('未鑑定の薬');
             expect(k.effectSummary).toContain('正体不明');
         });
+
+        it('C言語の oc_descr_idx シャッフル同期後、床の gauntlets of power (onum=161) が初期固定名 (riding gloves) ではなく実際のシャッフル外見名 (fencing gloves / フェンシング用の手袋) で解決されること', () => {
+            const mockDiscoveryMgr = {
+                isIdentified: () => false,
+                getAppearance: (onum) => (onum === 161 ? 'fencing gloves' : null)
+            };
+            const engine = new StructuredKnowledgeEngine({
+                discoveryStateManager: mockDiscoveryMgr
+            });
+
+            // 床グリフ 3609 (onum 161: gauntlets of power, 静的descrは "riding gloves")
+            const floorEntity = {
+                type: 'ITEM',
+                subType: 161,
+                glyph: 3609,
+                rawGlyph: 3609
+            };
+
+            const kJa = engine.getKnowledge(floorEntity, { language: 'ja' });
+            expect(kJa).not.toBeNull();
+            expect(kJa.isUnidentified).toBe(true);
+            expect(kJa.name).toBe('フェンシング用の手袋');
+            expect(kJa.nameEn).toBe('fencing gloves');
+            expect(kJa.name).not.toContain('riding gloves');
+            expect(kJa.name).not.toContain('乗馬用の手袋');
+            expect(kJa.name).not.toContain('gauntlets of power');
+
+            const kEn = engine.getKnowledge(floorEntity, { language: 'en' });
+            expect(kEn.name).toBe('fencing gloves');
+        });
     });
 });
 

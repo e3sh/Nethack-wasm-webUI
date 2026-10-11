@@ -1,16 +1,29 @@
 ---
 title: appearances.ja
 status: active
-last_updated: 2026-08-15
+last_updated: 2026-10-11
 related_code:
-  - src/
+  - src/core/knowledge/state/DiscoveryStateManager.js
+  - src/core/knowledge/engines/ItemIdentificationResolver.js
+  - src/driver/shim/shim_bridge.c
 ---
 
-# NetHack アイテム出現名（エイリアス名）リスト
+# NetHack アイテム出現名（エイリアス名）と外見シャッフル仕様
 
-NetHackにおいて、未識別状態で表示されるアイテムの外見や素材（エイリアス名）のリストです。
+NetHackにおいて、未識別状態で表示されるアイテムの外見や素材（エイリアス名：`oc_descr`）のリストと、ゲーム開始時のシャッフル仕様です。
+
+> [!IMPORTANT]
+> **外見の「シャッフル対象」と「固定対象」の違い（`o_init.c: shuffle_all()`）**
+> * **シャッフルされる外見グループ**:
+>   薬 (Potions)・巻物 (Scrolls)・指輪 (Rings)・杖 (Wands)・魔除け (Amulets)・魔法書 (Spellbooks)・宝石 (Gems)、および防具の一部（兜・外套・盾・**手袋**・**靴**）は、新規ゲーム開始時にグループ内で `objects[otyp].oc_descr_idx` がランダムにシャッフルされます。
+>   * 例：手袋の4種（`leather gloves` / `gauntlets of fumbling` / `gauntlets of power` / `gauntlets of dexterity`）に対して、`old gloves` / `padded gloves` / `riding gloves` / `fencing gloves` のどれが割り当てられるかは**毎ゲーム異なります**。
+> * **固定外見（非シャッフル）グループ**:
+>   武器（例：`samurai sword` = `katana`）や道具（例：`looking glass` = `mirror`）などの未識別外見は、`oc_descr_idx == otyp` で固定されており、ゲームごとに変化しません。
+> * **Wasm-JS 間の同期方式**:
+>   Cコアが送出する `glyphId` やインベントリの `onum` は常に「真のアイテム番号（`otyp`）」であるため、WebUI 側では `SHIM_CMD_DUMP_DESCR_INDEXES (0x62)` によって `objects[0..NUM_OBJECTS].oc_descr_idx` 配列を直接同期し、未識別名称およびタイル画像（[glyph_tile_mapping.ja.md](file:///C:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/5_gamedata/glyph_tile_mapping.ja.md) 参照）の両方を補正しています。
 
 ## 1. 薬 (Potions) - 液体の色や状態
+
 *   ruby (ルビー色の)
 *   pink (ピンク色の)
 *   orange (オレンジ色の)
@@ -155,96 +168,106 @@ NetHackにおいて、未識別状態で表示されるアイテムの外見や�
 *   perforated (穴の空いた)
 *   cubical (立方体の)
 
-## 6. 防具 (Armor)
+## 6. 防具 (Armor) ※固定外見とシャッフル対象が混在
 *   **兜 (Helmets)**
-    *   leather hat (革の帽子)
-    *   iron skull cap (鉄のどてら帽)
-    *   hard hat (安全ヘルメット)
-    *   conical hat (円錐形の帽子)
-    *   plumed helmet (羽飾りの兜)
-    *   etched helmet (エッチングされた兜)
-    *   crested helmet (前立てのある兜)
-    *   visored helmet (面頬付きの兜)
+    *   **[固定外見: 1対1]**
+        *   leather hat (革の帽子) — `fedora` (`onum 89`)
+        *   iron skull cap (鉄のどてら帽) — `dented pot` (`onum 91`)
+        *   hard hat (安全ヘルメット) — `dwarvish iron helm` (`onum 93`)
+        *   conical hat (円錐形の帽子) — `cornuthaum` (`onum 94`)
+        *   crystal helmet (水晶の兜) — `helm of brilliance` (`onum 96`) ※シャッフル対象外！
+    *   **[シャッフル対象: `onum 97〜100` (`HELMET`〜`HELM_OF_TELEPATHY` 4種)]**
+        *   plumed helmet (羽飾りの兜)
+        *   etched helmet (エッチングされた兜)
+        *   crested helmet (前立てのある兜)
+        *   visored helmet (面頬付きの兜)
 *   **外套 (Cloaks)**
-    *   faded pall (色あせた覆い)
-    *   coarse mantelet (粗い外衣)
-    *   hooded cloak (フード付き外套)
-    *   slippery cloak (滑りやすい外套)
-    *   apron (エプロン)
-    *   tattered cape (ぼろぼろのケープ)
-    *   opera cloak (オペラマント)
-    *   ornamental cope (装飾的な典礼用マント)
-    *   piece of cloth (布切れ)
-*   **盾 (Shields)**
-    *   blue and green shield (青と緑の盾)
-    *   white-handed shield (白い手のついた盾)
-    *   red-eyed shield (赤い目のついた盾)
-    *   large round shield (大きな円形の盾)
-    *   polished silver shield (磨かれた銀の盾)
-*   **手袋 (Gloves)**
+    *   **[固定外見: 1対1]**
+        *   faded pall (色あせた覆い) — `mummy wrapping` (`onum 139`)
+        *   coarse mantelet (粗い外衣) — `orcish cloak` (`onum 140`)
+        *   hooded cloak (フード付き外套) — `dwarvish cloak` (`onum 141`)
+        *   slippery cloak (滑りやすい外套) — `oilskin cloak` (`onum 142`)
+        *   apron (エプロン) — `alchemy smock` (`onum 144`)
+    *   **[シャッフル対象: `onum 146〜149` (`CLOAK_OF_PROTECTION`〜`CLOAK_OF_DISPLACEMENT` 4種)]**
+        *   tattered cape (ぼろぼろのケープ)
+        *   opera cloak (オペラマント)
+        *   ornamental cope (装飾的な典礼用マント)
+        *   piece of cloth (布切れ)
+*   **盾 (Shields) [すべて固定外見・シャッフルなし]**
+    *   wooden shield (木の盾) — **[固定共有]** `small shield` / `elven shield` / `Uruk-hai shield` (`onum 150〜152`)
+    *   red-eyed shield (赤い目のついた盾) — `orcish shield` (`onum 155`)
+    *   large round shield (大きな円形の盾) — `dwarvish roundshield` (`onum 157`)
+    *   polished silver shield (磨かれた銀の盾) — `shield of reflection` (`onum 158`)
+*   **手袋 (Gloves) [すべてシャッフル対象: `onum 159〜162` (`LEATHER_GLOVES`〜`GAUNTLETS_OF_DEXTERITY` 4種)]**
     *   old gloves (古い手袋)
     *   padded gloves (パッド入りの手袋)
     *   riding gloves (乗馬用の手袋)
     *   fencing gloves (フェンシング用の手袋)
 *   **靴 (Boots)**
-    *   walking shoes (ウォーキングシューズ)
-    *   hard shoes (固い靴)
-    *   jackboots (長靴)
-    *   combat boots (コンバットブーツ)
-    *   jungle boots (ジャングルブーツ)
-    *   hiking boots (ハイキングブーツ)
-    *   mud boots (泥靴)
-    *   buckled boots (バックル付きの靴)
-    *   snow boots (スノーブーツ)
+    *   **[固定外見: 1対1]**
+        *   walking shoes (ウォーキングシューズ) — `low boots` (`onum 163`)
+        *   hard shoes (固い靴) — `iron shoes` (`onum 164`)
+        *   jackboots (長靴) — `high boots` (`onum 165`)
+    *   **[シャッフル対象: `onum 166〜172` (`SPEED_BOOTS`〜`LEVITATION_BOOTS` 7種)]**
+        *   combat boots (コンバットブーツ)
+        *   jungle boots (ジャングルブーツ)
+        *   hiking boots (ハイキングブーツ)
+        *   mud boots (泥靴)
+        *   buckled boots (バックル付きの靴)
+        *   riding boots (乗馬靴)
+        *   snow boots (スノーブーツ)
 
-## 7. 道具 (Tools)
-*   bag (袋)
-*   key (鍵)
-*   candle (蝋燭)
-*   lamp (ランプ)
-*   looking glass (手鏡)
-*   glass orb (ガラスの球)
-*   whistle (笛)
-*   flute (フルート)
-*   horn (角笛)
-*   harp (竪琴)
-*   drum (太鼓)
+## 7. 道具 (Tools) [すべて固定外見（一部複数アイテムで共有）]
+*   bag (袋) — **[固定共有]** `sack` / `oilskin sack` / `bag of holding` / `bag of tricks` (`onum 217〜220`)
+*   key (鍵) — `skeleton key` (`onum 221`)
+*   candle (蝋燭) — **[固定共有]** `tallow candle` / `wax candle` (`onum 224〜225`)
+*   lamp (ランプ) — **[固定共有]** `oil lamp` / `magic lamp` (`onum 227〜228`)
+*   looking glass (手鏡) — `mirror` (`onum 230`)
+*   glass orb (ガラスの球) — `crystal ball` (`onum 231`)
+*   whistle (笛) — **[固定共有]** `tin whistle` / `magic whistle` (`onum 245〜246`)
+*   flute (フルート) — **[固定共有]** `wooden flute` / `magic flute` (`onum 247〜248`)
+*   horn (角笛) — **[固定共有]** `tooled horn` / `frost horn` / `fire horn` / `horn of plenty` (`onum 249〜252`)
+*   harp (竪琴) — **[固定共有]** `wooden harp` / `magic harp` (`onum 253〜254`)
+*   drum (太鼓) — **[固定共有]** `leather drum` / `drum of earthquake` (`onum 257〜258`)
 
-## 8. 武器 (Weapons)
-*   runed ... (ルーンの刻まれた...)
-*   crude ... (粗末な...)
-*   bamboo ... (竹製の...)
-*   throwing star (手裏剣)
-*   throwing spear (投げ槍)
-*   double-headed axe (両刃の斧)
-*   broad ... (幅広の...)
-*   curved sword (曲刀)
-*   samurai sword (侍の刀)
-*   long samurai sword (侍の長刀)
-*   vulgar polearm (低俗な長柄武器)
-*   hilted polearm (柄のある長柄武器)
-*   forked polearm (二股の長柄武器)
-*   single-edged polearm (片刃の長柄武器)
-*   angled poleaxe (角度のついた戦斧)
-*   long poleaxe (長い戦斧)
-*   pole cleaver (長柄の包丁)
-*   pole sickle (長柄の鎌)
-*   pruning hook (剪定用の鉤)
-*   hooked polearm (鉤のある長柄武器)
-*   pronged polearm (先の分かれた長柄武器)
-*   beaked polearm (嘴状の長柄武器)
-*   broad pick (幅広のつるはし)
-*   staff (杖)
-*   thonged club (紐付きの棍棒)
+## 8. 武器 (Weapons) [すべて固定外見（出身種族・特殊名のみ未識別）]
+*   runed ... (ルーンの刻まれた...) — エルフ製武器 (`elven dagger` / `elven spear` / `elven short sword` / `elven broadsword` / `elven bow` / `elven arrow`)
+*   crude ... (粗末な...) — オーク製武器 (`orcish dagger` / `orcish spear` / `orcish short sword` / `orcish bow` / `orcish arrow`)
+*   bamboo ... (竹製の...) — `ya` (`bamboo arrow`, `onum 58`)
+*   throwing star (手裏剣) — `shuriken` (`onum 34`)
+*   throwing spear (投げ槍) — `javelin` (`onum 22`)
+*   double-headed axe (両刃の斧) — `battle-axe` (`onum 28`)
+*   broad ... (幅広の...) — ドワーフ製武器 (`dwarvish spear` / `dwarvish short sword` / `dwarvish mattock`)
+*   curved sword (曲刀) — `scimitar` (`onum 31`)
+*   samurai sword (侍の刀) — `katana` (`onum 37`)
+*   long samurai sword (侍の長刀) — `tsurugi` (`onum 38`)
+*   vulgar polearm (低俗な長柄武器) — `partisan` (`onum 40`)
+*   hilted polearm (柄のある長柄武器) — `ranseur` (`onum 41`)
+*   forked polearm (二股の長柄武器) — `spetum` (`onum 42`)
+*   single-edged polearm (片刃の長柄武器) — `glaive` (`onum 43`)
+*   angled poleaxe (角度のついた戦斧) — `halberd` (`onum 45`)
+*   long poleaxe (長い戦斧) — `bardiche` (`onum 46`)
+*   pole cleaver (長柄の包丁) — `voulge` (`onum 47`)
+*   pole sickle (長柄の鎌) — `fauchard` (`onum 48`)
+*   pruning hook (剪定用の鉤) — `guisarme` (`onum 49`)
+*   hooked polearm (鉤のある長柄武器) — `bill-guisarme` (`onum 50`)
+*   pronged polearm (先の分かれた長柄武器) — `lucern hammer` (`onum 51`)
+*   beaked polearm (嘴状の長柄武器) — `bec de corbin` (`onum 52`)
+*   broad pick (幅広のつるはし) — `dwarvish mattock` (`onum 69`)
+*   staff (杖) — `quarterstaff` (`onum 71`)
+*   thonged club (紐付きの棍棒) — `aklys` (`onum 72`)
 
-## 9. 宝石 (Gems/Stones)
-*   white (白い)
-*   red (赤い)
-*   orange (オレンジ色の)
-*   blue (青い)
-*   black (黒い)
-*   green (緑の)
-*   yellow (黄色い)
-*   yellowish brown (黄褐色の)
-*   violet (スミレ色の)
-*   gray (グレーの) ※灰色の石
+## 9. 宝石・石 (Gems/Stones) [固定共有色 ＋ 一部ゲーム開始時ランダム色]
+*   white (白い宝石) — `dilithium crystal`, `diamond`, `worthless piece of white glass`
+*   red (赤い宝石) — `ruby`, `jasper`, `worthless piece of red glass`
+*   orange (オレンジ色の宝石) — `jacinth`, `agate`, `worthless piece of orange glass`
+*   blue (青い宝石) — `sapphire`, `worthless piece of blue glass` (+ 確率で `turquoise`, `aquamarine`, `fluorite`)
+*   black (黒い宝石) — `black opal`, `obsidian`, `jet`, `worthless piece of black glass`
+*   green (緑の宝石) — `emerald`, `jade`, `worthless piece of green glass` (+ 確率で `turquoise`, `aquamarine`, `fluorite`)
+*   yellow (黄色い宝石) — `citrine`, `chrysoberyl`, `worthless piece of yellow glass`
+*   yellowish brown (黄褐色の宝石) — `amber`, `topaz`, `worthless piece of yellowish brown glass`
+*   violet (スミレ色の宝石) — `amethyst`, `worthless piece of violet glass` (+ 確率で `fluorite`)
+*   **[色ランダム宝石 (`randomize_gem_colors()` によりゲーム開始時に決定)]**
+    *   `turquoise` (`onum 446`) / `aquamarine` (`onum 448`) — 各50%で `green` または `blue`
+    *   `fluorite` (`onum 457`) — 各25%で `green`, `blue`, `white`, `violet`
+*   gray (灰色の石) — **[固定共有]** `luckstone`, `loadstone`, `touchstone`, `flint` (`onum 470〜473`)

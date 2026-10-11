@@ -760,7 +760,7 @@ export class StructuredKnowledgeEngine {
         const lang = options.language || this.language || 'ja';
         const isWisdomMode = Boolean(options.sagesWisdomMode !== undefined ? options.sagesWisdomMode : this.sagesWisdomMode);
         let cacheKey = null;
-        if (shouldTranslate && !options.dynamicState) {
+        if (shouldTranslate && !options.dynamicState && !this.discoveryStateManager) {
             if (typeof identifier === 'number' && !options.identification && !options.isUnidentified) {
                 cacheKey = `${lang}_item_num_${identifier}_${isWisdomMode ? 'w' : 'n'}`;
             } else if (typeof identifier === 'string') {

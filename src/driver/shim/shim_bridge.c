@@ -41,6 +41,7 @@ enum ShimBridgeCmd {
     /* 6. 発見・鑑定図鑑系 (0x60〜0x6F) */
     SHIM_CMD_DUMP_DISCOVERIES   = 0x60, /* buf=unsigned char[NUM_OBJECTS+1] -> oc_name_known 配列一括コピー */
     SHIM_CMD_GET_OBJECT_UNAME   = 0x61, /* a1=otyp, buf=char*, len=max -> oc_uname (仮名) コピー */
+    SHIM_CMD_DUMP_DESCR_INDEXES = 0x62, /* buf=int[NUM_OBJECTS+1] -> oc_descr_idx 配列一括コピー */
 
     /* 7. 究極の保険：シンボル基底ポインタ直接取得 (0x70〜) */
     SHIM_CMD_GET_SYMBOL_PTR     = 0x70, /* a1=sym_id -> 各種主要構造体の基底アドレス */
@@ -296,6 +297,14 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
                 ((char*) buf)[len - 1] = '\0';
             }
             return 1;
+        }
+        case SHIM_CMD_DUMP_DESCR_INDEXES: {
+            if (!buf || len < (int)((NUM_OBJECTS + 1) * sizeof(int))) return -1;
+            int *out = (int*) buf;
+            for (int i = 0; i <= NUM_OBJECTS; i++) {
+                out[i] = (int) objects[i].oc_descr_idx;
+            }
+            return (long) NUM_OBJECTS;
         }
 
         /* 7. 究極の保険：シンボル基底ポインタ */
