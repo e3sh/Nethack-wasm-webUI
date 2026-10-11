@@ -292,7 +292,7 @@ flowchart TD
 
 ## ⑤ アーキテクチャの基本憲法（設計判断ルール）
 
-すべての新機能開発・リファクタリングにおいて遵守すべき **「5大原則」** です。
+すべての新機能開発・リファクタリングにおいて遵守すべき **「6大原則」** です。
 
 ```mermaid
 graph TD
@@ -301,6 +301,7 @@ graph TD
     Const3["憲法3: 直交性の原則\n(描画表現と操作拡張を完全に独立分離)"]
     Const4["憲法4: パーマデス維持と知のメタ進行\n(キャラ強化は持ち越さず図鑑収集率のみ蓄積)"]
     Const5["憲法5: ゲーム内とゲーム外の疎結合\n(プレイ中は超軽量カード、大図鑑は独立展開)"]
+    Const6["憲法6: 確定情報とフォールバックの排他ルーティング\n(Shim直結時は文字列パース・推測処理を完全バイパス)"]
 ```
 
 ### 憲法 1: DRY ＆ バリアント追従の原則 (Single Source of Truth)
@@ -323,11 +324,18 @@ NetHack 本来の醍醐味である「パーマデス（死んだらキャラク
 ゲームプレイ中の操作性を阻害してはならない。プレイ中に表示するナレッジは、ミリ秒単位で開き最小限の視線移動で把握できる超軽量な単体カード（`<nh-knowledge-card>`）とする。  
 全モンスター・全アイテム・全伝承を一覧・鑑賞する大図鑑や戦歴分析は、独立ツール（`tools/adventure_log.html`, `tools/scoreboard.html`）として分離展開する。
 
+### 憲法 6: 確定情報（Direct Binding）と推論フォールバックの排他ルーティング原則 (Exclusive Routing & Strict Priority)
+Phase 8 の C 構造体メモリ直結（`SHIM_DIRECT`）が有効な場合、従来の「画面テキスト正規表現パース」や「ヒューリスティック推論（仮床推測・文字列からのカテゴリ逆算等）」を**同一パイプライン内で混在・後段実行してはならない**。
+- **入口での完全分岐**: C 構造体から仮の文字列を合成して既存テキストパーサーに流し込む「逆流アダプタ」を禁止する。`SHIM_DIRECT` 経路は `onum` / `oclass` / `corpsenm` / `flags` 等の確定値のみから $O(1)$ で決定論的に解決し、テキスト解析・推論コードは `fallback` モード専用パスとして完全に隔離する。
+- **厳格な3階層優先順位**: **Tier 1（C 構造体 Ground Truth ＋ 既知フラグ `known`/`dknown`/`bknown`/`seenv`） > Tier 2（`print_glyph` で目視確定済みの扉の向き等の視覚属性） > Tier 3（`fallback` 時のみの文字列・推論）** の順序を厳守し、下位層が上位層の確定情報を上書き破壊することを一切禁止する。
+
 ---
 
-## ⑥ 機能重複の統廃合候補 (Consolidation Candidates)
+## ⑥ 機能重複およびレガシー文字列パースの統廃合・退役候補 (Consolidation & Retirement Candidates)
 
-コードベースの肥大化と保守コストを削減するため、段階的に統合・整理を進めている機能リストです。
+コードベースの肥大化・保守コスト・正規表現誤爆リスクを削減するため、段階的に統合・退役（断捨離）を進めているリストです。
+
+### 6.1 UI コンポーネントの重複統廃合
 
 | 対象機能 / UI | 現状の重複状況 | 一本化・統廃合先 | ステータス / メリット |
 | :--- | :--- | :--- | :--- |
@@ -336,6 +344,22 @@ NetHack 本来の醍醐味である「パーマデス（死んだらキャラク
 | **コンテナ出し入れ操作** | `ContainerModal.js` (Nehww)<br>`<nh-container-filer>` (共通基盤) | **`<nh-container-filer>`** | 二画面コンテナ操作、数量ドラフト、BoH 防爆安全ガードのロジックを共通コンポーネント1つに集約。 |
 | **ペーパードール装備** | `PaperdollModal.js` (Nehww)<br>`<nh-paperdoll>` (共通基盤) | **`<nh-paperdoll>`** | 部位判定・ドラッグ＆ドロップ・換装シミュレーションのロジックを一元化。 |
 | **モーダルスタック管理** | `ModalManager.js` (Nehww)<br>`ModalStackController.js` (Headless) | **`ModalStackController`** | ESC 閉塞・FocusTrap・Z-Index 解決を Headless パッケージに完全統一。 |
+
+### 6.2 Phase 5（シグナル化）＋ Phase 8（Direct Binding）により不要化した旧文字列パース・推測処理の断捨離対象
+以前は C コア内部が見えなかったため画面出力の正規表現パースに頼っていましたが、同一 WASM バイナリ内で `shim_bridge.c` と `MessageContextResolver` が常時稼働する現在、**「念のため残した過去の文字列パース」自体が誤爆バグや複雑化の温床**となっています。以下の処理は安易に温存せず、要否を厳しく監査して計画的に縮小・廃止（退役）します。
+
+| ドメイン / 対象箇所 | 過去のレガシー実装（疑うべき処理） | 現在の正規手段（Ground Truth） | 整理・断捨離方針 |
+| :--- | :--- | :--- | :--- |
+| **所持品カテゴリ・装備状態判定**<br>`InventoryStateManager.js`<br>`EquipmentRules.js` | `categorizeItem` の Layer 2 文字列正規表現（色名から宝石判定、`ring` 文字列判定等）、`parseEquipState(rawText)` の括弧文字列パース | `onum` (`0..480`) / `oclass` マスター直引き ＋ `getEquipmentPtrs()` ポインタ照合 | Direct Binding 時は文字列パースを**完全廃止**。`onum` からのテーブル参照のみに純化。 |
+| **アイテム外見・識別深度解析**<br>`ItemIdentificationResolver.js` | `detectAppearance`（形容詞総当たり正規表現）、`inferCategory`、`extractBuc`、`extractEnchantmentAndCharges` | `onum` ＋ `oc_name_known` ＋ `oc_descr_idx` ＋ `o->bknown` / `o->known` / `o->spe` | `onum >= 0` が判明している場合は文字列からの逆推論を**完全廃止**。数値とフラグから直接構築。 |
+| **ディスカバリー同期**<br>`DiscoveryStateManager.js` | `\` コマンドのサイレントマクロ実行とテキスト行正規表現パース (`updateFromDiscoveriesText`) | `SHIM_CMD_DUMP_DISCOVERIES` (0x10) ＋ `DUMP_DESCR_INDEXES` (0x62) ＋ `oc_uname` | 実機ではメモリ直結で 100% 完結するため、マクロ実行と行パーサーへの依存を廃止。 |
+| **空間・仮床・扉/罠推論**<br>`AreaStateManager.js`<br>`TerrainInferenceEngine.js` | `9622` 仮床注入、メッセージ文字列からの罠・施錠推測 | `dumpLevelTerrain()` ＋ `getCellInfo()` (`typ`, `door`, `trap`) ＋ `print_glyph` | 仮床推測やメッセージ頼みの地形状態書き換えを廃止。 |
+| **属性・魔法・スキル同期**<br>`Attribute/Spell/SkillStateManager` | `^X` / `+` / `#enhance` のサイレントマクロ画面キャプチャと正規表現パース | Stage 8.4 にて `uprops` / `spl_book` / `P_SKILL` を C メモリから直接ダンプ | Stage 8.4 で順次 C メモリ直結へ移行し、画面キャプチャ用マクロと正規表現パーサーを退役。 |
+
+> **💡 今も本当にテキスト処理が必要な領域（これだけに集中する）**:  
+> ① `putmsg` 動的メッセージストリームのカタログ照合（`MessageContextResolver`）と翻訳（`TranslationEngine`）  
+> ② 対話プロンプト（`yn_function`, `getlin`）および C コアの選択メニューウィンドウ（コンテナ・呪文選択時のレター抽出）  
+> ③ テキスト自体が一次情報である `dat/data.base`（公式文学引用）と `xlogfile`（スコアボード死因文字列）
 
 ---
 

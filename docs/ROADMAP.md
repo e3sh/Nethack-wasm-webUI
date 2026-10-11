@@ -77,6 +77,18 @@ last_updated: 2026-10-11
     - ターン同期ライフサイクル (Sync Barrier: Phase 1 ACTION ➔ Phase 2 STREAMING ➔ Phase 3 SETTLED & SHIM SYNC ➔ Phase 4 COMMIT `areaStateCommitted`) の確立と `--More--` 待機ガード (`isMorePromptActive`)・世代排他制御 (`_syncGeneration`) の統合
     - `TerrainInferenceEngine` / `ViewportTileProjector` における Direct Binding アクティブ時の投機的仮床推測（`3992`）副作用の完全根絶、および `STONE (0)` / `SDOOR (14)` / `SCORR (15)` の未踏・ネタバレ防止ガード
     - フロア全域 `dumpLevelTerrain()` の参照用ルックアップテーブル化（未踏領域の非表示化）および `curs` ➔ Sync Barrier 連動の足元 `cell.middle`（床落ちアイテム・山積み）確定更新・Commit 駆動フラッシュ制御 (全138スイート・1,718テスト PASS)
+  - [ ] **Stage 8.3-C: Direct Binding 確定情報（Ground Truth）純化 ＆ 足元地形・インベントリ不具合是正 (最優先次期タスク)**
+    - **設計・是正計画書**: [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md) (`⏸️ pending` / 原因特定・設計完了)
+    - **基本原則（全ドメイン横断・排他ルーティング / 基本憲法6）**: Shim 直結経路 (`SHIM_DIRECT`) とレガシー推測・文字列解析経路 (`FALLBACK_INFERENCE`) を入口で完全分岐。**Tier 1（C 構造体 Ground Truth ＋ `known`/`dknown`/`bknown`/`seenv`） > Tier 2（`print_glyph` 目視確定属性） > Tier 3（`fallback` 時のみの文字列・推論）** の優先順位を厳守し、Direct Binding 稼働時に仮文字列を正規表現で再パースする逆流や仮床推測の上書きを全ドメインで遮断する。
+    - **テストランク制度（Rank S/A/B/C）の導入と不要テスト整理**: 過去の旧仕様（文字列推測や仮床混在）を前提としたテストを通すために本番コードを歪める本末転倒を防止。[テストガイド (`docs/8_testing/README.md`)](./8_testing/README.md) に Rank S（絶対死守: SSOT/Direct Binding真値）〜 Rank C（廃止・削除対象: 旧内部実装依存）を定義し、トレードオフ発生時は Rank S/A を優先して Rank B は `fallback` 隔離、Rank C は積極的に削除・スリム化する。
+    - **Cシム層拡張 (`shim_bridge.c`)**: `SHIM_CMD_DUMP_ALL_INVENT` および `SHIM_CMD_DUMP_OBJECT_INFO` に `o->corpsenm`（死体・像・缶詰のモンスター種別ID）と `o->known`（強化値・チャージ数既知フラグ）を追加出力。
+    - **足元地形・像グリフ是正 (`TerrainInferenceEngine.js` / `AreaStateManager.js`)**:
+      - 扉のないドア (`D_NODOOR` / `D_BROKEN` ➔ `3985`) が閉扉 (`3988`) になる不具合、および開扉移動時に目視確定済みの縦横向き (`3986` vs `3987`) が変わる不具合の修正。
+      - 足元・所持品のモンスター像 (`onum: 476`)・死体 (`onum: 265`) が専用グリフ (`GLYPH_STATUE_OFF + corpsenm` / `GLYPH_BODY_OFF + corpsenm`) ではなく汎用オブジェクトグリフになる不具合の修正（旧番号 `295`/`474` のハードコード是正含む）。
+    - **アイコンインベントリ・ナレッジ精度是正 (`glyphClassifier.js` / `InventoryStateManager.js` / `ItemIdentificationResolver.js` / `EquipmentRules.js`)**:
+      - `glyphClassifier.js` の魔法書・杖 `onum` 境界ズレ是正（`SPELLBOOK: 366〜409`, `WAND: 410〜438`）。
+      - `glittering spellbook` の末尾 `"ring"` 誤爆（指輪・装備コマンド化）および `turquoise spellbook` の宝石色誤爆（投擲 `t` コマンド化）の根絶。
+      - 自作缶詰 (`onum: 296`) に内部フラグ `spe` が付与されて `"-2 tin"` となりナレッジが `"tin wand"`（錫の杖）に化ける不具合、および死体にモンスター名が付かない不具合の完全解消。
   - [ ] **Stage 8.4: ブランチ同定・お祈りタイマー・プレイヤー耐性直結**
     - `getPlayerSummary()` から `dnum` によるブランチ 100% 確定同定（`branch:dlvl` キャッシュ分離 ＆ 新エリア突入演出 `AREA_ENTERED` 発火）
     - `ublesscnt` をタイムライン燃料計（お祈りタイマー）へ直結（推測誤差ゼロ）
@@ -117,10 +129,10 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 - **現状**: `tools/scoreboard.html` および `PostMortemKnowledgeResolver.js`（多段構文解析・RCA調停）は実装完了。残る「未接続アドバイス（マインドフレア、グリーンスライム等）の包括バインド」および「50+件の死因検証ベンチマークテスト」が着手待ち。
 
 ### 2.6 床アイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵（Peek Wisdom）統合
-- **ステータス**: `⏸️ pending` (2026-10-11 設計策定 / Stage 8.3-B 完了により着手可能)
-- **設計書**: [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md)
+- **ステータス**: `⏸️ pending` (2026-10-11 設計策定 / Stage 8.3-C と連動して着手可能)
+- **設計書**: [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) / [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md)
 - **対象コード**: `src/core/knowledge/state/AreaStateManager.js`, `src/core/knowledge/presenters/ItemSpecPresenter.js`, `src/components/NhKnowledgeCard.js`
-- **概要**: `syncPlayerFeetFloor()` で取得済みの C 構造体 (`struct obj`) 全フィールド（`spe`, `locked`, `broken`, `corpsenm`, `age`, `quan` 等）を欠落なく `AreaStateManager` / `NhKnowledgeCard` へ伝搬し、ネタバレ防止ルール（Known ガード）を維持したまま「覗き見知恵（Peek Wisdom）」を統合表示する。
+- **概要**: `syncPlayerFeetFloor()` で取得済みの C 構造体 (`struct obj`) 全フィールド（`spe`, `locked`, `broken`, `corpsenm`, `age`, `quan` 等）を欠落なく `AreaStateManager` / `NhKnowledgeCard` へ伝搬し、ネタバレ防止ルール（Known ガード）を維持したまま「覗き見知恵（Peek Wisdom）」を統合表示する（※ `shim_bridge.c` の `corpsenm`・`known` 拡張は Stage 8.3-C と共通基盤）。
 
 ---
 

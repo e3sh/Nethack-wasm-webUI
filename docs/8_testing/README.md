@@ -56,7 +56,22 @@ npm run test:ui
 
 ---
 
-## 3. 新しいテストの追加方法 (How to Write New Tests)
+## 3. テストランク制度（Test Rank S / A / B / C）とトレードオフ整理規約
+
+Phase 8（C構造体 Direct Memory Binding）の進展に伴い、従来の「文字列正規表現パース」や「仮床推測（`3992`）」などの旧仕様・内部実装詳細に依存したテストと、新仕様（確定情報 Ground Truth の優先・2経路の完全分離）の間でトレードオフが発生することがあります。
+
+**「過去の古いテストを無条件にすべて通すために、本番コードに不要なフォールバック混在や互換ハックを残す」という本末転倒を防ぐ**ため、すべてのテストを以下の **4段階ランク（Rank S / A / B / C）** で位置づけ、優先順位に応じた更新・隔離・削除（Prune）を行います。
+
+| ランク | 定義・対象テスト | トレードオフ時の判断基準・運用方針 |
+| :---: | :--- | :--- |
+| **Rank S**<br>*(絶対死守)* | **SSOT マスター整合性・Direct Binding 真値契約・プロトコル防壁**<br>・`WasmDirectBindingService.test.js`, `DirectBindingVerificationEnvironment.test.js`<br>・`KnowledgeIntegrityAudit.test.js`, `ObjectKnowledgeIntegrity.test.js`, `AllGlyphsVerification.test.js`<br>・`sequenceProtocol.test.js`, `ArchitectureBoundary.test.js` | **最優先（100% PASS 必須）**。<br>C コアの真値（`onum` 境界、`corpsenm`、`known` フラグ、扉状態、UI Decoupling 境界規約）を保証する根幹テスト。ここが失敗した場合は必ずプロダクションコードを修正する。 |
+| **Rank A**<br>*(現行主軸)* | **各 Manager / Engine の公開 API 契約 ＆ 実機シナリオ統合テスト**<br>・Direct Binding (`auto` / `strict`) モード下での `AreaStateManager`, `InventoryStateManager`, `StructuredKnowledgeEngine`, `EquipmentRules`, `UIController` 等のテスト<br>・`realScenarios.test.js` | **高優先（仕様進化に合わせて更新）**。<br>新仕様（Direct Binding 決定論的解決・確定描画・ネタバレ防止マスク）を検証する主軸テスト。旧仕様の期待値と衝突する場合は、**新仕様の正しい挙動に合わせてテストの期待値を更新**する。 |
+| **Rank B**<br>*(フォールバック隔離)* | **レガシー文字列解析・ヒューリスティック推論専用テスト**<br>・`i` / `\` / `^X` コマンドのテキスト行正規表現パーステスト<br>・Direct Binding 非稼働時（`fallback` モード）の仮床 `3992` 推論・大岩移動推論テスト | **条件付き維持（`fallback` パスへ明示隔離）**。<br>Direct Binding 経路と混線しないよう、テスト内で明示的に `directBindingMode: 'fallback'`（または文字列専用関数 `parseInventoryLine` 等）を指定して隔離する。Rank S / A と競合する場合は Rank S / A を優先する。 |
+| **Rank C**<br>*(廃止・統合対象)* | **旧アーキテクチャの内部実装詳細・撤廃済み仕様に依存した冗長テスト**<br>・Direct Binding 稼働中に文字列正規表現フォールバックが動くことを前提としたテスト<br>・モジュール分割前の内部プライベートメソッドや重複モックを叩くだけのテスト | **積極整理（削除または Rank A/B へ統合）**。<br>Rank C のテストを通すために本番コードへ余計なフォールバックや互換分岐を入れることは**厳禁**とし、発見次第速やかに削除（Prune）または統合してテストスイートの純度を維持する。 |
+
+---
+
+## 4. 新しいテストの追加方法 (How to Write New Tests)
 
 新しいモジュールを追加した際、対象コードと同じディレクトリ内に `[ModuleName].test.js` を作成します。
 
@@ -76,7 +91,7 @@ describe('MyModule', () => {
 
 ---
 
-## 4. 統合・シナリオテストおよびプロトコル検証構想 (Advanced Testing Architecture)
+## 5. 統合・シナリオテストおよびプロトコル検証構想 (Advanced Testing Architecture)
 
 単体テスト（各モジュール個別の正確性検証）に加え、システム全体の一気通貫な信頼性を担保するための双方向テスト構想書が整備されています。
 
@@ -89,7 +104,7 @@ describe('MyModule', () => {
 
 ---
 
-## 5. テスト支援ツール (Testing Tools & Studios)
+## 6. テスト支援ツール (Testing Tools & Studios)
 
 実機プレイ中のイベントストリームをキャプチャし、リプレイ用シナリオテストを作成するための GUI ツールが整備されています。
 
@@ -97,6 +112,3 @@ describe('MyModule', () => {
   * ブラウザ上で各クライアント（Pure JS, Vue, React, Svelte, Solid 等）を動的にプレイしながら、下りイベントストリームをリアルタイム記録し、統合テスト用シナリオ JSON（`test/fixtures/scenarios/*.json`）をエクスポートできる専用スタジオ。
 * **[開発ツールポータル](../../tools/dev_tools.html)**:
   * Scenario Recorder Studio を含む各種開発・テストツールの総合メニュー画面。
-
-
-
