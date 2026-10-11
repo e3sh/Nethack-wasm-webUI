@@ -1,7 +1,7 @@
 ---
 title: Modern_Web_Components_Update_Rules
-status: active
-last_updated: 2026-08-15
+status: archived
+last_updated: 2026-10-11
 related_code:
   - src/
 ---

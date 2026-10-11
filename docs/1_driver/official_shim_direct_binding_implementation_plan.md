@@ -1,12 +1,14 @@
 ---
 title: official_shim_direct_binding_implementation_plan
-status: active
-last_updated: 2026-10-09
+status: in-progress
+last_updated: 2026-10-11
 related_code:
   - C:\Users\e3-sh\Desktop\works\NetHack-NetHack-5.0_org\NetHack-NetHack-5.0.1_Oct7_2026 (公式ソース最新原本)
-  - win/shim/shim_bridge.c (新規独立追加・単一窓口完全版)
+  - src/driver/shim/shim_bridge.c (WebUIリポジトリ管理の単一窓口ブリッジ正本・ビルド時 win/shim/shim_bridge.c へ自動同期)
   - scripts/build_wasm_50.ps1 (自動ビルドスクリプト)
   - src/driver/NetHackWasmDriver.js
+  - src/driver/NetHackWasmWorkerBridge.js
+  - src/driver/nethack.worker.js
   - src/driver/NetHackMemory.js
   - src/core/knowledge/services/WasmDirectBindingService.js
 ---
@@ -19,16 +21,16 @@ related_code:
 ## 1. 計画概要とアーキテクチャ哲学
 
 ### 1.1 目的
-従来の「テキストメッセージの正規表現パース」および「画面非表示での自動キー送信（サイレントマクロ）」に依存していたゲーム内情報取得（コンテナ重量、装備・内在耐性、祈りクールダウン/神の怒り、床の罠・施錠、モンスターHP・友好度・状態異常、呪文一覧、スキル熟練度、アイテム鑑定図鑑等）を、**公式コード非侵襲の単一汎用ディスパッチャー窓口（`shim_bridge_call`）を用いた「同期・構造化データ直結」へ完全移行**します。
+従来の「テキストメッセージの正規表現パース」および「画面非表示での自動キー送信（サイレントマクロ）」に依存していたゲーム内情報取得（コンテナ重量、装備・内在耐性、祈りクールダウン/神の怒り、床の罠・施錠、モンスターHP・友好度・状態異常、呪文一覧、スキル熟練度、アイテム鑑定図鑑・外見シャッフル配列等）を、**公式コード非侵襲の単一汎用ディスパッチャー窓口（`shim_bridge_call`）を用いた「構造化データ直結」へ完全移行**します。
 
 ### 1.2 達成目標と設計原則（再ビルドゼロ・完全固定化）
 1. **公式NetHackコード完全非侵襲（0行改変）**:
    - `win/shim/winshim.c` を含む公式NetHack Cソースコードには **一切手を加えない**。
-   - 独立した専用ブリッジファイル **`win/shim/shim_bridge.c`** を 1 つ新規追加し、ビルド時にリンク（`nethack_files.rsp` に追記）する構成とする。
+   - WebUIリポジトリ内の **`src/driver/shim/shim_bridge.c`** を単一正本として管理し、ビルドスクリプト（`scripts/build_wasm_50.ps1`）実行時に `win/shim/shim_bridge.c` へ自動同期・リンクする構成とする。
 2. **単一汎用窓口ディスパッチャー ＆ 再ビルド完全固定化**:
-   - Unixの `ioctl` やシステムコールのように、**`shim_bridge_call(cmd, arg1, arg2, buf, len)` という単一の窓口関数のみをエクスポート**する。
-   - 各マネージャーが将来必要とする全領域（地形・罠・部屋・モンスター・プレイヤー・装備・呪文・スキル・図鑑）を網羅したコマンド体系を最初から実装。
-   - **究極の保険（シンボルポインタ開示 `0x70`）**: 万が一将来C側に未想定のフィールドが必要になった場合でも、主要構造体の基底アドレス（`&u`, `&gi.invent`, `&svl.level` 等）を直接取得してJS側からメモリ直読可能。これにより**Cコードの修正および再ビルドは永久に不要（1回で完全固定）**となる。
+   - 個別C関数（`_weight`, `_inv_weight` 等）の直接エクスポートは一切行わず、Unixの `ioctl` やシステムコールのように、**`shim_bridge_call(cmd, arg1, arg2, buf, len)` という単一の窓口関数のみをエクスポート**する（`-sEXPORTED_FUNCTIONS=['_main','_shim_graphics_set_callback','_malloc','_free','_shim_bridge_call']`）。
+   - 各マネージャーが将来必要とする全領域（地形・罠・部屋・モンスター・プレイヤー・所持品一括ダンプ・装備・呪文・スキル・図鑑・外見シャッフルインデックス）を網羅したコマンド体系を実装。
+   - **究極の保険（シンボルポインタ開示 `0x70`）**: 万が一将来C側に未想定のフィールドが必要になった場合でも、主要構造体の基底アドレス（`&u`, `&gi.invent`, `&svl.level` 等）を直接取得してJS側からメモリ直読可能。これにより**Cコードの修正および再ビルドは原則不要**となる。
 3. **責務の完全分離 ＆ 重複実装防止（グリフ判定 vs メモリ直結の責任境界）**:
    - 既存の `glyphClassifier.js` で既に 100% 判明している情報（ペット `GLYPH_PET_OFF`、祭壇の属性、玉座、PileTop等）はそのまま活かす。
    - **メモリ直結は「グリフでは絶対に不可視な真実」のみに特化**:
@@ -68,12 +70,12 @@ related_code:
 
 ---
 
-## 3. 単一汎用ブリッジ完全版設計 (`win/shim/shim_bridge.c`)
+## 3. 単一汎用ブリッジ完全版設計 (`src/driver/shim/shim_bridge.c`)
 
-公式ソースコードには一切触れず、以下の独立ファイルを追加してビルドします。
+公式ソースコードには一切触れず、WebUIリポジトリ内の `src/driver/shim/shim_bridge.c` を正本として管理し、ビルド時に `win/shim/shim_bridge.c` へ自動同期・リンクします。
 
 ```c
-/* win/shim/shim_bridge.c
+/* src/driver/shim/shim_bridge.c
  * GKL 専用 統合ディスパッチャーブリッジ (再ビルドゼロ・完全版)
  * 公式NetHack 5.0 完全非侵襲・独立エクステンション
  */
@@ -103,6 +105,7 @@ enum ShimBridgeCmd {
     SHIM_CMD_GET_INVENT_PTR     = 0x40, /* -> gi.invent (所持品リンクリスト先頭) */
     SHIM_CMD_GET_EQUIPMENT_PTRS = 0x41, /* buf=long[14] -> [uwep, uswapwep, uquiver, uarm, uarmc, uarmh, uarms, uarmg, uarmf, uarmu, uamul, uleft, uright, ublindf] */
     SHIM_CMD_DUMP_OBJECT_INFO   = 0x42, /* a1=obj*, buf=long[8] -> [otyp, owt, quan, spe, oclass, invlet, flags, weight] */
+    SHIM_CMD_DUMP_ALL_INVENT    = 0x43, /* buf=long[max*12], len=max_bytes -> 全所持品の一括ダンプ (返値: 件数) */
 
     /* 5. 呪文・スキル系 (0x50〜0x5F) */
     SHIM_CMD_DUMP_SPELL_BOOK    = 0x50, /* buf=int[(MAXSPELL+1)*3] -> [sp_id, sp_lev, sp_know] の3つ組配列 */
@@ -111,249 +114,14 @@ enum ShimBridgeCmd {
     /* 6. 発見・鑑定図鑑系 (0x60〜0x6F) */
     SHIM_CMD_DUMP_DISCOVERIES   = 0x60, /* buf=unsigned char[NUM_OBJECTS+1] -> oc_name_known 配列一括コピー */
     SHIM_CMD_GET_OBJECT_UNAME   = 0x61, /* a1=otyp, buf=char*, len=max -> oc_uname (仮名) コピー */
+    SHIM_CMD_DUMP_DESCR_INDEXES = 0x62, /* buf=int[NUM_OBJECTS+1] -> oc_descr_idx (シャッフル外見インデックス) 一括コピー */
 
     /* 7. 究極の保険：シンボル基底ポインタ直接取得 (0x70〜) */
     SHIM_CMD_GET_SYMBOL_PTR     = 0x70, /* a1=sym_id -> 各種主要構造体の基底アドレス */
 };
-
-/* シンボルID (0x70用) */
-enum ShimSymbolId {
-    SHIM_SYM_U         = 1, /* &u */
-    SHIM_SYM_INVENT    = 2, /* &gi.invent */
-    SHIM_SYM_LEVEL     = 3, /* &svl.level */
-    SHIM_SYM_ROOMS     = 4, /* &svr.rooms */
-    SHIM_SYM_OBJECTS   = 5, /* objects 配列 */
-    SHIM_SYM_SPL_BOOK  = 6, /* &svs.spl_book */
-    SHIM_SYM_MOVES     = 7, /* &svm.moves */
-};
-
-/* 唯一のエクスポート窓口関数 */
-long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
-    switch (cmd) {
-        /* 1. 地形・マップ */
-        case SHIM_CMD_GET_CELL_INFO: {
-            int x = (int) arg1, y = (int) arg2;
-            if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return -1;
-            return (long) (
-                ((unsigned char) levl[x][y].typ) |
-                (((unsigned char) levl[x][y].flags) << 8) |
-                (((unsigned char) levl[x][y].lit) << 16) |
-                (((unsigned char) levl[x][y].roomno) << 17)
-            );
-        }
-        case SHIM_CMD_DUMP_LEVEL_TERRAIN: {
-            if (!buf || len < (COLNO * ROWNO)) return -1;
-            unsigned char *out = (unsigned char*) buf;
-            for (int y = 0; y < ROWNO; y++) {
-                for (int x = 0; x < COLNO; x++) {
-                    out[y * COLNO + x] = (unsigned char) levl[x][y].typ;
-                }
-            }
-            return 0;
-        }
-        case SHIM_CMD_GET_TRAP_AT: {
-            int x = (int) arg1, y = (int) arg2;
-            if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return 0;
-            struct trap *t = t_at(x, y);
-            if (!t) return 0;
-            return (long) (
-                ((unsigned char) t->ttyp) |
-                ((t->tseen ? 1 : 0) << 8) |
-                ((t->once ? 1 : 0) << 9)
-            );
-        }
-        case SHIM_CMD_GET_ENGRAVING_AT: {
-            int x = (int) arg1, y = (int) arg2;
-            if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return 0;
-            struct engr *ep = engr_at(x, y);
-            if (!ep) return 0;
-            if (buf && len > 0 && ep->engr_txt[actual_text]) {
-                strncpy((char*) buf, ep->engr_txt[actual_text], len - 1);
-                ((char*) buf)[len - 1] = '\0';
-            }
-            return (long) ep->engr_type;
-        }
-        case SHIM_CMD_GET_ROOM_TYPE: {
-            int roomno = (int) arg1;
-            int idx = roomno - ROOMOFFSET;
-            if (idx < 0 || idx >= MAXNROFROOMS) return OROOM;
-            return (long) svr.rooms[idx].rtype;
-        }
-
-        /* 2. モンスター */
-        case SHIM_CMD_GET_OBJECT_AT: {
-            int x = (int) arg1, y = (int) arg2;
-            if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return 0;
-            return (long) svl.level.objects[x][y];
-        }
-        case SHIM_CMD_GET_MONSTER_AT: {
-            int x = (int) arg1, y = (int) arg2;
-            if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return 0;
-            return (long) svl.level.monsters[x][y];
-        }
-        case SHIM_CMD_GET_MONSTER_INFO: {
-            int x = (int) arg1, y = (int) arg2;
-            if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return -1;
-            struct monst *m = svl.level.monsters[x][y];
-            if (!m) return 0;
-            int hp = m->mhp > 0 ? (m->mhp & 0xFFF) : 0;
-            int hpmax = m->mhpmax > 0 ? (m->mhpmax & 0xFFF) : 0;
-            return (long) (
-                (m->mpeaceful ? 1 : 0) |
-                ((m->mtame ? 1 : 0) << 1) |
-                (hp << 8) |
-                (hpmax << 20)
-            );
-        }
-        case SHIM_CMD_GET_MONSTER_STATE: {
-            int x = (int) arg1, y = (int) arg2;
-            if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return -1;
-            struct monst *m = svl.level.monsters[x][y];
-            if (!m) return 0;
-            return (long) (
-                (m->msleeping ? 1 : 0) |
-                ((m->mflee ? 1 : 0) << 1) |
-                ((m->mcanmove ? 0 : 1) << 2) | /* 1=麻痺/硬直 */
-                ((m->mconf ? 1 : 0) << 3) |
-                ((m->mstun ? 1 : 0) << 4) |
-                ((m->isshk ? 1 : 0) << 5) |
-                ((m->ispriest ? 1 : 0) << 6) |
-                ((m->cham ? 1 : 0) << 7)
-            );
-        }
-
-        /* 3. プレイヤー状態 */
-        case SHIM_CMD_GET_PLAYER_SUMMARY: {
-            if (!buf || len < (sizeof(long) * 8)) return -1;
-            long *out = (long*) buf;
-            out[0] = (long) u.uz.dnum;
-            out[1] = (long) u.uz.dlevel;
-            out[2] = (long) u.ublesscnt;
-            out[3] = (long) u.ugangr;          /* 神の怒り */
-            out[4] = (long) u.uluck;
-            out[5] = (long) u.ualign.record;   /* 信仰値 */
-            out[6] = (long) u.uhunger;         /* 空腹値 */
-            out[7] = (long) svm.moves;         /* 総ターン数 */
-            return 0;
-        }
-        case SHIM_CMD_GET_PLAYER_PTR: {
-            return (long) &u;
-        }
-        case SHIM_CMD_GET_PLAYER_PROPS: {
-            if (!buf || len < (sizeof(long) * (LAST_PROP + 1))) return -1;
-            long *out = (long*) buf;
-            for (int i = 0; i <= LAST_PROP; i++) {
-                out[i] = (long) (u.uprops[i].intrinsic | (u.uprops[i].extrinsic << 16));
-            }
-            return 0;
-        }
-
-        /* 4. インベントリ・装備 */
-        case SHIM_CMD_GET_INVENT_PTR: {
-            return (long) gi.invent;
-        }
-        case SHIM_CMD_GET_EQUIPMENT_PTRS: {
-            if (!buf || len < (sizeof(long) * 14)) return -1;
-            long *out = (long*) buf;
-            out[0]  = (long) uwep;
-            out[1]  = (long) uswapwep;
-            out[2]  = (long) uquiver;
-            out[3]  = (long) uarm;
-            out[4]  = (long) uarmc;
-            out[5]  = (long) uarmh;
-            out[6]  = (long) uarms;
-            out[7]  = (long) uarmg;
-            out[8]  = (long) uarmf;
-            out[9]  = (long) uarmu;
-            out[10] = (long) uamul;
-            out[11] = (long) uleft;
-            out[12] = (long) uright;
-            out[13] = (long) ublindf;
-            return 0;
-        }
-        case SHIM_CMD_DUMP_OBJECT_INFO: {
-            struct obj *o = (struct obj*) arg1;
-            if (!o || !buf || len < (sizeof(long) * 8)) return -1;
-            long *out = (long*) buf;
-            out[0] = (long) o->otyp;
-            out[1] = (long) o->owt;
-            out[2] = (long) o->quan;
-            out[3] = (long) o->spe;
-            out[4] = (long) o->oclass;
-            out[5] = (long) o->invlet;
-            out[6] = (long) (
-                (o->blessed ? 1 : 0) |
-                ((o->cursed ? 1 : 0) << 1) |
-                ((o->bknown ? 1 : 0) << 2) |
-                ((o->dknown ? 1 : 0) << 3) |
-                ((o->rknown ? 1 : 0) << 4) |
-                ((o->oeroded & 3) << 5) |
-                ((o->oeroded2 & 3) << 7)
-            );
-            out[7] = (long) weight(o); /* 鞄の軽減・4倍補正込み真の重量 */
-            return 0;
-        }
-
-        /* 5. 呪文・スキル */
-        case SHIM_CMD_DUMP_SPELL_BOOK: {
-            if (!buf || len < (sizeof(int) * (MAXSPELL + 1) * 3)) return -1;
-            int *out = (int*) buf;
-            for (int i = 0; i <= MAXSPELL; i++) {
-                out[i * 3 + 0] = (int) svs.spl_book[i].sp_id;
-                out[i * 3 + 1] = (int) svs.spl_book[i].sp_lev;
-                out[i * 3 + 2] = (int) svs.spl_book[i].sp_know;
-            }
-            return 0;
-        }
-        case SHIM_CMD_DUMP_SKILLS: {
-            if (!buf || len < (sizeof(int) * P_NUM_SKILLS * 2)) return -1;
-            int *out = (int*) buf;
-            for (int i = 0; i < P_NUM_SKILLS; i++) {
-                out[i * 2 + 0] = (int) u.weapon_skills[i].skill;
-                out[i * 2 + 1] = (int) u.weapon_skills[i].max_skill;
-            }
-            return (long) u.weapon_slots; /* 返値: 向上可能残りスロット数 */
-        }
-
-        /* 6. 発見図鑑 */
-        case SHIM_CMD_DUMP_DISCOVERIES: {
-            if (!buf || len < (NUM_OBJECTS + 1)) return -1;
-            unsigned char *out = (unsigned char*) buf;
-            for (int i = 0; i <= NUM_OBJECTS; i++) {
-                out[i] = (unsigned char) objects[i].oc_name_known;
-            }
-            return 0;
-        }
-        case SHIM_CMD_GET_OBJECT_UNAME: {
-            int otyp = (int) arg1;
-            if (otyp < 0 || otyp > NUM_OBJECTS) return -1;
-            if (!objects[otyp].oc_uname) return 0;
-            if (buf && len > 0) {
-                strncpy((char*) buf, objects[otyp].oc_uname, len - 1);
-                ((char*) buf)[len - 1] = '\0';
-            }
-            return 1;
-        }
-
-        /* 7. 究極の保険：シンボル基底ポインタ */
-        case SHIM_CMD_GET_SYMBOL_PTR: {
-            switch ((int) arg1) {
-                case SHIM_SYM_U:        return (long) &u;
-                case SHIM_SYM_INVENT:   return (long) &gi.invent;
-                case SHIM_SYM_LEVEL:    return (long) &svl.level;
-                case SHIM_SYM_ROOMS:    return (long) &svr.rooms;
-                case SHIM_SYM_OBJECTS:  return (long) objects;
-                case SHIM_SYM_SPL_BOOK: return (long) &svs.spl_book;
-                case SHIM_SYM_MOVES:    return (long) &svm.moves;
-                default: return 0;
-            }
-        }
-
-        default:
-            return -1;
-    }
-}
 ```
+
+> ※完全な実装コードは [`src/driver/shim/shim_bridge.c`](../../src/driver/shim/shim_bridge.c) を参照してください。
 
 ---
 
@@ -363,8 +131,8 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
 flowchart TD
     subgraph WorkerThread ["【Web Worker 隔離スレッド (nethack.worker.js)】"]
         subgraph BuildLayer ["1. Cコア・ビルド層 (Build Layer: 0% Intrusion)"]
-            Bridge["win/shim/shim_bridge.c\n(単一公式窓口: _shim_bridge_call)"]
-            WASM["nethack.wasm / nethack.js\n(NetHack 5.0 Cコア生データ)"]
+            Bridge["src/driver/shim/shim_bridge.c\n(単一公式窓口: _shim_bridge_call)"]
+            WASM["nethack.wasm / nethack.js\n(NetHack 5.0.1 Cコア生データ)"]
             Bridge --> WASM
         end
 
@@ -381,21 +149,21 @@ flowchart TD
 
     subgraph MainThread ["【メインスレッド (ブラウザ実行環境)】"]
         subgraph DriverBridgeLayer ["3. メイン側 Bridge層 (Pure Transport / 手足)"]
-            BridgeClient["NetHackWasmWorkerBridge.js\n・callShim(cmd, a1, a2, bufLen)\n・_pendingCalls (Map による Promise 管理)"]
+            BridgeClient["NetHackWasmWorkerBridge.js\n・callShim(cmd, a1, a2, bufLen, bufType)\n・_pendingShimCalls (Map による Promise 管理)"]
         end
 
         subgraph GKLLayer ["4. ナレッジ層 (GKL: Unified Domain & 頭脳)"]
-            GKL_Service["WasmDirectBindingService.js\n・SHIM_CMD 定数管理\n・Bridge 経由の非同期 bridgeCall 呼び出し\n・C 構造体バイナリのオブジェクト化 (POJO)\n・getCellInfo / getInventory 等のドメインAPI提供"]
+            GKL_Service["WasmDirectBindingService.js\n・SHIM_CMD 定数管理\n・Bridge 経由の非同期 callShim 呼び出し\n・C 構造体バイナリのオブジェクト化 (POJO)\n・getCellInfo / getInventory / dumpLevelTerrain 等のドメインAPI提供"]
             
             BridgeClient <--> GKL_Service
             
-            StateArea["AreaStateManager\n(真の床・施錠・罠・部屋判定)"]
+            StateArea["AreaStateManager\n(真の床・フロア80x21地形・施錠・罠・部屋判定)"]
             ContextAct["ActionSignalResolver\n(平和/攻撃・解錠・罠解除)"]
             StateAttr["AttributeStateManager\n(耐性・お祈り・怒り同期)"]
-            StateInv["InventoryStateManager\n(所持品・装備スロット同期)"]
+            StateInv["InventoryStateManager & EncumbranceStateManager\n(所持品・装備スロット・真の総重量同期)"]
             StateSpell["SpellStateManager\n(習得呪文・残ターン同期)"]
             StateSkill["SkillStateManager\n(スキル熟練度同期)"]
-            StateDisc["DiscoveryStateManager\n(鑑定図鑑・仮名同期)"]
+            StateDisc["DiscoveryStateManager\n(鑑定図鑑・外見シャッフル配列・仮名同期)"]
             BranchTrk["BranchTracker\n(dnum によるブランチ同定)"]
             
             GKL_Service --> StateArea & ContextAct & StateAttr & StateInv & StateSpell & StateSkill & StateDisc & BranchTrk
@@ -412,16 +180,16 @@ flowchart TD
 
 ### 4.1 通信・調停プロトコル仕様 (`NetHackWasmWorkerBridge` ↔ `nethack.worker.js`)
 - **呼出側（メインスレッド）**:
-  - `bridge.callShim(cmd, arg1 = 0, arg2 = 0, bufferSize = 0)`
-  - ユニークな `callId` を発番し、`this._pendingCalls.set(callId, { resolve, reject })` で登録。
-  - Worker へ `{ type: 'CALL_SHIM', callId, payload: { cmd, arg1, arg2, bufferSize } }` を送信。
+  - `bridge.callShim(cmd, arg1 = 0, arg2 = 0, bufferSize = 0, bufferType = 'int32')`
+  - ユニークな `callId` を発番し、`this._pendingShimCalls.set(callId, { resolve, reject })` で登録。
+  - Worker へ `{ type: 'CALL_SHIM', callId, payload: { cmd, arg1, arg2, bufferSize, bufferType } }` を送信。
 - **実行側（Workerスレッド）**:
   - Driver/Worker はゲームルールの意味を一切解釈しない。
-  - `NetHackMemory.bridgeCall(cmd, arg1, arg2, buf, len)` を実行。
-  - 戻り値（数値）および確保バッファ（TypedArray）を `{ type: 'SHIM_RESULT', callId, result, buffer }` として `postMessage` で即時返却。
+  - `NetHackMemory.bridgeCall(cmd, arg1, arg2, bufPtr, bufferSize)` を実行。
+  - 戻り値（数値）および確保バッファ（`int32` / `uint8` / `string`）を `{ type: 'SHIM_RESULT', callId, result, buffer }` として `postMessage` で即時返却。
 - **解決側（メインスレッド）**:
   - `callId` をキーに Promise を解決。
-  - メインスレッド側の `WasmDirectBindingService` がバッファバイナリを解読し、UI/GKL向けドメインオブジェクト（アイテム、セル情報等）を構築。
+  - メインスレッド側の `WasmDirectBindingService` がバッファバイナリを解読し、UI/GKL向けドメインオブジェクト（アイテム、セル情報、地形配列、外見インデックス配列等）を構築。
 - **ターン静止確定時の調停フロー**:
   - `stateChange (WAITING_INPUT)` かつ `isTopLevelTurn === true` になったタイミングで GKL が最新状態を要求し、UI へ確定状態を展開。
 
@@ -429,57 +197,64 @@ flowchart TD
 
 ## 5. 段階的マイグレーション・タスクリスト (Task List)
 
-### 【Stage 8.1】完全版ブリッジ配備 ＆ ビルド固定化・Driverゲートウェイ整備
-- [x] 最新原本 `NetHack-NetHack-5.0.1_Oct7_2026/win/shim/shim_bridge.c` を作成（全カテゴリ網羅＋シンボルポインタ開示完全版）
+### 【Stage 8.1】完全版ブリッジ配備 ＆ ビルド固定化・Driverゲートウェイ整備（完了）
+- [x] `src/driver/shim/shim_bridge.c` を作成（全カテゴリ網羅＋シンボルポインタ開示完全版）
 - [x] `scripts/build_wasm_50.ps1` を更新：
   - `$NH_ROOT` の対象を `NetHack-NetHack-5.0.1_Oct7_2026` に設定
-  - `$wasm_sys_src` に `"win/shim/shim_bridge.c"` を追記
-  - `-sEXPORTED_FUNCTIONS` に `'_shim_bridge_call'`, `'_weight'`, `'_inv_weight'`, `'_container_weight'` を追記
+  - `src/driver/shim/shim_bridge.c` を `win/shim/shim_bridge.c` へ自動同期し `$wasm_sys_src` に追記
+  - `-sEXPORTED_FUNCTIONS` を `['_main','_shim_graphics_set_callback','_malloc','_free','_shim_bridge_call']` の単一窓口へ統一
 - [x] `scripts/build_wasm_50.ps1` を実行し、成果物（`nethack.js`, `nethack.wasm`, `tilemappings.lst`）を WebUI へデプロイ
 - [x] `src/driver/NetHackMemory.js` に `bridgeCall(cmd, arg1, arg2, buf, len)` を実装
 
 ### 【Stage 8.2-A】Web Worker 隔離調停プロトコルの設計・配備（完了）
 - [x] **ライフサイクル観察の完了**（ターン待ち `WAITING_INPUT && isTopLevelTurn` での静止確定を確認）
 - [x] **Driver 側調停システムの設計**:
-  - `NetHackWasmWorkerBridge` ↔ `nethack.worker.js` 間に、`queueSequence` と等価な非同期通信プロトコル（`CALL_SHIM` / `GET_INVENTORY` 等）を整備。
+  - `NetHackWasmWorkerBridge` ↔ `nethack.worker.js` 間に、`queueSequence` と等価な非同期通信プロトコル（`CALL_SHIM` / `SHIM_RESULT`）を整備。
   - Driver/Worker はドメイン知識を持たない「純粋な透過的プロキシ（手足）」に徹し、GKL が主導してデータを要求・解釈する責務境界を徹底。
 - [x] **最小単位 PoC の検証**:
   - Worker 隔離環境下で `bridgeCall` を非同期 1 往復で実行し、構造化データがメインスレッドに安全に届くことを実証（単体テスト・結合テスト完備）。
 
-### 【Stage 8.2-B】inspector_console 連携型 公式Shim直接調停 ＆ フォールバック検証環境の構築（新規・最優先着手）
-- [ ] 設計書策定: [direct_binding_verification_environment_plan.md](./direct_binding_verification_environment_plan.md)
-- [ ] GKL / StateManager への動作モード (`directBindingMode: 'auto' | 'strict' | 'fallback'`) 実装
-- [ ] `InventoryStateManager`: 直近同期方式 (`lastSyncMethod: 'SHIM' | 'MACRO'`) 記録 ＆ `strict` 時のマクロ完全ブロック
-- [ ] `AreaStateManager`: 直近足元同期方式 (`lastFloorMethod: 'SHIM' | 'INFERRED'`) 記録 ＆ `strict` 時の推測床（3992番）完全ブロック
-- [ ] `DebugInspector.js`: `broadcastState()` スナップショットへの同期方式・ランプ状態同梱 ＆ `BroadcastChannel` 切替コマンド受信対応
-- [ ] `inspector_console.html`:
+### 【Stage 8.2-B】inspector_console 連携型 公式Shim直接調停 ＆ フォールバック検証環境の構築（完了）
+- [x] 設計書策定・アーカイブ済: [direct_binding_verification_environment_plan.md](./archive/direct_binding_verification_environment_plan.md)
+- [x] GKL / StateManager への動作モード (`directBindingMode: 'auto' | 'strict' | 'fallback'`) 実装
+- [x] `InventoryStateManager`: 直近同期方式 (`lastSyncMethod: 'SHIM' | 'MACRO'`) 記録 ＆ `strict` 時のマクロ完全ブロック
+- [x] `AreaStateManager`: 直近足元同期方式 (`lastFloorMethod: 'SHIM' | 'INFERRED'`) 記録 ＆ `strict` 時の推測床（3992番）完全ブロック
+- [x] `DebugInspector.js`: `broadcastState()` スナップショットへの同期方式・ランプ状態同梱 ＆ `BroadcastChannel` 切替コマンド受信対応
+- [x] `inspector_console.html`:
   - ヘッダーへの「所持品同期方式ランプ (🟢SHIM vs 🔵MACRO)」および「足元床ランプ (🟢SHIM vs 🟡INFERRED)」新設
   - Direct Injector / ヘッダーからのリアルタイムモード切替ボタングループ配備
-- [ ] 自動テストによる `strict` モード（フォールバック遮断）下の完全動作検証
+- [x] 自動テスト（`DirectBindingVerificationEnvironment.test.js`）による `strict` モード下の完全動作検証
 
-### 【Stage 8.2-C】インベントリ・装備スロット・コンテナ重量の隔離環境直結（残りタスク）
+### 【Stage 8.2-C】インベントリ・装備スロット・コンテナ重量の隔離環境直結（完了）
 - [x] `WasmDirectBindingService.js` を Worker 隔離環境に対応（WorkerBridge 経由の調停サポート、`hasLiveMemory` とキャッシュ透過アクセサ完備）
-- [x] `SHIM_CMD_GET_INVENT_PTR` と `SHIM_CMD_DUMP_OBJECT_INFO` により、`InventoryStateManager` の全所持品走査をブラウザ実機で直結（キー送信マクロバイパス確認）
-- [x] `SHIM_CMD_GET_EQUIPMENT_PTRS` により、全装備スロット（武器・防具・指輪等）の装着状態を即時同期
-- [ ] `EncumbranceStateManager.js` に重量直結を配備し、常時正確な所持重量を反映
-- [ ] 地面に落ちているアイテムの BUC 判定（`SHIM_CMD_GET_OBJECT_AT`）
+- [x] `SHIM_CMD_DUMP_ALL_INVENT (0x43)` および `SHIM_CMD_DUMP_OBJECT_INFO (0x42)` により、`InventoryStateManager` の全所持品走査をブラウザ実機で一括直結（キー送信マクロバイパス確認）
+- [x] `SHIM_CMD_GET_EQUIPMENT_PTRS (0x41)` により、全14装備スロット（武器・防具・指輪等）の装着状態を即時同期
+- [x] `EncumbranceStateManager.js` に重量直結（`getInventoryWeight()`）を配備し、鞄補正・金貨込みの真の所持重量を反映
+- [x] 地面に落ちているアイテムの取得・BUC 判定（`SHIM_CMD_GET_OBJECT_AT` 0x20）を実装
 
-### 【Stage 8.3】真の地形・床の罠・店舗種別・刻み文字 ＆ モンスター詳細直結（進行中）
+### 【Stage 8.3-A】真の地形・床の罠・店舗種別・刻み文字 ＆ モンスター詳細直結（完了）
 - [x] `AreaStateManager.js`:
-  - `SHIM_CMD_GET_CELL_INFO` により足元の真の床を即時確定（仮床推測 3992 番バイパス確認）
-  - `SHIM_CMD_GET_TRAP_AT` により床の罠（ピット・落とし穴等）を100%同定
-  - `SHIM_CMD_GET_ROOM_TYPE` により武器屋・寺院・動物園等の部屋種別を判定
-  - `SHIM_CMD_GET_ENGRAVING_AT` により Elbereth の有効性を即座に判定
-- [ ] `ActionSignalResolver.js` / `ContextActionEngine.js`:
-  - 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出
-  - `SHIM_CMD_GET_MONSTER_INFO` / `GET_MONSTER_STATE` により、友好/敵、HPゲージ、睡眠/逃走/麻痺/店主を判別し誤攻撃を完全防止
+  - `SHIM_CMD_GET_CELL_INFO (0x10)` により足元の真の床を即時確定（仮床推測 3992 番バイパス確認）
+  - `SHIM_CMD_DUMP_LEVEL_TERRAIN (0x11)` によりフロア全域 (80×21) の真の地形・階段を一括ダンプし、`stairCache` 描画依存をスリム化
+  - `SHIM_CMD_GET_TRAP_AT (0x12)` により床の罠（ピット・落とし穴等）を100%同定
+  - `SHIM_CMD_GET_ROOM_TYPE (0x14)` により武器屋・寺院・動物園等の部屋種別を判定
+  - `SHIM_CMD_GET_ENGRAVING_AT (0x13)` により Elbereth の有効性を即座に判定
+- [x] `ActionSignalResolver.js` / `ContextActionEngine.js`:
+  - 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出（罠なし扉への `#untrap` 誤表示を根絶）
+  - `SHIM_CMD_GET_MONSTER_INFO (0x22)` / `GET_MONSTER_STATE (0x23)` により、友好 (`mpeaceful`)/ペット (`mtame`)、HPゲージ、睡眠/逃走/麻痺/店主を判別し誤攻撃・攻撃FX誤爆を完全防止
 
-### 【Stage 8.4】プレイヤー完全ステータス・呪文・スキル・鑑定図鑑直結
-- [ ] `SHIM_CMD_GET_PLAYER_SUMMARY`:
+### 【Stage 8.3-B】モジュール分割基盤整備 ＆ Shim-Driven 確定同期型レンダリング・パイプライン刷新（進行中）
+- [x] **【先行着手 1】ROADMAP 2.1**: GKL Pure JS Client (`main.js` 2,364行 ➔ 618行) のモジュール分割完了（[gkl_client_modularization_plan.ja.md](../2_client_ui/archive/gkl_client_modularization_plan.ja.md)）
+- [ ] **【先行着手 2】ROADMAP 2.2**: `GKLPlugin.js` モジュール分割（`GKLEventRouter`, `SilentSyncCoordinator`, `GKLFxCoordinator` 等の分離：[GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](../3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)）
+- [ ] **確定同期型レンダリング刷新**: ターン同期ライフサイクル (Sync Barrier) の導入と `VirtualDungeonScreen` / `MainViewportRenderer` の Commit 駆動型確定描画制御（[shim_driven_rendering_pipeline_architecture.ja.md](../2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)）
+
+### 【Stage 8.4】プレイヤー完全ステータス・呪文・スキル・鑑定図鑑直結（一部完了・進行中）
+- [x] `SHIM_CMD_DUMP_DISCOVERIES (0x60)` ＆ `SHIM_CMD_DUMP_DESCR_INDEXES (0x62)`: `DiscoveryStateManager` の `\` パース依存を解消し、鑑定図鑑（`oc_name_known`）および外見シャッフル配列（`oc_descr_idx`）を即時同期
+- [ ] `SHIM_CMD_GET_PLAYER_SUMMARY (0x30)`:
   - `dnum` によるブランチ同定（`branch:dlvl` キャッシュ分離と `AREA_ENTERED` 発火）
   - `ublesscnt` と `ugangr`（神の怒り）から絶対安全お祈りインジケーターを構築
   - `uhunger`（空腹度真値）の反映
-- [ ] `SHIM_CMD_GET_PLAYER_PROPS`: 耐性配列（`uprops`）を `AttributeStateManager` へ注入
-- [ ] `SHIM_CMD_DUMP_SPELL_BOOK`: `SpellStateManager` のメニューパースを撤廃し、習得呪文を0ms同期
-- [ ] `SHIM_CMD_DUMP_SKILLS`: `SkillStateManager` の `#enhance` パースを撤廃し、スキル熟練度を即時同期
-- [ ] `SHIM_CMD_DUMP_DISCOVERIES`: `DiscoveryStateManager` の `\` パースを撤廃し、鑑定図鑑を即時同期
+- [ ] `SHIM_CMD_GET_PLAYER_PROPS (0x32)`: 耐性配列（`uprops`）を `AttributeStateManager` へ注入
+- [ ] `SHIM_CMD_DUMP_SPELL_BOOK (0x50)`: `SpellStateManager` のメニューパースを撤廃し、習得呪文を0ms同期
+- [ ] `SHIM_CMD_DUMP_SKILLS (0x51)`: `SkillStateManager` の `#enhance` パースを撤廃し、スキル熟練度を即時同期
+

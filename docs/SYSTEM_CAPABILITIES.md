@@ -1,3 +1,9 @@
+---
+title: NetHack WASM WebUI システム現有能力カタログ
+status: implemented
+last_updated: 2026-10-11
+---
+
 # 🧭 NetHack WASM WebUI システム現有能力カタログ (SYSTEM_CAPABILITIES.md)
 ### ―― システム全機能・API・データ資産インベントリ ＆ 責務境界・統廃合・ギャップ分析 ――
 
@@ -14,9 +20,10 @@
 2. [② ゲーム状態追跡・解析エンジン (State & Analysis Engines)](#②-ゲーム状態追跡解析エンジン-state--analysis-engines)
    - [2.1 識別の5段階管理 (ItemIdentificationResolver)](#21-識別の5段階管理-itemidentificationresolver)
    - [2.2 適応型スペック生成 (ItemSpecPresenter / MonsterSpecPresenter)](#22-適応型スペック生成-itemspecpresenter--monsterspecpresenter)
-   - [2.3 遠隔・足元オンデマンド調査 (OnDemandLookService)](#23-遠隔足元オンデマンド調査-ondemandlookservice)
+   - [2.3 遠隔・足元オンデマンド調査 ＆ 文学引用動的抽出 (OnDemandLookService / OnDemandLookupService)](#23-遠隔足元オンデマンド調査--文学引用動的抽出-ondemandlookservice--ondemandlookupservice)
    - [2.4 装備依存解析 (EquipmentActionPlanner / EquipmentRules)](#24-装備依存解析-equipmentactionplanner--equipmentrules)
    - [2.5 空間状態総合オーケストレーション ＆ 探索知識台帳 (AreaStateManager)](#25-空間状態総合オーケストレーション--探索知識台帳-areastatemanager)
+   - [2.6 事後ナレッジ解析 ＆ 冒険手帳メタ進行 (PostMortemKnowledgeResolver / AdventureLogManager)](#26-事後ナレッジ解析--冒険手帳メタ進行-postmortemknowledgeresolver--adventurelogmanager)
 3. [③ データ・伝承資産 (Data & Lore Assets)](#③-データ伝承資産-data--lore-assets)
 4. [④ UI制御・操作調停 (UIController & Web Components)](#④-ui制御操作調停-uicontroller--web-components)
 5. [⑤ アーキテクチャの基本憲法（設計判断ルール）](#⑤-アーキテクチャの基本憲法設計判断ルール)
@@ -27,51 +34,67 @@
 
 ## ① コア通信・同期パイプライン (Communication & Sync Capabilities)
 
-ブラウザ環境で NetHack C コア (WASM) を安全・高速・非同期に駆動し、画面描画を乱さずに内部データを抽出・同期する中核インフラストラクチャです。
+ブラウザ環境で NetHack C コア (WASM) を安全・高速・非同期に駆動し、画面描画を乱さずに内部データを抽出・同期する中核インフラストラクチャです。Phase 8 により **「Cメモリ構造体直結 (`CALL_SHIM` / `_shim_bridge_call`)」** と **「サイレント・キーシーケンス (`querySequenceSilent`)」** のハイブリッド二刀流パイプラインを保有しています。
 
 ```mermaid
 flowchart TD
-    subgraph BrowserUI ["フロントエンド / クライアント層"]
+    subgraph BrowserUI ["フロントエンド / GKL 層"]
         UI["UI / Web Components (<nh-*>)"]
-        IRC["InteractiveRequestController\n(WebUICore)"]
+        DBS["WasmDirectBindingService (Phase 8 直結)"]
+        IRC["InteractiveRequestController (WebUICore)"]
     end
 
-    subgraph DriverLayer ["WASM ドライバ層 (Asyncify / Web Worker)"]
-        Driver["NetHackWasmDriver"]
+    subgraph DriverLayer ["WASM ドライバ層 (Web Worker / NetHackMemory)"]
+        Bridge["NetHackWasmWorkerBridge / NetHackWasmDriver"]
         TaskQueue["TaskQueue / Sequence Buffer"]
     end
 
-    subgraph CCore ["NetHack C コア (Emscripten)"]
-        WASM["NetHack 5.0 WASM Binary"]
+    subgraph CCore ["NetHack 5.0.1 C コア (Emscripten)"]
+        ShimBridge["shim_bridge.c (_shim_bridge_call)"]
+        WASM["NetHack 5.0.1 WASM Binary"]
     end
 
-    UI -->|操作・クエリ要求| IRC
-    IRC -->|"querySequenceSilent(['i', ' ', '\x1b'], { suppressPrompts: true, isSilentSync: true })"| Driver
-    Driver -->|仮想キーストローク注入| TaskQueue
+    UI -->|状態同期・盤面照会| DBS
+    DBS -->|"callShim(SHIM_CMD_*, arg0, arg1)"| Bridge
+    Bridge -->|ミリ秒未満 ゼロ副作用直結| ShimBridge
+    ShimBridge <-->|C 構造体読取 (levl/fmon/invent/u)| WASM
+
+    UI -->|マルチステップ操作・フォールバック| IRC
+    IRC -->|"querySequenceSilent(['i', ' ', '\x1b'], { suppressPrompts: true, isSilentSync: true })"| Bridge
+    Bridge -->|仮想キーストローク注入| TaskQueue
     TaskQueue -->|Asyncify 再開| WASM
-    WASM -->|display_nhwindow / putmsg| Driver
-    Driver --"isSilentSync: true\n(外部UI描画イベント抑止 & safeResolver(0)即時解決)"--> Driver
-    Driver -->|生バッファ配列返却| IRC
-    IRC -->|パース・状態更新| UI
 ```
+
+### 1.0 Phase 8: 単一窓口 C メモリ直結 (`_shim_bridge_call` / `WasmDirectBindingService`)
+
+* **主要クラス / 関数**:
+  - `src/driver/shim/shim_bridge.c` (`_shim_bridge_call`)
+  - `src/driver/NetHackMemory.js` (`bridgeCall`, `SHIM_CMD`, `SHIM_SYM`)
+  - `src/driver/NetHackWasmWorkerBridge.js` (`callShim`)
+  - `src/core/knowledge/services/WasmDirectBindingService.js`
+* **できること**:
+  - 公式 NetHack C ソースを 1 行も改変せず、単一の外付けブリッジ (`shim_bridge.c`) 経由で C メモリ構造体（`levl[x][y]`, `fmon`, `fobj`, `invent`, `u` 等）を **0.1ms 未満・キー注入副作用ゼロ** で直接読み出し。
+  - **主要コマンド実績**:
+    1. **フロア全域地形・階段一括ダンプ (`SHIM_CMD_DUMP_LEVEL_TERRAIN` / 0x15)**: 80×21 全マスの真の地形 (`typ`)・扉状態 (`flags`)・階段接続を 1 往復で取得。
+    2. **セル詳細＆床アイテム走査 (`SHIM_CMD_GET_CELL_INFO` / `GET_OBJECT_AT`)**: 足元や任意座標の地形・罠・部屋種別・床アイテムの BUC (`blessed`/`cursed`/`bknown`)・箱の施錠状態を直接取得。
+    3. **インベントリ＆装備＆総重量直結 (`SHIM_CMD_DUMP_ALL_INVENT` / `GET_EQUIPMENT_PTRS` / `GET_INV_WEIGHT`)**: 全所持品構造体・14装備スロットポインタ・真の総重量 (`inv_weight()`) を一括取得。
+    4. **モンスター＆プレイヤー状態直結 (`SHIM_CMD_GET_MONSTER_AT` / `GET_PLAYER_SUMMARY` / `GET_PLAYER_PROPS`)**: 平和NPC (`mpeaceful`)・ペット (`mtame`) 判定、ダンジョン番号 (`dnum`)、祈りタイマー (`ublesscnt`)、耐性配列 (`uprops`) を直接取得。
+  - **3モード検証切替 (`DIRECT_BINDING_MODE`)**: `auto`（直結優先＋自動フォールバック）、`strict`（フォールバック遮断・直結強制検証）、`fallback`（旧マクロ強制）を実行時切替可能。
 
 ### 1.1 サイレント・キーシーケンス実行 (`querySequenceSilent` / `queueSequence`)
 
 * **主要クラス / 関数**:
   - `InteractiveRequestController.querySequenceSilent(sequenceOrRecipe, options)`
-  - `NetHackWasmDriver.queueSequence(tokens, options)`
+  - `NetHackWasmDriver.queueSequence(tokens, options)` / `canAcceptSequenceInterruption()`
   - `WebUICore.querySequenceSilent(sequenceOrRecipe, options)`
   - `GKLPlugin.syncInventorySilent()` / `syncSpellsSilent()` / `syncAttributesSilent()` / `syncSkillsSilent()` / `syncDiscoveriesSilent()`
 * **できること**:
   - `suppressPrompts: true, isSilentSync: true` オプションにより、**画面のちらつきゼロ（UI描画イベントの外部発火なし）** で、C コアに仮想キーストローク列を自走注入し、生成されたテキスト出力バッファを Promise で一括キャプチャ。
-  - 実行中に発生したブロッキングウィンドウ（`display_nhwindow`、ヘルプ画面、メニュー等）やファイル表示（`display_file`）を検知し、残存トークンの消費または `safeResolver(0)` による**即座クローズを全自動実行してデッドロックを構造的に根絶**。
+  - `--More--` ページ送り中（`isTopLevelTurn === false`）やターゲットモード中は自動待機し、真のトップレベル・ターン待機に復帰した瞬間に安全消化。
 * **主要活用実績・ユースケース**:
-  1. **所持品同期 (`syncInventorySilent`)**: `['i', ' ', '\x1b']` を投入し、全所持品の文字列表記・レター・個数を即時抽出。
-  2. **魔法同期 (`syncSpellsSilent`)**: `['+', ' ', '\x1b']` を投入し、習得魔法名・レベル・詠唱失敗率・ターン残数を獲得。
-  3. **属性・耐性同期 (`syncAttributesSilent`)**: `['\x18', ' ', '\x1b']` (`^X`) を投入し、内因性耐性や属性値を獲得。
-  4. **スキル熟練度同期 (`syncSkillsSilent`)**: `['#', 'enhance', ' ', '\x1b']` を投入し、スキルツリーと向上可能状態を獲得。
-  5. **発見済みアイテム同期 (`syncDiscoveriesSilent`)**: `['\\', ' ']` を投入し、既知の外見・真名マッピングを獲得。
-  6. **コンテナ自動トランザクション (`ContainerController.executeTransaction`)**: バックグラウンドで出し入れシーケンスを安全に一括実行。
+  1. **マルチステップ自動操作**: コンテナ出し入れトランザクション (`ContainerController.executeTransaction`)、ペーパードール多段着脱 (`EquipmentActionPlanner`)。
+  2. **オンデマンド辞書・文学引用クエリ (`OnDemandLookupService`)**: `/` コマンドによる C コア内包 `data.base` 文学引用の動的取得。
+  3. **Direct Binding 非対応環境・未直結ドメインのセーフティネット**: 魔法一覧 (`+`)、スキル一覧 (`#enhance`)、および `fallback` モード時の所持品・属性・発見リスト同期。
 
 ### 1.2 メッセージ抑止制御 (`suppressMessage` / `suppressedEvents`)
 
@@ -112,8 +135,6 @@ flowchart LR
 * **できること**:
   - **第1層**: C コアのメッセージ文字列やプロンプトから、「戦闘発生」「空腹警告」「呪詛検知」「床彫り発見」「伝承検知」などの客観的事実を正規化シグナルとして同定。
   - **第2層**: 第1層のシグナルをトリガーに `SituationCache` を自動更新。プレイヤーの現在のステータス・装備・周辺マップ・所持品と複合照合し、推奨アクション（ContextActions）や危険警告（Tactical Advice）を即座に導出。
-* **活用ユースケース**:
-  - 毒攻撃を受けた瞬間に、第1層が `POISON_ATTACK` を同定 ➔ 第2層がインベントリの「ユニコーンの角」を検知し、画面上にワンタップ解毒ボタンを自動出現させる。
 
 ---
 
@@ -129,11 +150,9 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
   - `resolveIdentificationState(itemOrStr, discoveryState)`
   - `APPEARANCE_PATTERNS`, `IDENTIFICATION_TIPS`
 * **できること**:
-  - インベントリ行や Look メッセージ文字列から、現在の識別深度を5段階で高精度に同定。
+  - インベントリ構造体（Phase 8 Direct Binding）やインベントリ行・Look メッセージ文字列から、現在の識別深度を5段階で高精度に同定。
   - ランダム化された外見名（薬の色 26種、指輪の素材 26種、魔法書の装丁 31種、杖の素材 27種、アミュレットの形状 11種、防具の一般名 32種、灰色の石等）を完全照合。
   - **ネタバレ防止マスク**: 未識別アイテムに対しては真の効能を隠蔽し、安全な外見スペックおよびカテゴリ別の鑑定ヒント（床彫り、流し台、価格鑑定等）を自動提示。
-* **活用ユースケース**:
-  - 初心者が未識別の杖や薬を拾った際、安全に試せる床彫り・流し台テスト手順を詳細モーダルにガイド表示。
 
 ### 2.2 適応型スペック生成 (`ItemSpecPresenter` / `MonsterSpecPresenter`)
 
@@ -144,22 +163,19 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
 * **できること**:
   - カテゴリ（武器、防具、指輪、巻物等）ごとに最適なスペックバッジ（重量、材質、AC、攻撃力ダイス、効果）を抽出。
   - `SkillStateManager` と動的に突合し、**プレイヤーのスキル熟練度に応じた適性バッジ（得意武器マーク、向上可能マーク `+`）をリアルタイム付与**。
-  - モンスターの危険度レベル、移動速度、耐性一覧、特殊攻撃リスク、死体摂食効果（耐性獲得率等）を適応型バッジとして生成。無効値（0, null, undefined）は自動除外。
-* **活用ユースケース**:
-  - ペーパードールやインベントリでの装備選定時に、自分の職業・スキルに合致しているか、現在の鎧よりACが優れているかをひと目で判別可能。
+  - モンスターの危険度レベル、移動速度、耐性一覧、特殊攻撃リスク、死体摂食効果（耐性獲得率等）を適応型バッジとして生成。
 
-### 2.3 遠隔・足元オンデマンド調査 (`OnDemandLookService`)
+### 2.3 遠隔・足元オンデマンド調査 ＆ 文学引用動的抽出 (`OnDemandLookService` / `OnDemandLookupService`)
 
 * **主要クラス / 関数**:
   - `src/core/knowledge/services/OnDemandLookService.js` (`executeLook`, `buildLookSequence`, `parseLookResponse`)
+  - `src/core/knowledge/services/OnDemandLookupService.js` (`lookupEntity`, `parseLookupOutput`)
   - `src/core/knowledge/lore/ElberethAnalyzer.js` (`analyze`, `WARD_STATUS`, `DEGRADED_CHAR_MAP`)
   - `src/core/knowledge/lore/EngravingArchaeologist.js`
 * **できること**:
-  - マップ座標（x, y）指定により、バックグラウンドで Far look（`;` コマンド＋抽象方向トークン）をサイレント実行。
-  - 個体の動的状態（ペット、友好、敵対、自分自身）をリアルタイム判定。
-  - **床文字・Elbereth 劣化判定**: 床に刻まれた文字列から残存率（0.0〜1.0）と文字消え（wipeout_text による文字崩れ `DEGRADED_CHAR_MAP`）を解析し、聖なる結界としての有効性（`ACTIVE`, `DEGRADED`, `NONE`）を判定。
-* **活用ユースケース**:
-  - マップ上の敵にカーソルを合わせた瞬間に敵対/友好を判定して攻撃誤爆を防止。足元の Elbereth 結界が文字消えした際に即座に警告音・再刻み案内を出す。
+  - マップ座標（x, y）指定による Far look（`;`）および `/` コマンドによる C コア内包 `data.base` 公式文学引用のオンデマンド動的抽出（LRU メモリキャッシュ付き）。
+  - 個体の動的状態（ペット `mtame`、友好 `mpeaceful`、敵対、自分自身）のリアルタイム判定。
+  - **床文字・Elbereth 劣化判定**: 床に刻まれた文字列から残存率（0.0〜1.0）と文字消えを解析し、聖なる結界としての有効性（`ACTIVE`, `DEGRADED`, `NONE`）を判定。
 
 ### 2.4 装備依存解析 (`EquipmentActionPlanner` / `EquipmentRules`)
 
@@ -169,10 +185,7 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
   - `src/core/knowledge/equipment/EquipmentRules.js` (`EQUIP_SLOTS`, `estimateActionTurns`)
 * **できること**:
   - NetHack 5.0 C コア（`do_wear.c`）の厳密な防具・装身具着脱ルールに基づき、多段換装シミュレーションを実行。
-  - 例：Tシャツを着替える際、上に着ている「鎧」と「マント」を順に脱ぎ、Tシャツを着替えた後に元に戻す**キーストローク列（`ActionRecipe`）と総所要ターン数を自動算出**。
   - 呪詛（Cursed）による脱衣ブロッカー検知、手袋なしでのコカトリス死体接触などの致命的事故を事前遮断。
-* **活用ユースケース**:
-  - ペーパードールUI上でのワンクリック完全換装。事故死リスクのある誤操作を未然に防止。
 
 ### 2.5 空間状態総合オーケストレーション ＆ 探索知識台帳 (`AreaStateManager`)
 
@@ -180,17 +193,23 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
   - `src/core/knowledge/state/AreaStateManager.js`
   - 詳細仕様書: [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md)
   - `updateGlyph(x, y, glyphId, glyphInfo, bkglyphInfo)`
+  - `syncPlayerFeetFloor(x, y)` / `dumpLevelTerrain()`
   - `seedInitialStair(x, y)` / `applyStairCacheForFloor(floorKey)`
   - `extractLandmarkEntity(x, y, glyphId)` / `getFloorLandmarks(floorKey)`
   - `getAreaState(cx, cy, radius)` / `getFocusCameraTiles(radiusX, radiusY, options)`
 * **できること**:
   - **4層空間モデル＆差分追跡**: 単一グリフから `bottom`（地形）、`middle`（アイテム/岩）、`top`（生物/墓石）、`effect`（演出）を復元管理し、描画差分（`dirtyCells`）のみをレンダラーへ高速供給。
-  - **背景グリフ判定 ＆ 仮床・自己修復**: `bkglyphInfo` から真の床を即時確定。9622ガードによる安全な仮床フォールバックと、生物移動時の自動上書き修復（Self-Healing）。
-  - **階段永続化 ＆ 初手先行シード**: フロア往復で階段を見失わない `stairCache`。Dlvl:1 開始直後に足元へ地上脱出用ブランチ上り階段（4002番）を自動先行シード。
+  - **Phase 8 メモリ直結同期**: `dumpLevelTerrain()` による 80×21 フロア全域の真の地形・階段一括確定、および `syncPlayerFeetFloor()` による足元の真の床・罠・床アイテムBUCのゼロ遅延確定（非対応時は背景グリフ＆9622仮床フォールバック）。
   - **ランドマーク台帳**: 階段・祭壇・泉・玉座・シンク・店舗（店主同定）を自動抽出・永続化（`landmarkCache`）。
-  - **物理推論 ＆ カメラ投影**: 大岩（Boulder）押し出し時の非同期ラグ補正、周囲 $3 \times 3$ マスの戦術視野抽出、HD-2D/Canvas 向け 3 層グリフ合成カメラタイル生成。
-* **活用ユースケース**:
-  - HD-2D / 3D ジオラマレンダラーでの多層描画、ミニマップHUDでの階段・施設アイコン表示、開始直後の足元階段の完全描画。
+
+### 2.6 事後ナレッジ解析 ＆ 冒険手帳メタ進行 (`PostMortemKnowledgeResolver` / `AdventureLogManager`)
+
+* **主要クラス / 関数**:
+  - `src/core/knowledge/services/PostMortemKnowledgeResolver.js`
+  - `src/core/knowledge/lore/AdventureLogManager.js`
+* **できること**:
+  - NetHack 5.0 `formatkiller()` の複合死因文字列（Prefix/Core/Suffix）を3段階で分解し、真の脅威エンティティと根本原因対策アドバイス（RCA）を自動導出。
+  - セッションを跨いで遭遇モンスター・発見アイテム・噂・神託・墓碑銘の解禁率（知のメタ進行）を集計・永続化。
 
 ---
 
@@ -200,11 +219,11 @@ NetHack 50年の歴史と公式リソースを完全網羅した構造化デー�
 
 | アセット分類 | 主要ファイル / 配置 | レコード数 / 規模 | 特徴と活用機能 |
 | :--- | :--- | :--- | :--- |
-| **Cコア公式文学引用** | `dat/data.base`<br>`dat/data_jp.base` | 4,000+ 引用項目 | WASM 内にコンパイル同梱。シェイクスピア、クトゥルフ神話、指輪物語などの公式文学引用を動的クエリ可能。 |
-| **伝承マスター** | `src/core/knowledge/lore/data/LoreMasterData.js` | 噂 787件<br>神託 20件<br>墓碑銘 48件 | 真偽判定（`isTrue`）完備。噂 366件・神託 19件がアイテム番号（`onum`）と完全事前紐付け済み。 |
-| **構造化モンスター辞書** | `src/core/knowledge/data/MONSTER_KNOWLEDGE_FULL.js` | 全 384 体 | 日英完全対訳、耐性、攻撃ダイス、速度、死体効果、危険度ランク。静的整合性監査済み。 |
+| **Cコア公式文学引用** | `dat/data.base` (WASM内包)<br>`OnDemandLookupService.js` | 4,000+ 引用項目 | WASM 内にコンパイル同梱。シェイクスピア、クトゥルフ神話、指輪物語などの公式文学引用を動的クエリし、`dictionary.csv` で日本語対訳表示。 |
+| **伝承マスター** | `src/core/knowledge/lore/data/LoreMasterData.js` | 噂 787件<br>神託 20件<br>墓碑銘 48件 | 真偽判定（`isTrue`）完備。噂 366件・神託 19件がアイテム番号（`onum`）・モンスターと完全事前紐付け済み。 |
+| **構造化モンスター辞書** | `src/core/knowledge/data/MONSTER_KNOWLEDGE_FULL.js`<br>`MONSTER_OFFICIAL_ATTACKS.js` | 全 384 体<br>(3,767行攻撃定義) | 日英完全対訳、耐性、公式最大6枠攻撃ダイス（`AT_*` / `AD_*`）、速度、死体効果、危険度ランク。静的整合性監査済み。 |
 | **構造化アイテム辞書** | `src/core/knowledge/data/OBJECT_KNOWLEDGE_FULL.js` | 全 481 アイテム<br>(onum 0〜480) | 日英完全対訳、防護耐性（`protectsAgainst`）、材質、基本価格、重量、効果。静的整合性監査済み。 |
-| **ビジュアルタイルシート** | `pict/nethack_default_32.png`<br>`pict/nethack_default_32_tr.png` | 32×32px タイル | 公式グラフィックスタイル。全グリフ対応。`GlyphHelper.js` による CSS スプライト座標切り出し。 |
+| **ビジュアルタイルシート** | `pict/nethack_default_32.png`<br>`pict/nethack_default_32_tr.png` | 32×32px タイル<br>(2,307タイル) | NetHack 5.0.1 公式グラフィックスタイル。全グリフ対応。`GlyphHelper.js` による CSS スプライト座標切り出し。 |
 | **制御シグナル辞書** | `src/core/prompt/ControlSignalCatalog.js` | 全 115 制御パターン | プロンプト・待機状態の同定と自動応答キー定義。 |
 
 ---
@@ -222,6 +241,7 @@ flowchart TD
         FMHC[FloatingMessageHudController]
         PDP[PaperdollPresenter]
         CDC[ContainerDraftController]
+        GIC[GamepadInputController]
     end
 
     subgraph WebComponents ["@nethack-webui/components (Shadow DOM / Custom Elements)"]
@@ -230,6 +250,9 @@ flowchart TD
         NhDoll["<nh-paperdoll>"]
         NhFiler["<nh-container-filer>"]
         NhConfig["<nh-ui-config>"]
+        NhCard["<nh-knowledge-card>"]
+        NhCodex["<nh-discovery-codex> / <nh-codex-grid>"]
+        NhPad["<nh-radial-palette-hud> / <nh-shiren-inventory-drawer>"]
     end
 
     IC -->|ESC閉塞・Z-Index| MSC
@@ -238,12 +261,14 @@ flowchart TD
     PDP --> NhDoll
     CDC --> NhFiler
     UICS --> NhConfig
+    GIC --> NhPad
 ```
 
-### 4.1 キー入力調停 (`InputCoordinator` / `ModalStackController`)
+### 4.1 キー・ゲームパッド入力調停 (`InputCoordinator` / `GamepadInputController` / `ModalStackController`)
 
 * **主要クラス / 関数**:
   - `src/ui-controller/InputCoordinator.js` (`evaluateKeyDown`, `ROUTE_ACTIONS`)
+  - `src/ui-controller/GamepadInputController.js` / `RadialInputRecognizer.js`
   - `src/ui-controller/ModalStackController.js` (`push`, `pop`, `getTopModal`, `hasModals`)
 * **できること**:
   - 多重モーダル表示時のスタック管理と Z-Index 自動解決。
@@ -259,6 +284,9 @@ flowchart TD
   - `<nh-paperdoll>`: 人形型装備スロット（頭、鎧、マント、武器、盾、指輪、靴等）。ドラッグ＆ドロップおよび換装差分プレビュー対応。
   - `<nh-container-filer>`: 2画面コンテナ出し入れファイラー。数量スライダー、BoH 防爆安全ガード（Bag of Holding 爆発防止）完備。
   - `<nh-ui-config>`: Neo-Retro Dark Glass UI 設定パネル。プリセット管理・LocalStorage 永続化。
+  - `<nh-knowledge-card>`: 3層構造（基本スペック・公式攻撃ダイス・`data.base` 文学引用/伝承）を凝縮した超軽量統合ナレッジカード。
+  - `<nh-discovery-codex>` / `<nh-codex-grid>`: ゲーム内 `\` 発見済みアイテム対照図鑑およびシルエット解禁対応の冒険手帳グリッド。
+  - `<nh-radial-palette-hud>` / `<nh-shiren-inventory-drawer>` / `<nh-gamepad-guide-bar>` / `<nh-context-hint-pill>`: ゲームパッド・コンソール操作向け UI コンポーネント群。
 
 ---
 
@@ -269,19 +297,19 @@ flowchart TD
 ```mermaid
 graph TD
     Const1["憲法1: DRY ＆ バリアント追従の原則\n(WASM一次情報を静的二重持ちしない)"]
-    Const2["憲法2: Cコード非侵襲の原則\n(Cソースは改変せずJSシグナルとキューで拡張)"]
+    Const2["憲法2: 公式Cコード非侵襲の原則\n(公式Cソースは無改変・外付けshim_bridge.cとJSで拡張)"]
     Const3["憲法3: 直交性の原則\n(描画表現と操作拡張を完全に独立分離)"]
     Const4["憲法4: パーマデス維持と知のメタ進行\n(キャラ強化は持ち越さず図鑑収集率のみ蓄積)"]
     Const5["憲法5: ゲーム内とゲーム外の疎結合\n(プレイ中は超軽量カード、大図鑑は独立展開)"]
 ```
 
 ### 憲法 1: DRY ＆ バリアント追従の原則 (Single Source of Truth)
-WASM（C コア）が内部で保持している一次情報（所持品、習得魔法、属性値、耐性、発見済みアイテム、公式文学引用）は、JavaScript 側で静的に二重持ちしてはならない。  
-必ず `querySequenceSilent`（`suppressPrompts: true`）を用いて C コアから動的に引き出し、初回取得後はメモリキャッシュ（0ms レスポンス）で運用する。これにより、将来的な NetHack のバリアント（Slash'EM、UnNetHack 等）やバージョン改定に完全自動追従する。
+WASM（C コア）が内部で保持している一次情報（所持品、装備、真の地形、属性値、耐性、発見済みアイテム、公式文学引用）は、JavaScript 側で静的に二重持ちしてはならない。  
+Phase 8 の単一窓口 `callShim`（`_shim_bridge_call`）による C メモリ直接参照、または `querySequenceSilent`（`suppressPrompts: true`）を用いて C コアから動的に引き出し、メモリキャッシュで運用する。
 
-### 憲法 2: C コード非侵襲の原則 (Non-Invasive C-Core)
-NetHack 本体の C ソースコードを独自に改変してはならない。  
-機能拡張はすべて、Emscripten / Asyncify、Web Worker メッセージング、仮想キーシーケンス、JavaScript 層のシグナル同定基盤を用いて非侵襲に実現する。公式 NetHack のコードベースをクリーンに保つことで、本家アップデートの即時マージを可能にする。
+### 憲法 2: 公式 C コード非侵襲の原則 (Non-Invasive C-Core)
+NetHack 本体の公式 C ソースコード（`win/shim/winshim.c` や `src/*.c`）を独自に改変してはならない。  
+C メモリ参照が必要な場合は独立した単一外付けファイル `src/driver/shim/shim_bridge.c`（`_shim_bridge_call`）に集約し、公式 NetHack のコードベースを 100% クリーンに保つことで、本家アップデートへの即時追従を保証する。
 
 ### 憲法 3: 直交性の原則 (Orthogonality of Render & Input)
 「描画表現（ASCII ⇄ 2Dタイル ⇄ WebGPU HD-2D）」と「操作性（Vanilla 操作 ⇄ Enhanced 拡張操作）」は完全に直交し、独立して切り替え可能でなければならない。  
@@ -289,89 +317,42 @@ NetHack 本体の C ソースコードを独自に改変してはならない。
 
 ### 憲法 4: パーマデス維持と知のメタ進行 (Permadeath & Meta-Knowledge)
 NetHack 本来の醍醐味である「パーマデス（死んだらキャラクター能力・所持品は一切持ち越せない）」を厳格に堅持する。  
-セッション横断で持ち越す要素は、プレイヤー自身の知識の結晶である「伝承図鑑収集率（%）」「アイテム発見履歴」「死因・墓碑銘アーカイブ」などの **「知の蓄積（メタ進行）」** に限定する。
+セッション横断で持ち越す要素は、プレイヤー自身の知識の結晶である「冒険手帳・図鑑収集率（%）」「アイテム発見履歴」「スコアボード・死因アーカイブ」などの **「知の蓄積（メタ進行）」** に限定する。
 
 ### 憲法 5: ゲーム内（即時）とゲーム外（鑑賞）の疎結合 (In-Game vs Out-Game Decoupling)
 ゲームプレイ中の操作性を阻害してはならない。プレイ中に表示するナレッジは、ミリ秒単位で開き最小限の視線移動で把握できる超軽量な単体カード（`<nh-knowledge-card>`）とする。  
-全モンスター・全アイテム・全伝承を一覧・鑑賞する大図鑑は、タイトル画面やゲーム外の独立ツール（`compendium.html`）として分離展開する。
+全モンスター・全アイテム・全伝承を一覧・鑑賞する大図鑑や戦歴分析は、独立ツール（`tools/adventure_log.html`, `tools/scoreboard.html`）として分離展開する。
 
 ---
 
 ## ⑥ 機能重複の統廃合候補 (Consolidation Candidates)
 
-コードベースの肥大化と保守コストを削減するため、今後計画的に統合・整理すべき重複機能の棚卸しリストです。
+コードベースの肥大化と保守コストを削減するため、段階的に統合・整理を進めている機能リストです。
 
-| 対象機能 / UI | 現状の重複状況 | 一本化・統廃合先 | 統合によるメリット |
+| 対象機能 / UI | 現状の重複状況 | 一本化・統廃合先 | ステータス / メリット |
 | :--- | :--- | :--- | :--- |
-| **ナレッジ詳細モーダル** | `KnowledgeDetailModal.js` (Nehww独自)<br>`TextWindowModal.vue` (Vueサンプル)<br>各種インスペクター | **`<nh-knowledge-card>`**<br>(Web Components 新設) | 全クライアントで同一のリッチスペック・戦術・伝承カードを利用可能になり、CSS/DOM 重複を完全根絶。 |
-| **メッセージHUD / ログ** | `FloatingMessageHud.js` (Nehww独自)<br>`MessageHistoryDrawer.js`<br>`<nh-floating-hud>` | **`FloatingMessageHudController`** ＋ **`<nh-floating-hud>`** | Headless コントローラーと標準 Web Components への一本化により、描画ロジックの二重実装を解消。 |
-| **コンテナ出し入れ操作** | `ContainerModal.js` (Nehww独自)<br>`<nh-container-filer>` (共通基盤) | **`<nh-container-filer>`** | 二画面コンテナ操作、数量ドラフト、BoH 防爆安全ガードのロジックを共通コンポーネント1つに集約。 |
-| **ペーパードール装備** | `PaperdollModal.js` (Nehww独自)<br>`<nh-paperdoll>` (共通基盤) | **`<nh-paperdoll>`** | 部位判定・ドラッグ＆ドロップ・換装シミュレーションのロジックを一元化。 |
-| **モーダルスタック管理** | `ModalManager.js` (Nehww独自)<br>`ModalStackController.js` (Headless) | **`ModalStackController`** | ESC 閉塞・FocusTrap・Z-Index 解決を Headless パッケージに完全統一。 |
+| **ナレッジ詳細カード** | `KnowledgeDetailModal.js` (Nehww)<br>`<nh-knowledge-card>` (共通基盤) | **`<nh-knowledge-card>`** | `🟢 コンポーネント配備済` — 3層統合ナレッジカードへ集約中。 |
+| **メッセージHUD / ログ** | `FloatingMessageHud.js` (Nehww)<br>`MessageHistoryDrawer.js`<br>`<nh-floating-hud>` | **`FloatingMessageHudController`** ＋ **`<nh-floating-hud>`** | Headless コントローラーと標準 Web Components への一本化により、描画ロジックの二重実装を解消。 |
+| **コンテナ出し入れ操作** | `ContainerModal.js` (Nehww)<br>`<nh-container-filer>` (共通基盤) | **`<nh-container-filer>`** | 二画面コンテナ操作、数量ドラフト、BoH 防爆安全ガードのロジックを共通コンポーネント1つに集約。 |
+| **ペーパードール装備** | `PaperdollModal.js` (Nehww)<br>`<nh-paperdoll>` (共通基盤) | **`<nh-paperdoll>`** | 部位判定・ドラッグ＆ドロップ・換装シミュレーションのロジックを一元化。 |
+| **モーダルスタック管理** | `ModalManager.js` (Nehww)<br>`ModalStackController.js` (Headless) | **`ModalStackController`** | ESC 閉塞・FocusTrap・Z-Index 解決を Headless パッケージに完全統一。 |
 
 ---
 
-## ⑦ 不足機能・未接続パイプラインのギャップ分析 (Capability Gaps & Missing Links)
+## ⑦ ギャップ分析と解消状況 (Capability Gaps & Resolution Status)
 
-「データや解析エンジンはすでに実装・完成しているが、UI や操作パイプラインと未接続な機能」の洗い出しです。今後の開発における最優先実装候補となります。
+初期監査で抽出された 4 大ギャップのうち、**ギャップ 1・3・4 は Phase 7 にて実装完了**しており、現在は **ギャップ 2（Phase 8 メモリ直結を活用した命名アシスト）** および **床アイテムの覗き見知恵（Peek Wisdom）統合** が次期ターゲットとなっています。
 
-```mermaid
-flowchart TD
-    subgraph Gap1 ["ギャップ 1: ディスカバリー図鑑 UI の未接続"]
-        D1["Cコア '\\' コマンド"] -->|サイレント同期済| D2["DiscoveryStateManager"]
-        D2 -.->|❌ 未接続| D3["ゲーム内 発見済みアイテム図鑑UI"]
-    end
-
-    subgraph Gap2 ["ギャップ 2: 価格識別からの自動命名パイプライン"]
-        P1["店舗売買メッセージ"] -->|シグナル同定済| P2["OBJECT_KNOWLEDGE_FULL (basePrice)"]
-        P2 -.->|❌ 未接続| P3["ワンタップ仮名命名支援 (#name / C)"]
-    end
-
-    subgraph Gap3 ["ギャップ 3: Cコア文学引用のオンデマンド閲覧"]
-        L1["dat/data_jp.base (4,000+引用)"] -->|WASM内包済| L2["'/' コマンド動的クエリ"]
-        L2 -.->|❌ 未接続| L3["ナレッジカード内 文学伝承タブ"]
-    end
-
-    subgraph Gap4 ["ギャップ 4: セッション横断の図鑑収集率ダッシュボード"]
-        C1["LoreCodexStorage (噂/神託/墓碑銘)"] -->|LocalStorage蓄積済| C2["知のメタ進行データ"]
-        C2 -.->|❌ 未接続| C3["総合コンペンディウム (compendium.html)"]
-    end
-```
-
-### 7.1 `\` コマンド（ディスカバリー）の図鑑UI・既知リスト連携
-* **現状**: `GKLPlugin.syncDiscoveriesSilent()` によって、ゲーム開始時およびインベントリ更新時に C コアから `\` コマンド出力を取得し、`DiscoveryStateManager` に既知のアイテム種別・外見マッピングが蓄積されている。
-* **ギャップ**: 蓄積されたディスカバリー情報をプレイヤーがゲーム内で一覧・検索・確認できる専用の「発見済み図鑑 UI」が存在しない（現在はネタバレ防止の内部判定にのみ使われている）。
-* **接続パイプライン**:
-  - `DiscoveryStateManager` ➔ 共通 Web Component（`<nh-knowledge-card>` または新設 `<nh-discovery-codex>`）へバインドし、プレイヤーがいつでも発見済みアイテム一覧を確認可能にする。
-
-### 7.2 アイテム候補逆引き（効果ログ＆価格識別）からの命名支援 ＆ GamePad候補選択
-* **現状**: 
-  - `OBJECT_KNOWLEDGE_FULL` に全 481 アイテムの基本価格（`basePrice`）が完備。
-  - NetHack 5.0 Cコアの `pricequotes` 機能により、店舗で見た買値・売値が `{buy 100}` などの形式で保持される。
-  - `MessageContextResolver` によりアイテム使用時の効果メッセージ（例: "You feel very comfortable."）を検知可能。
-* **ギャップ**: 
-  - アイテム使用後の `What do you want to call...` や `C` コマンドにおいて、ソフトウェアキーボードでの英単語タイピングが必須となっており、GamePad やモバイル操作の大きな障壁になっている。
-  - 効果ログや店頭買値・売値からアイテム真名候補を逆引きし、GamePadの十字キー＋決定ボタンで選択・命名できるダイアログが存在しない。
-* **接続パイプライン**:
-  - 【使用後効果ログ】または【店頭価格】検知 ➔ `ItemCandidateResolver` による候補リスト生成 ➔ `<nh-call-candidate-dialog>`（GamePad十字キー＆Aボタン対応）提示 ➔ 選択結果を `queueSequence(['C', ...])` または `#name` で C コアへ送信。
-  - 確実な効果メッセージ時はワンタップ省略の「Call自動登録モード」も提供。
-
-
-### 7.3 WASM 動的文学引用（`data.base` / `data_jp.base`）のオンデマンド閲覧 UI
-* **現状**: NetHack の WASM バイナリ内には公式の文学引用（シェイクスピア、クトゥルフ神話等）が完全同梱されており、`/` コマンド等を通じて動的に抽出できる基盤がある。
-* **ギャップ**: ナレッジ詳細画面（`KnowledgeDetailModal`）に「公式文学引用」を表示するタブやボタンが配線されておらず、宝の持ち腐れになっている。
-* **接続パイプライン**:
-  - ナレッジカード展開時 ➔ `querySequenceSilent(['/', targetChar])` で文学テキストを動的取得 ➔ カードの「伝承 (Lore)」セクションにオンデマンド描画。
-
-### 7.4 セッション横断の図鑑収集率（知のメタ進行）ダッシュボード
-* **現状**: `LoreCodexStorage` により、一度引いた噂・神託・落書きが LocalStorage に永続蓄積される仕組みが完成している。
-* **ギャップ**: プレイヤーが「モンスター図鑑」「アイテム図鑑」「伝承図鑑」の総合コンプリート率（例: モンスター 65% / アイテム 48% / 伝承 72%）をタイトル画面や独立した鑑賞モードで確認できる総合ツール（`compendium.html`）が未接続。
-* **接続パイプライン**:
-  - `LoreCodex` ＋ `DiscoveryStateManager` ＋ `MonsterTracker` のセッション横断集計 ➔ タイトル画面の「図鑑モード」およびスタンドアロン Web ツール `compendium.html` の提供。
+| ギャップ項目 | 状態 | 実装・解決内容 |
+| :--- | :---: | :--- |
+| **ギャップ 1: `\` コマンド（ディスカバリー）の図鑑UI連携** | **✅ 実装完了**<br>*(Phase 7-1)* | `<nh-discovery-codex>` により、ゲーム内で発見済みアイテムの「真名 ⇄ 外見」対照表・基本価格・カテゴリ絞り込みを即時閲覧可能。さらに Stage 8.2-C の `SHIM_CMD_DUMP_DESCR_INDEXES` でメモリ直結化も完了。 |
+| **ギャップ 2: アイテム候補逆引きからの命名支援 ＆ GamePad候補選択** | **⏸️ 着手待ち**<br>*(Phase 7-3 / ROADMAP 2.3)* | Phase 8 の `SHIM_CMD_GET_OBJECT_AT` / `DUMP_ALL_INVENT` による価格・オブジェクト情報直結を活用し、`ItemCandidateResolver` ＋ `<nh-call-candidate-dialog>` を実装予定。 |
+| **ギャップ 3: WASM 動的文学引用（`data.base`）のオンデマンド閲覧 UI** | **✅ 実装完了**<br>*(Phase 7-1)* | `OnDemandLookupService.js` および `<nh-knowledge-card>` の第3層「文学・伝承引用」セクションとして完全接続済み（LRUキャッシュ＋日本語対訳対応）。 |
+| **ギャップ 4: セッション横断の図鑑収集率（知のメタ進行）ダッシュボード** | **✅ 実装完了**<br>*(Phase 7-2)* | `AdventureLogManager.js`、`<nh-codex-grid>`、および独立ツール `tools/adventure_log.html` / `tools/scoreboard.html` として完全実装済み。 |
 
 ---
 
 ## 8. まとめ
 
-NetHack WASM WebUI は、すでに「通信・同期」「状態解析」「データ・伝承」「UI調停」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャを保有しています。  
-今後の開発においては、新規に車輪を再発明することなく、**本カタログに記載された現有能力を活用し、⑥の重複統廃合を進めながら、⑦の未接続パイプラインを結線していくこと** が最短かつ最も堅牢な進化ルートとなります。
+NetHack WASM WebUI は、「通信・同期（Phase 8 Direct Binding + IRC）」「状態解析」「データ・伝承」「UI調停（Headless UI + Web Components）」「マルチドライバ音響（Phase 6）」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャ（**全136スイート・1,670テスト PASS**）を保有しています。  
+今後の開発においても、新規に車輪を再発明することなく、**本カタログに記載された現有能力と Phase 8 メモリ直結基盤を活用して残るパイプラインを結線していくこと** が最短かつ最も堅牢な進化ルートとなります。

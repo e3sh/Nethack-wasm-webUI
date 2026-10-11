@@ -23,9 +23,9 @@ Wasm Direct Binding（`CALL_SHIM` / Native Shim Dispatcher Bridge）の導入に
 | **4. Direct Binding層** | `WasmDirectBindingService.js` | `syncFromWorkerBridge` による 6 回の連続 Worker 往復中にブラウザ側でユーザー入力（`RESPOND_INPUT`）が混ざる。 | 前ターンの Direct Binding 応答が遅延到着し、前ターンの `inventoryStateUpdated` が UI 再描画を発火させて画面が揺れる。 |
 
 > [!NOTE]
-> **ROADMAP 2.1 との依存順序について**  
-> UI層のメインコードである `examples/gkl-pure-js-client/main.js` は現在 2,364 行の巨大ファイルであり、イベント配線と UI コントローラーが密結合しています。  
-> したがって、UI層の本格的なライフサイクル恒久化およびオーケストレーションは **ROADMAP 2.1（GKL Pure JS Client モジュール分割）完了後** に着手し、最小限のクリーンな差分で統合します。
+> **ROADMAP 2.1（完了済み）および ROADMAP 2.2 との連携順序について**  
+> 前提条件であった **ROADMAP 2.1（GKL Pure JS Client `main.js` のモジュール分割：2,364行 ➔ 618行、8コントローラー分離）は 2026-10-10 に完了**しました。  
+> 残る Core/Driver/Direct Binding 層のアイドリング調停および Sync Barrier は、**ROADMAP 2.2（`GKLPlugin.js` モジュール分割：`GKLEventRouter` / `SilentSyncCoordinator` 抽出）および Stage 8.3-B（確定同期レンダリング・パイプライン）** と統合してクリーンに実装を進めます。
 
 ---
 

@@ -1,3 +1,11 @@
+---
+title: driver_quickstart_guide
+status: active
+last_updated: 2026-10-11
+related_code:
+  - src/driver/
+---
+
 # NetHack Wasm Driver 導入・クイックスタートガイド (Quickstart & Integration Guide)
 
 本ドキュメントは、**`@nethack/wasm-driver` (ドライバーサブシステム)** を新しい Web UI や既存クライアントに組み込み、NetHack Wasm C コアエンジンをロード・起動・バージョン変更するための総合導入ガイドです。
@@ -25,8 +33,8 @@ graph TD
 
     subgraph Wasm_Layer ["Cコア・バイナリ実行層 (Wasm Core)"]
         Worker["nethack.worker.js"]
-        WasmJS["nethack.js / nethack_jp.js (グルーコード)"]
-        WasmBin["nethack.wasm / nethack_jp.wasm (Cコアバイナリ)"]
+        WasmJS["nethack.js (グルーコード)"]
+        WasmBin["nethack.wasm (NetHack 5.0.1 Cコアバイナリ)"]
     end
 
     UI <-->|GUI イベント / パケット| WebUICore
@@ -42,7 +50,7 @@ graph TD
 - **`WebUICore`**: UI層向けの高次元ファサード。キー入力の正規化、日本語翻訳、モーダルプロンプトの構造化パースなどを担当。
 - **`NetHackWasmWorkerBridge`**: Wasm エンジンをバックグラウンドスレッド（Web Worker）で安全に隔離実行し、UIスレッド (60fps) のスムーズな描画を保護する透過プロキシ。
 - **`NetHackWasmDriver`**: C コアとのメモリ相互アクセス、Asyncify 入力制御、低レイヤーイベント発行を担うドライバー本体。
-- **`nethack.js` / `nethack.wasm`**: Emscripten でコンパイルされた NetHack C コア（Wasm バイナリと JS グルーコード）。
+- **`nethack.js` / `nethack.wasm`**: Emscripten でコンパイルされた公式 NetHack 5.0.1 C コア（Wasm バイナリと JS グルーコード。日本語表示は `WebUICore` / `TranslationEngine` 側で動的翻訳されます）。
 
 ---
 
@@ -53,8 +61,7 @@ graph TD
 プロジェクトのルートまたは適切なディレクトリに以下のファイルが配置されていることを確認します：
 
 - **Wasm バイナリファイル群**:
-  - `nethack.js` & `nethack.wasm` （英語版コア）
-  - `nethack_jp.js` & `nethack_jp.wasm` （日本語版コア・必要な場合）
+  - `nethack.js` & `nethack.wasm` （NetHack 5.0.1 公式バニラ C コア）
 - **ドライバーサブシステム** (`src/driver/`):
   - `NetHackWasmWorkerBridge.js`
   - `nethack.worker.js`
@@ -110,7 +117,7 @@ bridge.once('initialized', async () => {
 
 // 2. Wasm スクリプトを指定して初期化を実行
 // 第1引数に読み込む Wasm JS ファイル名を指定します
-const targetWasmJs = 'nethack.js'; // または 'nethack_jp.js'
+const targetWasmJs = 'nethack.js';
 
 bridge.init(targetWasmJs, {
     args: ['nethack', '-otime,showexp,showvers,number_pad'], // 起動コマンドライン引数

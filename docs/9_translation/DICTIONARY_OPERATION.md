@@ -1,9 +1,13 @@
 ---
 title: DICTIONARY_OPERATION
-status: active
-last_updated: 2026-08-15
+status: implemented
+last_updated: 2026-10-11
 related_code:
-  - src/
+  - tools/dict_converter.py
+  - param/nhMessage.js
+  - src/core/translation/TranslationEngine.js
+  - src/core/inspector/DebugInspector.js
+  - src/core/inspector/inspector_console.html
 ---
 
 # 辞書更新オペレーションガイド
@@ -11,7 +15,7 @@ related_code:
 本ドキュメントでは、マスター辞書データ（`dictionary.csv`）と実行用辞書（`param/nhMessage.js`）の連携、基本的なファイル操作コマンド、および翻訳運用フローについて説明します。
 
 > [!TIP]
-> プレイ中のリアルタイム対訳表示（`tr_log.html`）や単体テストツール（`tr_test.html`）などの翻訳支援ツールおよび画面連携の詳細については、[翻訳支援ツール＆リアルタイム検証環境ガイド](translation_support_tools.md) をご覧ください。
+> プレイ中のリアルタイム対訳監視・未翻訳メッセージの自動キャプチャには、**DevTools Inspector ([`src/core/inspector/inspector_console.html`](../../src/core/inspector/inspector_console.html) の「📝 翻訳管理」タブ)** を使用します。（※旧世代の翻訳支援ツール仕様は [旧：翻訳支援ツール＆リアルタイム検証環境ガイド（アーカイブ）](./archive/translation_support_tools.md) を参照してください）
 
 ---
 
@@ -83,43 +87,37 @@ python tools/dict_converter.py import my_dict.csv
 
 ---
 
-## 3. 【実施済み実績】一時バッファと `tr_manager.html` を併用した開発・検証フロー
+## 3. DevTools Inspector (`inspector_console.html`) を併用したリアルタイム翻訳開発・検証フロー
 
-本プロジェクトでは、実際のゲーム画面を見ながら手軽に翻訳を追加・テスト・バックフィルするフローが実装され、運用実績を残しています。
+現行アーキテクチャでは、`DebugInspector.js` と **DevTools Inspector (`src/core/inspector/inspector_console.html`)** が `BroadcastChannel ('nh_inspector_channel')` を介してリアルタイム連動し、設定変更や `localStorage` の一時領域を介さずに、プレイ中の未翻訳メッセージを即座に捕捉・CSVエクスポートできます。
 
 ```
-[ゲーム画面 (LANG_LEARNMODE)]
-       │ (未翻訳メッセージ収集)
+[ゲームクライアント (WebUICore + TranslationEngine)]
+       │ (BroadcastChannel: 'nh_inspector_channel')
+       │ 翻訳イベント & 未翻訳メッセージをリアルタイム配信
        ▼
-[localStorage ("nh.temp")]
-       │
+[DevTools Inspector (src/core/inspector/inspector_console.html)]
+  └─ 「📝 翻訳管理 (Translation)」タブ
+       │ ・リアルタイム対訳ストリーム監視 (原文 ⇄ 訳文 / ルール種別)
+       │ ・未翻訳メッセージの自動フィルタリング・重複排除ストック
+       │ ・その場での翻訳テスト & CSV フォーマット一括エクスポート
        ▼
-[tr_manager.html (翻訳管理ツール)]
-       │ (暫定翻訳入力 & 「保存 & 反映」)
-       ├─────────────────────────────────┐
-       ▼                                 ▼
-[localStorage ("nh.ext_data")]   [nhMessage_ext.json]
-(ゲームリロードで即反映)           (配布・共有用)
-       │
-       ▼ (確定後にバックフィル)
-[dictionary.csv] ──(dict_converter.py import)──> [param/nhMessage.js]
+[dictionary.csv] ──(python tools/dict_converter.py import)──> [param/nhMessage.js]
 ```
 
-### ステップ 1: 未翻訳メッセージの自動収集 (実施済み)
-1. 設定画面 (`config.html`) で **「LANG_LEARNMODE」** を ON に設定。
-2. 未翻訳メッセージが表示されると、自動的に `localStorage("nh.temp")` に蓄積。
+### ステップ 1: DevTools Inspector の起動とリアルタイム監視
+1. ゲーム画面（または開発ツールポータル `tools/dev_tools.html`）から **DevTools Inspector (`src/core/inspector/inspector_console.html`)** を別タブまたは別ウィンドウで開きます。
+2. 상部タブから **「📝 翻訳管理」** を選択します。
+3. ゲームをプレイすると、`TranslationEngine` を通過したすべてのメッセージ（原文・翻訳結果・適用ルール）が `BroadcastChannel` 経由でリアルタイムに表示され、未翻訳（原文のまま残った行）が自動的にリストアップされます。
 
-### ステップ 2: 翻訳管理ツール (`tr_manager.html`) での試作 (実施済み)
-1. `tr_manager.html` を開き、未翻訳リストから対象を選択。
-2. 暫定訳を入力して「保存 & 反映」を押す。
-   - `localStorage("nh.ext_data")` が更新されるとともに、`nhMessage_ext.json` がダウンロード可能に。
+### ステップ 2: 未翻訳リストの確認と CSV エクスポート
+1. 「📝 翻訳管理」タブ内の未翻訳メッセージ一覧で、捕捉された英文を確認し、必要に応じて仮訳や正規表現パターンを検証します。
+2. エクスポート機能（CSVコピー／ダウンロード）を使用して、`dictionary.csv` 互換フォーマットの行データを出力します。
 
-### ステップ 3: ゲームでの即時確認 (実施済み)
-1. ゲーム画面（`index.html` 等）をリロードするだけで、暫定翻訳が即座に適用。
-
-### ステップ 4: マスター辞書への統合 (Backfill)
-1. 暫定翻訳データを `dictionary.csv` の末尾へ書き戻し。
-2. `python tools/dict_converter.py import` を実行して `nhMessage.js` を更新。
+### ステップ 3: マスター辞書 (`dictionary.csv`) への統合とビルド
+1. 出力した行データを `dictionary.csv` に追記・編集します。
+2. `python tools/dict_converter.py import` を実行して `param/nhMessage.js` を再生成します。
+3. `npm test`（`TranslationEngine.test.js` 等）を実行し、既存翻訳ルールとの競合や正規表現エラーがないことを確認します。
 
 ---
 
@@ -127,3 +125,4 @@ python tools/dict_converter.py import my_dict.csv
 
 - **BOM付き UTF-8**: ツールは Excel で編集しやすいよう BOM 付き UTF-8 で出力・読み込みを行います。保存時もこの形式を維持してください。
 - **Git による確認**: `import` コマンド実行後は、必ず `git diff` を行い、エスケープ漏れや意図しない破壊がないか確認してください。
+

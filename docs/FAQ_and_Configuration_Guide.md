@@ -1,3 +1,9 @@
+---
+title: NetHack WASM / WebUI 逆引き設定・セーブデータ管理 FAQ
+status: active
+last_updated: 2026-10-11
+---
+
 # NetHack WASM / WebUI 逆引き設定・セーブデータ管理 FAQ
 
 本ドキュメントは、**NetHack WASM / WebUI システム独自の仕様・設定項目・セーブファイル管理・開発/デバッグ手順**をまとめた逆引きガイド（FAQ）です。  
@@ -161,19 +167,19 @@ pickup_types:$
 | ストレージキー | 型 / 形式 | 用途・格納内容 |
 | :--- | :--- | :--- |
 | **`nh.config`** | JSON String | **全共通設定オブジェクト (SSOT)**: `{ gryph, lang, larn, debug, item_naming_mode, sound_mode, sound_volume, extra_options }` |
+| **`nethack_ui_config_v1`** | JSON String | UIController (`UIConfigStore.js` / `<nh-ui-config>`) の表示・レイアウト・プリセット設定 |
+| **`nh_adventure_log_v1`** | JSON String | セッション横断の冒険手帳・モンスター/アイテム解禁メタ進行データ (`AdventureLogManager.js`) |
+| **`nethack_lore_codex_v1`** | JSON String | 噂・神託・墓碑銘のアンロック記録 (`LoreCodexStorage.js`) |
 | **`nh.gpadAssign`** | JSON String | ゲームパッドのボタン・軸割り当て設定 (`KEYASSIGN`) |
 | **`nh.tpadAssign`** | JSON String | タッチパッド・仮想十字キーの入力割り当て |
 | **`nethack_container_view_mode`** | String (`'list'` \| `'grid'`) | GKLコンテナモーダルの表示モード切替 |
-| **`nethack_username`** | String | テスト用クライアントでのプレイヤー名記憶 |
-| **`nethack_webui_topten`** | JSON String | ローカルハイスコア・ランキング履歴（Legacy クライアント用） |
-| **`nethack_wave_gain`** | Number | 効果音 (WAV/SE) のゲイン倍率（Legacy SoundManager 用） |
-| **`nethack_beep_gain`** | Number | ビープ音 (Synth Beep) のゲイン倍率（Legacy SoundManager 用） |
+| **`nethack_username`** | String | クライアントでの前回プレイヤー名記憶 |
 
 #### ⚠️ 廃止・撤去済み、または非推奨となったキー (Deprecated / Removed)
 | ストレージキー | 旧用途 | 現在の移行先・ステータス |
 | :--- | :--- | :--- |
-| **`nethack_sound_mode`** | サウンド再生モード | **完全撤去**: `nh.config.sound_mode` へ一本化されました。 |
-| **`nethack_sound_volume`**| マスター音量 | **完全撤去**: `nh.config.sound_volume` へ一本化されました。 |
+| **`nethack_webui_topten`** / **`nethack_wave_gain`** / **`nethack_beep_gain`** | 旧 Legacy クライアント用スコア・音量 | **完全撤去**: `legacy-client` のアーカイブ退避に伴い撤去。公式戦歴は IndexedDB `/save/xlogfile` ＆ `tools/scoreboard.html`、音量は `nh.config` へ統合。 |
+| **`nethack_sound_mode`** / **`nethack_sound_volume`** | サウンド設定 | **完全撤去**: `nh.config.sound_mode` / `nh.config.sound_volume` へ一本化されました。 |
 | **`translate_enabled`** | 日本語翻訳有効フラグ | **完全撤去**: `nh.config.lang` (boolean) へ一本化されました。 |
 | **`nethack_debug_log`** | サウンドデバッグ出力 | **完全撤去**: `nh.config.debug` へ一本化されました。 |
 | **`nethack_has_saved_game`** / **`nethack_last_player_name`** | 過去のセーブ情報 | **完全撤去**: 削除コードも含め撤去されました。 |
@@ -207,40 +213,36 @@ const core = new WebUICore({
 
 **A.** 専用の **GUI 設定ツール**、またはコード/LocalStorage から設定します。
 
-#### 🎮 GUI 設定ツールから設定する場合 (推奨)
-ブラウザ上で視覚的にコントローラーや仮想キーの割り当てを設定・保存できます。
-
-- **ゲームパッド設定ツール**: 旧クライアントと共に切り出し済み（`git show archive/legacy-client:examples/legacy-client/rogue/mapping_tool.html` で参照可能）
-  - 接続した USB/Bluetooth ゲームパッドの各ボタン・スティックに NetHack のキー（方向キー、各種コマンド）を割り当てて `localStorage("nh.gpadAssign")` に保存します。
-- **タッチ操作マッピングツール**: 旧クライアントと共に切り出し済み（`archive/legacy-client` タグ内の `examples/legacy-client/rogue/touch_mapping_tool.html`）
-  - スマホ・タブレット向けのバーチャル十字キーや操作ボタンの配置・カスタマイズを行います。
+#### 🎮 GUI 設定ツールから設定する場合
+- **コンソールクライアント (Gamepad PoC)**: [`examples/console-client/index.html`](../examples/console-client/index.html)
+- **旧ゲームパッド設定ツール**: 旧クライアントと共に切り出し済み（`git show archive/legacy-client:examples/legacy-client/rogue/mapping_tool.html` で参照可能）
 
 #### プログラム・コード上で制御する場合
 - **キーボードマッピング**: [`src/core/input/KeyMapper.js`](../src/core/input/KeyMapper.js) / デフォルト定義: [`src/core/input/defaultDefines.js`](../src/core/input/defaultDefines.js)
-- **ゲームパッドマネージャー**: [`src/core/input/GamepadManager.js`](../src/core/input/GamepadManager.js)
+- **ゲームパッドコントローラー (UIController)**: [`src/ui-controller/GamepadInputController.js`](../src/ui-controller/GamepadInputController.js) / [`src/core/input/GamepadManager.js`](../src/core/input/GamepadManager.js)
 
 ---
 
 ### Q2-5. サウンドモード（BGM/SE/Mute）や音量の設定方法は？
 
-**A.** **GUI 設定画面**、**サウンドテストツール**、またはコード/LocalStorage から設定できます。
+**A.** **GUI 設定画面**、**サウンドテストツール**、または `SoundCoordinator` (`SoundEngine` ファサード) から設定できます。
 
 #### 🔊 GUI 画面から設定する場合
 - **システム設定画面**: [`tools/config.html`](../tools/config.html)
   - サウンドモード（`mute` / `se` / `all`）の選択、音量スライダー（0〜100%）、テスト再生ボタンから即座に調整・保存できます。
 - **サウンドテスター**: [`tests/sound_test.html`](../tests/sound_test.html)
-  - BEEP 音（合成矩形波）、WAVE 音声、Auto ルール再生の個別テストとゲイン調整が可能です。
+  - BEEP 音（`PsgBeepDriver` 合成矩形波・MML）、プロシージャル合成（`ProceduralSynthDriver`）、WAVE 音声（`WaveSampleDriver`）の個別テストとゲイン調整が可能です。
 - **開発ツールハブ**: [`tools/dev_tools.html`](../tools/dev_tools.html)
   - 各種設定ツール群へのポータルハブ画面です。
 
 #### プログラム・コード上で制御する場合
 ```javascript
-// SoundEngine API からの制御
+// SoundCoordinator (後方互換ファサード SoundEngine) API からの制御
 core.sound.setSoundMode('all');  // 'all' (全音) / 'se' (SEのみ) / 'mute' (消音)
 core.sound.setVolume(0.8);       // 0.0 〜 1.0
 
-// マッピング定義ファイル
-// sound_mapping.json にメッセージやイベントに応じた SE トリガーが定義されています。
+// イベントカタログ定義ファイル
+// src/core/sound/SoundEventCatalog.js にシグナル・メッセージに応じた音響トリガーが定義されています。
 ```
 
 ---
@@ -264,34 +266,39 @@ core.sound.setVolume(0.8);       // 0.0 〜 1.0
 
 ### Q3-1. システム全体のアーキテクチャ境界とレイヤー構成は？
 
-**A.** 本リポジトリは以下の疎結合な 3 層構造で設計されています。
+**A.** 本リポジトリは以下の疎結合な 4 層構造で設計されています。
 
 ```
-[ UI / Presentation Layer ] (Client)
-  ├─ CanvasRenderer / HTML5 UI / MobileDomClient
-  └─ UI Components (MessageWindow, Inventory, StatusLine, GamepadOverlay)
+[ UI / Presentation Layer ] (Client & Web Components)
+  ├─ GKL Reference Client (`examples/gkl-pure-js-client/`) / Console Client / Vue / React
+  ├─ Renderers (`VirtualDungeonScreen`, `MainViewportRenderer`, `WebGPUHD2DRenderer`)
+  └─ Web Components (`src/components/`: `<nh-modal>`, `<nh-floating-hud>`, `<nh-paperdoll>`, `<nh-knowledge-card>` 等)
+         │  (DOM-Independent View State / Actions)
+         ▼
+[ Headless UI Controller Layer ] (`src/ui-controller/`)
+  └─ `InputCoordinator`, `ModalStackController`, `FloatingMessageHudController`, `PaperdollPresenter`, `UIConfigStore`
          │  (Event / Method Call)
          ▼
-[ Domain / Knowledge Layer ] (GKL Plugin)
-  ├─ GKLPlugin (`src/core/knowledge/GKLPlugin.js`)
-  ├─ TacticalAdvisor / AssistSignalSynthesizer (戦術・アドバイス)
-  └─ ContextActionEngine (スマート自動行動・探索判定)
-         │  (Plugin hook / State Sync)
+[ Domain / Knowledge Layer ] (GKL Plugin: `src/core/knowledge/`)
+  ├─ `GKLPlugin.js` / `WasmDirectBindingService.js` (Phase 8 C構造体直結)
+  ├─ `AreaStateManager`, `EncumbranceStateManager`, `DiscoveryStateManager`
+  ├─ `TacticalAdvisor` / `AssistSignalSynthesizer` / `ContextActionEngine`
+  └─ `LoreCodex` / `AdventureLogManager` / `PostMortemKnowledgeResolver`
+         │  (Plugin hook / CALL_SHIM / IRC Silent Sequence)
          ▼
-[ Core Infrastructure Layer ] (WebUICore & Wasm Driver)
-  ├─ WebUICore (`src/core/WebUICore.js`) - ファサード・状態管理
-  ├─ Input (KeyMapper, GamepadManager, TouchCalculator)
-  ├─ Translation & Sound Engines
-  └─ WasmDriver (`Worker Thread`) ↔ NetHack C Core (WASM / Emscripten)
+[ Core Infrastructure & Driver Layer ] (`src/core/` & `src/driver/`)
+  ├─ `WebUICore` (`src/core/WebUICore.js`) - ファサード・シグナル同定・状態管理
+  ├─ `SoundCoordinator` (`src/core/sound/`) & `TranslationEngine` (`src/core/translation/`)
+  └─ `NetHackWasmWorkerBridge` / `NetHackWasmDriver` ↔ NetHack 5.0.1 C Core (`shim_bridge.c` + WASM)
 ```
 
-> **注意**: `WebUICore` 自体は純粋なインフラ（入出力・通信基盤）であり、NetHack のゲーム知識・アドバイザー等のロジックはすべて `GKLPlugin` 側にカプセル化されています。
+> **注意**: `WebUICore` 自体は純粋なインフラ（入出力・通信・シグナル同定基盤）であり、NetHack のゲーム知識・アドバイザー等のドメインロジックはすべて `GKLPlugin` 側にカプセル化されています。
 
 ---
 
 ### Q3-2. 自動テストの実行方法と対象は？
 
-**A.** `Vitest` を用いて単体テスト・境界テストが構築されています。
+**A.** `Vitest` を用いて全 136 テストスイート・1,670 テストが構築されています。
 
 ```bash
 # 全テストの実行
@@ -301,7 +308,7 @@ npm test
 npm run test:ui
 ```
 
-- テストコード配置場所: `src/**/*.test.js`
+- テストコード配置場所: `tests/**/*.test.js`, `src/**/*.test.js`
 - 境界検証テスト: `src/core/ArchitectureBoundary.test.js`（レイヤー間の依存関係違反を自動検知）
 
 ---
@@ -316,7 +323,7 @@ npm run test:ui
 - **原因**: `localStorage` には UI 設定しか入っておらず、ゲーム本編のセーブデータは **IndexedDB (`/save` DB)** にあるため。
 - **対処**: 必ず IndexedDB の削除（または `driver.deleteSaveFile()`）を行う必要があります。
 
-#### ⚠️ 3. 「C言語コード（NetHack オリジナル）を変更したのに WASM に反映されない」
-- **対処**: `NetHack-NetHack-5.0/build_wasm_50.ps1` を実行して `nethack.wasm` / `nethack.js` を再ビルドしてください。
-- **注意**: 本システムは 現状では**本家オリジナルWASM版（win/shim Port `Unix NetHack Version 5.0.0-0 post-release`）** での動作は確認出来ています。
+#### ⚠️ 3. 「`src/driver/shim/shim_bridge.c` や C 言語コードを変更したのに WASM に反映されない」
+- **対処**: [`scripts/build_wasm_50.ps1`](../scripts/build_wasm_50.ps1) を実行して `nethack.wasm` / `nethack.js` を再ビルドしてください（手順詳細は [nethack_version_upgrade_guide.ja.md](./1_driver/nethack_version_upgrade_guide.ja.md) を参照）。
+- **注意**: 本システムは **NetHack 5.0.1 公式バニラ WASM 版（`win/shim` ポート無改変 ＋ 単一外付け `shim_bridge.c`）** で動作しています。
 

@@ -1,7 +1,21 @@
+---
+title: Nehww GamePad オンデマンド統合設計書 (Zero-Footprint On-Demand)
+status: in-progress (Components & PoC implemented, Nehww integration pending)
+last_updated: 2026-10-11
+related_code:
+  - src/ui-controller/GamepadInputController.js
+  - src/components/gamepad/NhGamepadGuideBar.js
+  - src/components/gamepad/NhRadialPaletteHud.js
+  - src/components/gamepad/NhShirenInventoryDrawer.js
+  - src/components/gamepad/NhContextHintPill.js
+  - examples/console-client/
+---
+
 # 🎮 Nehww GamePad オンデマンド統合設計書 (Zero-Footprint On-Demand)
 
 **作成日**: 2026-10-01  
-**ステータス**: `proposed` (オンデマンド補助構想 / 将来検討)  
+**最終更新**: 2026-10-11  
+**ステータス**: `in-progress` (Step 1〜2 共通 Web Components ＆ PoC 実装完了 / Step 3 Nehww 本体へのオンデマンド統合待ち)  
 **関連モジュール**: `GamepadManager`, `GamepadInputController`, `NhGamepadGuideBar`, `NhShirenInventoryDrawer`, `NhRadialPaletteHud`, `NhContextHintPill`, `ModalManager`
 
 ---
@@ -89,21 +103,22 @@ flowchart TD
 
 ---
 
-## 4. 実装ステップ（コンパクト化）
+## 4. 実装ステップ（進捗状況）
 
 大掛かりなプリセット再設計を排し、シンプルに以下の3ステップで進める。
 
-### Step 1: `<nh-gamepad-guide-bar>` の作成と自動フェードアウト制御
-- `src/components/gamepad/NhGamepadGuideBar.js` を作成。
-- コンテキスト表示 ＆ パッド入力検知によるフェードイン/タイマーフェードアウト。
-- 単体テストの配備。
+### [x] Step 1: 共通 GamePad Web Components 群の作成（実装完了）
+- [x] `<nh-radial-palette-hud>` (`src/components/gamepad/NhRadialPaletteHud.js`) の実装＆単体テスト配備。
+- [x] `<nh-shiren-inventory-drawer>` (`src/components/gamepad/NhShirenInventoryDrawer.js`) の実装＆単体テスト配備。
+- [x] `<nh-gamepad-guide-bar>` (`src/components/gamepad/NhGamepadGuideBar.js`) の実装＆単体テスト配備。
+- [x] `<nh-context-hint-pill>` (`src/components/gamepad/NhContextHintPill.js`) の実装＆単体テスト配備。
 
-### Step 2: `GamepadInputController.js` のダイアログ調停＆キーナビ拡張
-- `isAnyModalOpen` 検知による `DIALOG` コンテキスト遷移。
-- 十字キー上下によるダイアログ選択肢ナビゲーションとA/Bボタンの決定/閉じるディスパッチ。
-- 単体テストの配備。
+### [x] Step 2: `GamepadInputController.js` のダイアログ調停＆PoC検証（実装完了）
+- [x] `src/ui-controller/GamepadInputController.js` の実装（`isAnyModalOpen` 検知による `DIALOG` コンテキスト遷移、十字キー上下ナビ、A/B決定・取消ディスパッチ）。
+- [x] 単体テスト（`GamepadInputController.test.js`）および `examples/console-client/` PoC 環境での検証完了。
 
-### Step 3: Nehww へのオンデマンドマウント
-- `examples/gkl-pure-js-client/index.html` に各コンポーネントを配置（初期非表示）。
-- `main.js` で `GamepadInputController` を接続し、パッドのボタンが押された時だけガイドバーやドロワーが動くように結線。
-- キャラ作成・プロンプト・通常探索の実機検証。
+### [ ] Step 3: Nehww 本体へのオンデマンドマウント（残タスク）
+- [ ] `examples/gkl-pure-js-client/index.html` に各コンポーネントを配置（初期非表示・Zero-Footprint）。
+- [ ] `main.js` で `GamepadInputController` を接続し、パッドのボタンが押された時だけガイドバーやドロワーがフェードインし、キーボード操作時に自動退避するよう結線。
+- [ ] キャラ作成・プロンプト・通常探索の実機統合検証。
+

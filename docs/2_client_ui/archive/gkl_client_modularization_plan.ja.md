@@ -1,9 +1,15 @@
+---
+title: GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化計画書
+status: archived
+last_updated: 2026-10-11
+---
+
 # 🧩 GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化計画書
 
-- **ステータス**: `🟢 completed` (2026-10-10 完了)
-- **作成日**: 2026-10-07 (更新: 2026-10-10)
+- **ステータス**: `🟢 completed / archived` (2026-10-10 完了)
+- **作成日**: 2026-10-07 (更新: 2026-10-11)
 - **対象コード**: `examples/gkl-pure-js-client/main.js` (および新規 `modules/` 配下)
-- **関連ドキュメント**: [ROADMAP.md](../ROADMAP.md), [SYSTEM_CAPABILITIES.md](../SYSTEM_CAPABILITIES.md), [shim_driven_rendering_pipeline_architecture.ja.md](./shim_driven_rendering_pipeline_architecture.ja.md)
+- **関連ドキュメント**: [ROADMAP.md](../../ROADMAP.md), [SYSTEM_CAPABILITIES.md](../../SYSTEM_CAPABILITIES.md), [shim_driven_rendering_pipeline_architecture.ja.md](../shim_driven_rendering_pipeline_architecture.ja.md)
 
 ---
 

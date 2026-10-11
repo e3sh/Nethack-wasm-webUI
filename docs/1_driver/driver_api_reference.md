@@ -1,7 +1,7 @@
 ---
 title: driver_api_reference
 status: active
-last_updated: 2026-08-15
+last_updated: 2026-10-11
 related_code:
   - src/driver/
 ---
@@ -75,6 +75,14 @@ VFS (`/save` および `/` ディレクトリ) 内に存在するすべてのセ
 ### `async bridge.deleteSaveFile(filename)`
 指定されたセーブファイル（および IndexedDB の永続化データ）を物理削除します。
 
+### `async bridge.callShim(cmdId, arg0 = 0, arg1 = 0, options = {})` (Phase 8 Direct Binding RPC)
+Web Worker 内の `_shim_bridge_call` ディスパッチャを非同期呼び出しし、C メモリ上の構造体・ゲーム状態をミリ秒未満で直接取得します。
+- **引数**:
+  - `cmdId`: `number` (`NetHackMemory.SHIM_CMD.*` のコマンド ID)
+  - `arg0`, `arg1`: `number` (X/Y 座標やインベントリ文字コードなど)
+  - `options`: `{ bufferBytes?: number, resultType?: 'int32'|'int32Array'|'uint8Array'|'string' }`
+- **戻り値**: `Promise<{ returnValue: number, data?: Int32Array | Uint8Array | string }>`
+
 ---
 
 ## 3. シーケンス制御 ＆ サイレントクエリ API (Sequence Control)
@@ -91,9 +99,12 @@ VFS (`/save` および `/` ディレクトリ) 内に存在するすべてのセ
   - シーケンス実行完了時に、その実行中にキャプチャされた出力バッファ（`putstr`, `select_menu`, `display_file` 等）の配列を直接返却します。手動での `getLastSequenceBuffer()` ポーリングは不要です。
 - **特徴・安全ガード**:
   - **メニュー選択 (`select_menu`) のトークン自動解決**: メニュー入力待ち時にトークンが渡された場合、アクセラレータキー（`'a'`, `'B'` 等）、アイテム文字コード、数値インデックス（1-based）、またはキャンセル値（`27`, `'0'`）を自動判定して対応するメニュー項目オブジェクトを生成・Cコアへ返却します。これにより `queueSequence(['i', 'a'])` 等による 2段目メニューへの自動遷移が安全に行えます。
-  - ターゲットモード操作中（`/` キー等）はキュー内でタスクが一時待機し、ターゲットモード解散直後に自動的に安全実行・Promise 解決されます。
+  - ターゲットモード操作中（`/` キー等）および `--More--` ページ送り中（`isTopLevelTurn === false`）はキュー内でタスクが一時待機し、真のトップレベル・ターン待機に復帰した直後に自動的に安全実行・Promise 解決されます。
   - 手動入力（`sendInput`）が介入した場合、待機中の古い自動同期タスクは明示的にキャンセル（`reject`）して破棄されます。
   - キューの最大保持件数上限（`maxQueueSize = 16`）を超過した場合は古いタスクをキャンセル破棄します。
+
+### `driver.canAcceptSequenceInterruption()`
+現在ドライバーが自動シーケンス（`queueSequence`）の割り込み開始を安全に受け入れられる状態（`WAITING_INPUT` かつ `isTopLevelTurn === true` かつターゲット操作中でない）かどうかを判定して `boolean` を返します。
 
 ### `driver.cancelSequence()`
 実行中のシーケンスおよび FIFO タスクキューに予約されている未実行の全シーケンスを即時クリアし、全 Pending Promise を `reject(new Error('Sequence cancelled'))` 解決して通常状態に安全復帰します。
@@ -163,6 +174,11 @@ import {
     - offset 12: `mi.itemflags` (unsigned int、デフォルトで `SELECTED = 1`)
   - 引数: `Array<{ identifier: number, count?: number, itemflags?: number }>`
   - 戻り値: Wasm メモリ上のポインタ数値 (`number`)
+- **`NetHackMemory` Phase 8 Direct Binding ヘルパー**:
+  - `memory.isBridgeAvailable()`: Wasm モジュールに `_shim_bridge_call` がエクスポートされているか判定します。
+  - `memory.bridgeCall(cmdId, arg0, arg1, outPtr, outMaxLen)`: `shim_bridge.c` の単一エントリポイント `_shim_bridge_call` を同期実行します。
+  - `memory.allocateBuffer(byteLength)` / `memory.freeBuffer(ptr)`: Wasm 線形メモリ (`_malloc` / `_free`) の確保と解放を行います。
+  - `NetHackMemory.SHIM_CMD` / `NetHackMemory.SHIM_SYM`: `shim_bridge.c` の全コマンド ID（`PING`, `GET_CELL_INFO`, `DUMP_LEVEL_TERRAIN`, `GET_EQUIPMENT_PTRS`, `DUMP_ALL_INVENT`, `DUMP_DESCR_INDEXES` 等）およびシンボル ID 定数マップ。
 
 ---
 

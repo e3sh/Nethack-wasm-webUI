@@ -1,7 +1,7 @@
 ---
 title: GKL クライアント UI/UX 刷新＆レンダラー表現高度化 実装計画書
-status: in_progress (Phase A, B & C completed)
-last_updated: 2026-09-25
+status: archived (Phase A〜D completed)
+last_updated: 2026-10-11
 author: e3-sh & Antigravity
 ---
 
@@ -267,7 +267,7 @@ flowchart TD
   * ダンジョンマップ Canvas / WebGPU キャンバスがウィンドウ全体（100vw × 100vh）に広がる。
   * ウィンドウサイズ変更時にバックバッファを完全追従リサイズ。
 * **オーバーレイレイヤー（前面・透過浮遊 HUD）**:
-  * **メッセージログ (★アプローチB採用)**: 画面上部にフローティング最新行HUDを配置し、`Ctrl+P` やスクロールで展開する過去ログドロワーを新設。詳細は **[immersive_hud_message_window_specification.ja.md](./immersive_hud_message_window_specification.ja.md)** を参照。
+  * **メッセージログ (★アプローチB採用)**: 画面上部にフローティング最新行HUDを配置し、`Ctrl+P` やスクロールで展開する過去ログドロワーを新設。詳細は **[immersive_hud_message_window_specification.ja.md](../immersive_hud_message_window_specification.ja.md)** を参照。
   * **ステータスバー**: 画面下部中央にコンパクトな HP / MP / AC / レベル等のヘルスグローブまたはモダンバーをフロート配置。
   * **ミニマップ**: 画面右上に透過円形またはスクエア型でフロート。
   * **インベントリ・ペーパードール**: モーダルまたは右端からのスライドイン（Drawer）として表示。
@@ -281,7 +281,7 @@ flowchart TD
 | **Phase A** | テーマ 1, 2 | ・HD2D 自キャラ足元枠の 3D パース吸着 ＆ Middle レイヤー配置最適化<br/>・Pet / Ridden 足元サークルの Middle レイヤー (Layer 3.3) 化<br/>・Pet [♥] / Ridden [R] / piletop [+] の統一ミニバッジ描画 | **✅ 完了** | 低〜中（即効性大） |
 | **Phase B** | テーマ 4 | ・クリック対象コンテキスト判定（敵 / 自キャラ足元 / ギミック / 地形）<br/>・直上フローティング ContextActions（敵:戦う/話す、足元:拾う/箱、地形:移動）<br/>・右クリック / 遠隔調査および不用意な突進移動抑止 | **✅ 完了** | 中 |
 | **Phase C** | テーマ 3 | ・ASKNAME（名前入力）ダイアログのカード化 ＆ ランダム生成<br/>・ynaq（おまかせ/手動）選択カード新設（手動選択時は既存 CharacterCreationModal へ自動継続） | **✅ 完了** | 低〜中 |
-| **Phase D** | テーマ 5 | ・マップ全画面化（100vw/100vh）と動的リサイズ追従<br/>・透過メッセージログ、フローティングステータス HUD の CSS 刷新 | 未着手 | 中〜高 |
+| **Phase D** | テーマ 5 | ・マップ全画面化（100vw/100vh）と動的リサイズ追従<br/>・透過メッセージログ、フローティングステータス HUD の CSS 刷新 | **✅ 完了** | 中〜高 |
 
 ---
 

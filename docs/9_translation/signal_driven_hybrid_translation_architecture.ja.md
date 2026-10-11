@@ -2,13 +2,13 @@
 title: シグナル駆動ハイブリッド翻訳アーキテクチャ設計構想
 subtitle: 特定シグナル専用訳 ＆ 構文テンプレート合成による辞書スリム化
 status: proposed
-last_updated: 2026-09-29
+last_updated: 2026-10-11
 author: AI Pair Programmer & e3-sh
 related_docs:
   - docs/ROADMAP.md
-  - docs/7_futures/message_context_and_signal_driven_architecture.ja.md
-  - docs/7_futures/phase5/stage5_2_situation_signals.ja.md
-  - docs/7_futures/phase5/stage5_5_quality_assurance_and_i18n.ja.md
+  - docs/7_futures/archive/phase5/message_context_and_signal_driven_architecture.ja.md
+  - docs/7_futures/archive/phase5/stage5_2_situation_signals.ja.md
+  - docs/7_futures/archive/phase5/stage5_5_quality_assurance_and_i18n.ja.md
   - docs/9_translation/archive/legacy_translation_architecture_enhancement_plan.md
 ---
 

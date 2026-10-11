@@ -1,4 +1,19 @@
+---
+title: direct_binding_verification_environment_plan
+status: archived
+last_updated: 2026-10-11
+related_code:
+  - src/core/knowledge/services/WasmDirectBindingService.js
+  - src/core/inspector/DebugInspector.js
+  - src/core/inspector/inspector_console.html
+  - tests/core/knowledge/DirectBindingVerificationEnvironment.test.js
+---
+
 # inspector_console 連携型 公式Shim直接調停 ＆ フォールバック検証環境 設計・実装計画書
+
+> [!NOTE]
+> **📦 実装完了・アーカイブ注記（Stage 8.2-B 完了）**  
+> 本計画書の全タスク（Task 1〜4：`directBindingMode` 導入、同期テレメトリ記録、`inspector_console.html` ランプ＆切替スイッチ、`DirectBindingVerificationEnvironment.test.js`）は 2026-10-10 に100%実装・検証完了したためアーカイブへ移動されました。
 
 ## 1. 目的と基本方針
 

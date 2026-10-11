@@ -1,18 +1,22 @@
 ---
 title: 動的音程シンセシス仕様 (Dynamic Musical & Pitch Synthesis Living Spec)
 status: implemented
-last_updated: 2026-09-29
+last_updated: 2026-10-11
 related_code:
+  - src/core/sound/drivers/ProceduralSynthDriver.js
+  - src/core/sound/SoundEventRouter.js
+  - src/core/sound/SoundCoordinator.js
   - src/core/sound/SoundEngine.js
   - src/core/sound/SoundEventCatalog.js
+  - src/core/sound/drivers/ProceduralSynthDriver.test.js
   - src/core/sound/SoundEngine.test.js
-  - docs/4_sound/sound_system_spec.md
+  - docs/4_sound/sound_coordinator_and_multidriver_architecture.ja.md
 ---
 
 # 動的音程シンセシス仕様 (Dynamic Musical & Pitch Synthesis Living Spec)
 
 > [!NOTE]
-> **ステータス**: `✅ implemented` (ROADMAP 2.3 実装完了・Living Spec)  
+> **ステータス**: `✅ implemented` (ROADMAP 2.3 実装完了・Phase 6 マルチドライバ分離反映済 Living Spec)  
 > 本ドキュメントは、NetHack のテキストメッセージおよび Cソース由来のコンテキストに含まれる**「音名・音程（Pitch）」「罠の音」「モンスターの鳴き声・咆哮」「楽器演奏」「跳ね橋の合言葉」**を検知し、Web Audio API のオシレーター（シンセシス機能）によってリアルタイムに発音・演出する確定仕様です。
 
 ---
@@ -25,12 +29,12 @@ NetHack は数十年にわたるアスキー（テキスト）ベースの伝統
 
 ```mermaid
 flowchart LR
-    A["NetHack Wasm Core (putstr)"] --> B["SoundEngine / Message Hook"]
+    A["NetHack Wasm Core (putstr)"] --> B["SoundCoordinator / SoundEventRouter"]
     B --> C{"メッセージ種別判定 (O(1) / Regex)"}
     C -->|"きしむ床 (C note, D flat...)"| D["12音階オシレーター (三角波)"]
     C -->|"モンスターの声 (shriek, trumpet, buzz...)"| E["ピッチベンド / 和音 / AM / FM / パルス"]
     C -->|"楽器演奏 (flute, bugle, drum, tune)"| F["アルペジオ / ファンファーレ / メロディ"]
-    D --> G["ブラウザ Web Audio 出力 (playSynth)"]
+    D --> G["ProceduralSynthDriver (Web Audio 出力)"]
     E --> G
     F --> G
 ```
@@ -75,7 +79,7 @@ NetHack の `trap.c:squeak_board` では、きしむ床の罠に**クロマテ�
 ### 2.2. モンスターの声・咆哮（Monster Vocalizations / `sounds.c`）
 NetHack の `sounds.c` に定義されているモンスターの鳴き声・発声アクションです。
 
-| ハンドラID | メッセージ例 / 発生源 | シンセシス音響仕様 (`playSynth`) |
+| ハンドラID | メッセージ例 / 発生源 | シンセシス音響仕様 (`ProceduralSynthDriver`) |
 | :--- | :--- | :--- |
 | **`sounds.c:shriek`** | `... shrieks.` / `They shriek!`（シュリーカー、黄色いカビ） | **金切り声（ピッチベンド）**: 高周波（2000Hz $\rightarrow$ 800Hz）の急激な下降ノコギリ波（220ms, 指数関数降下）。警戒音。 |
 | **`sounds.c:trumpet`** | `... trumpets!`（象、マンモス、マストドン） | **突撃ラッパ（ブラス調和音）**: ノコギリ波による倍音の豊かな 3 音和音（`C4 [261.63Hz] + G4 [392.00Hz] + C5 [523.25Hz]`, 320ms）。 |
@@ -88,7 +92,7 @@ NetHack の `sounds.c` に定義されているモンスターの鳴き声・発
 ### 2.3. 楽器の演奏と跳ね橋の合言葉（Instruments & Drawbridge / `music.c`）
 NetHack の城（Castle）における跳ね橋ギミック、および各種楽器アイテムの演奏です。
 
-| ハンドラID | メッセージ例 / アイテム | シンセシス音響仕様 (`playSynth`) |
+| ハンドラID | メッセージ例 / アイテム | シンセシス音響仕様 (`ProceduralSynthDriver`) |
 | :--- | :--- | :--- |
 | **`music.c:flute`** | `... flute trills/toots.` / `produce soft music.`（木の笛、魔法の笛） | **柔らかなアルペジオ（シーケンス）**: 三角波による `C5 ➔ E5 ➔ G5 ➔ C6` 分散和音（各 85ms、計 340ms）。 |
 | **`music.c:bugle`** | `loud noise from your bugle.`（角笛） | **軍隊突撃ファンファーレ（シーケンス）**: ノコギリ波による `C4 ➔ E4 ➔ G4 ➔ C5`（各 75ms、最後 180ms、計 405ms）。 |
@@ -97,9 +101,9 @@ NetHack の城（Castle）における跳ね橋ギミック、および各種楽
 
 ---
 
-## 3. Web Audio API 実装コア (`SoundEngine.js`)
+## 3. Web Audio API 実装コア (`ProceduralSynthDriver.js` / `SoundEventRouter.js`)
 
-`SoundEngine.js` の `playSynth` は、以下の合成モードをすべてブラウザ標準の Web Audio API（数式計算のみ、外部ライブラリ・アセット不要）でサポートしています：
+Phase 6 のマルチドライバ分離アーキテクチャにより、イベントのルーティング・動的ハンドラ解決は `SoundEventRouter.js` および `SoundCoordinator.js`（後方互換ファサード `SoundEngine.js`）が担い、以下の 6 大合成モードの物理駆動は独立ドライバ `src/core/sound/drivers/ProceduralSynthDriver.js` に分離・移設されています（すべてブラウザ標準の Web Audio API による数式計算のみで動作し、外部ライブラリ・アセットは不要です）：
 
 1. **`type: 'oscillator'`**:
    - `freqEnd` 指定による指数関数/線形ピッチベンド（金切り声、打楽器バスドラム）。
@@ -118,7 +122,8 @@ NetHack の城（Castle）における跳ね橋ギミック、および各種楽
 
 ## 4. 品質保証と完全性
 
-- **非破壊移行**: 既存の通常効果音（MP3/WAV再生、Auto/Wave/Beep/Muteモード）を一切阻害せず、Audio Queue の優先度ソートとスタガード遅延（60ms）によって自然に共存。
-- **言語非依存 & 二重フォールバック**: Cソース由来の `messageId` による $O(1)$ 発火を最優先とし、未同定時でも英文正規表現ルールから確実に動的シンセシスが作動。
-- **完全自動テスト**: `SoundEngine.test.js` に全ハンドラおよび `playSynth` の実行時検証を配備し、全106スイート・1,298テスト 100% PASS を達成。
+- **非破壊移行 & 責務分離**: `SoundArbiter.js` の優先度ソートとスタガード遅延（60ms）により、既存の通常効果音（WaveAudioDriver / PsgBeepDriver）を一切阻害せず自然に共存。
+- **言語非依存 & 二重フォールバック**: `SoundEventRouter.js` において Cソース由来の `messageId` による $O(1)$ 発火を最優先とし、未同定時でも英文正規表現ルールから確実に動的シンセシスが作動。
+- **完全自動テスト**: `ProceduralSynthDriver.test.js`, `SoundEventRouter.test.js`, `SoundCoordinator.test.js`, `SoundEngine.test.js` に全ハンドラおよび 6 大合成モードの実行時検証を配備し、全136スイート・1,670テスト 100% PASS を達成。
+
 

@@ -2,20 +2,23 @@
 title: "伝承知識と構造化データの相互紐付け (Lore & Structured Knowledge Cross-Reference) 仕様書"
 status: implemented
 created_at: 2026-09-24
-last_updated: 2026-09-24
+last_updated: 2026-10-11
 author: e3-sh & Antigravity
 related_docs:
   - docs/ROADMAP.md
   - docs/3_gkl/gkl_documentation.md
   - docs/3_gkl/GKL_Structured_Knowledge_Usage_Guide.md
-  - docs/7_futures/phase5/stage5_1_lore_gkl_migration.ja.md
+  - docs/7_futures/archive/phase5/stage5_1_lore_gkl_migration.ja.md
 related_code:
-  - src/core/lore/data/LoreMasterData.js
-  - src/core/lore/__tests__/LoreEntityCrossReference.test.js
+  - src/core/knowledge/lore/data/LoreMasterData.js
+  - src/core/knowledge/lore/LoreCodex.js
+  - src/core/knowledge/lore/AdventureLogManager.js
+  - tests/unit/LoreEntityCrossReference.test.js
   - examples/gkl-pure-js-client/modules/components/CodexModal.js
   - tools/enrich_lore_entities.js
   - tools/lore_entity_overrides.json
   - tools/lore_codex.html
+  - tools/adventure_log.html
 ---
 
 # 📜 伝承知識と構造化データの相互紐付け 仕様書
@@ -66,7 +69,7 @@ flowchart LR
 ## 📐 2. データモデルとスキーマ (Data Model & Schema)
 
 ### 2.1 エンティティ参照スキーマ (`relatedEntities`)
-`src/core/lore/data/LoreMasterData.js` 内の各伝承エントリ（`RUMORS`、`ORACLES`）に、以下のスキーマで `relatedEntities` 配列を保持します：
+`src/core/knowledge/lore/data/LoreMasterData.js` 内の各伝承エントリ（`RUMORS`、`ORACLES`）に、以下のスキーマで `relatedEntities` 配列を保持します：
 
 ```typescript
 interface LoreEntityRef {
@@ -173,9 +176,11 @@ interface LoreEntry {
 
 ---
 
-## 📈 6. 今後の展望 (Future Roadmap)
+## 📈 6. 統合ステータスと今後の展望
 
-1. **Stage 5.1 との統合**:
-   - Phase 5 の Stage 5.1（LOREのGKL配下移設）において、本仕様のエンティティ照合機構を `KnowledgeEngine` 内部のサービスとして完全合流させる。
-2. **ゲーム中リアルタイム逆引き (Reverse Cross-Reference)**:
-   - ダンジョン内で敵モンスター（例: メデューサ）に遭遇した際、プレイヤーが収集した Codex の中から「そのモンスターに関連する噂や神託」を戦術アドバイザー（`TacticalAdvisor`）が自動で推薦・引用提示する逆引き機能の実装。
+1. **[x] Stage 5.1（GKL 配下への移設・統合）完了**:
+   - `src/core/knowledge/lore/` 配下へ移設完了し、`StructuredKnowledgeEngine` / `GKLPlugin` 内部のサービスとして合流済み。
+2. **[x] Phase 7（総合冒険手帳 `AdventureLogManager.js` / `tools/adventure_log.html`）との連携完了**:
+   - 伝承収集（Lore）、発見図鑑（Monster 384 / Item 481）、冒険マイルストーンを統合した `<nh-discovery-codex>` / `<nh-knowledge-card>` 基盤が稼働中。
+3. **[ ] ゲーム中リアルタイム逆引き (Reverse Cross-Reference)**:
+   - ダンジョン内で敵モンスター（例: メデューサ）に遭遇した際、プレイヤーが収集した Codex の中から「そのモンスターに関連する噂や神託」を戦術アドバイザー（`TacticalAdvisor`）が自動で推薦・引用提示する逆引き機能の拡張。

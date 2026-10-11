@@ -1,16 +1,18 @@
 ---
 title: GKL 演出トリガーイベント仕様 & クライアント実装設計書
 status: implemented
-last_updated: 2026-09-21
+last_updated: 2026-10-11
 related_code:
   - src/core/WebUICore.js
-  - examples/gkl-pure-js-client/
+  - src/core/knowledge/coordinators/VisualFxDispatcher.js
+  - examples/gkl-pure-js-client/renderers/MainViewportRenderer.js
+  - examples/gkl-pure-js-client/renderers/WebGPUHD2DRenderer.js
 ---
 
 # GKL 演出トリガーイベント仕様 & クライアント実装設計書
 
 > [!NOTE]
-> **ステータス**: `🟢 implemented` (実装完了・現行仕様)
+> **ステータス**: `🟢 implemented` (実装完了・現行仕様：`VisualFxDispatcher.js` および 2D/3D レンダラー統合済み)
 
 本ドキュメントは、Game Knowledge Layer (GKL) と UI クライアント（演出家）の間で、操作テンポを損なわずに効果的なゲームフィール（手応え・フィードバック）を実現するための**演出トリガーイベント仕様**および **`GklPureJSClient` における実装ガイドライン**をまとめた設計資料です。
 
@@ -21,7 +23,7 @@ related_code:
 ```text
 ┌────────────────────────────────────────┐
 │      GKL (Game Knowledge Layer)        │ ◀── 事実・コンテキスト（何がどこで起きたか）
-│ - ContextAction（隣接敵・攻撃先検知）   │
+│ - VisualFxDispatcher（攻撃・被弾・撃破） │
 │ - StatusAccessor（HP減少・回復検知）    │
 └───────────────────┬────────────────────┘
                     │ core.emit('fx_trigger', payload)
@@ -33,9 +35,9 @@ related_code:
                     ▼
 ┌────────────────────────────────────────┐
 │     UI Client / 演出家 (GKL Client)     │ ◀── 表現・演出（どう見せるか・彩るか）
-│ - タイル点滅・フラッシュ               │
-│ - 斬撃/火花エフェクト描画               │
-│ - 微小画面シェイク / ダメージ数値      │
+│ - MainViewportRenderer / WebGPU HD-2D  │
+│ - 斬撃/火花エフェクト・浮遊ダメージ    │
+│ - 微小画面シェイク / SoundCoordinator  │
 └────────────────────────────────────────┘
 ```
 
@@ -75,9 +77,9 @@ interface FxTriggerPayload {
 
 ### イベント種別一覧
 
-| 種別 (`type`) | 発火タイミング（GKL側） | ペイロード情報 | 推奨される演出表現（UI側） |
+| 種別 (`type`) | 発火タイミング（GKL側 `VisualFxDispatcher`） | ペイロード情報 | 推奨される演出表現（UI側） |
 | :--- | :--- | :--- | :--- |
-| `ATTACK_HIT` | ContextActionの攻撃ボタン押下時、または隣接敵への近接攻撃成立時 | `targetX, targetY` | 敵マスの一瞬の白/赤フラッシュ、または斜め斬撃・火花スプライト（約100ms） |
+| `ATTACK_HIT` | 隣接する**敵対モンスター**への近接攻撃成立時（※Stage 8.3-A により平和NPC `mpeaceful`・ペット `mtame` との位置交換や会話時は誤爆抑止） | `targetX, targetY` | 敵マスの一瞬の白/赤フラッシュ、または斜め斬撃・火花スプライト（約100ms） |
 | `DAMAGE_TAKEN` | 自キャラの `currentHP < prevHP` を検知した時 | `targetX, targetY, amount` | 自キャラマスの赤色点滅、**頭上への浮遊ダメージ数値 (`-X`, 赤色/黒縁取り) ポップアップ**、画面の微小シェイク（1〜2px振動）、被弾SE |
 | `KILL_CONFIRMED` | 攻撃直後に敵Glyphが消滅、または死体/アイテムが出現した時 | `targetX, targetY` | 対象マスに煙・消滅パーティクル、または撃破SE |
 | `RECOVER_HEAL` | 自キャラの `currentHP > prevHP`（回復）またはレベルアップ時 | `targetX, targetY, amount` | 自キャラ足元からの緑/黄色の光のエフェクト上昇、**頭上への浮遊回復数値 (`+X`, 緑色/黒縁取り) ポップアップ** |
@@ -88,7 +90,7 @@ interface FxTriggerPayload {
 
 ## 3. GklPureJSClient での演出実装ガイド
 
-`examples/gkl-pure-js-client/main.js`（FocusCamera / ZoomMap）での組み込み例です。
+`examples/gkl-pure-js-client/renderers/MainViewportRenderer.js`（2D ズームビュー）および `WebGPUHD2DRenderer.js`（3D ジオラマビュー）での組み込み構成です。
 
 ### 3.1. エフェクトキュー（FX Queue）の管理
 UIクライアント内で、一時的な演出オブジェクトを配列（またはMap）で保持します。

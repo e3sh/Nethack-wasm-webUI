@@ -1,24 +1,37 @@
 ---
 title: Game Knowledge Layer (GKL) 総合解説・利用ガイド仕様書
-status: active
-last_updated: 2026-08-21
+status: implemented
+last_updated: 2026-10-11
 related_code:
   - src/core/knowledge/
-  - src/core/knowledge/TacticalAdvisor.js
   - src/core/knowledge/GKLPlugin.js
-  - src/core/knowledge/SituationCache.js
-  - src/core/knowledge/ContextActionEngine.js
-  - src/core/knowledge/InventoryStateManager.js
-  - src/core/knowledge/AreaStateManager.js
-  - src/core/knowledge/SpellStateManager.js
-  - src/core/knowledge/AttributeStateManager.js
-  - src/core/knowledge/SkillStateManager.js
-  - src/core/knowledge/DiscoveryStateManager.js
-  - src/core/knowledge/ItemIdentificationResolver.js
-  - src/core/knowledge/ItemSpecPresenter.js
-  - src/core/knowledge/OnDemandLookService.js
-  - src/core/knowledge/RequestController.js
-  - src/core/knowledge/StructuredKnowledgeEngine.js
+  - src/core/knowledge/state/SituationCache.js
+  - src/core/knowledge/state/AreaStateManager.js
+  - src/core/knowledge/state/InventoryStateManager.js
+  - src/core/knowledge/state/EncumbranceStateManager.js
+  - src/core/knowledge/state/ConditionStateManager.js
+  - src/core/knowledge/state/MonsterTracker.js
+  - src/core/knowledge/state/SpellStateManager.js
+  - src/core/knowledge/state/AttributeStateManager.js
+  - src/core/knowledge/state/SkillStateManager.js
+  - src/core/knowledge/state/DiscoveryStateManager.js
+  - src/core/knowledge/engines/StructuredKnowledgeEngine.js
+  - src/core/knowledge/engines/ItemIdentificationResolver.js
+  - src/core/knowledge/engines/TacticalAdvisor.js
+  - src/core/knowledge/engines/ContextActionEngine.js
+  - src/core/knowledge/engines/AssistSignalSynthesizer.js
+  - src/core/knowledge/engines/ActionSignalResolver.js
+  - src/core/knowledge/engines/PostMortemKnowledgeResolver.js
+  - src/core/knowledge/services/WasmDirectBindingService.js
+  - src/core/knowledge/services/OnDemandLookService.js
+  - src/core/knowledge/services/OnDemandLookupService.js
+  - src/core/knowledge/presenters/ItemSpecPresenter.js
+  - src/core/knowledge/presenters/EncumbrancePresenter.js
+  - src/core/knowledge/equipment/
+  - src/core/knowledge/lore/LoreCodex.js
+  - src/core/knowledge/lore/AdventureLogManager.js
+  - src/core/knowledge/context/InteractionContext.js
+  - src/core/request/InteractiveRequestController.js
   - src/core/WebUICore.js
 ---
 
@@ -33,13 +46,13 @@ related_code:
 GKL は、NetHack の複雑なゲーム状態・コンテキストを Web フロントエンド層でリアルタイムに解析・復元し、**「多次元状況認知」「ドメイン知識解決」「先回り推奨アクション」「自律シーケンス実行」** を提供するインテリジェントモジュール群です。
 
 ### 疎結合化プラグイン構造 (Decoupled Plugin Architecture)
-`WebUICore` は Wasm Cコアとの低レイヤー通信・入出力・イベント仲介に専念し、GKL は独立した拡張プラグイン (`GKLPlugin`) としてアタッチされる疎結合設計を採用しています。
+`WebUICore` は Wasm Cコアとの低レイヤー通信・入出力・イベント仲介に専念し、GKL は独立した拡張プラグイン (`GKLPlugin`) としてアタッチされる疎結合設計を採用しています。また Phase 8 により、Wasm C メモリ直結 (`WasmDirectBindingService` / `shim_bridge.c`) によるゼロオーバーヘッド同期と、従来のテキスト/ウィンドウ解析フォールバックのハイブリッド構成を備えています。
 
 ---
 
 ## 2. アーキテクチャ & 全コンポーネント構成
 
-GKL は `src/core/knowledge/` 配下の 11 個の専門モジュールで構成され、`GKLPlugin` および `SituationCache` がそれらを統合します。
+GKL は `src/core/knowledge/` 配下の 8 つの専門サブディレクトリ（`state/`, `engines/`, `services/`, `presenters/`, `equipment/`, `lore/`, `context/`, `data/`）に整理されたモジュール群で構成され、`GKLPlugin` および `SituationCache` がそれらを統合します（詳細: [GKLPlugin モジュール分割設計仕様書](./GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)）。
 
 ```text
   [ Client UI / Zoom Viewport / AI Agent / Debug Inspector ]
@@ -49,40 +62,45 @@ GKL は `src/core/knowledge/` 配下の 11 個の専門モジュールで構成�
  │                     WebUICore.js                         │
  │        (汎用通信・イベントバス / EventHub 基盤)             │
  └────────────────────────────┬─────────────────────────────┘
-                              │ core.emit() / Events
+                              │ core.emit() / CALL_SHIM (Phase 8)
                               ▼
  ┌──────────────────────────────────────────────────────────┐
  │                GKLPlugin (統合プラグイン)                 │
  │                                                          │
- │ ┌─────────────────── [ 動的状態管理層 ] ────────────────┐ │
+ │ ┌──────────── [ C メモリ直結 & 調査サービス層 ] ─────────┐ │
+ │ │ WasmDirectBindingService (Phase 8 shim_bridge.c 直結)  │ │
+ │ │ OnDemandLookService (; look) / OnDemandLookupService   │ │
+ │ └──────────────────────────┬────────────────────────────┘ │
+ │                            │                              │
+ │ ┌─────────────────── [ 動的状態管理層 (state/) ] ────────┐ │
  │ │ AreaStateManager         InventoryStateManager        │ │
- │ │ (4層マップ/地形/物/敵/FX) (所持品/装備/ツール)         │ │
- │ │ SpellStateManager        AttributeStateManager        │ │
- │ │ (習得魔法/詠唱率)        (^X 耐性/固有能力/装備合算)  │ │
- │ │ SkillStateManager        DiscoveryStateManager        │ │
- │ │ (#enhance スキル)        (\ 鑑定/発見台帳)            │ │
+ │ │ EncumbranceStateManager  ConditionStateManager        │ │
+ │ │ MonsterTracker           SpellStateManager            │ │
+ │ │ AttributeStateManager    SkillStateManager            │ │
+ │ │ DiscoveryStateManager    ContainerContentsManager     │ │
  │ └──────────────────────────┬────────────────────────────┘ │
  │                            │                              │
- │ ┌─────────────────── [ 静的知識・解決層 ] ──────────────┐ │
- │ │ StructuredKnowledgeEngine (静的ドメイン辞書/481品)    │ │
- │ │ ItemIdentificationResolver (未識別/価格/確定判定)     │ │
- │ │ ItemSpecPresenter (UIスペック成形)                    │ │
- │ │ OnDemandLookService (; lookコマンド調査)              │ │
- │ └──────────────────────────┬────────────────────────────┘ │
- │                            │                              │
- │                            ▼                              │
- │ ┌───────────────────────────────────────────────────────┐ │
- │ │            SituationCache (統合状況ファサード)        │ │
+ │ ┌──────────── [ 静的知識・解決・装備・伝承層 ] ──────────┐ │
+ │ │ StructuredKnowledgeEngine (481アイテム / 384モンスター)│ │
+ │ │ ItemIdentificationResolver / ItemSpecPresenter        │ │
+ │ │ EquipmentDependencyAnalyzer / EquipmentActionPlanner  │ │
+ │ │ LoreCodex / AdventureLogManager / PostMortemResolver  │ │
  │ └──────────────────────────┬────────────────────────────┘ │
  │                            │                              │
  │                            ▼                              │
  │ ┌───────────────────────────────────────────────────────┐ │
- │ │ ContextActionEngine (即時推奨アクション生成)          │ │
+ │ │         SituationCache (統合状況ファサード)           │ │
  │ └──────────────────────────┬────────────────────────────┘ │
  │                            │                              │
  │                            ▼                              │
  │ ┌───────────────────────────────────────────────────────┐ │
- │ │ RequestController (サイレントクエリ・自走実行制御)    │ │
+ │ │ TacticalAdvisor / AssistSignalSynthesizer             │ │
+ │ │ ContextActionEngine / ActionSignalResolver            │ │
+ │ └──────────────────────────┬────────────────────────────┘ │
+ │                            │                              │
+ │                            ▼                              │
+ │ ┌───────────────────────────────────────────────────────┐ │
+ │ │ InteractiveRequestController (IRC 自律シーケンス制御) │ │
  │ └───────────────────────────────────────────────────────┘ │
  └──────────────────────────────────────────────────────────┘
 ```
@@ -91,21 +109,28 @@ GKL は `src/core/knowledge/` 配下の 11 個の専門モジュールで構成�
 
 | レイヤー | モジュール名 | 役割と責務 |
 | :--- | :--- | :--- |
-| **統合** | [`GKLPlugin.js`](/src/core/knowledge/GKLPlugin.js) | GKL のエントリーポイント。`WebUICore` へのイベントバインドと全モジュールのライフサイクル管理。 |
-| **ファサード** | [`SituationCache.js`](/src/core/knowledge/SituationCache.js) | 分散する全マネージャの状態を集約し、最新の統合状況（`Situation`）を一括提供。 |
-| **動的状態** | [`InventoryStateManager.js`](/src/core/knowledge/InventoryStateManager.js) | 所持品（インベントリ）の解析・BUC状態・装備・各アイテムへの `item.knowledge` 物理アタッチ。 |
-| **動的状態** | [`AreaStateManager.js`](/src/core/knowledge/AreaStateManager.js) | プレイヤー周辺地形・エンティティ・エフェクトを 4 層（Bottom: 地形, Middle: アイテム, Top: 敵/NPC, Effect: 光線/爆発等の過渡エフェクト）で解析・管理。 |
-| **動的状態** | [`SpellStateManager.js`](/src/core/knowledge/SpellStateManager.js) | `+` コマンド結果の解析・保持。習得中の魔法一覧、レベル、カテゴリ、詠唱失敗率の管理。 |
-| **動的状態** | [`AttributeStateManager.js`](/src/core/knowledge/AttributeStateManager.js) | `^X` 耐性・特性の解析 ＋ 装備品（指輪・防具）の付加耐性を自動合算（Extrinsics統合）。 |
-| **動的状態** | [`SkillStateManager.js`](/src/core/knowledge/SkillStateManager.js) | `#enhance` メニューの解析。武器・魔法スキルの現在ランクおよび向上可能状態の管理。 |
-| **動的状態** | [`DiscoveryStateManager.js`](/src/core/knowledge/DiscoveryStateManager.js) | `\` (Discoveries) メニューの解析。ゲーム内で既に発見・判明済みのアイテム外見・正体の記録。 |
-| **知識解決** | [`ItemIdentificationResolver.js`](/src/core/knowledge/ItemIdentificationResolver.js) | 発見台帳とアイテム外見から「完全識別 (Fully) / 未識別 (Unidentified) / 価格識別」を厳密判定。 |
-| **知識整形** | [`ItemSpecPresenter.js`](/src/core/knowledge/ItemSpecPresenter.js) | ナレッジと識別状態を組み合わせ、UI 描画用フォーマット（d値、AC、特効、警告文）へ成形。 |
-| **調査サービス** | [`OnDemandLookService.js`](/src/core/knowledge/OnDemandLookService.js) | 任意のマスに対して `;` (Look) コマンドをサイレント実行し、視界外・未知タイルの詳細情報を取得。 |
-| **静的知識** | [`StructuredKnowledgeEngine.js`](/src/core/knowledge/StructuredKnowledgeEngine.js) | 全 481 アイテムおよび 2,000 体以上のモンスター・地形に関する不変のドメイン知識辞書。 |
-| **戦術助言** | [`TacticalAdvisor.js`](/src/core/knowledge/TacticalAdvisor.js) | 危険予知（コカトリス・溶岩・爆発等）・熟練武器適正・金属防具詠唱警告等を多次元評価。詳細: [TacticalAdvisor仕様書](./TacticalAdvisor_Specification_and_Architecture.md) |
-| **アクション生成** | [`ContextActionEngine.js`](/src/core/knowledge/ContextActionEngine.js) | 周辺状況・所持品・位置関係からワンタップで即時1ターン実行可能なコマンドアクション（扉開閉・拾う・攻撃・射撃等）を生成。 |
-| **制御** | [`RequestController.js`](/src/core/knowledge/RequestController.js) | サイレントクエリ (`querySequenceSilent`) や自動シーケンスの多重実行制御・キュー管理。 |
+| **統合** | [`GKLPlugin.js`](/src/core/knowledge/GKLPlugin.js) | GKL のエントリーポイント。`WebUICore` へのイベントバインドとサブコーディネーター群のライフサイクル管理。 |
+| **ファサード** | [`state/SituationCache.js`](/src/core/knowledge/state/SituationCache.js) | 分散する全マネージャの状態を集約し、最新の統合状況（`Situation`）を一括提供。 |
+| **メモリ直結** | [`services/WasmDirectBindingService.js`](/src/core/knowledge/services/WasmDirectBindingService.js) | Phase 8 `shim_bridge.c` (`CALL_SHIM` 0x01〜0x62) と連携し、インベントリ・足元・コンテナ・セル・属性耐性・スキル・魔法・地形ダンプをゼロオーバーヘッドで取得。 |
+| **動的状態** | [`state/InventoryStateManager.js`](/src/core/knowledge/state/InventoryStateManager.js) | 所持品（インベントリ）の解析・BUC状態・装備・各アイテムへの `item.knowledge` 物理アタッチ（Direct Binding 優先＋メニューフォールバック）。 |
+| **動的状態** | [`state/EncumbranceStateManager.js`](/src/core/knowledge/state/EncumbranceStateManager.js) | 所持重量・袋の中身重量（保持の袋軽減補正含む）・運搬許容量および負荷段階の管理（`inv_weight()` メモリ直結対応）。 |
+| **動的状態** | [`state/AreaStateManager.js`](/src/core/knowledge/state/AreaStateManager.js) | プレイヤー周辺地形・エンティティ・エフェクトを 4 層（Bottom/Middle/Top/Effect）で管理。80×21 一括地形ダンプ (`dumpLevelTerrain`) や階段・ランドマーク台帳を保持。 |
+| **動的状態** | [`state/MonsterTracker.js`](/src/core/knowledge/state/MonsterTracker.js) | 視界内モンスターの個体追跡、敵対/平和/ペット状態 (`mpeaceful`/`mtame`)、睡眠/麻痺状態の管理。 |
+| **動的状態** | [`state/ConditionStateManager.js`](/src/core/knowledge/state/ConditionStateManager.js) | 状態異常（盲目・混乱・幻覚・毒・石化進行等）の発生要因と残りターン推定の管理。 |
+| **動的状態** | [`state/SpellStateManager.js`](/src/core/knowledge/state/SpellStateManager.js) | 習得中の魔法一覧、レベル、カテゴリ、詠唱失敗率、忘却度 (`sp_know`) の管理。 |
+| **動的状態** | [`state/AttributeStateManager.js`](/src/core/knowledge/state/AttributeStateManager.js) | `u.uprops` メモリ直結（および `^X` 解析）による内在耐性・装備品付加耐性（Extrinsics）の統合管理。 |
+| **動的状態** | [`state/SkillStateManager.js`](/src/core/knowledge/state/SkillStateManager.js) | `P_SKILL` メモリ直結（および `#enhance` 解析）による武器・魔法スキルの現在ランク・熟練度 (`P_EXP`) 管理。 |
+| **動的状態** | [`state/DiscoveryStateManager.js`](/src/core/knowledge/state/DiscoveryStateManager.js) | `objects[]` メモリ直結（および `\` 発見台帳解析）による既発見・価格識別状態の管理。 |
+| **知識解決** | [`engines/ItemIdentificationResolver.js`](/src/core/knowledge/engines/ItemIdentificationResolver.js) | 発見台帳とアイテム外見から 5 段階の識別レベル（`Lv.0 UNIDENTIFIED` 〜 `Lv.4 FULLY_IDENTIFIED`）を厳密判定。 |
+| **知識整形** | [`presenters/ItemSpecPresenter.js`](/src/core/knowledge/presenters/ItemSpecPresenter.js) | ナレッジと識別状態を組み合わせ、UI 描画用フォーマット（適応的プログレッシブ開示スペック）へ成形。 |
+| **調査サービス** | [`services/OnDemandLookService.js`](/src/core/knowledge/services/OnDemandLookService.js) / [`OnDemandLookupService.js`](/src/core/knowledge/services/OnDemandLookupService.js) | 任意マスの調査（`CALL_SHIM` 0x20〜0x23 直結 ＋ `;` Look フォールバック）および `/` (Whatis) 動的図鑑検索サービス。 |
+| **静的知識** | [`engines/StructuredKnowledgeEngine.js`](/src/core/knowledge/engines/StructuredKnowledgeEngine.js) | 全 481 アイテムおよび全 384 体のモンスター・地形に関する不変のドメイン知識辞書。 |
+| **装備計画** | [`equipment/EquipmentDependencyAnalyzer.js`](/src/core/knowledge/equipment/EquipmentDependencyAnalyzer.js) / [`EquipmentActionPlanner.js`](/src/core/knowledge/equipment/EquipmentActionPlanner.js) | 3層防具や手袋・指輪の着脱依存関係診断と、自動換装レシピ (`ActionRecipe`) の生成。 |
+| **伝承・図鑑** | [`lore/LoreCodex.js`](/src/core/knowledge/lore/LoreCodex.js) / [`lore/AdventureLogManager.js`](/src/core/knowledge/lore/AdventureLogManager.js) | 世界観伝承（Lore）と構造化データの相互参照、および永続化冒険手帳（発見図鑑・マイルストーン）の管理。 |
+| **戦術・信号** | [`engines/TacticalAdvisor.js`](/src/core/knowledge/engines/TacticalAdvisor.js) / [`AssistSignalSynthesizer.js`](/src/core/knowledge/engines/AssistSignalSynthesizer.js) | 7系統の戦術助言生成、危険予知（コカトリス・溶岩等）、および AssistSignal / Stance 統合。 |
+| **アクション生成** | [`engines/ContextActionEngine.js`](/src/core/knowledge/engines/ContextActionEngine.js) / [`ActionSignalResolver.js`](/src/core/knowledge/engines/ActionSignalResolver.js) | 周辺状況・所持品・位置関係からワンタップで実行可能なスマートアクションの生成とアクション結果シグナル解決。 |
+| **死因分析** | [`engines/PostMortemKnowledgeResolver.js`](/src/core/knowledge/engines/PostMortemKnowledgeResolver.js) | ゲームオーバー時の死因名寄せ（Stage 1〜3 ハイブリッド解決）と根本原因分析（RCA）・教訓カードの生成。 |
+| **対話制御** | [`src/core/request/InteractiveRequestController.js`](/src/core/request/InteractiveRequestController.js) | サイレントクエリ (`querySequenceSilent`) やマルチステップ自動シーケンス（換装・コンテナ操作等）の安全実行・中断ロールバック制御。 |
 
 ---
 
@@ -228,7 +253,7 @@ interface ContextAction {
 
 ## 5. 自動テストと品質保証
 
-GKL の全コンポーネントは Vitest による自動回帰テストで 100% カバーされています：
-- **テストスイート**: 47 テストファイル / 507 テストケース
+GKL の全コンポーネントは Vitest による自動回帰テストでカバーされています：
+- **プロジェクト全体テストスイート**: 全 136 テストスイート / 1,670 テストケース（100% PASS）
 - **全 Glyph ストレストライアル**: 0 〜 9622 の全 9,623 Glyph ID に対する無停止検証済み
 - **実行コマンド**: `npm test`

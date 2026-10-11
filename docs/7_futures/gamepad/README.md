@@ -9,8 +9,8 @@ NetHack WebUI におけるゲームパッド・コンソールモード操作に
 | ドキュメント | ステータス | 役割・概要 |
 | :--- | :---: | :--- |
 | **[gamepad_console_mode_architecture.ja.md](./gamepad_console_mode_architecture.ja.md)** | `💡 proposed` | **【現行・代表仕様書】Nehww GamePad オンデマンド統合設計書**<br>デスクトップ画面を崩さず、パッド操作時のみ出現するゼロフットプリント（Zero-Footprint）設計 |
-| **[gamepad_console_client_architecture.ja.md](./gamepad_console_client_architecture.ja.md)** | `📦 archived` | **シレン風 GamePad 専用クライアント設計書**<br>（※PoC・実験完了に伴いクローズ。コア知見は共通 Web Components へ資産化済） |
-| **[gamepad_console_client_and_gkl_gateway_vision.ja.md](./gamepad_console_client_and_gkl_gateway_vision.ja.md)** | `📦 archived` | **シレン風 GamePad 連携ゲートウェイ初期ビジョン構想**<br>（※Rogue移植版での操作体系とNetHackでの技術的変遷の記録） |
+| **[gamepad_console_client_architecture.ja.md](../archive/gamepad_console_client_architecture.ja.md)** | `📦 archived` | **シレン風 GamePad 専用クライアント設計書**<br>（※PoC・実験完了に伴いクローズ。コア知見は共通 Web Components へ資産化済） |
+| **[gamepad_console_client_and_gkl_gateway_vision.ja.md](../archive/gamepad_console_client_and_gkl_gateway_vision.ja.md)** | `📦 archived` | **シレン風 GamePad 連携ゲートウェイ初期ビジョン構想**<br>（※Rogue移植版での操作体系とNetHackでの技術的変遷の記録） |
 | **[gamepad_radial_button_set_switching_concept.ja.md](./gamepad_radial_button_set_switching_concept.ja.md)** | `💡 proposed` | **右ホイール・ボタンセット（スタンス）切替構想メモ**<br>（※単発コマンド選択からスタンス切替へのUX拡張アイデア） |
 
 ---

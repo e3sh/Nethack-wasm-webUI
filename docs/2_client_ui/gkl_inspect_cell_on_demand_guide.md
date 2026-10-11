@@ -1,6 +1,17 @@
-# GKL 高レベル統合 API (`inspectCellOnDemand`) クライアント UI / Web コンポーネント連携実装ガイド (追加分)
+---
+title: gkl_inspect_cell_on_demand_guide
+status: implemented
+last_updated: 2026-10-11
+related_code:
+  - src/core/knowledge/GKLPlugin.js
+  - src/core/knowledge/services/OnDemandLookService.js
+  - examples/gkl-pure-js-client/modules/interaction/CanvasInteractionController.js
+---
 
-> **Note**: 本ドキュメントは、従来の `WebUICore_Usage_Guide.md` や `Modern_Web_Components_Update_Rules.md` を補完・最新化するための**追加実装ガイド**です。Web コンポーネントや新規 UI へ導入する際のリファレンスとしてご活用ください。既存ガイドへの合流は全コンポーネントへの適用完了後に行います。
+# GKL 高レベル統合 API (`inspectCellOnDemand`) クライアント UI / Web コンポーネント連携実装ガイド
+
+> [!NOTE]
+> 本ドキュメントは、`core.gkl.inspectCellOnDemand()` および `core.gkl.travelTo()` をクライアント UI（`CanvasInteractionController.js` や `<nh-knowledge-card>` 等）へ統合するための公式リファレンスガイドです。
 
 ---
 
@@ -237,9 +248,16 @@ UI 側で `cardData` を受信した際のレンダリング判定およびカ�
 
 ---
 
-## 6. クリック自動移動 (Click-to-Move / Auto-Travel) との統合仕様
+## 6. スマート ContextActions ＆ クリック自動移動 (`travelTo`) との統合仕様
 
-「操作マスをクリックして詳細ナレッジを見る」機能と連動し、**「通行可能な床・廊下やアイテム・死体のマスをクリックした際は、ナレッジ表示と同時にその場所へ自動移動（Auto-Travel / タップ移動）する」** という現代的でグラフィカルなローグライク UX（NetHackJP / WebUI 標準仕様）の統合ガイドラインです。
+GKL レファレンスクライアント（`CanvasInteractionController.js` / `FloatingContextActions.js`）では、マップ上のマスをクリックした際に誤移動（罠や敵への暴発）を防ぎつつ直感的に操作できるよう、以下のスマート分岐仕様を採用しています：
+
+1. **左クリック (`click`)**:
+   - `core.gkl.inspectCellOnDemand({ x, y }, { isHover: false })` で確定調査を実行。
+   - **モンスター・自キャラ足元・隣接する扉/箱/階段/祭壇・コンテキストアクションが存在するマス**: 直上に **`FloatingContextActions`** ポップアップメニューを表示し、自動移動は抑止（誤移動防止）。
+   - **何もない通行可能な床・廊下マス**: `core.gkl.travelTo({ x, y })` による自動移動（Auto-Travel）を実行。
+2. **右クリック (`contextmenu`)**:
+   - 移動を行わず、対象マスの詳細ナレッジモーダル / ContextActions を直接開く。
 
 ### 💡 GKL 高レベル API `core.gkl.travelTo(targetPos, options)`
 

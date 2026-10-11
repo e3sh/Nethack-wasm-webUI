@@ -1,11 +1,18 @@
+---
+title: Shim-Driven 確定同期型レンダリング・パイプライン アーキテクチャ設計書
+status: in_progress (Step 1 & Stage 8.3-A 完了)
+last_updated: 2026-10-11
+---
+
 # 🏛️ Shim-Driven 確定同期型レンダリング・パイプライン アーキテクチャ設計書
 
-- **ステータス**: `💡 proposed` (Stage 8.2 フィードバックに基づく新規課題)
+- **ステータス**: `🟡 in_progress` (先行 Step 1 および Stage 8.3-A 完了 / Stage 8.3-B 進行準備完了)
 - **関連ドキュメント**:
   - [ROADMAP.md](../ROADMAP.md)
   - [official_shim_direct_binding_implementation_plan.md](../1_driver/official_shim_direct_binding_implementation_plan.md)
   - [unified_renderer_and_screen_architecture_plan.md](./unified_renderer_and_screen_architecture_plan.md)
-- **策定日**: 2026-10-10
+  - [gkl_client_modularization_plan.ja.md](./archive/gkl_client_modularization_plan.ja.md)
+- **策定日**: 2026-10-10 (最終更新: 2026-10-11)
 
 ---
 
@@ -56,7 +63,7 @@ sequenceDiagram
 2. **Sync Barrier (同期バリア型フレーム制御)**:
    ユーザーアクション送出からターン確定・Shim 同期完了までの過渡期（トランジション中）において、未確定なセルを投機的にでっち上げて描画ループに渡さない。
 3. **Dirty State Propagation & Event-Driven Flush**:
-   Shim 同期完了トリガー（`syncPlayerFeetFloor` / 将来の `dumpLevelTerrain`）とレンダラー（`VirtualDungeonScreen` / `MainViewportRenderer` / `WebGPUHD2DRenderer`）の連携をイベント駆動で確実に同期させる。
+   Shim 同期完了トリガー（`syncPlayerFeetFloor` / `dumpLevelTerrain`）とレンダラー（`VirtualDungeonScreen` / `MainViewportRenderer` / `WebGPUHD2DRenderer`）の連携をイベント駆動で確実に同期させる。
 
 ---
 
@@ -79,7 +86,7 @@ NetHack の 1 ターンを以下の 4 つのフェーズに厳格にモデル化
    - ※この間、描画ループは「前フレームの確定背景」を維持するか、スプライトのみを追従させ、**未確定な床の勝手な生成・上書きを禁止する**。
 3. **Phase 3 (SETTLED & SHIM SYNC)**:
    NetHack が入力を待ち受ける状態（`inputRequired` かつ `isTopLevelTurn`）で停止。
-   - `syncFromWorkerBridge()` により、足元セル（および Stage 8.3 ではフロア全域の地形バッファ）を一括ロード。
+   - `syncFromWorkerBridge()` により、足元セルおよび Stage 8.3-A で実装されたフロア全域の地形バッファ（`dumpLevelTerrain`）を一括ロード。
    - `AreaStateManager` のグリッドに真のエンティティを反映し、Dirty セルを確定。
 4. **Phase 4 (COMMIT & RENDER FLUSH)**:
    状態が 100% 確定したシグナル（`areaStateCommitted`）を発行。
@@ -93,7 +100,7 @@ NetHack の 1 ターンを以下の 4 つのフェーズに厳格にモデル化
 
 ### 3.3 Stage 8.3（全フロア地形ダンプ）との接続設計
 
-本アーキテクチャは、Stage 8.3 で実装予定の `DUMP_LEVEL_TERRAIN`（フロア全体の 80×21 地形ダンプ）と完全に統合される：
+本アーキテクチャは、Stage 8.3-A で実装完了した `SHIM_CMD_DUMP_LEVEL_TERRAIN`（`WasmDirectBindingService.dumpLevelTerrain()` / `AreaStateManager.dumpLevelTerrain()` による 80×21 全フロア地形ダンプ）と統合される：
 - フロア移動時（`clear_nhwindow` ➔ 階段到着）：
   フロア全体の `dumpLevelTerrain()` が完了するまで画面暗転（フェードまたはローディング）を維持し、全フロアの真値が揃った瞬間に 1 フレームで全展開する。
 - これにより、画面の一部がチラついたり、歩くたびに推測床が真床に置き換わるような不自然な現象を根絶する。
@@ -102,38 +109,42 @@ NetHack の 1 ターンを以下の 4 つのフェーズに厳格にモデル化
 
 ## 4. 実施ロードマップ（先行リファクタリング連携と実施手順）
 
-本改修は、クライアントエントリポイント（`main.js`: 2,364行）およびGKLコア（`GKLPlugin.js`: 2,551行）の神クラス状態に直接手を入れるため、コードの複雑化・退行リスクを根絶すべく、**ROADMAP 2.1 および 2.2（モジュール分割）を先行着手**した上で、整理された新モジュール基盤に統合する。
+本改修は、クライアントエントリポイント（`main.js`: 旧 2,364行 ➔ 618行へ分割完了）およびGKLコア（`GKLPlugin.js`: 2,551行）の神クラス状態に直接手を入れるため、コードの複雑化・退行リスクを根絶すべく、**ROADMAP 2.1（完了済み）および 2.2（モジュール分割）を先行実施**した上で、整理された新モジュール基盤に統合する。
 
 ### 4.1 全体進行順序
 ```mermaid
 flowchart TD
     subgraph 先行リファクタリング基盤
-        R21["【先行 1】ROADMAP 2.1: main.js モジュール分割<br>(2,364行➔450行: レンダラー・DOM・操作を疎結合化)"]
+        R21["✅ 【先行 1 完了】ROADMAP 2.1: main.js モジュール分割<br>(2,364行➔618行: レンダラー・DOM・操作を疎結合化)"]
         R22["【先行 2】ROADMAP 2.2: GKLPlugin.js モジュール分割<br>(2,551行➔450行: GKLEventRouter, SilentSync 抽出)"]
     end
 
-    subgraph Stage 8.3-B 実装
+    subgraph Stage 8.3-A & 8.3-B 実装
+        S0["✅ 【Stage 8.3-A 完了】dumpLevelTerrain C/Wasm/GKL 実装<br>(WasmDirectBindingService & AreaStateManager)"]
         S1["Step 1: GKLEventRouter への Turn Lifecycle (Sync Barrier) 配備"]
         S2["Step 2: AreaStateManager の投機的仮床副作用の完全排除"]
         S3["Step 3: dumpLevelTerrain 自動ロード ＆ VirtualDungeonScreen Commit駆動化"]
         S4["Step 4: Auto / Strict / Fallback 各モード結合テスト ＆ 全面検証"]
     end
 
-    R21 --> R22 --> S1 --> S2 --> S3 --> S4
+    R21 --> R22 --> S1
+    S0 --> S1 --> S2 --> S3 --> S4
 ```
 
 ### 4.2 段階別作業手順
-- **先行 Step 1: ROADMAP 2.1 (main.js モジュール分割)**
-  - `modules/i18n/`, `modules/layout/`, `modules/effects/`, `modules/startup/`, `modules/interaction/` の分離。
-  - レンダリングループ・オフスクリーンフラッシュをオーケストレーターから明瞭に分離し、Commit駆動描画を受け入れ可能にする。
-- **先行 Step 2: ROADMAP 2.2 (GKLPlugin.js モジュール分割)**
+- [x] **先行 Step 1: ROADMAP 2.1 (`main.js` モジュール分割)** `[完了: 2026-10-10]`
+  - `modules/i18n/`, `modules/layout/`, `modules/effects/`, `modules/startup/`, `modules/interaction/` の 5 モジュールへ分離完了（`main.js` を 2,364行 ➔ 618行へ削減）。
+  - レンダリングループ・オフスクリーンフラッシュをオーケストレーターから明瞭に分離し、Commit駆動描画を受け入れ可能にした。
+- [x] **Stage 8.3-A: 全フロア地形ダンプ基盤 (`dumpLevelTerrain`)** `[完了: 2026-10-10]`
+  - `sys/wasm/shim_bridge.c` (`SHIM_CMD_DUMP_LEVEL_TERRAIN = 12`)、`WasmDirectBindingService.dumpLevelTerrain()`、および `AreaStateManager.dumpLevelTerrain()` による 80×21 セル一括同期を実装完了。
+- [ ] **先行 Step 2: ROADMAP 2.2 (`GKLPlugin.js` モジュール分割)**
   - `coordinators/GKLEventRouter.js`、`coordinators/SilentSyncCoordinator.js`、`coordinators/GKLFxCoordinator.js` の分離。
   - Coreイベントルーティングと非同期同期調停を独立させ、ターン確定ライフサイクル（Phase 1〜4）をクリーンに導入可能にする。
-- **Stage 8.3-B 本番実装**:
+- [ ] **Stage 8.3-B 本番実装**:
   - `GKLEventRouter` への Sync Barrier 組み込み（`areaStateCommitted` シグナル）
   - `AreaStateManager` の `createInferredFloor` 投機的副作用排除
   - `MainViewportRenderer` / `VirtualDungeonScreen` の Commit 駆動型描画制御
-  - `dumpLevelTerrain()` のフロア移動時自動ロード
+  - `dumpLevelTerrain()` のフロア移動時自動ロード連携
   - 各モード結合テスト（Zero Regression 維持）
 
 ---

@@ -1,14 +1,15 @@
 ---
 title: ArchitectureDecisionRecord
-status: active
-last_updated: 2026-08-21
+status: archived
+last_updated: 2026-10-11
 related_code:
   - src/core/knowledge/
+  - sys/wasm/shim_bridge.c
 ---
 
 # Game Knowledge Layer (GKL) アーキテクチャ決定記録 (ADR)
 
-本文書は、NetHack WASM WebUI の Game Knowledge Layer (GKL) における**設計原則**、**レイヤー境界の定義**、および**将来の設計フローにおける検討事項 (TODO)** を記録した決定文書である。
+本文書は、NetHack WASM WebUI の Game Knowledge Layer (GKL) における**設計原則**、**レイヤー境界の定義**、および Phase 1〜8 にわたるアーキテクチャ意思決定の履歴を記録した決定文書である。
 
 ---
 
@@ -16,8 +17,8 @@ related_code:
 
 ### 1.1 分離アーキテクチャの徹底 (Clean Boundary & Layer Separation)
 - **Cコア (Game Engine) と WebUI/GKL (Knowledge/UI) の完全分離**:
-  - `NetHackWasmDriver` は純粋な低レイヤー受動通信エンジンとし、Cコアの内部メモリ構造体（`struct obj *invent` 等）を無理に泥臭く直接ハック・参照する過剰な実装を回避する。
-  - Cコアと WebUI/GKL の間は、確立された通信プロトコル（イベントおよび `queueSequence` トークン配列）を介してやり取りし、レイヤー間の強結合を防ぐ。
+  - `NetHackWasmDriver` は純粋な低レイヤー受動通信エンジンとし、公式Cコアのファイル群を直接汚染・改造する実装を回避する（※Phase 8 における非侵襲 `shim_bridge.c` 拡張については ADR 1.17 を参照）。
+  - Cコアと WebUI/GKL の間は、確立された通信プロトコル（イベントおよび `CALL_SHIM` / `queueSequence`）を介してやり取りし、レイヤー間の強結合を防ぐ。
 
 ### 1.2 シーケンス実行結果の一時バッファ獲得アーキテクチャ (`lastSequenceBuffer`)
 - **Cコアのメモリ非ハックによる全知識獲得の決定版**:
@@ -40,24 +41,24 @@ related_code:
 
 ### 1.6 GKL 統合状況アクセサ (`SituationCache`) と 4 層パイプライン構造
 - **GKL の階層化と統一アクセサの導入**:
-  - GKL を 1. 統合状況キャッシュ層 (`SituationCache`), 2. 知識補完・静的辞書層 (`StructuredKnowledgeEngine`, `OBJECT_KNOWLEDGE_FULL`, `MONSTER_KNOWLEDGE_FULL`), 3. 操作支援・推論層 (`ContextActionEngine`, `ItemIdentificationResolver`, `ItemSpecPresenter`, `OnDemandLookService`), 4. 自走実行制御層 (`RequestController`) の 4 層モデルとして整理。
+  - GKL を 1. 統合状況キャッシュ層 (`SituationCache`), 2. 知識補完・静的辞書層 (`StructuredKnowledgeEngine`, `OBJECT_KNOWLEDGE_FULL`, `MONSTER_KNOWLEDGE_FULL`), 3. 操作支援・推論層 (`ContextActionEngine`, `ItemIdentificationResolver`, `ItemSpecPresenter`, `OnDemandLookupService`), 4. 自走実行制御層 (`InteractiveRequestController`) の 4 層モデルとして整理。
   - `SituationCache` は `StatusAccessor` (ステータス/状態異常等), `InventoryStateManager` (所持品/ツール等), `AreaStateManager` (マップ/位置情報), `SpellStateManager` (習得魔法/詠唱成功率), `AttributeStateManager` (`^X` 耐性/固有能力), `SkillStateManager` (`#enhance` スキル熟練度), `DiscoveryStateManager` (`\` 発見/鑑定台帳) を統一ファサードとして一括束ね、UI クライアント（常時表示ボタン、独自ステータス UI）や AI Agent に `getSituation()` で現況データを一括提供する。
 
 ### 1.8 `WebUICore` (インフラ層) と GKL (知識・制御層) の完全層別分離およびモジュール切り離し方針 (Decoupled Module Architecture)
 - **知識ロジック密結合の排除と完全疎結合化**:
   - `WebUICore` は Wasm Cコアとの低レイヤー通信・イベント仲介・レンダリング・翻訳・ウィンドウ管理に専念する「通信・UIインフラ基盤」とし、内部に GKL のドメイン知識を直接ハードコードしない。
-  - GKL モジュール群 (`RequestController`, `InventoryStateManager`, `AreaStateManager`, `SpellStateManager`, `AttributeStateManager`, `SkillStateManager`, `DiscoveryStateManager`, `ContextActionEngine`) は `WebUICore` のパブリックイベント (`inputRequired`, `putstr`, `sequenceFinished` 等) を外部からイベントリスナーとしてバインド・アタッチする「独立拡張モジュール/プラグイン」構成とし、どちらの改修も相互に干渉しない綺麗な層分け設計（Separation of Concerns）を徹底する。
+  - GKL モジュール群 (`InteractiveRequestController`, `InventoryStateManager`, `AreaStateManager`, `SpellStateManager`, `AttributeStateManager`, `SkillStateManager`, `DiscoveryStateManager`, `ContextActionEngine`) は `WebUICore` のパブリックイベント (`inputRequired`, `putstr`, `sequenceFinished` 等) を外部からイベントリスナーとしてバインド・アタッチする「独立拡張モジュール/プラグイン」構成とし、どちらの改修も相互に干渉しない綺麗な層分け設計（Separation of Concerns）を徹底する。
 
 ### 1.9 アーキテクチャ階層化モデル: 通信インフラ層 ➔ 知識層 (GKL) ➔ 戦略層 (Strategy/Action)
 - **3 レイヤーへの明確な概念再構築**:
-  1. **【低レイヤー / 通信・UIインフラ層 (Infrastructure)】 (`WebUICore`, `NetHackWasmDriver`)**:
-     - Wasm Cコアとの入出力、描画、キーマッピング、テキストウィンドウ等の純粋基盤。
+  1. **【低レイヤー / 通信・UIインフラ層 (Infrastructure)】 (`WebUICore`, `NetHackWasmDriver`, `WasmDirectBindingService`)**:
+     - Wasm Cコアとの入出力、描画、キーマッピング、テキストウィンドウ、および `CALL_SHIM` による構造体データ取得等の純粋基盤。
   2. **【知識層 / 事実保持・同期 (Knowledge - True GKL)】**:
      - **動的状態管理**: `InventoryStateManager`, `AreaStateManager`, `StatusAccessor`, `SpellStateManager`, `AttributeStateManager`, `SkillStateManager`, `DiscoveryStateManager`, `SituationCache`
      - **静的ドメイン知識**: `StructuredKnowledgeEngine`, `glyphClassifier`, `OBJECT_KNOWLEDGE_FULL`, `MONSTER_KNOWLEDGE_FULL`
-     - **知識解決・整形**: `ItemIdentificationResolver`, `ItemSpecPresenter`, `OnDemandLookService`
+     - **知識解決・整形**: `ItemIdentificationResolver`, `ItemSpecPresenter`, `OnDemandLookupService`
      - 現状のゲーム世界の事実（所持品、マップ、ステータス、耐性、魔法、鑑定状態）の最新化と保持・管理に専念。
-  3. **【戦略層 / 推論・意思決定 (Strategy / Action)】 (`ContextActionEngine`, `RequestController`, AI Agent)**:
+  3. **【戦略層 / 推論・意思決定 (Strategy / Action)】 (`ContextActionEngine`, `InteractiveRequestController`, AI Agent)**:
      - 知識層から得た「状況 (Situation)」を評価インプットとし、次に何をすべきかの推論・推薦・アクション選択・自走実行を行う戦略モデル。
 
 ### 1.10 静的ナレッジの初回遅延固定化 (Lazy Memoization) と動的ステート合成 (Static/Dynamic 2-Tier Separation)
@@ -125,7 +126,19 @@ related_code:
      - **受動的モーダル型 (Passive Modal Control)**: C コアが自律的にウィザードを進め、UI は届いたシグナルを描画して1文字打ち返す（例: キャラクタ作成、願い、変化、虐殺）。セッション専有は不要。
      - **能動的作業セッション型 (Active Session / Recipe Execution)**: プレイヤーの1意図に対して複数コマンドを自律連続実行する。中間プロンプトの割り込みや状態破綻を防ぐため、`SessionLock`（作業中縛り）により操作権をコントローラが専有する（例: コンテナ操作、ペーパードール装備着脱、重量一括ドロップ）。
   3. **詳細設計ドキュメント**:
-     - 詳細は [`docs/3_gkl/Control_Signal_and_Dedicated_UI_Architecture.md`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/Control_Signal_and_Dedicated_UI_Architecture.md) を参照。
+     - 詳細は [`docs/3_gkl/Control_Signal_and_Dedicated_UI_Architecture.md`](../Control_Signal_and_Dedicated_UI_Architecture.md) を参照。
+
+### 1.17 Phase 8: 公式ソース非侵襲 `shim_bridge.c` による C メモリ直結の導入とテキスト推論フォールバックの共存 (Non-Invasive Direct Memory Binding & Fallback Coexistence)
+- **背景と設計の進化**:
+  - Phase 1〜7 では ADR 1.1 / 1.2 に基づき、`querySequenceSilent`（擬似キー入力のサイレント実行）とテキスト解析によって知識同期を実現してきたが、毎ターンの状態取得における IPC 往復コストや、未識別・スタック・多言語表記ゆれに起因するテキスト推論の限界が存在した。
+- **決定された設計原則（公式Cソース非侵襲 × Direct Binding 最優先 × フォールバック完全維持）**:
+  1. **公式 NetHack C ソースの完全非侵襲 (`sys/wasm/shim_bridge.c`)**:
+     - NetHack 本体の公式 C ソースファイル（`src/*.c`）には一切手を加えず、WebAssembly プラットフォーム層（`sys/wasm/shim_bridge.c`）の公開 C API（`nh_shim_execute_command` / Worker RPC `CALL_SHIM`）として、`invent`, `u`, `levl`, `fmon`, `fobj`, `oc_descr` 等の C メモリ構造体を JSON シリアライズして直接読み取る読み取り専用ブリッジを導入する。
+  2. **Direct Binding 最優先 (`auto` モード) とテキスト推論フォールバックの共存**:
+     - `WasmDirectBindingService` を介して、インベントリ (`DUMP_ALL_INVENT`)、装備ポインタ (`GET_EQUIPMENT_PTRS`)、総重量 (`GET_INVENT_WEIGHT`)、セル情報 (`GET_CELL_INFO`)、80×21全マップ地形ダンプ (`DUMP_LEVEL_TERRAIN`)、プレイヤー要約・属性・魔法・スキル・発見台帳を **0 ターン・キー入力汚染ゼロ** で直接同期する。
+     - 同時に、従来の `querySequenceSilent` によるテキスト推論パスもフォールバックとして温存し、`directBindingMode: 'auto' | 'strict' | 'fallback'` によって実行時切り替え・テレメトリ計測・非対応環境での100%動作互換を保証する。
+  3. **ネタバレ防止（Fog of War / Spoiler Guard）の厳守**:
+     - C メモリから真の内部データを取得する際も、プレイヤー未識別の真名（`trueName`）や未判明の BUC・強化値・罠等は `known` / `dknown` / `bknown` フラグに基づいて GKL 層で厳格にフィルタリングし（死亡・引退後の `PostMortemKnowledgeResolver` 解禁時を除く）、ゲーム性を損なわない。
 
 ---
 

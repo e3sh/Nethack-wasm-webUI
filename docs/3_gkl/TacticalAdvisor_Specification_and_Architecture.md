@@ -1,15 +1,12 @@
-﻿---
+---
 title: TacticalAdvisor 仕様・アーキテクチャ解説書
-status: active
-last_updated: 2026-08-23
+status: implemented
+last_updated: 2026-10-11
 related_code:
-  - src/core/knowledge/TacticalAdvisor.js
-  - src/core/knowledge/TacticalAdvisor.test.js
-  - src/core/knowledge/SituationCache.js
+  - src/core/knowledge/engines/TacticalAdvisor.js
+  - src/core/knowledge/data/ADVICE_DEFINITIONS.js
+  - src/core/knowledge/state/SituationCache.js
   - src/core/knowledge/GKLPlugin.js
-  - examples/gkl-pure-js-client/main.js
-  - examples/gkl-pure-js-client/style.css
-  - examples/gkl-pure-js-client/index.html
 ---
 
 # TacticalAdvisor (戦術アドバイザー) 仕様・アーキテクチャ解説書
@@ -29,7 +26,7 @@ related_code:
 ### 責務の完全分離 (Separation of Concerns)
 GKL ではこの 2 つの責務を完全に分離しました：
 
-`	ext
+```text
 ┌────────────────────────────────────────────────────────┐
 │               Game Knowledge Layer (GKL)               │
 ├────────────────────────────┬───────────────────────────┤
@@ -42,15 +39,15 @@ GKL ではこの 2 つの責務を完全に分離しました：
 │ ・隣接モンスター攻撃/射撃  │ ・呪文詠唱ペナルティ警告  │
 │ ➔ [右: 🧠 推奨アクション]  │ ➔ [右: 🛡️ 戦術アドバイス] │
 └────────────────────────────┴───────────────────────────┘
-`
+```
 
 ---
 
 ## 2. アーキテクチャ & 評価ライフサイクル
 
-TacticalAdvisor は**純粋関数型（ステートレス）**の評価エンジンとして設計されています。
+`TacticalAdvisor`（`src/core/knowledge/engines/TacticalAdvisor.js`）は**純粋関数型（ステートレス）**の評価エンジンとして設計されており、データ駆動のアドバイス定義辞書 [`ADVICE_DEFINITIONS.js`](/src/core/knowledge/data/ADVICE_DEFINITIONS.js) を参照して評価を行います。
 
-`	ext
+```text
        AreaStateManager         InventoryStateManager      SkillStateManager
       (マップ/地形/NPC/罠)        (所持品/装備/BUC)         (熟練度/rank/ボーナス)
                │                        │                         │
@@ -69,17 +66,24 @@ TacticalAdvisor は**純粋関数型（ステートレス）**の評価エンジ
                                           │
             ┌─────────────────────────────┴────────────────────────────┐
             ▼                                                          ▼
-  [ステータスバー (1行)]                                     [右サイド下部カード]
+  [ステータスバー / AssistSignal]                            [右サイド下部カード]
   ・平常時: スッキリ1行表示                                  ・[🛡️ アドバイス (N)] タブ
   ・CRITICAL 時のみ [🚨 危険] 点灯                           ・ホバーで長文理由をスムーズ全文展開
                                                              ・重要度別カラーハイライト
-`
+```
 
 ---
 
-## 3. 評価トピック体系 (Evaluation Topics)
+## 3. 評価トピック体系 (Evaluation Topics / 全7系統)
 
-TacticalAdvisor は、ゲーム内のあらゆる危険と最適化ポイントを 4 つのトピックで評価します。
+`TacticalAdvisor.generateAdvices()` は、以下の 7 系統の評価関数を実行し、ゲーム内のあらゆる危険と最適化ポイントを統合評価します：
+1. `evaluateSurvivalAdvices`（生命維持・HP・飢餓・状態異常）
+2. `evaluateNearbyThreats`（周辺モンスター脅威：コカトリス・浮遊目玉・ガス胞子・銀特効・平和NPC誤爆警告等）
+3. `evaluateEnvironmentalHazards`（地形ハザード：溶岩・水場・露出罠・袋爆発等）
+4. `evaluateEquipmentAdvices`（熟練武器適正・最適武器提案）
+5. `evaluateEquipmentDependencyAdvices`（`EquipmentDependencyAnalyzer` 連携による着脱ブロッカー・呪詛阻害の解説）
+6. `evaluateItemInteractionAdvices`（祭壇 BUC 鑑定・流し台指輪識別・彫刻・箱解錠等の知識活用助言）
+7. `evaluateMagicAdvices`（金属防具着用時の呪文詠唱失敗率ペナルティ）
 
 ### ① THREAT（即死・致命的脅威・環境ハザード）
 
@@ -94,13 +98,15 @@ TacticalAdvisor は、ゲーム内のあらゆる危険と最適化ポイント�
 | **露出した罠 (Exposed Trap)** | WARNING | 周辺に落とし穴・熊罠・矢の罠等が露出 | ⚠️ 罠警戒: 視界内に危険なトラップを検知。歩行ルートに注意するか、箱や岩で埋めることを推奨。 |
 | **手品袋の爆発 (Bag of Tricks Hazard)** | CRITICAL | 手品袋と他の収納袋（軽量化袋等）を同時所持 | 🚨 爆発ハザード: 手品袋を軽量化の袋等の収納具に入れると大爆発し、全アイテムと周囲が消滅します。絶対に入れないでください！ |
 
-### ② EQUIPMENT（熟練武器適正 ＆ 最適装備）
+### ② EQUIPMENT（熟練武器適正・着脱依存診断・アイテム相互作用）
 
-- **熟練度と武器性能の総合評価**:
+- **熟練度と武器性能の総合評価 (`evaluateEquipmentAdvices`)**:
   - キャラクターのスキルランク（達人・熟練・入門・未熟）と、武器の基礎ダイス、強化値 (+N)、BUC 状態を総合判定。
-  - 近接武器とランチャー（弓・クロスボウ・スリング）を分離して評価。
-- **より強い武器の提案**:
-  - 現在装備中の武器よりも戦闘効率が高い熟練武器がインベントリにある場合、キーヒント ([w]) つきで提案。
+  - 近接武器とランチャー（弓・クロスボウ・スリング）を分離して評価し、現在装備中の武器より戦闘効率が高い熟練武器があればキーヒント (`[w]`) つきで提案。
+- **装備着脱の依存関係診断 (`evaluateEquipmentDependencyAdvices`)**:
+  - `EquipmentDependencyAnalyzer` と連携し、「外套・鎧を着ているためシャツを着られない」「呪われた手袋のため指輪を着脱できない」といった阻害要因と解決手順を提示。
+- **知識・環境相互作用 (`evaluateItemInteractionAdvices`)**:
+  - 足元の祭壇での BUC 識別、流し台での指輪調査、箱・袋の取り扱いなど、現在地の設備と所持品の組み合わせから有益な知識活用アクションを助言。
 
 ### ③ MAGIC（呪文詠唱制限 ＆ ペナルティ）
 
@@ -119,7 +125,7 @@ TacticalAdvisor は、ゲーム内のあらゆる危険と最適化ポイント�
 
 ## 4. データ構造仕様 (TacticalAdvice)
 
-`	ypescript
+```typescript
 interface TacticalAdvice {
   id: string;              // 一意な識別ID (例: 'threat_cockatrice_barehand')
   topic: 'THREAT' | 'EQUIPMENT' | 'MAGIC' | 'SURVIVAL';
@@ -131,7 +137,7 @@ interface TacticalAdvice {
   category?: string;       // サブカテゴリ (例: 'PETRIFICATION', 'PROFICIENT_WEAPON')
   entityName?: string;     // 関連対象名 (例: 'Cockatrice', 'Lava')
 }
-`
+```
 
 ---
 
@@ -143,14 +149,14 @@ interface TacticalAdvice {
 
 ### 2. 右サイドパネル（タブ式インジケータ ＆ ホバー全文展開）
 
-`	ext
+```text
 ┌────────────────────────────────────────────────────────┐
 │ [🛡️ アドバイス (2)]   [💡 ナレッジ]                     │
 ├────────────────────────────────────────────────────────┤
 │ [🚨 CRITICAL] ⚠️ 危険: コカトリス接近！手袋未着用... [W]│
 │ [💡 TIP] 熟練武器: [b] 短剣 (達人) の方が高い戦闘... [w]│
 └────────────────────────────────────────────────────────┘
-`
+```
 
 - **平常時（アドバイス優先モード）**:
   - マップの床をクリックして移動したり、床・壁の上をマウスが通過しても、アドバイス一覧が隠れずに常時表示。
@@ -165,6 +171,6 @@ interface TacticalAdvice {
 
 ## 6. テストと保守性
 
-- **単体テスト**: src/core/knowledge/TacticalAdvisor.test.js
-  - コカトリス、浮遊目玉、ガス胞子、銀特効、溶岩、水没、罠、手品袋爆発、熟練武器、金属鎧詠唱ペナルティ、瀕死・飢餓の全項目を網羅。
-  - テストスイート全体（27 スイート・209 テスト）で 100% グリーンを維持。
+- **単体テスト**: `tests/unit/TacticalAdvisor.test.js`
+  - コカトリス、浮遊目玉、ガス胞子、銀特効、溶岩、水没、罠、手品袋爆発、熟練武器、装備依存関係、金属鎧詠唱ペナルティ、瀕死・飢餓の全項目を網羅。
+  - プロジェクト全体テストスイート（全 136 スイート・1,670 テスト）で 100% PASS を維持。

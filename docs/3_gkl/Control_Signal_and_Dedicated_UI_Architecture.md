@@ -1,7 +1,7 @@
 ---
 title: 制御シグナル (Control Signal) による専用UI化とメニュー判断集約アーキテクチャ
-status: active
-last_updated: 2026-09-15
+status: implemented
+last_updated: 2026-10-11
 related_code:
   - src/core/prompt/ControlSignalCatalog.js
   - src/core/prompt/ControlSignalCatalog.ja.js
@@ -10,6 +10,8 @@ related_code:
   - examples/gkl-pure-js-client/modules/components/ModalManager.js
   - examples/gkl-pure-js-client/modules/components/CharacterCreationModal.js
   - src/core/container/ContainerController.js
+  - src/ui-controller/PaperdollPresenter.js
+  - src/components/NhPaperdoll.js
 ---
 
 # 制御シグナル (Control Signal) による専用UI化とメニュー判断集約アーキテクチャ
@@ -59,17 +61,17 @@ UI層に文脈解析（正規表現マッチングやアイテム名判別）を
 ### 2.1 受動的モーダルコントロール型 (Passive Modal Control)
 - **主導権**: **NetHack C コア**
 - **メカニズム**:
-  - C コアが自律的にウィザードを進め、ステップごとに「職業を選べ」「種族を選べ」「確定せよ」とプロンプトを発行。
-  - WebUICore がそれを検知し、`subCategory: 'CHARACTER_CREATION'`, `signal: { id: 'SIGNAL_CHARACTER_CREATION', params: { step: 'role' } }` をペイロードに付与。
-  - UI 側（`ModalManager` / `CharacterCreationModal`）はシグナルを受け取ってモーダルを描画し、選ばれたキーを `core.respond(key)` で1文字返答するのみ。
-  - フロントエンド側でセッションロックやステートマシンによる排他制御を行う必要がない。
+   - C コアが自律的にウィザードを進め、ステップごとに「職業を選べ」「種族を選べ」「確定せよ」とプロンプトを発行。
+   - WebUICore がそれを検知し、`subCategory: 'CHARACTER_CREATION'`, `signal: { id: 'SIGNAL_CHARACTER_CREATION', params: { step: 'role' } }` をペイロードに付与。
+   - UI 側（`ModalManager` / `CharacterCreationModal`）はシグナルを受け取ってモーダルを描画し、選ばれたキーを `core.respond(key)` で1文字返答するのみ。
+   - フロントエンド側でセッションロックやステートマシンによる排他制御を行う必要がない。
 
 ### 2.2 能動的作業セッション型 (Active Session / Recipe Execution)
 - **主導権**: **フロントエンド・コントローラ（`ContainerController` 等）**
 - **メカニズム**:
-  - プレイヤーの「アイテムを袋に入れたい」という1アクションに対し、裏では `#loot` ➔ 方向指定 ➔ カテゴリ選択 ➔ アイテム指定 ➔ 個数入力 という複数ターンの通信が走る。
-  - 途中で別のキーや操作が割り込むとゲーム状態が致命的に破壊されるため、**`SessionLock`（作業中縛り）** を発動して操作権をコントローラが専有する。
-  - C コアから返ってくる中間シグナル（`SIGNAL_CONTAINER_CATEGORY_SELECT`, `SIGNAL_COUNT_PROMPT` 等）をコントローラが自律的にインターセプトして解決し、最終的な完了シグナル（`turn_ready` 等）で作業中縛りを解除する。
+   - プレイヤーの「アイテムを袋に入れたい」という1アクションに対し、裏では `#loot` ➔ 方向指定 ➔ カテゴリ選択 ➔ アイテム指定 ➔ 個数入力 という複数ターンの通信が走る。
+   - 途中で別のキーや操作が割り込むとゲーム状態が致命的に破壊されるため、**`SessionLock`（作業中縛り）** を発動して操作権をコントローラが専有する。
+   - C コアから返ってくる中間シグナル（`SIGNAL_CONTAINER_CATEGORY_SELECT`, `SIGNAL_COUNT_PROMPT` 等）をコントローラが自律的にインターセプトして解決し、最終的な完了シグナル（`turn_ready` 等）で作業中縛りを解除する。
 
 ---
 
@@ -116,18 +118,19 @@ UI層に文脈解析（正規表現マッチングやアイテム名判別）を
 
 ---
 
-## 4. 今後専用UI化するプレイ要素とシグナル設計ロードマップ
+## 4. 専用UI化されたプレイ要素とシグナル体系一覧
 
-本アーキテクチャに基づき、今後実装する主要プレイ要素はすべて以下のシグナル体系へ集約します。
+本アーキテクチャに基づき、主要プレイ要素はすべて以下のシグナル体系へ集約されています。
 
-| プレイ要素（専用UI） | 制御モデル | NetHack C コア側の生挙動 | 定義すべき制御シグナル (SIGNAL) |
-| :--- | :--- | :--- | :--- |
-| **キャラクタ作成** (実装済) | 受動的モーダル | `Pick a role...`, `Is this ok? [ynq]` | `SIGNAL_CHARACTER_CREATION` (`subCategory: 'CHARACTER_CREATION'`) |
-| **コンテナ操作** (実装済) | 能動的作業セッション | `#loot`, 取り出し/収納メニュー, 個数 | `SIGNAL_CONTAINER_ACTION_MENU`<br>`SIGNAL_CONTAINER_CATEGORY_SELECT`<br>`SIGNAL_CONTAINER_ITEM_SELECT` |
-| **ペーパードール (装備管理)** | 能動的作業セッション | `w`, `W`, `T`, `P`, `R`, `Q` 等の着脱・持ち替えメニュー | `SIGNAL_EQUIPMENT_SLOT_SELECT`<br>`SIGNAL_WEAPON_WIELD`<br>`SIGNAL_ARMOR_WEAR_TAKEOFF`<br>`SIGNAL_ACCESSORY_PUT_REMOVE` |
-| **重量・荷物整理** | 能動的作業セッション | 重量超過警告、`d`, `D` 一括ドロッププロンプト | `SIGNAL_INVENTORY_DROP_BATCH`<br>`SIGNAL_BURDEN_STATUS_CHANGE` |
-| **ショップ売買** | 受動的 / 能動的複合 | 店主の請求、価格提示、購入確認 `[yn]` | `SIGNAL_SHOP_TRANSACTION`<br>`SIGNAL_SHOP_BILL_PAY` |
-| **魔法詠唱・スキル熟練** | 受動的モーダル | `Z` (cast), `e` (enhance) のスロット選択 | `SIGNAL_SPELL_CAST_SELECT`<br>`SIGNAL_SKILL_ENHANCE_MENU` |
+| プレイ要素（専用UI） | 実装状態 | 制御モデル | NetHack C コア側の生挙動 | 制御シグナル (SIGNAL / subCategory) |
+| :--- | :--- | :--- | :--- | :--- |
+| **キャラクタ作成・導入** | ✅ 実装済 | 受動的モーダル | `Pick a role...`, `Is this ok? [ynq]`, 導入テキスト | `SIGNAL_CHARACTER_CREATION` (`CHARACTER_CREATION` / `CHARACTER_INTRO`) |
+| **願い・虐殺・変化・魔法書作成** | ✅ 実装済 | 受動的モーダル | `For what do you wish?`, `What class of monsters...?` 等 | `WISH`, `GENOCIDE`, `POLYMORPH`, `WRITE` (`NhWishDialog` 等) |
+| **コンテナ操作** | ✅ 実装済 | 能動的作業セッション | `#loot`, 取り出し/収納メニュー, 個数 | `SIGNAL_CONTAINER_ACTION_MENU`<br>`SIGNAL_CONTAINER_CATEGORY_SELECT`<br>`SIGNAL_CONTAINER_ITEM_SELECT` |
+| **ペーパードール (装備管理)** | ✅ 実装済 | 能動的作業セッション + Phase 8 直結 | `w`, `W`, `T`, `P`, `R`, `Q` 等の着脱・持ち替えメニュー | `EquipmentActionPlanner` + `IRC` レシピ実行 + `SHIM_CMD_GET_EQUIPMENT_PTRS` |
+| **重量・荷物整理** | ✅ 実装済 | GKL / Phase 8 直結 + モーダル連携 | 重量超過警告、`d`, `D` 一括ドロッププロンプト | `EncumbranceStateManager` + `EncumbrancePresenter` |
+| **魔法詠唱・スキル熟練** | ✅ 実装済 | 受動的モーダル + Phase 8 直結 | `Z` (cast), `#enhance` のスロット選択 | `SpellModal` / `SkillModal` + `SHIM_CMD_GET_SPELLS` / `GET_SKILLS` |
+| **ショップ売買** | 📋 構想中 | 受動的 / 能動的複合 | 店主の請求、価格提示、購入確認 `[yn]` | `SIGNAL_SHOP_TRANSACTION`<br>`SIGNAL_SHOP_BILL_PAY` |
 
 ---
 

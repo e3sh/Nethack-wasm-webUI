@@ -1,34 +1,33 @@
 ---
-title: 仮想スクリーン統合レンダラー ＆ UI画面刷新 計画仕様書
+title: 仮想スクリーン統合レンダラー ＆ UI画面アーキテクチャ仕様書
 status: implemented
-last_updated: 2026-09-21
+last_updated: 2026-10-11
 related_code:
   - examples/gkl-pure-js-client/modules/renderers/VirtualDungeonScreen.js
   - examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js
   - examples/gkl-pure-js-client/modules/renderers/MinimapHudRenderer.js
 ---
 
-# 仮想スクリーン統合レンダラー ＆ UI画面刷新 計画仕様書
-**Unified Virtual Screen & Modern Camera Architecture Plan**
+# 仮想スクリーン統合レンダラー ＆ UI画面アーキテクチャ仕様書
+**Unified Virtual Screen & Modern Camera Architecture Specification**
 
 - **対象プロジェクト**: NetHack-wasm-webUI
-- **作成日**: 2026-09-20
 - **保存先**: `docs/2_client_ui/unified_renderer_and_screen_architecture_plan.md`
-- **ステータス**: `🟢 implemented` (Phase 1〜3 実装・テスト完了)
+- **ステータス**: `🟢 implemented` (Phase 1〜3 実装・テスト完了、全画面 `100vw × 100vh` ビューポート稼働中)
 
 ---
 
-## 1. 概要と背景課題 (Executive Summary & Background)
+## 1. 概要と刷新前の背景課題 (Executive Summary & Background)
 
-### 1.1 背景と現状の課題
-現在の `gkl-pure-js-client` におけるグラフィック描画および UI 画面構成には、以下の根本的な技術的負債と構造的なちぐはぐさが存在しています。
+### 1.1 旧構成の課題（刷新前）
+初期の `gkl-pure-js-client` におけるグラフィック描画および UI 画面構成には、以下の技術的負債が存在していました（現在はすべて解消済み）：
 
 ```text
-【現状のちぐはぐな画面構成】
+【旧構成（刷新前）】
 ┌─────────────────────────────────────────────────────────┐
 │ 【メイン画面領域】(game-canvas)                           │
 │   ダンジョン全体 80x24 マスが 16x14px にギュッと縮小され、   │
-│   中央に小さく押し込められて表示されている                 │
+│   中央に小さく押し込められて表示されていた                 │
 │                                           ┌───────────┐ │
 │                                           │[FOCUS CAM]│ │
 │                                           │自キャラ周辺│ │
@@ -37,22 +36,16 @@ related_code:
 └─────────────────────────────────────────────────────────┘
 ```
 
-1. **画面構成の不自然さ（主従の逆転）**:
-   - 中央の広大なメインエリアに「極小に縮小された全体マップ」が居座り、本来プレイヤーが見るべき「32px 原寸のアニメーションする自キャラ周辺（Focus Camera）」が画面右上に小さな小窓（PiP）として浮いている。
-   - 現代の RPG やローグライク（Diablo、各種現代ローグライク）の「メイン画面がキャラ周辺の迫力あるビュー ＋ 画面隅に全体ミニマップ」という自然な構成と逆転している。
-2. **レンダラーの二重管理とコードの重複**:
-   - メインマップ描画 (`MapRenderer`) と自キャラ周辺描画 (`ZoomRenderer`) が別々のクラスとして独立し、双方で「4層レイヤー合成（Bottom/Middle/Top/Effect）」「タイルアトラス計算」「カーソル枠描画」などを二重に実装している。
-3. **Canvas 2D の無駄な CPU 描画負荷**:
-   - タイルの浮遊・歩行バウンスアニメーションを行うために、毎ターン・毎フレーム画面全体（80×24＝1,920マス）をクリアして全マスをループで再描画（ブルートフォース）している。
-   - その結果、「全体を描き直すと重いから、FocusView だけ別 Canvas にして描画範囲を絞ろう」という本末転倒な対症療法を生んでいる。
-4. **WebGPU (HD2D) との連携の断絶**:
-   - プロトタイプ実装された `WebGPUHD2DRenderer` は単独で動作しており、既存の CanvasRenderer / ZoomRenderer とのインターフェースやカメラ統合が未整理のままとなっている。
+1. **画面構成の主従逆転**: 中央に縮小全体マップが居座り、32px 原寸の Focus Camera が右上の小窓になっていた。
+2. **レンダラーの二重管理**: 旧 `MapRenderer` と旧 `ZoomRenderer` で 4 層レイヤー合成が重複実装されていた。
+3. **Canvas 2D の毎フレーム全マス再描画負荷**: 80×24 マスを毎フレームブルートフォース再描画していた。
+4. **WebGPU (HD2D) とのインターフェース分離**: カメラ・ビューポート管理の統合が必要だった。
 
 ---
 
-## 2. 刷新コンセプトと基本設計 (Core Architecture Vision)
+## 2. 現行アーキテクチャと基本設計 (Core Architecture)
 
-本刷新では、**「完全な仮想スクリーン（オフスクリーン）を中心に据え、カメラ（ビューポート）で画面へ切り出す」** というアーキテクチャへの全面移行を行います。
+本アーキテクチャでは、**「完全な仮想スクリーン（オフスクリーン `VirtualDungeonScreen`）を中心に据え、メインカメラ（`MainViewportRenderer`）とミニマップ（`MinimapHudRenderer`）で画面へ切り出す」** 方式を採用しています。
 
 ```text
                      [ NetHack Wasm コア / AreaStateManager ]

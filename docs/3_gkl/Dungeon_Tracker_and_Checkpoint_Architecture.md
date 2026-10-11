@@ -1,16 +1,25 @@
 ---
 title: ダンジョン探索トラッカー＆チェックポイント（箱・旗立て）仕様・構想書
 status: proposed
-last_updated: 2026-09-21
+last_updated: 2026-10-11
 related_docs:
   - docs/3_gkl/Spatial_Pattern_Engine_Architecture.md
-  - docs/3_gkl/ArchitectureDecisionRecord.md
+  - docs/3_gkl/archive/ArchitectureDecisionRecord.md
   - docs/3_gkl/GKL_Structured_Knowledge_Usage_Guide.md
   - docs/3_gkl/GKL_Visual_FX_Event_Architecture.md
-  - docs/7_futures/message_context_and_signal_driven_architecture.ja.md
+  - docs/1_driver/official_shim_direct_binding_implementation_plan.md
 ---
 
 # ダンジョン探索トラッカー＆チェックポイント（箱・旗立て）仕様・構想書
+
+> [!NOTE]
+> **Phase 8 C メモリ直結 (`shim_bridge.c`) 導入に伴う設計前提のアップデート (2026-10-11)**
+> Phase 8 において公式 NetHack C ソースを一切改変しない独立ブリッジ (`shim_bridge.c` / `WasmDirectBindingService.js`) が確立されたことで、1.2 節で挙げていた「C コア非侵襲のまま内部構造を参照できない」という制約の多くが解消されました：
+> - **重なり箱・施錠状態の直接取得**: `SHIM_CMD_GET_OBJECT_AT (0x22)` により、1 マスに重なった複数の箱や、箱の施錠状態 (`olocked`)・鍵破壊状態 (`obroken`) をメッセージを待たずに直接取得可能。
+> - **刻み文字 (Engraving) の直接取得**: `SHIM_CMD_GET_ENGRAVING_AT (0x23)` により、そのマスに乗らなくても刻み文字の内容を参照可能。
+> - **ブランチ (`dnum` / `dlevel`) と特殊部屋の直接取得**: `SHIM_CMD_GET_PLAYER_SUMMARY (0x30)` および `GET_ROOM_TYPE (0x24)` により、正確なブランチ番号と特殊部屋種別を直接取得可能。
+>
+> ただし、「セーブデータに完全相乗りして死亡時のゴミデータをゼロにする原則」や「過去階層復元における `#overview` 連携」「2マス隣接刻み文字による直感的な旗立て（🚩）UI」は現在も有効な設計指針としてそのまま適用されます。
 
 本書は、NetHack Game Knowledge Layer (GKL) における**ダンジョン探索トラッカー（全階層の探索・施設・オブジェクト履歴の統合表示）**および、ゲーム内行動をプロトコルとした**チェックポイント／拠点マーカー（🚩）**と**箱トラッキング**の設計思想・仕様・UI構想をまとめた公式構想書です。
 
@@ -312,7 +321,7 @@ NetHack本来の「サクサク進むキー入力」を一切邪魔しないよ�
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │ Step 1: SpatialPatternEngine の TDD 単体テスト開発              │
-│ ➔ 純粋関数型ロジックの完全保証（Jestモックテストのみで完結）    │
+│ ➔ 純粋関数型ロジックの完全保証（Vitest モックテストのみで完結） │
 └────────────────────────────────┬────────────────────────────────┘
                                  ▼
 ┌─────────────────────────────────────────────────────────────────┐

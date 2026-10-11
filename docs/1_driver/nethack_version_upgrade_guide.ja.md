@@ -1,3 +1,12 @@
+---
+title: nethack_version_upgrade_guide
+status: active
+last_updated: 2026-10-11
+related_code:
+  - scripts/build_wasm_50.ps1
+  - src/driver/shim/shim_bridge.c
+---
+
 # NetHack バージョン更新・WASM 再ビルド引継ぎガイド
 
 本ドキュメントは、NetHack のマイナー／パッチバージョン更新（例: 5.0.0 → 5.0.1、今後の 5.0.2 や 5.1.x など）に伴い、WebAssembly（WASM）の再ビルドおよび WebUI 側の関連データ／ナレッジを更新する際の手順、調査項目、および注意事項をまとめた引継ぎ資料です。
@@ -32,10 +41,10 @@
     - 新規アイテムが追加された場合は、`src/core/knowledge/data/OBJECT_KNOWLEDGE_MAP.js` および辞書（`dictionary.csv`）への定義追加を検討。
 
 ### 1-4. ブリッジ（`shim_bridge.c`）機能・エクスポートシンボルの事前棚卸し（手戻りゼロ運用）
-- **方針**: バージョン更新に伴う Wasm 再ビルドは、**WebUI / GKL 側で今後必要となる C 側ブリッジ機能（`shim_bridge.c`）やエクスポート関数（`nethack_flags.rsp`）を事前に棚卸し・拡充する絶好の機会**です。
+- **方針**: バージョン更新に伴う Wasm 再ビルドは、**WebUI / GKL 側で今後必要となる C 側ブリッジ機能（`src/driver/shim/shim_bridge.c`）を事前に棚卸し・拡充する絶好の機会**です。
 - **事前チェック事項**:
   - WebUI / GKL のロードマップや新機能構想で、現在テキストパースや裏マクロ（または推測）に依存している要素がないか確認。
-  - 新たに必要な問い合わせ（地形・罠・部屋・モンスター状態・装備・プレイヤー能力等）があれば、ビルドスクリプト実行前に `win/shim/shim_bridge.c` のコマンド定義（`ShimBridgeCmd`）に追加しておく。
+  - 新たに必要な問い合わせ（地形・罠・部屋・モンスター状態・装備・プレイヤー能力等）があれば、ビルドスクリプト実行前に WebUI リポジトリ管理下の `src/driver/shim/shim_bridge.c` のコマンド定義（`ShimBridgeCmd`）に追加しておく（ビルド時に自動で `win/shim/shim_bridge.c` へ同期コピーされます）。
   - **効果**: 平常時の WebUI / GKL 開発フェーズにおいて「C側の再ビルド待ち」による手戻りや作業中断が一切発生しない開発サイクルを確立できます。
 
 ### 1-5. バージョン番号の定義確認 (`include/patchlevel.h`)
@@ -51,15 +60,16 @@
 
 ### 2-1. リポジトリを汚さない運用方針
 - **重要**: WebUI リポジトリ（`Nethack-wasm-webUI`）内に NetHack の全ソースツリーを常時展開・コミットしないこと。
-- ビルド作業は原本ディレクトリ（外部作業フォルダ）または一時作業フォルダで行い、リポジトリ内には成果物（`nethack.js`, `nethack.wasm`, `docs/5_gamedata/tilemappings.lst`）と差分ファイルのみを反映します。
+- ビルド作業は原本ディレクトリ（外部作業フォルダ）または一時作業フォルダで行い、リポジトリ内には成果物（`nethack.js`, `nethack.wasm`, `docs/5_gamedata/tilemappings.lst`）と単一ブリッジ拡張ファイル（`src/driver/shim/shim_bridge.c`）のみを保持します。
 
-### 2-2. 保護対象ファイルおよび独自実装の状況（独自 C コードゼロ化達成）
-NetHack 5.0 WASM では、**公式原本からの独自 C 差分が完全にゼロ（100% 無改変）** です。
+### 2-2. 保護対象ファイルおよび独自実装の状況（公式ソース 100% 無改変 + 外付け `shim_bridge.c`）
+NetHack 5.0 WASM では、**公式原本ファイルの独自 C 差分が完全にゼロ（100% 無改変）** であり、Phase 8 メモリ直結用の拡張は独立した 1 ファイル（`shim_bridge.c`）として外付けリンクされます。
 
 | ファイルパス | 現状と運用方針 |
 |---|---|
 | `win/shim/winshim.c` | **公式原本と完全一致（SHA256ハッシュ完全一致・差分ゼロ）**。<br>以前存在した `get_plname()` 等の独自 C コードは全廃され、原本をそのまま直接コンパイルします（リポジトリ側の差分ファイル保持も不要）。Driver 側は公式標準の `globalThis.nethackGlobal.globals.svp.plname`（`sys/libnh/libnhmain.c` 既設の getter/setter バインディング）を利用しています。 |
 | `sys/libnh/libnhmain.c` | **公式原本のまま無改変**。NetHack 5.0 公式原本で既に Emscripten / WebAssembly サポート（`__EMSCRIPTEN__` 用の JS コールバック初期化や定数・グローバル変数バインディング公開）が組み込まれています。 |
+| `src/driver/shim/shim_bridge.c` | **WebUI リポジトリ内で Git 管理されている正本ファイル**。<br>`scripts/build_wasm_50.ps1` の Step 3 でビルドツリー側の `win/shim/shim_bridge.c` へ自動同期コピーされ、単一エントリポイント `_shim_bridge_call` のみをエクスポートして一緒にコンパイル・リンクされます。 |
 
 ### 2-3. 外部依存（Lua 5.4.8）
 NetHack 5.0 のビルドには Lua 5.4.8 のソースコードが必要です。原本ソースツリーに `lib/lua-5.4.8/src` が存在しない場合は、ビルドスクリプトが既存環境（例: `Documents/Antigravity/NetHack/lib/lua-5.4.8` 等）から自動配置します。
@@ -85,10 +95,10 @@ $VCVARS_PATH = "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxilia
    - ⚠️ **超重要**: `tilemap.exe` は必ず **`util` ディレクトリ内で実行（`Push-Location util; .\tilemap.exe; Pop-Location`）** すること。
    - `tilemap.c` のソース出力先が相対パス `../src/tile.c` に固定されているため、カレントが `util` でないと `tile.c` の生成に失敗します。
 4. **Step 2: ゲームデータ生成**: `makedefs.exe` を使用して `data`, `rumors`, `help` などのデータファイルを生成。
-5. **Step 3: winshim.c の確認**: 公式原本（無改変）の `win/shim/winshim.c` をそのまま使用。独自パッチは不要です。
+5. **Step 3: `winshim.c` の確認と `shim_bridge.c` の自動同期**: 公式原本（無改変）の `win/shim/winshim.c` を確認し、WebUI リポジトリの `src/driver/shim/shim_bridge.c` を `win/shim/shim_bridge.c` へ自動コピー。
 6. **Step 4: Lua (WASM) のビルド**: `emcc` で Lua ソースをコンパイルし、`liblua.a` をアーカイブ。
 7. **Step 5: NetHack C ソース (WASM) のビルド**:
-   - フラグ: `-sASYNCIFY=1`, `-sEXPORTED_FUNCTIONS`, `-sEXPORTED_RUNTIME_METHODS` など。
+   - フラグ: `-sASYNCIFY=1`, `-sEXPORTED_FUNCTIONS=['_main','_shim_graphics_set_callback','_malloc','_free','_shim_bridge_call']`, `-sEXPORTED_RUNTIME_METHODS` など。
 8. **Step 6: リンクとファイルパッケージング**:
    - `emcc ... -o nethack.js --embed-file dat@/` で WASM と JS ローダー、仮想ファイルシステムを生成。
 9. **Step 7: 成果物のデプロイ**:
@@ -127,10 +137,10 @@ WebUI ルートでテストを実行し、全テストスイートがパスす�
 ```powershell
 npm test
 ```
-- 全テストスイート（106ファイル / 1300件以上）が PASS すること。
-- 特に `WishService.test.js`, `AllGlyphsVerification.test.js`, `WebUICore.test.js` などの整合性を確認。
+- 全テストスイート（136ファイル / 1,670件）が PASS すること。
+- 特に `WishService.test.js`, `AllGlyphsVerification.test.js`, `WebUICore.test.js`, `WasmDirectBindingService.test.js` などの整合性を確認。
 
 ### 5-3. ブラウザ実機確認
-- ブラウザで WebUI を起動。
+- ブラウザで WebUI を起動（および `tools/direct_binding_verifier.html` で C 構造体オフセット整合性を検証）。
 - `v` または `V` コマンドでバージョン表示を確認し、ビルド日時が更新されていることを確認。
 - ウィッシュ入力ダイアログで新エイリアスが補完・認識されるか確認。

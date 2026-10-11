@@ -1,18 +1,20 @@
 ---
 title: 装備ペーパードールUI ＆ 依存関係診断・換装プランナー 完全設計仕様書
 status: implemented
-last_updated: 2026-09-21
+last_updated: 2026-10-11
 related_code:
-  - src/core/knowledge/EquipmentRules.js
-  - src/core/knowledge/EquipmentDependencyAnalyzer.js
-  - src/core/knowledge/EquipmentActionPlanner.js
+  - src/core/knowledge/equipment/EquipmentRules.js
+  - src/core/knowledge/equipment/EquipmentDependencyAnalyzer.js
+  - src/core/knowledge/equipment/EquipmentActionPlanner.js
+  - src/ui-controller/PaperdollPresenter.js
+  - src/components/NhPaperdoll.js
 ---
 
 # 装備ペーパードールUI ＆ 依存関係診断・換装プランナー 完全設計仕様書
 (Equipment Paperdoll and Dependency Architecture Specification)
 
 > [!NOTE]
-> **ステータス**: `🟢 implemented` (ルール＆診断プランナー実装完了 / UI統合進行中)
+> **ステータス**: `🟢 implemented` (ルール＆診断プランナー・Headless UI Presenter・`<nh-paperdoll>` Web Component 統合および Phase 8 装備ポインタ直結完了)
 
 ## 1. 背景とビジョン
 
@@ -60,7 +62,7 @@ flowchart LR
 - 中断（敵の接近・攻撃）時の即時ロールバック（Abort）を実装。
 
 ### フェーズ 3: ペーパードール UI の具現化
-- 人型アバターとスロットグリッドのモーダル画面（`PaperdollModal`）を構築。
+- 人型アバターとスロットグリッドのモーダル画面（`PaperdollPresenter` + `<nh-paperdoll>`）を構築。
 - AC 変動、耐性付与、重量負荷、所要ターンのリアルタイム・プレビュー。
 - PC 向けドラッグ＆ドロップ ＋ モバイル向けクイックセレクター。
 
@@ -70,7 +72,7 @@ flowchart LR
 
 ### 3.1 「全アイテム個別定義」の過剰情報化を回避する
 NetHack では「武器」だけでなく「コカトリスの死体」「ツルハシ」「ただの岩」「ワンド」「薬」など、ほぼすべてのアイテムを手（`uwep`）に持つことができます。
-全 500 種類以上のアイテムに対して静的ナレッジ（`OBJECT_KNOWLEDGE_BASE`）に個別スロット定義を書き込むと、データの肥大化と保守困難を招きます。
+全 500 種類以上のアイテムに対して静的ナレッジ（`OBJECT_KNOWLEDGE_FULL.js`）に個別スロット定義を書き込むと、データの肥大化と保守困難を招きます。
 
 ### 3.2 解決策: 「専用スロット（防具・装身具）」と「万能スロット（主手）」の分離
 NetHack の C コア仕様（`objects.c`, `objclass.h`）に基づき、**「大分類（oclass）と防具サブ分類（oc_armcat）から適合スロットを導出する軽量リゾルバー」** を設けます。
@@ -125,13 +127,13 @@ export function resolveEligibleSlots(item) {
 ```
 
 ### 3.3 インベントリからの装備状態抽出（Normalized Equipment State）
-`InventoryStateManager` の所持品リストから、末尾の着用トークンをパースして単一の装備マップを抽出します。
-- `(being worn)`: 鎧、外套、シャツ、兜、手袋、靴、盾
-- `(wielded)`: 主手武器
-- `(alternate weapon; not wielded)`: 控え武器
-- `(at the ready)` または `(in quiver)`: 矢筒
-- `(on left hand)`: 左手の指輪
-- `(on right hand)`: 右手の指輪
+Phase 8 (Stage 8.2-C) により、`WasmDirectBindingService` が `SHIM_CMD_DUMP_ALL_INVENT (0x10)` の `owornmask` ビットマスクおよび `SHIM_CMD_GET_EQUIPMENT_PTRS (0x31)`（全14部位の `o_id` 直結取得）から装備状態をゼロオーバーヘッドで確定します。また Direct Binding 非稼働時のフォールバックとして、`InventoryStateManager` の所持品リスト末尾の着用トークンからの抽出にも対応しています：
+- `(being worn)` / `W_ARM*`: 鎧、外套、シャツ、兜、手袋、靴、盾
+- `(wielded)` / `W_WEP`: 主手武器 (`uwep`)
+- `(alternate weapon; not wielded)` / `W_SWAPWEP`: 控え武器 (`uswapwep`)
+- `(at the ready)` または `(in quiver)` / `W_QUIVER`: 矢筒 (`uquiver`)
+- `(on left hand)` / `W_RINGL`: 左手の指輪 (`uleft`)
+- `(on right hand)` / `W_RINGR`: 右手の指輪 (`uright`)
 
 ---
 
@@ -324,6 +326,6 @@ Phase 1 における `EquipmentDependencyAnalyzer` は、以下のマトリク�
 ---
 
 ## 9. 関連ドキュメント
-- [コンテナUI＆操作プロトコル 完全設計仕様書 (Visual_Container_UI_Architecture_and_Usage_Guide.md)](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/Visual_Container_UI_Architecture_and_Usage_Guide.md)
+- [コンテナ（袋・箱）対話操作プロトコル 仕様書 (Container_Interaction_Specification_IRC.md)](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/Container_Interaction_Specification_IRC.md)
 - [TacticalAdvisor 仕様・アーキテクチャ (TacticalAdvisor_Specification_and_Architecture.md)](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/TacticalAdvisor_Specification_and_Architecture.md)
 - [InteractiveRequestController 仕様・ロードマップ (Interactive_Request_Controller_Architecture_and_Roadmap.md)](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md)

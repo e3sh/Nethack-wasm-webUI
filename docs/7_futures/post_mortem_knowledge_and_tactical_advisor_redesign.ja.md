@@ -1,9 +1,20 @@
+---
+title: 事後ナレッジ連携＆戦術アドバイザー刷新 設計構想 (Future Vision)
+status: in-progress (Core Resolver & Scoreboard implemented)
+last_updated: 2026-10-11
+related_code:
+  - src/core/knowledge/PostMortemKnowledgeResolver.js
+  - src/core/knowledge/PostMortemKnowledgeResolver.test.js
+  - src/core/knowledge/ADVICE_DEFINITIONS.js
+  - tools/scoreboard.html
+---
+
 # 事後ナレッジ連携＆戦術アドバイザー刷新 設計構想 (Future Vision)
 
 - **文書ID**: `DOC-FUTURE-POST-MORTEM-ADVICE-01`
 - **対象領域**: Core Knowledge層 (`PostMortemKnowledgeResolver.js`, `ADVICE_DEFINITIONS.js`) / UI層 (`scoreboard.html`, ゲームオーバー画面)
-- **ステータス**: `構想登録 (Draft / Future Feature)`
-- **最終更新**: 2026-10-08
+- **ステータス**: `in-progress (Core Resolver & Scoreboard implemented)`
+- **最終更新**: 2026-10-11
 
 ---
 
@@ -11,7 +22,7 @@
 
 NetHack 5.0対応の単体スコアボード画面 (`tools/scoreboard.html`) およびゲームオーバー画面において、NetHackが出力する生の死因テキスト（英文）を解析し、日本語化および戦術アドバイザー (`ADVICE_DEFINITIONS.js`) / GKL (Game Knowledge Layer) と連動する基盤 `PostMortemKnowledgeResolver.js` を導入した。
 
-現状は主要な基本死因構文（`killed by`, `died of starvation`, `petrified`, `choked on`, `drowned`, `ascended`, `quit`）の翻訳と初期的なアドバイス接続が動作しているが、NetHack特有の多様で残酷な死因パターンに対しては、以下のような課題が顕在化している：
+現状は主要な基本死因構文（`killed by`, `died of starvation`, `petrified`, `choked on`, `drowned`, `ascended`, `quit`）の翻訳と初期的なアドバイス接続が動作しているが、NetHack特有の多様で残酷な死因パターンに対しては、以下のような課題が顕在化していた（コア部分は Stage 1〜3 ハイブリッドパイプラインとして実装完了）：
 1. **「直接原因（トドメ）と根本原因（無力化）の二重構造」**（気絶中のイモリ撃破など）
 2. **「モンスター戦闘死への過剰フォールバックと誤分類」**（実運用で確認された課題）：
    - `poisoned by a rotted rothe corpse` がモンスター名 `rothe` に誤一致し **「ロゼに倒された」** と戦闘死扱いになる（本来は腐敗死骸の食中毒・毒殺）
@@ -159,16 +170,18 @@ $$\text{DeathString} = [\text{Prefix}] + [\text{Core Incident / Entity}] + [\tex
 
 ---
 
-## 8. 将来の実装ロードマップ (Implementation Phases)
+## 8. 実装ロードマップ (Implementation Phases)
 
-- [ ] **Phase 1: 構文分解と複合エンティティ抽出基盤の刷新**
-  - `PostMortemKnowledgeResolver.js` を Stage 1〜3 パイプラインに分離。
-  - 接尾辞 `while ...` および修飾子のトークナイザーを実装。
-  - **死骸（`corpse`）・爆発（`explosion`）・コンテナ（`exploding <item>`）の先行抽出・辞書照会ロジックを実装。**
-- [ ] **Phase 2: TDDコーパスの実装と検証**
-  - 第7章のベンチマーク死因ケース（食中毒死、爆死、箱トラップ死を含む全16パターン）に対するユニットテストを作成。
-- [ ] **Phase 3: 根本原因調停器 (Root Cause Arbiter) の実装**
-  - スコアリングによる主教訓（Primary）と副因の二重構造化。
-- [ ] **Phase 4: ADVICE_DEFINITIONS 拡張とUI反映**
-  - `ADVICE_HAZARD_ROTTEN_CORPSE`、`ADVICE_HAZARD_EXPLOSION`、`ADVICE_HAZARD_EXPLODING_CONTAINER` 等を定義。
-  - スコアボード画面およびGameOverモーダルでの多層ナレッジ表示の洗練。
+- [x] **Phase 1: 構文分解と複合エンティティ抽出基盤の刷新（実装完了）**
+  - [x] `PostMortemKnowledgeResolver.js` を Stage 1〜3 ハイブリッドパイプラインに分離。
+  - [x] 接尾辞 `while ...` および修飾子のトークナイザーを実装。
+  - [x] **死骸（`corpse`）・爆発（`explosion`）・コンテナ（`exploding <item>`）の先行抽出・辞書照会ロジックを実装。**
+  - [x] 単体スコアボード画面（`tools/scoreboard.html`）との連携完了。
+- [x] **Phase 2: コアTDDコーパスの実装と検証（実装完了）**
+  - [x] 第7章のベンチマーク死因ケース（食中毒死、爆死、箱トラップ死、無力化優先を含む代表パターン）に対するユニットテスト（`PostMortemKnowledgeResolver.test.js`）を作成・PASS。
+- [x] **Phase 3: 根本原因調停器 (Root Cause Arbiter) のコア実装（実装完了）**
+  - [x] スコアリングによる主教訓（Primary）と副因の二重構造化（`while fainted` / `while frozen` 優先調停）。
+- [ ] **Phase 4: ADVICE_DEFINITIONS 包括バインド拡張と 50+件 コーパスベンチマーク（残タスク）**
+  - [ ] 未接続アドバイス（`ADVICE_HAZARD_ROTTEN_CORPSE`、`ADVICE_HAZARD_EXPLOSION`、`ADVICE_HAZARD_EXPLODING_CONTAINER` 等の専用ID定義）の `ADVICE_DEFINITIONS.js` への包括バインド。
+  - [ ] NetHack 5.0 `topten.c` の全死因バリエーションを網羅する 50+ 件の拡張コーパスベンチマーク整備と GameOver モーダル表示のさらなる洗練。
+

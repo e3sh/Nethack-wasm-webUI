@@ -1,7 +1,8 @@
 ---
 title: 標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジアーキテクチャ
-status: proposed
+status: in-progress (Phase 1 & 2 implemented, Phase 3 pending)
 created: 2026-09-28
+last_updated: 2026-10-11
 author: AI Pair Programmer & e3-sh
 ---
 
@@ -54,7 +55,7 @@ UIが高度化した今だからこそ、NetHackから乖離した独自UIを増
 | レイヤー | 名称 | データの出所 | 役割と提供価値 |
 | :--- | :--- | :--- | :--- |
 | **Layer 1** | **GKL 実用スペック＆安全解析** | `ItemSpecPresenter`<br>`StructuredKnowledgeEngine`<br>`ItemIdentificationResolver` | ・ゲームプレイに直結する生データ（重量、材質、攻撃力、AC、耐性、特殊危険性）<br>・未識別アイテムのネタバレ防止マスキング（外見名・仮名・BUC）<br>・プレイヤースキルとの動的突合バッジ（熟練度） |
-| **Layer 2** | **NetHack公式 Lookup Information** | **NetHack Cコア (WASM)**<br>`data.base` / `data_jp.base` | ・NetHackが数十年間蓄積してきた公式の文学引用（トールキン、ダンテ、シェイクスピア等）やDevTeamのユーモア解説<br>・NetHackの世界観・文化・歴史そのもの |
+| **Layer 2** | **NetHack公式 Lookup Information** | **NetHack Cコア (WASM)** `data.base` ＋<br>**JS辞書 (`ENCYCLOPEDIA_LORE_MAP`)** | ・NetHackが数十年間蓄積してきた公式の文学引用（トールキン、ダンテ、シェイクスピア等）やDevTeamのユーモア解説<br>・※旧 `dat/data_jp.base` は廃止・削除され、現在はWASM `data.base` 原文とJS側 `ENCYCLOPEDIA_LORE_MAP`（日本語訳100%収録）に統合 |
 | **Layer 3** | **冒険の豆知識・伝承 (Lore)** | `LoreCodex`<br>`LoreMasterData` | ・ダンジョン内で囁かれる噂（Rumors 787件・真偽判定付き）<br>・神託（Oracles）や床の刻み文字伝承<br>・`relatedEntities` により対象アイテム/モンスターへ自動紐付け |
 
 ---
@@ -260,7 +261,7 @@ NetHackの本質である**「神聖なパーマデス（死んだら全ロス�
 
 ---
 
-## 7. まとめと今後の進め方
+## 7. まとめと段階的な実装ロードマップ (Phased Rollout)
 
 本アーキテクチャは：
 1. **「NetHackの標準コマンドをリッチ化する」という最も自然なUX**
@@ -270,18 +271,19 @@ NetHackの本質である**「神聖なパーマデス（死んだら全ロス�
 5. **「パーマデスを汚さずに知の次回引き継ぎ（冒険手帳収集率）を楽しめる」現代的アプローチ**
 をすべて両立するものです。
 
-### 段階的な実装ロードマップ (Phased Rollout)
-- **Phase 1: 【ゲーム内】`/` コマンド向け動的ルックアップ ＆ 3層カード（最優先）**
-  - `querySequenceSilent` を用いた動的解説取得サービス（`OnDemandLookupService`）の実装。
-  - 共通カードコンポーネント（`<nh-knowledge-card>`）の実装。
-  - `InputCoordinator` による `/` 入力フックとモーダル表示。
-  - 遭遇・識別したエントリIDを LocalStorage に記録するコレクション記録層の配備。
-- **Phase 2: 【ゲーム外】独立冒険手帳（Adventure Log Viewer）とシルエット解禁**
-  - タイトル画面または独立HTMLツール（`adventure_log.html`）としての手帳画面の実装。
-  - タイルグリッドコンポーネント（`<nh-codex-grid>`）と CSS シルエット／アンロック点灯演出の実装。
-  - LocalStorage の収集記録に基づく全体およびカテゴリ別進捗率（%）の可視化。
-  - `SaveManager`（`tools/save_manager.html`）とのデータメンテナンス（リセット・バックアップ）連携。
-- **Phase 3: 【ゲーム内】命名アシスト ＆ GamePad候補選択ダイアログ（Call/Name & GamePad Candidate Selection）**
+### 段階的な実装ロードマップ (Phased Rollout Status)
+- [x] **Phase 1: 【ゲーム内】`/` ＆ `\` コマンド向け動的ルックアップ ＆ 3層カード（実装完了）**
+  - [x] `querySequenceSilent` および `ENCYCLOPEDIA_LORE_MAP` を用いた動的解説取得サービス（`OnDemandLookupService.js`）の実装。
+  - [x] 共通3層カードコンポーネント（`<nh-knowledge-card>`）およびディスカバリー図鑑（`<nh-discovery-codex>`）の実装。
+  - [x] `InputCoordinator` による `/`・`\` 入力フックとモーダル表示。
+  - [x] 遭遇・識別したエントリIDを LocalStorage に記録するコレクション記録層（`AdventureLogManager.js`）の配備。
+- [x] **Phase 2: 【ゲーム外】独立冒険手帳（Adventure Log Viewer）とシルエット解禁（実装完了）**
+  - [x] 独立HTMLツール（`tools/adventure_log.html`）としての冒険手帳画面の実装。
+  - [x] タイルグリッドコンポーネント（`<nh-codex-grid>`）と CSS シルエット／アンロック点灯演出、および `MONSTER_OFFICIAL_ATTACKS.js` による Cソース準拠攻撃定義の統合。
+  - [x] LocalStorage の収集記録に基づく全体およびカテゴリ別進捗率（%）の可視化。
+  - [x] `SaveManager`（`tools/save_manager.html`）とのデータメンテナンス連携。
+- [ ] **Phase 3: 【ゲーム内】命名アシスト ＆ GamePad候補選択ダイアログ（Phase 8 メモリ直結完了後に実装予定）**
+  - **実装タイミング**: Phase 8 (`WasmDirectBindingService` / `SHIM_CMD_DUMP_DISCOVERIES` 0x60 & `SHIM_CMD_DUMP_DESCR_INDEXES` 0x62) によるCメモリ直結同期基盤の完了を受け、その確定データ上で実装を進める。
   - **背景と目的**:
     - GamePad（コントローラー）やモバイル操作において、`C` やアイテム使用後の「What do you want to call this...?」プロンプトでソフトウェアキーボードから手動タイピングさせる操作負荷を解消する。
     - 十字キー（↑↓）とAボタン（決定）で即座に選べる「候補選択リストUI」を提供し、PC前提のタイピングをスマートな選択操作へと昇華。
@@ -292,10 +294,11 @@ NetHackの本質である**「神聖なパーマデス（死んだら全ロス�
     - **② 店頭価格識別サジェスト（Base Price 逆引き）**:
       - NetHack 5.0 Cコアの `pricequotes` 機能による `{buy ...}` メモや店主の提示価格から、プレイヤーのカリスマ値・店の掛け率を逆算し、`OBJECT_KNOWLEDGE_FULL` の `basePrice` と照合して候補アイテム群（例: 100Gの巻物群）をサジェスト。
   - **ディスカバリー図鑑（`DiscoveryStateManager`）の堅牢化**:
-    - Cコアの `\`（Known objects）出力に含まれる `{buy ...}` や `{sell ...}` の価格情報を正確に分離・保持し、未鑑定アイテム（外見名のみの行）も破棄せずに一覧に残せるようパーサーを改修。
+    - Phase 8 Direct Binding (`0x60` / `0x62`) と連携しつつ、価格情報やユーザー命名情報を保持。
   - **コンポーネント / プロンプト統合**:
     - `What do you want to call...` プロンプトを捕捉する GamePad 対応ダイアログ（`<nh-call-candidate-dialog>` または既存プロンプト拡張）の実装。
     - 決定時に `queueSequence` で C コアへ仮名文字列を自動入力・確定送信。
+
 
 
 

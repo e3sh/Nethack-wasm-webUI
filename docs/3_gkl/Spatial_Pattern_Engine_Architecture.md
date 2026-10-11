@@ -1,14 +1,24 @@
 ---
 title: SpatialPatternEngine (空間幾何学認識エンジン) 仕様・アーキテクチャ設計書
 status: proposed
-last_updated: 2026-09-21
+last_updated: 2026-10-11
 related_docs:
   - docs/3_gkl/Dungeon_Tracker_and_Checkpoint_Architecture.md
   - docs/3_gkl/GKL_Visual_FX_Event_Architecture.md
   - docs/3_gkl/TacticalAdvisor_Specification_and_Architecture.md
+  - docs/1_driver/official_shim_direct_binding_implementation_plan.md
 ---
 
 # SpatialPatternEngine (空間幾何学認識エンジン) 仕様・アーキテクチャ設計書
+
+> [!NOTE]
+> **Phase 8 C メモリ直結 (`shim_bridge.c`) 導入に伴う設計前提のアップデート (2026-10-11)**
+> Phase 8 の完了により、以下の空間データはグリフ推論に頼らず `WasmDirectBindingService` 経由で C メモリから直接取得可能になりました：
+> - **特殊部屋種別**: `SHIM_CMD_GET_ROOM_TYPE (0x24)` により、`rooms[roomno - ROOMOFFSET].rtype`（`BEEHIVE`, `MORGDUP`, `VAULT`, `BARRACKS`, `SHOPBASE` 等）を直接判定可能。
+> - **床の刻み文字**: `SHIM_CMD_GET_ENGRAVING_AT (0x23)` により、任意の座標の刻み文字テキストと種別（`DUST`, `ENGRAVE`, `BURN` 等）を直接取得可能。
+> - **重なり箱・コンテナ**: `SHIM_CMD_GET_OBJECT_AT (0x22)` および `DUMP_LEVEL_TERRAIN (0x62)` により、同一マスの複数箱の重なり（`nexthere` チェーン）や施錠状態（`olocked` / `obroken`）を直接取得可能。
+>
+> したがって、本仕様を実装する際は、**Phase 8 Direct Binding による Ground Truth 取得を主軸**とし、本書の幾何学パターン認識は「2マス隣接刻み文字による旗立て（🚩）の重心算出」「複数マスの箱クラスタリング」「Direct Binding 非稼働環境（TTY 等）でのフォールバック」として活用します。
 
 本書は、NetHack Game Knowledge Layer (GKL) における基底認識レイヤー（Perception Layer）として機能する **SpatialPatternEngine (空間幾何学認識エンジン)** の設計思想、幾何学シグナルプロトコル、空間パターン認識アルゴリズム、および各コンシューマー（UI・演出・アドバイザー）へのインターフェース規則をまとめた公式仕様書です。
 
@@ -86,7 +96,7 @@ interface CheckpointGeometry {
 ---
 
 ### 2.3 特殊部屋・地形パターン認識 (Room Pattern Classifier)
-ダンジョン生成アルゴリズム特有の幾何学タイル配置をパターンマッチングします：
+ダンジョン生成アルゴリズム特有の幾何学タイル配置をパターンマッチングします（※Phase 8 Direct Binding 稼働時は `SHIM_CMD_GET_ROOM_TYPE` による `rooms[].rtype` 直結判定を優先）：
 
 | 対象 | 幾何パターン / グリフ条件 | 判定結果 |
 | :--- | :--- | :--- |
@@ -130,7 +140,7 @@ interface SpatialAnalysisResult {
 
 ## 5. 構築・テスト戦略 (TDD Roadmap)
 
-本エンジンは**純粋関数型（ステートレス）の幾何計算モジュール**として実装されるため、NetHack本体やブラウザUIを起動せず、Jest単体テストのみで100%開発・検証が可能です。
+本エンジンは**純粋関数型（ステートレス）の幾何計算モジュール**として実装されるため、NetHack本体やブラウザUIを起動せず、Vitest 単体テストのみで100%開発・検証が可能です。
 
 ### テストケース例 (`SpatialPatternEngine.test.js`)
 1. **隣接Engraving検出テスト**:

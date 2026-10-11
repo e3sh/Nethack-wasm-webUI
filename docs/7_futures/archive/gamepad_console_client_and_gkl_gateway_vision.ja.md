@@ -1,7 +1,7 @@
 # シレン風GamePad専用クライアント＆GKL連携ゲートウェイ構想
 
 **作成日**: 2026-09-28  
-**ステータス**: 構想・将来計画 (Future Vision)  
+**ステータス**: `archived` (初期ビジョン記録 / オンデマンド統合設計 `gamepad_console_mode_architecture.ja.md` へ昇華)  
 **関連モジュール**: `ContextActionEngine`, `ActionRecipeFactory`, `GamepadManager`, `WebUICore`
 
 ---

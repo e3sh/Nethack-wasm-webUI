@@ -1,18 +1,19 @@
-﻿---
+---
 title: PromptCategory_UI_Implementation_Guide
-status: draft
-last_updated: 2026-09-08
+status: implemented
+last_updated: 2026-10-11
 related_code:
   - src/core/WebUICore.js
   - src/core/types.js
   - src/core/prompt/PromptPayloadBuilder.js
   - examples/gkl-pure-js-client/modules/components/ModalManager.js
+  - examples/gkl-pure-js-client/modules/startup/StartupFlowController.js
   - examples/gkl-pure-js-client/main.js
 ---
 
-# promptCategory 仕様・UI 実装ガイド & 改善予定案
+# promptCategory 仕様・UI 実装ガイド
 
-本ドキュメントは、WebUICore が発行する `inputRequired` イベントの `promptCategory` 構造化タグの仕様、GKL Pure JS Client における UI 実装の分岐ロジック、および現在判明している未対応シーン（`KEY` カテゴリで画面演出がないケース）の原因調査と改善案をまとめた参照資料です。
+本ドキュメントは、WebUICore が発行する `inputRequired` イベントの `promptCategory` 構造化タグの仕様、GKL Pure JS Client における UI 実装の分岐ロジック、および `KEY` カテゴリの待機演出・セーブデータ再開時のスタートアップ遷移仕様をまとめた参照資料です。
 
 ---
 
@@ -76,15 +77,17 @@ UI が core.respond(inputVal) を呼ぶ
 
 ### 2-2. `PromptPayloadBuilder` による `subCategory` と `assistant` の自動付与
 
-`TEXT` 系カテゴリでは、プロンプト文のパターンマッチにより専用フィールドが追加される。
+`TEXT` / `YN` / `ASKNAME` 系カテゴリでは、プロンプト文のパターンマッチおよび制御シグナル（`ControlSignalCatalog.js`）により専用フィールドが追加される。
 
-| `subCategory` | 検出パターン（例）| `assistant.type` |
+| `subCategory` | 検出パターン（例）| `assistant.type` / 専用モーダル |
 |---|---|---|
-| `WISH` | "for what do you wish" | `'WISH'` + presets, wishService |
-| `GENOCIDE` | "what type of monsters to genocide" | `'GENOCIDE'` + mode(CLASS/SINGLE/ALL) |
-| `POLYMORPH` | "become what kind of monster" | `'POLYMORPH'` + presets |
+| `WISH` | "for what do you wish" | `'WISH'` (`WishModal.js`) |
+| `GENOCIDE` | "what type of monsters to genocide" | `'GENOCIDE'` (`GenocideModal.js` / CLASS・SINGLE・ALL) |
+| `POLYMORPH` | "become what kind of monster" | `'POLYMORPH'` (`PolymorphModal.js`) |
+| `WRITE` | "what do you want to write" | `'WRITE'` (`WriteModal.js`) |
+| `CHARACTER_INTRO` | `askname` / "shall i pick a character" | `'CHARACTER_INTRO'` (`CharacterIntroModal.js`) |
 
-UI 側は `data.assistant?.type` を確認するだけで専用モーダルを出すかどうか判断できる。
+UI 側は `data.assistant?.type` または `data.subCategory` を確認するだけで専用モーダルを出すかどうか判断できる。
 
 ---
 
@@ -97,59 +100,48 @@ UI 側は `data.assistant?.type` を確認するだけで専用モーダルを�
 ```
 inputRequired イベント受信 (data)
 |
-|--① data.subCategory === 'WISH'
-|     -> Wish ビルダーモーダル (#wish-modal)
-|        専用の大型モーダルに wishService のアイテム検索・プリセット・オプション設定を表示
+|--① data.subCategory === 'WISH' / 'GENOCIDE' / 'POLYMORPH' / 'WRITE' / 'CHARACTER_INTRO'
+|     -> 各専用インテリジェント支援モーダルを起動
 |
-|--② data.subCategory === 'GENOCIDE'
-|     -> Genocide アシスタントモーダル
-|        CLASS / SINGLE / ALL の3モードに対応した専用モーダル
-|
-|--③ data.subCategory === 'POLYMORPH'
-|     -> Polymorph アシスタントモーダル
-|
-|--④ data.lines.length > 0
+|--② data.lines.length > 0
 |     -> テキストウィンドウ（FILE / KEY の lines あり）
 |        #menu-modal を流用。lines を div で1行ずつ表示。
 |        Cancel ボタンの textContent を「閉じる / 次へ (Space)」に変更。
 |        -> core.sendKey('Space') で閉じる
 |
-|--⑤ category === 'MENU'
+|--③ category === 'MENU'
 |     -> アイテムメニューモーダル
 |        #menu-modal に button を動的生成。charStr バッジ + グリフアイコン付。
 |        上下キーで activeMenuFocusIndex を更新して疑似フォーカス移動。
 |        -> core.respond(item) / キャンセルは core.respond(0)
 |
-|--⑥ inputType === 'LINE_TEXT'（TEXT / ASKNAME / EXTCMD）
+|--④ inputType === 'LINE_TEXT'（TEXT / ASKNAME / EXTCMD）
 |     -> テキスト入力フォーム
 |        #prompt-bar 内に <input type="text"> + OK ボタンを動的生成。
 |        Enter で送信、Esc で '\x1b' 送信。setTimeout で自動フォーカス。
 |
-|--⑦ inputType === 'DIRECTION'
+|--⑤ inputType === 'DIRECTION'
 |     -> 方向入力パッド
 |        3x3 グリッドボタン + 上下方向 + キャンセルを生成。
 |        -> core.respond('DIR_N') 等の抽象トークンを送信
 |           ※ WebUICore 側で vi / numpad キーコードへ自動変換される
 |
-|--⑧ data.options.length > 0（YN系 CHOICE_BUTTONS）
+|--⑥ data.options.length > 0（YN系 CHOICE_BUTTONS）
 |     -> 選択肢ボタン
 |        PromptPayloadBuilder が整形した options を横並びボタンで表示。
 |        -> core.respond(opt.key)（'y' / 'n' / 'q' 等の1文字 string）
 |
-|--⑨ inputType === 'SINGLE_KEY'
-|     -> 1キー待機インジケーター
-|        「入力待機中 / Press key」テキスト + ESC キャンセルボタンのみ表示。
+|--⑦ category === 'KEY' || inputType === 'SINGLE_KEY'
+|     -> 1キー待機インジケーター（バウンスアニメーションアイコン `.press-any-key-icon` 表示）
 |
-+--⑩（全分岐を通過）
++--⑧（全分岐を通過: POSKEY 通常ターン）
       -> elPromptBar.classList.add('hidden')
-         プロンプトバーを非表示にして何もしない。
-         ★ POSKEY（通常ターン）はここに落ちる（意図的）。
-         ★ KEY（lines が空）もここに落ちる（未対応バグ）。
+         プロンプトバーを非表示にして通常ターン入力を受け付ける。
 ```
 
 ---
 
-## 4. 未対応問題: `KEY` カテゴリで UI 演出がないシーン
+## 4. `KEY` カテゴリ（空バッファ `display_nhwindow`）の待機演出仕様（実装済み）
 
 ### 4-1. 発生条件
 
@@ -338,9 +330,12 @@ showPressAnyKeyHint() {
 
 ---
 
-## 7. 派生課題: セーブデータ再開時の「暗黒・無表示入力待ち」問題と改善案
+## 7. セーブデータ再開・新規開始時のスタートアップ遷移仕様（`StartupFlowController.js` 実装済み）
 
-### 7-1. 現象と根本原因の切り分け
+> [!NOTE]
+> **実装状況**: 本セクションで提案された「常設タイトル画面 ＆ ステップ進行（`BOOTING` ➔ `READY_TO_CHOOSE` ➔ `STARTING_GAME` ➔ `READY_TO_ENTER` ➔ `PLAYING`）」は、`examples/gkl-pure-js-client/modules/startup/StartupFlowController.js` および `CharacterIntroModal.js` にて完全実装済みです。
+
+### 7-1. 背景と設計根拠
 
 * **現象**:
   起動時に「💾 Save Data Found」のダイアログから「▶ Continue Game」を押して再開させた際、ダイアログが消えた後にマップも復元中スピナーも表示されず、真っ暗なキャンバスのまま入力待ちになる。プレイヤーが移動キー等の何らかのキーを押して初めてマップやステータスがパッと出現する。

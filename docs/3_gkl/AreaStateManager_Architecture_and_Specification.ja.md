@@ -1,8 +1,11 @@
 ---
 title: AreaStateManager 空間状態総合オーケストレーター 仕様書 ＆ モジュール機能整理計画
 status: implemented
-last_updated: 2026-10-07
+last_updated: 2026-10-11
 domain: GKL (Spatial State / Exploration Knowledge / Rendering Bridge)
+related_code:
+  - src/core/knowledge/state/AreaStateManager.js
+  - src/core/knowledge/services/WasmDirectBindingService.js
 ---
 
 # 🗺️ AreaStateManager 空間状態総合オーケストレーター 仕様書 ＆ モジュール機能整理計画
@@ -12,22 +15,23 @@ domain: GKL (Spatial State / Exploration Knowledge / Rendering Bridge)
 `AreaStateManager` は、NetHack WASM WebUI の知識層（GKL: Game Knowledge Layer）において、**「現在探索中のダンジョン空間情報」を一元管理するSingle Source of Truth (SSOT)** です。
 
 NetHack の C コアは、画面描画を `print_glyph(x, y, glyph)` という「現在最前面に見えている単一のグリフ値」として送信します。
-しかし、モダンなWebクライアント（HD-2Dレンダラー、3Dジオラマ、詳細インスペクター、戦術アドバイザー等）が要求する「床の上にモンスターが乗り、アイテムが落ちている」という多層構造を復元・永続化するため、`AreaStateManager` は単なる配列保持を超えて、**推論・キャッシュ・台帳・投影の 4 大責務** を担っています。
+しかし、モダンなWebクライアント（HD-2Dレンダラー、3Dジオラマ、詳細インスペクター、戦術アドバイザー等）が要求する「床の上にモンスターが乗り、アイテムが落ちている」という多層構造を復元・永続化するため、`AreaStateManager` は単なる配列保持を超えて、**推論・キャッシュ・台帳・投影・Cメモリ直結同期の 5 大責務** を担っています。
 
 ```mermaid
 flowchart TD
-    WASM[NetHack C コア print_glyph / curs] --> WebUICore
+    WASM[NetHack C コア print_glyph / curs / shim_bridge.c] --> WebUICore
     WebUICore --> GKLPlugin
     GKLPlugin --> ASM[AreaStateManager<br>空間状態総合オーケストレーター]
     
-    subgraph Core Responsibilities [4大責務]
+    subgraph Core Responsibilities [5大責務]
         ASM --> L1[① 4層セル状態＆差分追跡<br>bottom/middle/top/effect, dirtyCells]
         ASM --> L2[② 地形・物理推論エンジン<br>bkglyphInfo判定, 仮床, 大岩押し出し推論]
         ASM --> L3[③ 探索知識＆ランドマーク台帳<br>stairCache, 初手4002シード, landmarkCache]
         ASM --> L4[④ 戦術視野＆カメラ投影<br>getAreaState, getFocusCameraTiles]
+        ASM --> L5[⑤ Phase 8 Cメモリ直結同期<br>syncPlayerFeetFloor, dumpLevelTerrain]
     end
     
-    L1 & L4 --> Renderers[WebGPU HD-2D / Canvas レンダラー]
+    L1 & L4 & L5 --> Renderers[WebGPU HD-2D / Canvas レンダラー]
     L3 --> Minimap[MinimapHudRenderer / 探索手帳]
     L4 --> Advisor[TacticalAdvisor / ContextActions]
 ```
@@ -43,7 +47,7 @@ flowchart TD
     x: number,
     y: number,
     bottom: Object | null,  // 地形レイヤー (床, 壁, 階段, 扉, 祭壇, 水, 溶岩 等)
-    middle: Object | null,  // 設置物・アイテムレイヤー (アイテム, 大岩 Boulder)
+    middle: Object | null,  // 設置物・アイテムレイヤー (アイテム, 大岩 Boulder, PileTop バッジ)
     top: Object | null,     // 生物レイヤー (自キャラ, モンスター, ペット)
     effect: Object | null,  // 一時演出レイヤー (ビーム, 爆発, 稲妻)
     engraving: Object | null // 床文字レイヤー (文字テキスト, 判定タイプ)
@@ -92,6 +96,14 @@ NetHack 5.0 C コア（`winshim.c`）から送られてくる背景グリフ情�
 
 ### ② 自己修復 (Self-Healing / Overwrite)
 モンスターやアイテムがマスから移動・消滅した際、Cコアから送られてくる正規の地形グリフを受信すると、以前設定された仮床は自動的に真の地形に上書きされ、`inferred` フラグが消去されます。
+
+### ③ Phase 8 C メモリ直結同期 (`WasmDirectBindingService` 統合)
+Stage 8.2-B および Stage 8.3-A により、`AreaStateManager` は `WasmDirectBindingService` と連携した Ground Truth 同期機能を備えています：
+- **動作モード (`directBindingMode`)**: `'auto'`（既定：直結優先・自動フォールバック）、`'strict'`（直結強制）、`'fallback'`（従来の推論のみ）を切り替え可能であり、実行統計（`directBindingStats`）を記録します。
+- **プレイヤー足元マスの即時同期 (`syncPlayerFeetFloor(x, y)`)**:
+  自キャラが乗っていることで `print_glyph` が自キャラグリフで覆い隠している足元マスについて、`SHIM_CMD_GET_CELL_INFO (0x20)` により `levl[x][y].typ`（真の地形）と先頭アイテム (`fobj`)・重なり状態 (`isPile`) を 0ms で取得し、`cell.bottom` および `cell.middle` を即時同期します。
+- **全マップ 80×21 一括地形ダンプ (`dumpLevelTerrain()`)**:
+  `SHIM_CMD_DUMP_LEVEL_TERRAIN (0x62)` により、全 $80 \times 21$ セルの地形・アイテム・モンスター・部屋番号・可視性・足元記憶 (`seenv`) を 1 回の WASM 境界呼び出し（26,880 bytes）で一括取得し、3D ジオラマ（`WebGPUHD2DRenderer`）等へ完全な空間データを供給します。
 
 ---
 
@@ -151,8 +163,7 @@ NetHack の C コア仕様に起因する非同期的な描画ラグを吸収す
 2. **[Dungeon_Tracker_and_Checkpoint_Architecture.md](./Dungeon_Tracker_and_Checkpoint_Architecture.md) (ダンジョントラッカー)**:
    - 全階層の重要拠点マーカー（🚩）やセーブデータ非破壊のチェックポイント管理。
 
-現在の 1,085 行の単一クラスにこれらのロジックを直接追加すると、破綻するリスクがあります。
-そのため、以下の**4モジュール分割・リファクタリング計画**を「実装待ち（Backlog / RFC）」として定義します。
+これらの機能を将来拡張する際に単一クラスの肥大化を防ぐため、以下の**4モジュール分割・リファクタリング構想**を定義しています。
 
 ### モジュール分割構想 (Target Architecture)
 
@@ -179,7 +190,7 @@ flowchart TD
 
 | 新モジュール名 | 移譲される責務 |
 | :--- | :--- |
-| **`AreaStateManager.js` (コア)** | 純粋な $80 \times 24$ セルグリッド保持、`cell.top/middle/bottom/effect` 読み書き、`dirtyCells` 管理 |
+| **`AreaStateManager.js` (コア)** | 純粋な $80 \times 24$ セルグリッド保持、`cell.top/middle/bottom/effect` 読み書き、`dirtyCells` 管理、Direct Binding 同期 |
 | **`TerrainInferenceEngine.js`** | `bkglyphInfo` 判定、仮床フォールバック、自己修復、大岩押し推論、墓石置換 |
 | **`DungeonLandmarkRegistry.js`** | `stairCache`、`landmarkCache`、初手ブランチ階段シード、店舗同定・グループ化、フロア再訪復元 |
 | **`ViewportTileProjector.js`** | `getFocusCameraTiles`、`getAreaState`（描画・UI向けデータ変換・キー情報付与） |

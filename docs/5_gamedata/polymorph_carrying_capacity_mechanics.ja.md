@@ -1,3 +1,11 @@
+---
+title: 多重変身（Polymorph）時における運搬許容量・所持重量上限のメカニズム調査資料
+status: active
+last_updated: 2026-10-11
+related_code:
+  - src/core/knowledge/
+---
+
 # 多重変身（Polymorph）時における運搬許容量・所持重量上限のメカニズム調査資料
 
 本資料は、NetHack においてプレイヤーが多重変身（Polymorph の罠や巻物・杖など）により犬などの動物・小型モンスターや手のないモンスターに変身した際、**「なぜ持ち物上限（運搬許容量）が大幅に低下し、過荷重（Overloaded / Strained）に陥るのか」** について、NetHack C コアの内部実装を調査・整理した技術リファレンスです。

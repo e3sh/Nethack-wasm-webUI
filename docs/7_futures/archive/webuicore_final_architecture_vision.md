@@ -1,7 +1,7 @@
 ---
 title: webuicore_final_architecture_vision
-status: reference
-last_updated: 2026-08-27
+status: archived
+last_updated: 2026-10-11
 related_code:
   - src/core/
   - src/client/

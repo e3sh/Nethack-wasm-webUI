@@ -1,14 +1,15 @@
 ---
 title: WebUICore_Usage_Guide
 status: active
-last_updated: 2026-08-15
+last_updated: 2026-10-11
 related_code:
   - src/core/WebUICore.js
+  - src/core/knowledge/services/WasmDirectBindingService.js
 ---
 
 # 📖 WebUICore 利用方法・機能仕様ガイド
 
-本ドキュメントは、各サンプルクライアント（Vue 3, React 18, Svelte, SolidJS, Mobile, HTML DOM 等）の開発者が NetHack Wasm ゲームエンジンと連携するための **`WebUICore` API リファレンスおよび実装ガイド** です。
+本ドキュメントは、各サンプルクライアント（Nehww GKL Pure JS Client, Vue 3, React 18, Svelte, SolidJS, Web Components 等）の開発者が NetHack Wasm ゲームエンジンと連携するための **`WebUICore` API リファレンスおよび実装ガイド** です。
 
 ---
 
@@ -64,6 +65,7 @@ core.destroy();
 | **`translateEnabled`** | `boolean` | `true` | UI テキストの動的翻訳を有効にするかどうか。 |
 | **`keyMode`** | `string` | `'numpad'` | 方向・移動キーのモード (`'numpad'` = 数字キー 1〜9 \| `'vi'` = hjkl)。推奨アクション等の抽象方向コード（`DIR_W` 等）は自動的にこのモードに従って物理キー（例: `'4'` または `'h'`）に解決されます。 |
 | **`gkl`** | `GKLPlugin` | 自動生成 | GKL（Game Knowledge Layer）プラグインインスタンス。外部で生成したインスタンスを注入して一元化することも可能です。 |
+| **`directBindingMode`** | `string` | `'auto'` | **Phase 8 Cメモリ直結モード** (`'auto'` \| `'strict'` \| `'fallback'`)。<br>`'auto'` では `WasmDirectBindingService` (`CALL_SHIM` / `shim_bridge.c`) によるゼロオーバーヘッド同期を最優先し、非対応環境では従来の `querySequenceSilent` テキスト推論へ自動フォールバックします。 |
 | **`soundMode`** | `string` | `'none'` | サウンド再生モード (`'se'`, `'bgm'`, `'none'`)。 |
 
 > [!IMPORTANT]
@@ -79,10 +81,14 @@ core.destroy();
 >      │          │
 >      │          └──► UI 画面表示 (例: 「どの方向？」) ※シグナル制御には一切干渉しない
 >      │
->      └───► [シグナル制御層] (SignalDetector & InteractiveRequestController: variant)
+>      ├───► [シグナル制御層] (SignalDetector & InteractiveRequestController: variant)
+>      │          │
+>      │          └──► C コア生プロンプト辞書 (variant: 'vanilla' = 英語カタログ)
+>      │               ※UI が日本語表示であっても、C コアの生データから直接判定
+>      │
+>      └───► [Phase 8 Direct Memory Binding] (WasmDirectBindingService / CALL_SHIM)
 >                 │
->                 └──► C コア生プロンプト辞書 (variant: 'vanilla' = 英語カタログ)
->                      ※UI が日本語表示であっても、C コアの生データから直接判定
+>                 └──► C メモリ構造体 (invent, u, levl, fmon, fobj 等) の 0ターン直接同期
 > ```
 > 
 > - **Vanilla NetHack 5.0 Wasm を日本語 UI で遊ぶ場合（現在の標準設定）**:  
@@ -110,7 +116,7 @@ core.destroy();
 | `deleteSaveFile(targetFilename)` | `Promise<boolean>` | 指定セーブファイル（未指定時は自プレイヤーセーブ）を削除する透過 Safe API |
 | `clearAllStorage()` | `Promise<boolean>` | `deleteSaveFile()` の互換エイリアス API |
 | `getHighScores()` / `getHighScoresAsync()` | `Array<Object>` / `Promise<Array>` | VFS からパースされた Top 10 ランキング構造化配列を取得 |
-| `resolveGameOver()` | `Promise<GameOverResult>` | 死因 (`deathMessage`), 勝敗, スコアボード (`scoreboard`) を完全解析・返却 |
+| `resolveGameOver()` | `Promise<GameOverResult>` | 死因 (`deathMessage`), 勝敗, スコアボード (`scoreboard`), 死後真相解明データ (`postMortemReport`) を完全解析・返却 |
 | `cancelPrompt()` | `boolean` | アクティブなプロンプトを `KEYS.ESC` (`27`) で安全にキャンセル |
 | `sendKeyEvent(event)` | `boolean` | 生の `KeyboardEvent` を自動マッピングし C コアへ送信 (`preventDefault` 自動適用) |
 | `sendAction(actionName)` | `boolean` | `'MOVE_UP'`, `'CONFIRM'`, `'CANCEL'` 等の汎用キーアクション名を送信 |
@@ -118,10 +124,14 @@ core.destroy();
 | `querySequenceSilent(sequenceOrRecipe, options)` | `Promise<Array<Object> \| Object>` | トークン配列（`['i', ' ']` 等）または対話レシピオブジェクトを画面非表示で自走実行し、結果を返却 |
 | `executeSequence(sequenceOrRecipe, options)` | `Promise<boolean \| Object>` | キーシーケンスまたは対話レシピオブジェクトを安全に実行し完了状態を返却 |
 | `getLastSequenceBuffer()` | `Array<Object>` | 直近のシーケンス実行結果バッファのクリーンコピーを取得 |
-| `getSituation()` | `Object` | GKL が管理する統合ゲーム状況 (`{ status, inventory, area, tools, actions }`) を一括取得 |
-| `syncInventorySilent(options)` | `Promise<boolean>` | `querySequenceSilent(['i', ' '])` を実行し、`InventoryStateManager` を 100% 正確に最新化 |
-| `gkl.inspectCellOnDemand(targetPos, options)` | `Promise<Object>` | 指定座標 `(x, y)` のプレイヤー/敵/アイテム/死体/地形を調査し統一カードデータを返却 |
+| `getSituation()` | `Object` | GKL が管理する統合ゲーム状況 (`{ status, inventory, area, equipment, encumbrance, advices, assistSignal, actions }`) を一括取得 |
+| `syncInventorySilent(options)` | `Promise<boolean>` | Phase 8 では `WasmDirectBindingService` (`DUMP_ALL_INVENT` / `GET_EQUIPMENT_PTRS` / `GET_INVENT_WEIGHT`) による 0ターン直結同期を最優先実行し、非対応時のみ `querySequenceSilent(['i', ' '])` にフォールバック |
+| `gkl.inspectCellOnDemand(targetPos, options)` | `Promise<Object>` | 指定座標 `(x, y)` のプレイヤー/敵/アイテム/死体/地形を調査し統一カードデータを返却（Direct Binding `GET_CELL_INFO` 優先＋`;` ルックフォールバック） |
+| `gkl.lookupEntityOnDemand(targetPos, options)` | `Promise<Object>` | `OnDemandLookupService` を介して指定座標の未知エンティティをオンデマンド遠隔調査（`/`・`;` 連携） |
 | `gkl.getFocusCameraTiles(radiusX, radiusY, options)` | `Array<Object>` | プレイヤー中心の 4層レイヤー解決済みタイル配列（`renderGlyphs`、仮床・墓石自動補完）を取得 |
+| `gkl.dumpLevelTerrain()` | `Promise<boolean>` | `SHIM_CMD_DUMP_LEVEL_TERRAIN` により現在フロア全域（80×21）の真の地形・照明・部屋番号を一括同期 |
+| `gkl.getAdventureLogManager()` | `AdventureLogManager` | Phase 7 アドベンチャーログ（実績・図鑑・ラン履歴・IndexedDB永続化）マネージャーを取得 |
+| `getLatestMessage()` / `getMessageItems(count)` | `Object` / `Array<Object>` | イマーシブHUDおよび過去ログドロワー向けの構造化メッセージ履歴を取得 |
 | `respond(inputVal)` | `void` | メニュー選択・YN回答・テキストプロンプト応答を安全送信 |
 | `translate(text)` | `string` | 指定したテキストを内蔵 `TranslationEngine` で動的翻訳 |
 | `lookupWord(word, pos)` | `string` | 品詞 (`noun` 等) を指定して名詞/単語辞書引きを実行 |
@@ -166,14 +176,20 @@ KEYS.TAB;       // 9
 | `clear_nhwindow` | `{ windowId }` | ウィンドウ描画領域のクリア命令通知 |
 | `map_cleared` | `void` | ダンジョン階層・分岐移動時およびリスタート時のマップ全消去通知 |
 | `message` | `msgText` (String) | 日本語自動翻訳済みのゲームメッセージログ通知 |
+| `bubbleMessage` | `{ id, text, rawText, isBold, attr }` | フローティング最新行HUDおよび頭上吹き出し用のリアルタイムメッセージ通知 |
+| `messageItem` | `MessageItem` | 過去ログドロワー蓄積用の構造化メッセージアイテム（原文 `rawText`・翻訳 `text`・世代情報付き）通知 |
+| `messageUpdate` | `MessageItem` | 直前メッセージの太字昇格等の状態更新通知 |
 | `statusUpdate` | `{ field, value, change, color, allFields, status }` | ステータス変化および全構造化ステータス更新通知 |
-| `inputRequired` | `payload` | メニュー表示・YNプロンプト・テキストプロンプト等の入力待機通知 (`promptCategory` 付与) |
+| `situationSignal` | `{ signal, situation }` | Phase 5 状況シグナル（危機警告・戦術スタンス・推奨アクション変化）の統合通知 |
+| `fx_trigger` | `{ type, x, y, ... }` | 攻撃ヒット (`ATTACK_HIT`)、被弾フラッシュ (`DAMAGE_FLASH`)、撃破バースト (`DEATH_BURST`) 等の Visual FX 発火通知 |
+| `adventureLogUnlocked` | `{ type, id, entry }` | Phase 7 アドベンチャーログ（新モンスター遭遇・アイテム発見・マイルストーン達成）アンロック通知 |
+| `inputRequired` | `payload` | メニュー表示・YNプロンプト・テキストプロンプト等の入力待機通知 (`promptCategory` / `subCategory` 付与) |
 | `inputResolved` | `void` | 入力モーダル閉塞・解決通知 |
 | `textWindowModal` | `{ title, lines, resolver, payload }` | 整形・翻訳済み `title` を含む全画面ヘルプ・テキスト表示要求 |
 | `signal` | `payload` | 制御シグナル検知通知 (Pub/Sub: 自律UI・Featureモジュール用) |
 | `signal:<signalId>` | `payload` | 特定シグナルID（例: `signal:SIGNAL_CONTAINER_ACTION_MENU`）通知 |
 | `containerTransaction` | `{ state, containerName, contents, isBagOfHolding, isFloorContainer, isContainerSessionActive }` | コンテナ二面パネル同期・トランザクション状態通知 |
-| `gameOver` | `result` (`GameOverResult`) | 翻訳済み死因 `deathMessage` やスコアボード確定時のリザルト通知 |
+| `gameOver` | `result` (`GameOverResult`) | 翻訳済み死因 `deathMessage`、スコアボード、および死後真相解明レポート確定時のリザルト通知 |
 | `exited` | `{ gameOverResult, exitCode }` | Wasm プロセス終了時の通知 |
 
 ---

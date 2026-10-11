@@ -2,15 +2,16 @@
 title: 啓蒙ダイアログシグナル化による隠れステータス横取りと状態精度向上アーキテクチャ構想
 status: proposed
 created: 2026-09-30
-last_updated: 2026-10-01
+last_updated: 2026-10-11
 author: AI Pair Programmer & e3-sh
 related_docs:
   - docs/7_futures/message_context_and_signal_driven_architecture.ja.md
-  - docs/7_futures/phase5/stage5_2_situation_signals.ja.md
+  - docs/7_futures/archive/phase5/stage5_2_situation_signals.ja.md
   - docs/7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md
 related_code:
   - src/core/WebUICore.js
   - src/core/prompt/ControlSignalCatalog.js
+  - src/core/knowledge/services/WasmDirectBindingService.js
   - src/core/knowledge/state/AttributeStateManager.js
   - src/core/knowledge/state/SkillStateManager.js
   - src/core/knowledge/engines/TacticalAdvisor.js
@@ -21,6 +22,11 @@ related_code:
 *(Enlightenment Dialog Signal & Hidden Status Interception Architecture)*
 
 **〜祈りの可否・運・神の怒り・獲得耐性など、普段は見えない隠れ情報を「たまたまの啓蒙」から逃さず吸収する〜**
+
+> [!NOTE]
+> **【Phase 8 Direct Binding 完了に伴うスコープ更新 (2026-10-11)】**  
+> Phase 8 (`WasmDirectBindingService.js` / `SHIM_CMD_GET_PLAYER_SUMMARY` `0x30` および `SHIM_CMD_GET_PLAYER_PROPS` `0x32`) の実装完了により、`u.ublesscnt`（祈りクールダウン）、`u.ugangr`（神の怒り）、`u.uluck` / `u.moreluck`（運）、および `u.uprops`（全獲得耐性・固有能力）は、啓蒙イベントを待たずとも **常時 C メモリから直接取得可能** になりました。  
+> これに伴い、本構想の主目的は **「啓蒙イベント発生時における専用リッチモーダル UI 表示と生テキストウィンドウの抑制（および Direct Binding 非稼働時のフォールバック状態補正）」** にフォーカスします。
 
 ---
 

@@ -1,7 +1,13 @@
+---
+title: WebUICore 汎用連続リクエストコントローラ (InteractiveRequestController) & 制御シグナル同定基盤 技術解説仕様書
+status: implemented
+last_updated: 2026-10-11
+---
+
 # WebUICore 汎用連続リクエストコントローラ (InteractiveRequestController) & 制御シグナル同定基盤 技術解説仕様書
 
-> **ステータス**: **【基幹実装完了・検証済み】 (Phase 1〜3 & Step 1〜4 完了)**  
-> **更新日**: 2026-09-11  
+> **ステータス**: **【実装完了・全フェーズ稼働中】 (Phase 1〜5 完了 & Phase 8 Direct Binding 共存統合済)**  
+> **更新日**: 2026-10-11  
 > **対象コード**:  
 > - コア実装: `src/core/request/InteractiveRequestController.js`  
 > - ファサード統合: `src/core/WebUICore.js`  
@@ -264,7 +270,8 @@ const result = await core.querySequenceSilent({
 
 ```javascript
 // WebUICore コンストラクタ内
-this.signalDetector = options.signalDetector || SignalDetector.createForLocale(this.language);
+const coreVariant = options.variant || (this.driver && this.driver.variant) || 'vanilla';
+this.signalDetector = options.signalDetector || SignalDetector.createForVariant(coreVariant);
 this.interactiveController = options.interactiveController || new InteractiveRequestController({
     driver: this.driver,
     signalDetector: this.signalDetector
@@ -299,60 +306,48 @@ this.requestController = this.interactiveController;
      - C コアが発火する低レベル Shim（`shim_nh_poskey`, `shim_getlin`, `shim_select_menu`）を実機順序で呼び出し、非同期ループの完走性を検証。
   6. **WebUICore 委譲結合検証**: `WebUICore` 経由での呼び出しと後方互換性
 - **全体回帰テスト**:
-  - `npx vitest run`: **746 件全件グリーンパス**（既存機能への破壊的影響 0%）。
+  - `npx vitest run`: **全136テストスイート・1,670テスト PASS**（既存機能への破壊的影響 0%）。
 
 ---
 
-## 7. 今後の段階的移行ロードマップ (Roadmap to Container & Beyond)
+## 7. 移行完了実績 ＆ Phase 8 Direct Binding との役割分担
 
-コントローラ基幹機能とシグナル辞書化が完了したため、以下のロードマップに従って既存機能の移行を進めます：
+コントローラ基幹機能、シグナル辞書化、専用UIレシピ統合、および Phase 8 Direct Memory Binding との役割分担はすべて完了しています：
 
 ```mermaid
 gantt
-    title 連続リクエスト制御 移行ロードマップ
+    title 連続リクエスト制御 & Direct Binding 統合実績
     dateFormat  YYYY-MM-DD
     section 完了済み
-    設計資料確定 & 棚卸し (フェーズ1)           :done, 2026-09-01, 2026-09-05
+    設計資料確定 & 棚卸し (フェーズ1)               :done, 2026-09-01, 2026-09-05
     制御シグナル同定基盤 SignalDetector (ステップ1-3) :done, 2026-09-06, 2026-09-10
     InteractiveRequestController 実装 (フェーズ2-3)   :done, 2026-09-11, 2026-09-11
-    コンテナUI本接続 & セッションガード (フェーズ5)  :done, 2026-09-12, 2026-09-12
-    section 今後の計画
-    既存機能の段階的レシピ移行 (フェーズ4)         :active, 2026-09-13, 2026-09-18
+    コンテナUI本接続 & セッションガード (フェーズ5)    :done, 2026-09-12, 2026-09-12
+    ペーパードール換装 & 重量管理レシピ統合 (フェーズ4):done, 2026-09-13, 2026-09-25
+    Phase 8 Direct Binding 役割分担 & フォールバック統合:done, 2026-10-01, 2026-10-10
 ```
 
-### フェーズ 4: 連続コマンド使用箇所の調査と動的アクションのレシピ化
-操作がなく表示・参照のみを行う処理と、動的な選択・分岐を伴うアクション処理を明確に区別して整理します：
+### 7.1 Phase 8 Direct Binding (`CALL_SHIM`) との明確な役割分担
+Phase 8 において `sys/wasm/shim_bridge.c` および `WasmDirectBindingService` が導入されたことで、「状態の読み取り（State Synchronization）」と「マルチステップ操作の実行（Action Execution）」の役割分担が以下のように最適化されました：
 
-1. **参照系（固定配列モードAを維持）**:
-   - **属性・スペル・スキル同期 (`GKLPlugin.js`)**: `['+', ' ', '\x1b']`, `['\x18', ' ', '\x1b']`, `['#', 'enhance', ' ', '\x1b']`
-   - **見回し解析 (`OnDemandLookService.js`)**: `[';', <DIR>, ..., '\x1b']`
-   - **方針**: これらは分岐がなく単に画面を開いて閉じるだけの安全な一方通行処理であり、モードA（固定配列渡し）で完全に安定稼働しているため、無理にレシピ化せずそのまま維持します。
-2. **動的アクション系（レシピ化の主対象・別Conversationにて詳細調査予定）**:
-   - **アイテム直接使用**: 飲食（`e`）、着用（`w`, `W`）、発動（`a`）、投擲（`t`）など（途中で「どれを」「何個」「どの方向」「本当に？」などのサブプロンプトが動的に挟まる操作）。
-   - **推奨アクション (ContextAction)**: ドア開放、戦闘、移動など状況に応じたマルチステップキー送信。
+| 区分 | 第1選択 (Primary Path) | フォールバック / 補完 (Fallback Path) | 主な対象処理 |
+| :--- | :--- | :--- | :--- |
+| **1. 状態参照・知識同期 (Read-Only Sync)** | **Phase 8 Direct Binding (`CALL_SHIM`)**<br>C メモリ構造体から 0ターン・キー送信ゼロで JSON 直接取得 | **IRC モードA (`querySequenceSilent`)**<br>Direct Binding 非対応時（`fallback` モード等）にサイレント実行 | ・インベントリ・装備・総重量同期 (`DUMP_ALL_INVENT`)<br>・魔法/属性/スキル/発見台帳同期<br>・セル詳細・80×21全マップ地形ダンプ (`DUMP_LEVEL_TERRAIN`) |
+| **2. マルチステップ対話操作 (Active Recipe Execution)** | **IRC モードB (`executeSequence` / レシピ)**<br>`SessionLock` と `SignalDetector` による安全な連続コマンド自走 | `abortWithESC()` によるタイムアウト時の ESC 連打自動復帰 | ・二画面コンテナのアイテム出し入れ (`ContainerController`)<br>・ペーパードールの多段装備換装 (`EquipmentActionRecipeBuilder`)<br>・オンデマンド遠隔調査 (`OnDemandLookupService`) |
 
-### フェーズ 5: コンテナ UI の再開・本接続 (本丸) 【実装完了・全テスト通過】
-従来の外部スパイ方式（キー盗み聞き）を廃止し、**正規パイプラインでの入口検知とセッションガード、およびオンデマンド・アトミック実行アーキテクチャ**によってコンテナ二面パネルを完全に本接続・再開しました：
+### 7.2 コンテナ UI ＆ 装備ペーパードールのレシピ統合実績 【実装完了・全テスト通過】
 1. **正規の入口検知と `ContainerController`**:
    `PromptPayloadBuilder` が `CONTAINER_ACTION_MENU`（"Do what with your sack/chest?"）を検知し、`inputType: 'CONTAINER'` を発行。WebUICore の `inputRequired` / `signal` ハンドラから `ContainerController.handleInitialActionMenu()` を呼び出して中身を先読みし、`q` で通常ターン（poskey）に着地させてから二面パネルを起動。
 2. **汎用セッションロックによる排他制御**:
    セッション中（`isContainerSessionActive === true`）は、IRC のセッションロック（`acquireSessionLock('container')`）により、汎用プロンプト・一般メニューの画面レンダリングをサプレスし、裏での自動同期重複起動を 100% 防止。
-3. **オンデマンド・アトミック実行による出し入れ実行**:
-   - 二面パネル表示中は C コアを通常ターン（`poskey`）で完全静止。
-   - ユーザー操作時のみ `InteractiveRequestController` のレシピ（正規化された `openPrefix`（手持ち: `['a', letter]` / 床: `['#', 'loot']`） → `i`/`o` → 全カテゴリ → `identifier` 完全一致 & `count` 選択（全量時は `count: -1`） → `q` 脱出 → `turn_ready` 着地）を一瞬で実行。
-   - トランザクション完了時に `contentsManager` のローカル追跡モデルを更新し、`core.gkl.syncInventorySilent()` を実行。
-   - 金貨（`$` / Gold Pieces）の正規認識・数量管理、最上部ソート、手持ち所持金（Status gold）のUI合成表示を完全サポート。
-   - モーダルクローズ時は既に C コアが poskey に着地しているため、後始末キー送信が不要で安全に通常プレイへ復帰。
-- **実装モジュール**:
-  - `src/core/container/ContainerController.js`
-  - `src/core/container/ContainerController.test.js`
-  - `src/core/container/ContainerContentsManager.js`
-  - `src/core/container/ContainerSafetyGuard.js`
-  - `src/core/container/ContainerSequenceBuilder.js`
-  - `src/core/WebUICore.js`
-  - `src/core/prompt/PromptPayloadBuilder.js`
-  - `examples/gkl-pure-js-client/modules/components/ContainerModal.js`
-  - `examples/gkl-pure-js-client/main.js`
+3. **オンデマンド・アトミック実行による出し入れ・換装実行**:
+   - コンテナ操作時やペーパードールでの多段階換装（例: 鎧を着替えるためにクロークを一度脱いで鎧を脱ぎ、新しい鎧を着てクロークを着直す）において、IRC レシピが中間プロンプトを自律処理して `turn_ready` に着地。
+   - トランザクション完了時に `core.gkl.syncInventorySilent()`（Direct Binding 優先）を実行して最新状態を即時反映。
+- **関連実装モジュール**:
+  - `src/core/container/ContainerController.js`, `ContainerContentsManager.js`, `ContainerSafetyGuard.js`, `ContainerSequenceBuilder.js`
+  - `src/core/knowledge/equipment/EquipmentActionRecipeBuilder.js`
+  - `src/core/WebUICore.js`, `src/core/prompt/PromptPayloadBuilder.js`
+  - `examples/gkl-pure-js-client/modules/components/ContainerModal.js`, `PaperdollModal.js`
 
 ---
 

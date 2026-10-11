@@ -1,12 +1,14 @@
 ---
 title: 全画面マップ＆イマーシブHUDメッセージウィンドウ設計仕様書
-status: proposed (Roadmap 2.1 / Phase D 連携)
-last_updated: 2026-09-26
+status: implemented
+last_updated: 2026-10-11
 author: e3-sh & Antigravity
 related_code:
   - src/core/WebUICore.js
-  - src/driver/NetHackWasmDriver.js
-  - examples/gkl-pure-js-client/
+  - src/ui-controller/FloatingMessageHudController.js
+  - src/components/NhFloatingHud.js
+  - examples/gkl-pure-js-client/modules/components/FloatingMessageHud.js
+  - examples/gkl-pure-js-client/modules/components/MessageHistoryDrawer.js
 ---
 
 # 📜 全画面マップ＆イマーシブHUDメッセージウィンドウ設計仕様書
@@ -14,18 +16,18 @@ related_code:
 
 ## 1. 概要とコンセプト
 
-本ドキュメントは、NetHack WASM WebUI のロードマップ（Roadmap 2.1 / Phase D「全画面マップ＋透過HUD」）に向けた、**新しいメッセージ表示システム（イマーシブHUDメッセージウィンドウ）**の設計仕様書です。
+本ドキュメントは、NetHack WASM WebUI の Phase D「全画面マップ＋透過HUD」および Phase E「Headless UIController ＆ Web Components」において実装完了した、**メッセージ表示システム（イマーシブHUDメッセージウィンドウ）**の設計仕様書です。
 
 ### コンセプト：オリジナル NetHack の精神とモダン HUD の融合
 1. **マップ領域の最大化（原点回帰）**:
    - オリジナルの CUI/TTY 版 NetHack は、画面の約 90% がマップであり、メッセージは最上部のわずか 1 行（`topline`）にのみ表示され、過去ログは `Ctrl+P` で必要な時だけ呼び出す構造でした。
    - 常時画面を圧迫する従来の分割パネル（サイドバー型ログ）を廃止し、**ダンジョンマップを画面いっぱい（100vw × 100vh）に広げます**。
-2. **フローティング最新行 HUD**:
+2. **フローティング最新行 HUD (`FloatingMessageHud.js` / `<nh-floating-hud>`)**:
    - 行動（ターン）の瞬間だけ、画面上部（または自キャラ周辺）に最新メッセージが半透明でポップアップ。
    - 太字（`isBold: true`）や緊急メッセージ（`attr: ATR_URGENT`）は鮮やかな白やハイライトで強調。
-   - 次の行動をとるとスムーズにフェードアウト・入れ替わり、探索中は視界を遮りません。
-3. **必要な時だけ引き出す「過去ログドロワー」**:
-   - `Ctrl+P` キー、マウスホイールのスクロール、または画面端の履歴アイコンタップにより、半透明の過去ログ一覧がスッとスライドインして全履歴を確認可能。
+   - 次の行動をとるとスムーズにフェードアウト・入れ替わり、探索中は視界を遮りません（ピン留め固定 `togglePin` も可能）。
+3. **必要な時だけ引き出す「過去ログドロワー」 (`MessageHistoryDrawer.js`)**:
+   - `Ctrl+P` キー、または画面上部の履歴アイコンタップにより、半透明の過去ログ一覧がスッとスライドインして全履歴を確認可能。さらにピン留め（`togglePin`）による常時ドック表示にも対応。
 
 ---
 
@@ -56,14 +58,14 @@ related_code:
   * **フローティング最新行**: 画面上部中央。最大 2〜3 行。
   * **ステータスバー**: 画面下部中央。
 * **Layer 20 (オーバーレイ)**:
-  * **過去ログドロワー**: 画面右端（または上部）からスライドインする半透明パネル。
+  * **過去ログドロワー (`MessageHistoryDrawer.js`)**: 画面上部・右端からスライドインする半透明パネル（ピン留め時は画面レイアウトに固定）。
   * **ContextActions / 吹き出し（`bubbleMessage`）**: マップ上の対象座標直上。
 
 ---
 
 ## 3. WebUICore とのデータ連携仕様
 
-先ほど実装した `WebUICore` のメッセージ基盤をフル活用します。
+`WebUICore` のメッセージ基盤および `FloatingMessageHudController`（Headless UI 状態管理）をフル活用します。
 
 ### (1) 利用するイベント
 * **`core.on('bubbleMessage', ({ id, text, rawText, isBold }) => ...)`**:
@@ -82,13 +84,14 @@ related_code:
 
 ## 4. UIコンポーネント詳細仕様
 
-### (1) フローティング最新行 HUD (`FloatingMessageHud.js`)
+### (1) フローティング最新行 HUD (`FloatingMessageHud.js` / `FloatingMessageHudController.js` / `<nh-floating-hud>`)
 
-#### 動作フロー
-1. `bubbleMessage` を受信すると、メッセージ行をキューに追加（最大 2〜3 行）。
-2. CSS アニメーション（スライドイン＋フェードイン）で表示。
-3. `isBold === true` の場合は太字フォント（`font-weight: 700`）＋発光エフェクト（`text-shadow: 0 0 8px rgba(255,255,255,0.6)`）を適用。
-4. プレイヤーが次のアクションを入力した際（ターン経過時）に、前のターンの行をフェードアウト。
+#### 動作フローと Headless 連携
+1. Headless 層である `src/ui-controller/FloatingMessageHudController.js` がメッセージキュー、世代管理（`turnAge`）、ピン留め状態（`isPinned`）、およびゴールド獲得差分（`goldDelta`）を一元管理します。
+2. `bubbleMessage` を受信すると、メッセージ行をキューに追加（最大 3〜4 行）。
+3. CSS アニメーション（スライドイン＋フェードイン）で表示し、`isBold === true` の場合は太字フォント＋発光エフェクトを適用。
+4. プレイヤーが次のアクションを入力した際（`userActionSent` ターン経過時）に、前のターンの行を世代減衰・フェードアウトさせます。
+5. Web Components 版として `<nh-floating-hud>`（`src/components/NhFloatingHud.js`）も提供され、任意のフレームワークから同一のコントローラ状態で再利用可能です。
 
 #### CSS トランジション設計
 ```css
@@ -131,12 +134,13 @@ related_code:
 
 ---
 
-### (2) 展開型過去ログドロワー (`MessageLogDrawer.js`)
+### (2) 展開型過去ログドロワー (`MessageHistoryDrawer.js`)
 
-#### 展開トリガー
+#### 展開トリガーとピン留め (`togglePin`)
 * キーボード: **`Ctrl + P`**（NetHack 伝統のメッセージ履歴コマンド）
-* マウス: マップ上で上スクロール（Wheel Up）、または画面隅の 📜 アイコンクリック
-* 閉じる操作: `ESC` キー、ドロワー外クリック、またはスクロールダウン
+* マウス: フローティングHUDの履歴ボタンまたはヘッダーの 📜 アイコンクリック
+* **ピン留め機能 (`togglePin`)**: ドロワーヘッダーの 📌 ピン留めボタンをONにすると、外クリックや `ESC` キーでも閉じない常時表示モードとして固定可能。
+* 閉じる操作: ピン留めOFF時に `ESC` キーまたはドロワー外背景クリック。
 
 #### 内部表示（世代別透明度グラデーション ＆ バイリンガル表示モード）
 ドロワー内では、最新ターンとの差分に応じた透明度グラデーションに加え、**「翻訳済み日本語」と「NetHack公式英語原文（`rawText`）」の双方を活用できるモード**を提供します：
@@ -157,14 +161,14 @@ related_code:
 
 ---
 
-## 5. 実装ロードマップ（Roadmap 2.1 / Phase D 連携）
+## 5. 実装状況（Phase D / Phase E 完了済み）
 
-| ステップ | タスク内容 | 対象ファイル |
-|---|---|---|
-| **Step 1** | `FloatingMessageHud` コンポーネント新設<br/>（最新行の透過オーバーレイ表示と太字強調） | `examples/gkl-pure-js-client/modules/components/FloatingMessageHud.js`<br/>`css/floating-message-hud.css` |
-| **Step 2** | `MessageLogDrawer` コンポーネント新設<br/>（`Ctrl+P` / スクロール展開、全履歴閲覧） | `examples/gkl-pure-js-client/modules/components/MessageLogDrawer.js`<br/>`css/message-log-drawer.css` |
-| **Step 3** | 全画面マップレイアウト化（Phase D と合流）<br/>従来の固定サイドバーメッセージ枠を廃止し全画面化 | `examples/gkl-pure-js-client/index.html`<br/>`examples/gkl-pure-js-client/main.js` |
-| **Step 4** | 他クライアント（React / Solid / Vue）向けアダプタ提供 | `src/client/` 各サンプルへの展開 |
+| ステップ | タスク内容 | 実装ファイル | 状態 |
+|---|---|---| :---: |
+| **Step 1** | `FloatingMessageHud` & Headless Controller 実装<br/>（最新行の透過オーバーレイ表示・太字強調・ゴールド差分） | `examples/gkl-pure-js-client/modules/components/FloatingMessageHud.js`<br/>`src/ui-controller/FloatingMessageHudController.js`<br/>`examples/gkl-pure-js-client/css/floating-hud.css` | **✅ 完了** |
+| **Step 2** | `MessageHistoryDrawer` コンポーネント実装<br/>（`Ctrl+P` 展開、ピン留め `togglePin`、日英並列・原文コピー） | `examples/gkl-pure-js-client/modules/components/MessageHistoryDrawer.js`<br/>`examples/gkl-pure-js-client/css/floating-hud.css` | **✅ 完了** |
+| **Step 3** | 全画面マップレイアウト化（Phase D 統合）<br/>従来の固定サイドバーメッセージ枠を刷新し全画面HUD化 | `examples/gkl-pure-js-client/index.html`<br/>`examples/gkl-pure-js-client/main.js`<br/>`examples/gkl-pure-js-client/modules/layout/LayoutController.js` | **✅ 完了** |
+| **Step 4** | Web Components (`<nh-floating-hud>`) 提供 | `src/components/NhFloatingHud.js` | **✅ 完了** |
 
 ---
 

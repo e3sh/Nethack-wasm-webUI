@@ -1,10 +1,24 @@
+---
+title: GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計統合仕様書
+status: proposed
+last_updated: 2026-10-11
+related_code:
+  - src/core/knowledge/
+  - src/core/knowledge/services/WasmDirectBindingService.js
+---
+
 # 🧠 GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計統合仕様書
 
 本ドキュメントは、NetHack WASM WebUI におけるゲーム知識層（GKL）の拡張構想であり、プレイヤーの不可避な餓死や詰みを先読みしてダッシュボードに可視化する**「タイムライン予測エンジン（雑な燃費計＆燃料計）」**、およびその中核となる**「神のご機嫌管理システム（PrayerStatusTracker）」**の詳細設計仕様書です。
 
-- **ステータス**: 💡 proposed (2026-09-25 策定)
+- **ステータス**: 💡 proposed (2026-09-25 策定 / 2026-10-11 更新)
 - **対象ドメイン**: `src/core/knowledge/` (GKL内部ロジック), `MinimapHudRenderer.js` (ミニマップ周辺UI)
-- **最上位制約**: C言語コアのメモリや内部変数（`u.ublesscnt` 等）を直接ハックせず、`SignalDetector` およびメッセージログから非侵襲的（シグナル駆動）に状態を逆算・エミュレートする。
+- **最上位制約**: 当初は C言語コアのメモリや内部変数（`u.ublesscnt` 等）を直接参照せずメッセージログから逆算する前提で策定されたが、下記 Note の通り Phase 8 でメモリ直結 Ground Truth 取得が確立済み。
+
+> [!NOTE]
+> **【Phase 8 Direct Binding 完了に伴うアーキテクチャ更新 (2026-10-11)】**  
+> Phase 8 (`WasmDirectBindingService.js` / `SHIM_CMD_GET_PLAYER_SUMMARY` `0x30` および `SHIM_CMD_GET_PLAYER_PROPS` `0x32`) の実装完了により、C メモリ上の **`u.ublesscnt`（お祈りクールダウン残ターン）**、**`u.ugangr`（神の怒りカウンタ）**、**`u.uhunger`（正確な空腹値）**、および **`u.uprops`（全耐性・内在能力）** が毎ターン直接・確定取得可能になりました。  
+> そのため、本機能を実装する際は **Wasm Direct Binding による C メモリ直結 Ground Truth を主軸（Primary Source）** とし、本仕様書に記載されているメッセージログ逆算・エミュレーション方式は Direct Binding 非稼働環境（レガシー/外部ドライバ接続時）向けのフォールバックとして位置付けます。
 
 ---
 

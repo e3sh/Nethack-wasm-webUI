@@ -1,13 +1,13 @@
 ---
 title: GKL 行動指針 (Action Stance) ＆ アシストシグナル (AssistSignal) 仕様・設計書
 status: implemented
-last_updated: 2026-08-27
+last_updated: 2026-10-11
 related_code:
-  - src/core/knowledge/AssistSignalSynthesizer.js
-  - src/core/knowledge/AreaStateManager.js
-  - src/core/knowledge/SituationCache.js
+  - src/core/knowledge/engines/AssistSignalSynthesizer.js
+  - src/core/knowledge/data/ASSIST_SIGNAL_DEFINITIONS.js
+  - src/core/knowledge/state/AreaStateManager.js
+  - src/core/knowledge/state/SituationCache.js
   - src/core/knowledge/GKLPlugin.js
-  - examples/gkl-pure-js-client/main.js
 ---
 
 # GKL 行動指針 (Action Stance) ＆ アシストシグナル (AssistSignal) 仕様・設計書
@@ -369,25 +369,23 @@ sequenceDiagram
 
 ---
 
-## 7. 実装計画とロードマップ (Implementation Roadmap)
+## 7. 実装ステータス (Implementation Status — 全フェーズ完了)
 
-1. **Phase 1: `AssistSignalSynthesizer` コアクラス新設**:
-   - `src/core/knowledge/AssistSignalSynthesizer.js` の実装。
+1. **[x] Phase 1: `AssistSignalSynthesizer` コアクラス ＆ 定義データの構築**:
+   - `src/core/knowledge/engines/AssistSignalSynthesizer.js` および `src/core/knowledge/data/ASSIST_SIGNAL_DEFINITIONS.js` の実装完了。
    - `TacticalAdvisor`、`ContextActionEngine`、`InventoryStateManager`、`StatusAccessor` からの合成ロジック。
-   - 単体テスト (`AssistSignalSynthesizer.test.js`) による全 Stance マトリクスの網羅検証。
-2. **Phase 2: フロア設備・ランドマーク台帳との連携**:
-   - `AreaStateManager` のフロア別 POI キャッシュ（階段・祭壇・ショップ・流し台・噴水・王座）の統合。
+   - 単体テスト (`tests/unit/AssistSignalSynthesizer.test.js`) による全 Stance マトリクスの網羅検証。
+2. **[x] Phase 2: フロア設備・ランドマーク台帳との連携**:
+   - `AreaStateManager` のフロア別 POI キャッシュ（階段・祭壇・ショップ・流し台・噴水・王座）の統合完了。
    - `SituationCache` 経由での `landmarks` メタデータ出力。
-3. **Phase 3: `SituationCache` ＆ `GKLPlugin` への統合**:
-   - ターン同期パイプラインに組み込み、`gkl.getAssistState()` として一括取得可能にする。
-4. **Phase 4: UI クライアント連携 (Examples / WebUI)**:
-   - HUD 1行シグナルバーの実装。
-   - フロア設備アイコンバッジ群（階段・祭壇・店等）のヘッダー表示。
-   - インベントリ・習得魔法モーダルでのスロットバッジ・金枠ハイライトの描画。
-   - クリック時のコマンド自動送信シーケンス連携。
+3. **[x] Phase 3: `SituationCache` ＆ `GKLPlugin` への統合**:
+   - ターン同期パイプラインに組み込み、`gkl.getAssistState()` / `situation.assist` として一括取得可能。
+4. **[x] Phase 4: UI クライアント連携 (`RightPanelRenderer` / `StatusFooterRenderer`)**:
+   - HUD 1行シグナルバーおよびフロア設備アイコンバッジ群の表示。
+   - インベントリ・習得魔法モーダルでのスロットバッジ・金枠ハイライトの描画およびワンタップ実行シーケンス連携。
 
 ---
 
-*ドキュメント作成日: 2026-08-25 (最終更新: 2026-08-26 フロア案内・ランドマーク仕様追記)*  
+*ドキュメント作成日: 2026-08-25 (最終更新: 2026-10-11 実装完了・モジュールパス更新)*  
 *保存先: `docs/3_gkl/Assist_Signal_and_Stance_Architecture.md`*
 

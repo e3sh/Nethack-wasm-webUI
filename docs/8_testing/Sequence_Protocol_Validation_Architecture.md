@@ -1,7 +1,7 @@
 ---
 title: Sequence_Protocol_Validation_Architecture
-status: active
-last_updated: 2026-09-01
+status: implemented
+last_updated: 2026-10-11
 related_code:
   - test/helpers/ProtocolValidatorFakeDriver.js
   - tests/protocol/actionExecutionProtocol.test.js
@@ -15,17 +15,17 @@ related_code:
   - src/core/knowledge/ITEM_INTERACTION_RULES.js
 ---
 
-# 上り方向キーシーケンス・プロトコル検証テスト基盤 構想設計書
+# 上り方向キーシーケンス・プロトコル検証テスト基盤 仕様設計書
 (Sequence Protocol Validation Architecture)
 
-本文書は、NetHack WASM WebUI において、UI や Game Knowledge Layer (GKL) が発行する **「上り方向（Uplink）キーストローク・シーケンス」が NetHack C コアおよびドライバーの入力ステートマシン規約に適合し、実機で不発・誤爆することなく最後まで確実に完走することを恒久的に保証するテスト基盤** のアーキテクチャ設計構想および運用仕様書である。
+本文書は、NetHack WASM WebUI において、UI や Game Knowledge Layer (GKL) が発行する **「上り方向（Uplink）キーストローク・シーケンス」が NetHack C コアおよびドライバーの入力ステートマシン規約に適合し、実機で不発・誤爆することなく最後まで確実に完走することを恒久的に保証するテスト基盤** のアーキテクチャ設計および運用仕様書である。
 
 ---
 
 ## 1. 背景と目的 (Background & Motivation)
 
-### 1.1 「単体テスト 338 件 全 PASS」の盲点と実機トラブル
-当プロジェクトでは、Vitest による単体テストが 338 件構築されており、全件 PASS を維持していました。しかし、ブラウザ実機上でアシストボタンやコンテキストアクションを実行した際、以下のような重大なキーストローク不発・誤爆トラブルが発生しました。
+### 1.1 「単体テスト全 PASS」の盲点と実機トラブル（導入背景）
+本基盤の導入以前、プロジェクトでは Vitest による単体テスト（当時 338 件、現在はプロトコル・統合テストを含め **全136スイート・1,670テスト / 100% PASS**）が全件 PASS を維持していました。しかし、ブラウザ実機上でアシストボタンやコンテキストアクションを実行した際、以下のような重大なキーストローク不発・誤爆トラブルが発生しました。
 
 * **具体例 1: 神への祈り (`#pray`) の不発・無効化**
   * アシスト機能（`AssistSignalSynthesizer`）において、瀕死や石化からの脱出アクションとして `['#pray\n', 'y']` というトークン列が定義されていた。

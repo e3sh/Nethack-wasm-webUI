@@ -1,15 +1,20 @@
 ---
 title: official_shim_interface_capabilities_analysis
-status: active
-last_updated: 2026-10-07
+status: archived
+last_updated: 2026-10-11
 related_code:
   - win/shim/winshim.c
   - sys/libnh/libnhmain.c
+  - src/driver/shim/shim_bridge.c
   - src/driver/NetHackWasmDriver.js
   - src/driver/NetHackMemory.js
 ---
 
 # NetHack 5.0 公式Shimインターフェース 正式能力・構造化バインディング解析仕様書
+
+> [!NOTE]
+> **📦 アーカイブ注記（2026-10-11）**  
+> 本資料は Phase 8 着手初期（2026-10-07）における公式 Shim の能力調査記録です。当初提案していた個別C関数エクスポート（`_weight`, `_inv_weight` 等）や生ポインタオフセット計算は、Stage 8.1〜8.2-C にて **単一汎用ディスパッチャー窓口 `src/driver/shim/shim_bridge.c` (`_shim_bridge_call`)** へ完全統合・一本化されました。現行の実装仕様については [`official_shim_direct_binding_implementation_plan.md`](../official_shim_direct_binding_implementation_plan.md) および [`driver_core_spec.md`](../driver_core_spec.md) を参照してください。
 
 ## 1. エグゼクティブサマリー：従来の認識と実態の乖離
 

@@ -63,7 +63,7 @@ NetHack 5.0 では、ステータス行やメッセージなどで「アイコ�
 マッピングテーブルの定義ファイル [tileMapping.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/param/tileMapping.js) は、自動生成スクリプトを用いて構築されます。
 
 ### 生成手順
-1. NetHack 5.0 ソースビルドから生成された [tilemappings.lst](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/tilemappings.lst) を `docs/` ディレクトリに配置します。
+1. NetHack 5.0 ソースビルドから生成された [tilemappings.lst](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/5_gamedata/tilemappings.lst) を `docs/5_gamedata/` ディレクトリに配置します。
 2. 以下のコマンドを実行してマッピングファイルを自動生成します。
    ```bash
    node tools/generate_mapping.js

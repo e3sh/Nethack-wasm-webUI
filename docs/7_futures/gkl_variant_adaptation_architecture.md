@@ -1,7 +1,7 @@
 ---
 title: gkl_variant_adaptation_architecture
-status: reference
-last_updated: 2026-09-12
+status: proposed
+last_updated: 2026-10-11
 related_code:
   - src/core/knowledge/
   - src/core/WebUICore.js

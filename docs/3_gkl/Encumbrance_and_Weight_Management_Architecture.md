@@ -1,16 +1,18 @@
 ---
 title: インベントリ重量・負荷状態管理仕様書 (Encumbrance & Weight Architecture)
 status: implemented
-last_updated: 2026-09-21
+last_updated: 2026-10-11
 related_code:
-  - src/core/knowledge/EncumbranceStateManager.js
-  - src/core/knowledge/EncumbrancePresenter.js
+  - src/core/knowledge/state/EncumbranceStateManager.js
+  - src/core/knowledge/presenters/EncumbrancePresenter.js
+  - src/core/knowledge/services/WasmDirectBindingService.js
+  - src/core/knowledge/data/OBJECT_KNOWLEDGE_FULL.js
 ---
 
 # インベントリ重量・負荷状態管理仕様書 (Encumbrance & Weight Architecture)
 
 > [!NOTE]
-> **ステータス**: `🟢 implemented` (実装完了・現行仕様)
+> **ステータス**: `🟢 implemented` (実装完了・Phase 8 Cメモリ直結 `inv_weight()` 対応済み)
 
 ## 1. 基本方針・設計原則 (Core Philosophy)
 
@@ -18,12 +20,13 @@ related_code:
    - プレイヤーが重量管理に真に求めているのは「1ポンド単位の厳密な数値」ではなく、「あとどれくらい拾えるか」「動けなくなる危険があるか」という**定性的なリスク把握**である。
    - 厳密な数値ではなく、**ゲージ（プログレスバー）や状態ランプ（安全・注意・警戒・危険）**を中心としたUI表現を採用することで、未確認の袋や死体・食べかけ食料等の微小な端数誤差を自然に吸収する。
 
-2. **GKL / Core 主導のステート管理（C コア改変ゼロ・フロントエンド完結）**:
-   - NetHack C コアに手を加えることなく、フロントエンドの GKL (Gameplay Knowledge Layer) が既存のナレッジマスターデータ (`OBJECT_KNOWLEDGE_BASE`) やステータス更新 (`StatusAccessor`)、インベントリキャッシュ (`InventoryStateManager`) を統合して状態を算出・管理する。
+2. **Phase 8 C メモリ直結 (`inv_weight()`) と GKL 推論のハイブリッド管理**:
+   - Stage 8.2-C により、`WasmDirectBindingService.getInventoryWeight()`（`SHIM_CMD_GET_PLAYER_SUMMARY` 0x30 内の公式 `inv_weight() + weight_cap()` 算出値）が利用可能な場合は、C コア内部の真の総重量を最優先の Ground Truth として採用する。
+   - Direct Binding 非稼働時や袋別の内訳プレビューにおいては、フロントエンドの GKL (Game Knowledge Layer) がナレッジマスターデータ (`OBJECT_KNOWLEDGE_FULL.js`) やステータス更新 (`StatusAccessor`)、インベントリキャッシュ (`InventoryStateManager`) を統合して状態を算出・管理する。
 
-3. **袋（コンテナ）の中身確認シーケンスによるスナップ確定**:
-   - 「中身の入った袋を拾った直後」は、中身が未知（`isKnown = false`）として扱い、袋自体の基本重量のみ（＋未確認バッジ）で計算する。
-   - プレイヤーが袋を開く（`apply` → `Look inside` / `Take out`）シーケンスを既存の `ContainerContentsManager` がフックした瞬間に中身アイテム一覧と総重量をスナップ補正（確定）する。
+3. **袋（コンテナ）の中身確認シーケンス / メモリ直結によるスナップ確定**:
+   - Phase 8 Direct Binding 稼働時は `SHIM_CMD_GET_CONTAINER_ITEMS (0x12)` によりコンテナ内の `cobj` チェーンと `owt`（実重量）を直接取得できる。
+   - フォールバック時は、「中身の入った袋を拾った直後」は中身が未知（`isKnown = false`）として扱い、プレイヤーが袋を開く（`apply` → `Look inside` / `Take out`）シーケンスを `ContainerContentsManager` がフックした瞬間に中身アイテム一覧と総重量をスナップ補正（確定）する。
 
 4. **保持の袋（Bag of Holding）の適正補正**:
    - 単純な入出庫前の最大値保持ではなく、保持の袋の状態（祝福: 25%、未呪い: 50%、呪い: 200%）に応じた軽減・増加係数を袋の中身に適用し、「袋に荷物を詰めて軽くなった」という実利をゲージに反映する。
@@ -38,23 +41,25 @@ related_code:
 ```mermaid
 graph TD
     subgraph Data_Sources ["データソース・既存マネージャー (GKL / Core)"]
-        OKB["OBJECT_KNOWLEDGE_BASE<br/>(全アイテム確定重量: weight)"]
+        WDB["WasmDirectBindingService<br/>(Phase 8: getInventoryWeight / owt 直結)"]
+        OKB["OBJECT_KNOWLEDGE_FULL<br/>(全アイテム確定重量: weight)"]
         ISM["InventoryStateManager<br/>(手持ちアイテム一覧)"]
         CCM["ContainerContentsManager<br/>(袋の中身・確認シーケンス)"]
         SA["StatusAccessor<br/>(BL_CAP 負荷ステータス / 能力値 STR, CON)"]
     end
 
     subgraph Encumbrance_Core ["重量・負荷管理コア (GKL)"]
-        ESM["EncumbranceStateManager<br/>- 手持ち重量集計<br/>- 袋別キャッシュ管理<br/>- 許容量・パーセンテージ算出<br/>- BL_CAP ハイブリッド補正"]
+        ESM["EncumbranceStateManager<br/>- Cコア真の総重量 (優先) / 手持ち重量集計<br/>- 袋別キャッシュ管理<br/>- 許容量・パーセンテージ算出<br/>- BL_CAP ハイブリッド補正"]
         EP["EncumbrancePresenter<br/>- ゲージ割合 (0〜100%)<br/>- ステータス段階 & テーマカラー<br/>- 多言語ラベル & 未確認フラグ"]
     end
 
     subgraph UI_Layer ["UI レイヤー"]
         IconInv["アイコンインベントリ<br/>(下部・端のミニゲージ / ランプ)"]
-        ContModal["ContainerModal<br/>(袋単体重量 & 入出庫プレビュー)"]
-        Paperdoll["PaperdollModal<br/>(装備着脱時の負荷変動)"]
+        ContModal["<nh-container-filer><br/>(袋単体重量 & 入出庫プレビュー)"]
+        Paperdoll["<nh-paperdoll><br/>(装備着脱時の負荷変動)"]
     end
 
+    WDB --> ESM
     OKB --> ESM
     ISM --> ESM
     CCM --> ESM
@@ -68,7 +73,7 @@ graph TD
 ### 各モジュールの責務
 
 - **`EncumbranceStateManager` (GKL Logic)**:
-  - 手持ちアイテムの基本重量を合算。
+  - `wasmDirectBindingService.getInventoryWeight()` による真の総重量取得（最優先）、および手持ちアイテムの基本重量合算（フォールバック）。
   - 各袋アイテムの中身キャッシュ（`containerCache`）を保持し、袋ごとの実効重量を算出。
   - プレイヤーの許容量（Carrying Capacity）を推定し、現在重量との比率（%）を算出。
   - C コアから送られてくる公式負荷ステータス（`BL_CAP`）と連動し、閾値ズレを補正。
@@ -110,7 +115,7 @@ interface ContainerWeightRecord {
 
 1. **通常アイテムの重量**:
    $$\text{weight} = \text{item.weight} \times \text{item.count}$$
-   ※ 金貨は $100$ 枚ごとに $1$。
+   ※ 金貨は $100$ 枚ごとに $1$。Phase 8 Direct Binding 時は C 構造体の `obj.owt` を直接参照可能。
 
 2. **袋（コンテナ）の実効重量**:
    - 中身未確認（`isKnown === false`）の場合：
@@ -135,9 +140,9 @@ interface ContainerWeightRecord {
 | 段階 (Level) | ゲージ目安 | BL_CAP ステータス | テーマカラー | 状態名 (Ja / En) |
 |---|---|---|---|---|
 | **Normal** | 0% 〜 69% | 0 (Unencumbered) | `#3fb950` (緑) | 余裕 (Normal) |
-| **Caution** | 70% 〜 99% | 1 (Burdened) | `#d29922` (黄) | 負担 (Burdened) |
+| **Caution** | 70% 〜 99% | 1 (Burdened) | `#d29922` (黄) | 負荷 (Burdened) |
 | **Danger** | 100% 〜 133% | 2 (Stressed) / 3 (Strained) | `#db6d28` (橙) | 重荷 (Stressed) |
-| **Critical** | 134% 〜 | 4 (Overtaxed) / 5 (Overloaded) | `#f85149` (赤) | 超過重 (Overloaded) |
+| **Critical** | 134% 〜 | 4 (Overtaxed) / 5 (Overloaded) | `#f85149` (赤) | 過負荷 (Overloaded) |
 
 ---
 

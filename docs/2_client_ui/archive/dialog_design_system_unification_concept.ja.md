@@ -1,7 +1,7 @@
 ---
 title: GKL クライアント モーダル・ダイアログ群デザインシステム統一＆UIリファクタリング構想
-status: implemented
-last_updated: 2026-09-27
+status: archived
+last_updated: 2026-10-11
 author: e3-sh & Antigravity
 ---
 

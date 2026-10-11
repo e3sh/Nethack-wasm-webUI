@@ -1,25 +1,27 @@
 ---
 title: Scenario_Testing_and_Event_Capture_Architecture
-status: active
-last_updated: 2026-08-29
+status: implemented
+last_updated: 2026-10-11
 related_code:
   - src/core/WebUICore.js
-  - src/core/inspector/DebugInspector.js
-  - src/driver/
-  - src/core/knowledge/
+  - src/core/inspector/ScenarioRecorder.js
+  - tools/scenario-recorder.html
+  - src/driver/NetHackWasmDriver.js
+  - test/helpers/ScenarioDriver.js
+  - tests/scenarios/
 ---
 
-# イベントキャプチャ ＆ 疑似ドライバによる統合・シナリオテスト設計構想書
+# イベントキャプチャ ＆ 疑似ドライバによる統合・シナリオテスト仕様書
 (Scenario Testing and Event Capture Architecture)
 
-本文書は、NetHack WASM WebUI において、**実ゲームのイベントストリームをキャプチャし、疑似ドライバ（ScenarioDriver）で再生することで、WebUICore および Game Knowledge Layer (GKL) の複数機能連携を一気通貫で検証する「統合・シナリオテスト基盤」** の設計構想および運用方針をまとめた仕様決定書である。
+本文書は、NetHack WASM WebUI において、**実ゲームのイベントストリームをキャプチャし、疑似ドライバ（ScenarioDriver）で再生することで、WebUICore および Game Knowledge Layer (GKL) の複数機能連携を一気通貫で検証する「統合・シナリオテスト基盤」** の確定仕様および運用方針をまとめた仕様決定書である。
 
 ---
 
 ## 1. 背景と目的 (Background & Motivation)
 
-### 1.1 現状のテスト基盤（単体テスト）の到達点と課題
-現在、プロジェクトには 338 件の単体テスト（Unit Test）が存在し、全件 PASS を維持しています。これらは個別のモジュール（パース計算、辞書引き、ナレッジ変換など）の正確性を高精度に保証しています。
+### 1.1 単体テストの到達点と統合テスト導入の背景
+本基盤の導入当初、プロジェクトには 338 件の単体テスト（Unit Test）が存在し（現在は統合・プロトコルテストを含め **全136スイート・1,670テスト / 100% PASS** に拡大）、個別のモジュール（パース計算、辞書引き、ナレッジ変換など）の正確性を高精度に保証していました。
 
 しかし、実際のゲームプレイでは以下の **垂直統合パイプライン（システム縦串）** が常時連動して動作します：
 
@@ -104,19 +106,19 @@ WebUICore はゲーム知識を持たない純粋なインフラ層として、�
 * `core.startRecording()` ➔ `this.driver.startRecording()`
 * `core.stopRecording()` ➔ `return this.driver.stopRecording()`
 
-### 3.3 専用モジュール: `ScenarioRecorder` (Recorder & Message Debugger)
-既存の `DebugInspector`（未翻訳収集・ログ監視等の多機能ツール）の肥大化を防ぐため、シナリオ処理に特化した独立モジュール **`ScenarioRecorder.js`**（プラグインまたは独立ツール）として分離・実装します。
+### 3.3 専用モジュール: `ScenarioRecorder` & `tools/scenario-recorder.html` (Recorder & Studio)
+既存の `DebugInspector`（未翻訳収集・ログ監視等の多機能ツール）の肥大化を防ぐため、シナリオ記録処理に特化した独立モジュール **`src/core/inspector/ScenarioRecorder.js`** および専用キャプチャスタジオ **`tools/scenario-recorder.html`** として分離・実装されています。
 
 * **役割と機能**:
-  * **極小コントロールバー**: 画面隅に邪魔にならないフローティング UI（[● REC] [■ Stop] [💾 Export]）を配置。
+  * **コントロールバー / スタジオ UI**: `ScenarioRecorder` フローティング UI（[● REC] [■ Stop] [💾 Export]）および `tools/scenario-recorder.html` により、任意のクライアントをプレイしながらワンクリックで記録制御が可能。
   * **リアルタイム・シーケンスプレビュー (メッセージデバッガー機能)**:
-    * キャプチャ中、ドライバーを流れるイベント（`print_glyph`, `curs`, `status`, `messageText`, `queueSequence`）がリアルタイムに 1 行ずつパラパラとプレビュー表示される。
+    * キャプチャ中、ドライバーを流れるイベント（`print_glyph`, `curs`, `status`, `messageText`, `queueSequence`）がリアルタイムに 1 行ずつプレビュー表示される。
     * **効果**: 「いま目的の敵の出現や攻撃、インベントリ同期がちゃんとキャプチャに含まれたか」をその場で目視確認でき、録り逃しや無駄な手戻りを 100% 防止できる。
   * **`initialState` の自動抽出 ＆ 結合エクスポート**:
-    * 記録終了時、GKL / SituationCache から最新のステータス情報および所持品 `item.rawText` 配列・習得魔法をサッと抜き出して `initialState` を構成。
-    * ドライバーから回収した時系列ストリームと結合し、`scenario_[timestamp].json` として一発出力。
+    * 記録終了時、GKL / SituationCache から最新のステータス情報および所持品 `item.rawText` 配列・習得魔法を抜き出して `initialState` を自動構成。
+    * ドライバーから回収した時系列ストリームと結合し、`scenario_[timestamp].json` として即座に出力。
 
-### 3.4 疑似ドライバ: `ScenarioDriver`
+### 3.4 疑似ドライバ: `ScenarioDriver` (`test/helpers/ScenarioDriver.js`)
 テスト実行環境（Node.js / Vitest）で、本物の `NetHackWasmDriver` の代役を務める軽量モック。
 
 * `loadScenario(scenarioDataOrPath)`: シナリオ JSON を読み込む。
@@ -236,7 +238,7 @@ describe('GKL 統合シナリオテスト: 浮遊する目玉遭遇', () => {
 ```
 
 ### 6.2 ステップ実行 ＆ テスト用一括診断サマリー (`getDiagnosticSummary`)
-テストごとに `silentSyncTracker` の回数やログ配列、モンスター追跡変数を個別に探索・手動記述する負担を解消するため、**GKL 側にテスト用の一括診断サマリー API（`core.gkl.getDiagnosticSummary()`）** を設けます。
+テストごとに `silentSyncTracker` の回数やログ配列、モンスター追跡変数を個別に探索・手動記述する負担を解消するため、**GKL 側にテスト用の一括診断サマリー API（`core.gkl.getDiagnosticSummary()`）** を設けています。
 
 これを Vitest の **スナップショットテスト（`toMatchInlineSnapshot`）** と組み合わせることで、**「記述量を最小限にしつつ、ターン経過に伴う同期回数・追跡確信度の減衰・演出トリガーの推移」** を 1 行で丸ごと検証できます。
 
@@ -282,15 +284,16 @@ describe('MonsterTracker 減衰モデルの経過テスト (ステップ実行)'
 
 ---
 
-## 7. 今後の導入ステップ (Implementation Steps)
+## 7. 実装完了済みコンポーネント構成 (Implemented Components)
 
-1. **ステップ 1: `NetHackWasmDriver` への記録機能実装**:
-   * `startRecording()`, `stopRecording()` を追加し、イベントストリームおよび `queueSequence` の呼び出し・解決済みバッファを時系列配列に蓄積可能にする。
-2. **ステップ 2: `ScenarioDriver`（疑似ドライバ）の実装**:
-   * `test/helpers/ScenarioDriver.js` を作成し、一括再生（`playUntilTurn`）、ステップ実行（`stepNextTurn`）、即答型 `queueSequence` を実装。
-3. **ステップ 3: GKL 側の一括診断サマリー（`getDiagnosticSummary`）の実装**:
-   * ターン数、同期回数、追跡モンスター、警告、助言を 1 つのオブジェクトとして取得可能にし、スナップショットテストを支援。
-4. **ステップ 4: 代表的シナリオの作成と CI 統合**:
-   * 主要な脅威（目玉遭遇、コカトリス、ニンフ盗難、瀕死回復、MonsterTracker 減衰）のシナリオを作成し、統合テストスイートとして常時検証体制を確立。
-5. **ステップ 5: 専用 UI（`ScenarioRecorder`）の整備（必要に応じて）**:
-   * 画面上の軽量コントロールバーおよびメッセージデバッガー（リアルタイムストリームプレビュー）を整備し、開発体験（DX）を最大化。
+1. **`NetHackWasmDriver` イベント＆シーケンス記録機能 (`src/driver/NetHackWasmDriver.js`)**:
+   * `startRecording()`, `stopRecording()` を実装し、イベントストリームおよび `queueSequence` の呼び出し・解決済みバッファを時系列配列に蓄積（`tests/scenarios/driverRecording.test.js` で検証済）。
+2. **`ScenarioDriver` 疑似ドライバ (`test/helpers/ScenarioDriver.js`)**:
+   * 一括再生（`playUntilTurn`）、ステップ実行（`stepNextTurn`）、即答型 `queueSequence` を実装（`tests/scenarios/ScenarioDriver.test.js` で検証済）。
+3. **GKL 一括診断サマリー (`core.gkl.getDiagnosticSummary()`)**:
+   * ターン数、同期回数、追跡モンスター、警告、助言を 1 つのオブジェクトとして取得し、スナップショットテストを支援。
+4. **代表的シナリオと自動検証スイート (`tests/scenarios/realScenarios.test.js`)**:
+   * 主要な脅威（目玉遭遇、コカトリス、瀕死祈り、MonsterTracker 減衰等）のシナリオ JSON（`test/fixtures/scenarios/*.json`）を配備し、常時検証体制を確立。
+5. **専用レコーダー＆キャプチャスタジオ (`src/core/inspector/ScenarioRecorder.js`, `tools/scenario-recorder.html`)**:
+   * 軽量コントロールバーおよびリアルタイムストリームプレビューを備えた Scenario Recorder Studio を整備。
+
