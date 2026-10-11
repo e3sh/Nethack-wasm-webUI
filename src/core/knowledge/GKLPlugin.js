@@ -2361,10 +2361,14 @@ export class GKLPlugin {
 
             const goldVal = (typeof st.gold === 'object' && st.gold !== null) ? (st.gold.amount ?? st.gold.current ?? st.gold.val ?? st.gold.gold ?? 0) : (st.gold ?? 0);
 
+            const selfCell = asm?.grid?.[playerY]?.[playerX];
+            const selfIsPile = Boolean(selfCell?.middle?.isPile || selfCell?.middle?.glyphInfo?.isPile);
+
             const playerKnowledge = {
                 name: st.name ? `${st.name} (${st.role || 'Hero'})` : '自分 (Player)',
                 category: 'PLAYER',
                 isPlayer: true,
+                ...(selfIsPile ? { isPile: true } : {}),
                 dangerLevel: 'NONE',
                 dispositionStatus: 'PLAYER',
                 stats: {
@@ -2392,11 +2396,18 @@ export class GKLPlugin {
         if (!hasMonster) {
             const targetEntity = cell?.middle || cell?.bottom;
             if (!targetEntity) return null;
+            const isPile = Boolean(targetEntity.isPile || targetEntity.glyphInfo?.isPile);
             const knowledge = this.structuredKnowledge.getKnowledge(targetEntity, {
                 language: this.language,
-                sagesWisdomMode: this.sagesWisdomMode
+                sagesWisdomMode: this.sagesWisdomMode,
+                isPile
             });
-            return knowledge ? { ...knowledge, isClickConfirmed: !options.isHover } : null;
+            if (!knowledge) return null;
+            return {
+                ...knowledge,
+                ...(isPile || knowledge.isPile ? { isPile: true } : {}),
+                isClickConfirmed: !options.isHover
+            };
         }
 
         // 🐉 モンスターが存在する場合: オンデマンド Look (;) を非同期実行して動的状態を確定獲得！

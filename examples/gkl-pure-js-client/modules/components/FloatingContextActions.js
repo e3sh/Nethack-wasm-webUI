@@ -272,11 +272,17 @@ export class FloatingContextActions {
    */
   _buildKnowledgeSummaryHtml(cardData, isSelf) {
     const isEn = this.currentLanguage === 'en';
+    const isPile = Boolean(cardData?.isPile);
+    const pilePill = isPile
+      ? `<span class="kn-pill kn-status-pile" style="background: rgba(14, 165, 233, 0.22); border: 1px solid rgba(56, 189, 248, 0.55); color: #bae6fd;" title="${isEn ? 'Multiple items stacked here (only top item visible from afar)' : '複数のアイテム等が重なっています（遠方からは最上部のみ視認可能）'}">📚 ${isEn ? 'PileTop' : '山積み (PileTop)'}</span>`
+      : '';
+
     if (isSelf) {
       return `
         <div class="gkl-floating-knowledge">
           <div class="kn-row">
             <span class="kn-pill kn-self">👤 ${isEn ? 'Your Position' : '自キャラ足元'}</span>
+            ${pilePill}
           </div>
           <div class="kn-desc">${cardData?.name ? (isEn ? `On the floor: ${cardData.name}` : `足元: ${cardData.name}`) : (isEn ? 'Standing on floor.' : '床の上に立っています。')}</div>
         </div>
@@ -340,7 +346,8 @@ export class FloatingContextActions {
       cardData.category === 'POTION' || cardData.category === 'SCROLL' || cardData.category === 'WAND' ||
       cardData.category === 'RING' || cardData.category === 'AMULET' || cardData.category === 'WEAPON' ||
       cardData.category === 'ARMOR' || cardData.category === 'FOOD' || cardData.category === 'TOOL' ||
-      cardData.category === 'GEM' || cardData.category === 'SPELLBOOK' || cardData.category === 'CORPSE'
+      cardData.category === 'GEM' || cardData.category === 'SPELLBOOK' || cardData.category === 'CORPSE' ||
+      cardData.category === 'STATUE' || cardData.category === 'GOLD' || cardData.category === 'COIN'
     );
     if (isItem) {
       const isUnid = Boolean(cardData.isUnidentified || cardData.identification?.isUnidentified);
@@ -355,6 +362,7 @@ export class FloatingContextActions {
         <div class="gkl-floating-knowledge">
           <div class="kn-row">
             <span class="kn-pill kn-item">📦 ${cardData.category || 'ITEM'}</span>
+            ${pilePill}
             ${unidPill}
             ${wisdomPill}
             ${buc}
@@ -391,6 +399,7 @@ export class FloatingContextActions {
         <div class="gkl-floating-knowledge">
           <div class="kn-row">
             <span class="kn-pill kn-feature">🏛️ ${gName}</span>
+            ${pilePill}
           </div>
           <div class="kn-desc">${cardData.name || (isEn ? 'Interactable dungeon feature' : '操作可能なダンジョンの設備')}</div>
         </div>

@@ -748,6 +748,44 @@ export class StructuredKnowledgeEngine {
     }
 
     /**
+     * 入力識別子・オプションが PileTop (複数のアイテム・死体・像の積み重なり) を表すか判定する
+     * @param {number|string|Object} identifier
+     * @param {Object} [options]
+     * @returns {boolean}
+     * @private
+     */
+    _isPileInput(identifier, options = {}) {
+        if (options?.isPile) return true;
+        if (typeof identifier === 'object' && identifier !== null) {
+            if (identifier.isPile || identifier.glyphInfo?.isPile) return true;
+            const g = typeof identifier.glyph === 'number' ? identifier.glyph :
+                      (typeof identifier.rawGlyph === 'number' ? identifier.rawGlyph :
+                      (typeof identifier.glyphInfo?.glyph === 'number' ? identifier.glyphInfo.glyph : -1));
+            if (g >= GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF && g < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
+                return true;
+            }
+        } else if (typeof identifier === 'number' && !options?.isOnum) {
+            if (identifier >= GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF && identifier < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 静的キャッシュを汚染せずに isPile: true フラグを付与する
+     * @param {Object|null} result
+     * @param {boolean} isPile
+     * @returns {Object|null}
+     * @private
+     */
+    _applyPileFlag(result, isPile) {
+        if (!result || !isPile) return result;
+        if (result.isPile === true) return result;
+        return { ...result, isPile: true };
+    }
+
+    /**
      * アイテム構造化ナレッジの取得 (onum を一次識別軸とし、数値/オブジェクト/文字列に対応)
      * @param {number|string|Object} identifier - onum, glyphId, Item Object, または Item Text
      * @param {Object} [options] 
@@ -756,6 +794,7 @@ export class StructuredKnowledgeEngine {
     getItemKnowledge(identifier, options = {}) {
         if (identifier === null || identifier === undefined) return null;
 
+        const isPile = this._isPileInput(identifier, options);
         const shouldTranslate = options.translate !== false;
         const lang = options.language || this.language || 'ja';
         const isWisdomMode = Boolean(options.sagesWisdomMode !== undefined ? options.sagesWisdomMode : this.sagesWisdomMode);
@@ -775,7 +814,7 @@ export class StructuredKnowledgeEngine {
             }
         }
         if (cacheKey && this.staticCache.has(cacheKey)) {
-            return this.staticCache.get(cacheKey);
+            return this._applyPileFlag(this.staticCache.get(cacheKey), isPile);
         }
 
         let found = null;
@@ -799,10 +838,13 @@ export class StructuredKnowledgeEngine {
             );
 
             if (rawName && this.isUnidentifiedAppearance(rawName) && !isWisdomMode) {
-                return this.getUnidentifiedItemKnowledge(rawName, { ...options, sagesWisdomMode: isWisdomMode });
+                return this._applyPileFlag(
+                    this.getUnidentifiedItemKnowledge(rawName, { ...options, sagesWisdomMode: isWisdomMode }),
+                    isPile
+                );
             }
             if (identifier.onum === 476 || identifier.subType === 476 || (identifier.name && identifier.name.toLowerCase() === 'statue')) {
-                return this.getStatueKnowledge(identifier, options);
+                return this._applyPileFlag(this.getStatueKnowledge(identifier, options), isPile);
             }
             if (typeof identifier.onum === 'number' && identifier.onum >= 0) {
                 targetOnum = identifier.onum;
@@ -825,15 +867,18 @@ export class StructuredKnowledgeEngine {
 
             // 未識別アイテムかつ通常モードの場合、未識別ナレッジを即座に返す
             if (targetOnum >= 0 && isUnidentifiedInput && !isWisdomMode && options.forceFullKnowledge !== true) {
-                return this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode });
+                return this._applyPileFlag(
+                    this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode }),
+                    isPile
+                );
             }
 
             if (targetOnum >= 0 && !isUnidentifiedInput && !options.identification && !options.isUnidentified) {
-                return this.getItemKnowledge(targetOnum, options);
+                return this._applyPileFlag(this.getItemKnowledge(targetOnum, options), isPile);
             }
             if (targetOnum < 0) {
                 const rawName = identifier.label || identifier.rawText || identifier.str || identifier.name || '';
-                if (rawName) return this.getItemKnowledge(rawName, options);
+                if (rawName) return this._applyPileFlag(this.getItemKnowledge(rawName, options), isPile);
             }
         }
         // 2. 数値指定 (onum または glyphId)
@@ -851,7 +896,10 @@ export class StructuredKnowledgeEngine {
         // 3. 文字列指定 ("wand_of_digging" または インベントリ文章 "a - 2 uncursed rations of cram")
         else if (typeof identifier === 'string') {
             if (this.isUnidentifiedAppearance(identifier) && !isWisdomMode) {
-                return this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode });
+                return this._applyPileFlag(
+                    this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode }),
+                    isPile
+                );
             }
 
             const cleaned = this.cleanItemName(identifier);
@@ -911,20 +959,23 @@ export class StructuredKnowledgeEngine {
                         const formattedEn = ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'en');
                         const formattedJa = ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'ja');
                         const targetName = lang === 'ja' ? formattedJa : formattedEn;
-                        return this.getUnidentifiedItemKnowledge({
-                            category: catStr,
-                            onum: targetOnum,
-                            appearanceName: formattedEn,
-                            name: targetName,
-                            nameJa: formattedJa,
-                            nameEn: formattedEn,
-                            wisdomTrueName: masterObj?.name || null,
-                            wisdomTrueNameJa: masterObj?.nameJa || null,
-                            wisdomEffectSummary: masterObj?.effectSummary || null,
-                            wisdomEffectSummaryJa: masterObj?.effectSummaryJa || masterObj?.effectSummary || null,
-                            wisdomMaterial: masterObj?.material || null,
-                            wisdomWeight: masterObj?.weight || null
-                        }, { ...options, sagesWisdomMode: isWisdomMode });
+                        return this._applyPileFlag(
+                            this.getUnidentifiedItemKnowledge({
+                                category: catStr,
+                                onum: targetOnum,
+                                appearanceName: formattedEn,
+                                name: targetName,
+                                nameJa: formattedJa,
+                                nameEn: formattedEn,
+                                wisdomTrueName: masterObj?.name || null,
+                                wisdomTrueNameJa: masterObj?.nameJa || null,
+                                wisdomEffectSummary: masterObj?.effectSummary || null,
+                                wisdomEffectSummaryJa: masterObj?.effectSummaryJa || masterObj?.effectSummary || null,
+                                wisdomMaterial: masterObj?.material || null,
+                                wisdomWeight: masterObj?.weight || null
+                            }, { ...options, sagesWisdomMode: isWisdomMode }),
+                            isPile
+                        );
                     }
                 }
             }
@@ -995,7 +1046,7 @@ export class StructuredKnowledgeEngine {
         if (cacheKey && finalResult) {
             this.staticCache.set(cacheKey, finalResult);
         }
-        return finalResult;
+        return this._applyPileFlag(finalResult, isPile);
     }
 
     /**
@@ -1132,6 +1183,7 @@ export class StructuredKnowledgeEngine {
     getCorpseKnowledge(identifier, options = {}) {
         if (identifier === null || identifier === undefined) return null;
 
+        const isPile = this._isPileInput(identifier, options);
         let glyphId = -1;
         let monOffset = -1;
         let rawName = '';
@@ -1179,6 +1231,7 @@ export class StructuredKnowledgeEngine {
             nameEn: baseName ? `${baseName} corpse` : 'corpse',
             category: 'CORPSE',
             canBeUnidentified: false,
+            ...(isPile ? { isPile: true } : {}),
             corpseInfo: monKnowledge?.corpseInfo || null,
             effectSummary: isEn ?
                 (monKnowledge?.corpseInfo?.warningNote ? `Warning: ${monKnowledge.corpseInfo.warningNote}` : (baseName ? `Corpse of ${baseName}. Can be eaten or offered at an altar.` : 'Monster corpse. Can be eaten or offered at an altar.')) :
@@ -1188,7 +1241,8 @@ export class StructuredKnowledgeEngine {
         };
 
         const shouldTranslate = options.translate !== false;
-        return shouldTranslate ? this.localizeKnowledge(corpseObj, options) : corpseObj;
+        const localized = shouldTranslate ? this.localizeKnowledge(corpseObj, options) : corpseObj;
+        return this._applyPileFlag(localized, isPile);
     }
 
     /**
@@ -1200,6 +1254,7 @@ export class StructuredKnowledgeEngine {
     getStatueKnowledge(identifier, options = {}) {
         if (identifier === null || identifier === undefined) return null;
 
+        const isPile = this._isPileInput(identifier, options);
         let glyphId = -1;
         let monOffset = -1;
         let rawName = '';
@@ -1248,6 +1303,7 @@ export class StructuredKnowledgeEngine {
             nameEn: baseName ? `statue of ${baseName}` : 'statue',
             category: 'STATUE',
             canBeUnidentified: false,
+            ...(isPile ? { isPile: true } : {}),
             effectSummary: isEn ?
                 (baseName ? `Statue of ${baseName}. Can be broken with pick-axe / wand of striking, or carried.` : 'Statue. Can be broken with pick-axe / wand of striking, or carried.') :
                 (baseName ? 
@@ -1256,7 +1312,8 @@ export class StructuredKnowledgeEngine {
         };
 
         const shouldTranslate = options.translate !== false;
-        return shouldTranslate ? this.localizeKnowledge(statueObj, options) : statueObj;
+        const localized = shouldTranslate ? this.localizeKnowledge(statueObj, options) : statueObj;
+        return this._applyPileFlag(localized, isPile);
     }
 
     /**
@@ -1268,23 +1325,25 @@ export class StructuredKnowledgeEngine {
     getKnowledge(identifier, options = {}) {
         if (identifier === null || identifier === undefined) return null;
 
+        const isPile = this._isPileInput(identifier, options);
+
         // 🎯 -1. すでに完成した構造化ナレッジオブジェクト (category 及び effectSummary を保持) の場合、二重検索で破壊せずにそのまま返却！
         // ただし、賢者の知恵モード(sagesWisdomMode)で未識別アイテムが渡された場合は真名開示のために再解決を許可！
         if (typeof identifier === 'object' && identifier !== null && identifier.category && identifier.effectSummary) {
             const isUnid = Boolean(identifier.isUnidentified || identifier.identification?.isUnidentified || options.isUnidentified);
             const isWisdom = Boolean(options.sagesWisdomMode);
             if (!isWisdom || !isUnid) {
-                return identifier;
+                return this._applyPileFlag(identifier, isPile);
             }
         }
 
         // 🎯 0. オブジェクト型指定の場合、type プロパティ (BODY, STATUE, TERRAIN, MONSTER, ITEM) に基づき最優先で直撃分岐！
         if (typeof identifier === 'object' && identifier !== null) {
             if (identifier.type === 'BODY') {
-                return this.getCorpseKnowledge(identifier, options);
+                return this._applyPileFlag(this.getCorpseKnowledge(identifier, options), isPile);
             }
             if (identifier.type === 'STATUE' || identifier.subType === 476 || identifier.onum === 476 || (identifier.name && identifier.name.toLowerCase() === 'statue')) {
-                return this.getStatueKnowledge(identifier, options);
+                return this._applyPileFlag(this.getStatueKnowledge(identifier, options), isPile);
             }
             if (identifier.type === 'TERRAIN' || identifier.type === 'UNEXPLORED') {
                 return this.getTerrainKnowledge(identifier, options);
@@ -1293,7 +1352,7 @@ export class StructuredKnowledgeEngine {
                 return this.getMonsterKnowledge(identifier, options);
             }
             if (identifier.type === 'ITEM') {
-                return this.getItemKnowledge(identifier, options);
+                return this._applyPileFlag(this.getItemKnowledge(identifier, options), isPile);
             }
         }
 
@@ -1304,11 +1363,11 @@ export class StructuredKnowledgeEngine {
                 if (info.type === ENTITY_TYPES.MONSTER || info.type === ENTITY_TYPES.PET) {
                     return this.getMonsterKnowledge(identifier, options);
                 } else if (info.type === ENTITY_TYPES.BODY) {
-                    return this.getCorpseKnowledge(identifier, options);
+                    return this._applyPileFlag(this.getCorpseKnowledge(identifier, options), isPile);
                 } else if (info.type === ENTITY_TYPES.STATUE) {
-                    return this.getStatueKnowledge(identifier, options);
+                    return this._applyPileFlag(this.getStatueKnowledge(identifier, options), isPile);
                 } else if (info.type === ENTITY_TYPES.ITEM) {
-                    return this.getItemKnowledge(identifier, options);
+                    return this._applyPileFlag(this.getItemKnowledge(identifier, options), isPile);
                 } else if (info.type === ENTITY_TYPES.TERRAIN || info.type === ENTITY_TYPES.TRAP || info.type === ENTITY_TYPES.CMAP || info.type === ENTITY_TYPES.UNEXPLORED) {
                     return this.getTerrainKnowledge(identifier, options);
                 }
@@ -1329,19 +1388,19 @@ export class StructuredKnowledgeEngine {
             // 石像 (Statue) の優先判定
             if (lowerKey.includes('statue') || lowerKey.includes('石像') || lowerKey.includes('像')) {
                 const statueData = this.getStatueKnowledge(identifier, options);
-                if (statueData) return statueData;
+                if (statueData) return this._applyPileFlag(statueData, isPile);
             }
 
             // 死体 (Corpse/Body) の優先判定
             if (lowerKey.includes('corpse') || lowerKey.includes('死体')) {
                 const corpseData = this.getCorpseKnowledge(identifier, options);
-                if (corpseData) return corpseData;
+                if (corpseData) return this._applyPileFlag(corpseData, isPile);
             }
         }
 
         // 1. アイテムナレッジを最優先検索 (onum/辞書照合・未識別外見等)
         let data = this.getItemKnowledge(identifier, options);
-        if (data) return data;
+        if (data) return this._applyPileFlag(data, isPile);
 
         // 2. 地形・仕掛けナレッジを検索 (Cmap/キーワード)
         data = this.getTerrainKnowledge(identifier, options);
@@ -1369,29 +1428,35 @@ export class StructuredKnowledgeEngine {
                         id: 'corpse',
                         name: 'Corpse',
                         category: 'BODY',
+                        ...(isPile ? { isPile: true } : {}),
                         effectSummary: 'Monster corpse. Can be eaten with \'e\' for nutrition or resistances, but beware of taint/poison.'
                     };
-                    return options.translate !== false ? this.localizeKnowledge(rawObj) : rawObj;
+                    const localized = options.translate !== false ? this.localizeKnowledge(rawObj) : rawObj;
+                    return this._applyPileFlag(localized, isPile);
                 } else if (info.type === ENTITY_TYPES.STATUE) {
                     const rawObj = {
                         id: 'statue',
                         name: 'Statue',
                         category: 'STATUE',
+                        ...(isPile ? { isPile: true } : {}),
                         effectSummary: 'Stone statue. Pick up or break with Pick-axe / Wand of Striking.'
                     };
-                    return options.translate !== false ? this.localizeKnowledge(rawObj) : rawObj;
+                    const localized = options.translate !== false ? this.localizeKnowledge(rawObj) : rawObj;
+                    return this._applyPileFlag(localized, isPile);
                 } else if (info.type === ENTITY_TYPES.ITEM) {
                     const onum = getOnumFromGlyph(identifier);
                     if (typeof onum === 'number' && onum >= 0) {
-                        return this.getItemKnowledge(onum, options);
+                        return this._applyPileFlag(this.getItemKnowledge(onum, options), isPile);
                     }
                     const rawObj = {
                         id: `item_glyph_${identifier}`,
                         name: 'Dungeon Item',
                         category: 'ITEM',
+                        ...(isPile ? { isPile: true } : {}),
                         effectSummary: 'Standard dungeon item.'
                     };
-                    return options.translate !== false ? this.localizeKnowledge(rawObj) : rawObj;
+                    const localized = options.translate !== false ? this.localizeKnowledge(rawObj) : rawObj;
+                    return this._applyPileFlag(localized, isPile);
                 }
             }
         }

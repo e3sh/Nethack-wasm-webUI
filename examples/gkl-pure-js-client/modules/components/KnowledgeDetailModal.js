@@ -426,6 +426,7 @@ export class KnowledgeDetailModal {
         rawText: target.rawText || target.knowledge.rawText,
         identification: target.identification || target.knowledge.identification,
         bucStatus: target.bucStatus || target.knowledge.bucStatus,
+        isPile: Boolean(target.isPile || target.knowledge.isPile),
         isWielded: target.isWielded,
         isOffhand: target.isOffhand,
         isQuivered: target.isQuivered,
@@ -471,6 +472,7 @@ export class KnowledgeDetailModal {
     const id = baseData.identification || target.identification || {};
     const isUnid = Boolean(baseData.isUnidentified || id.isUnidentified || target.isUnidentified);
     const isWisdom = Boolean(baseData.isWisdomRevealed || baseData.wisdomBadge || (isUnid && this.isPeekRevealed));
+    const isPile = Boolean(baseData.isPile || target.isPile || target.glyphInfo?.isPile);
 
     // 🧙 Peek有効または賢者の知恵モード時、未鑑定アイテムの真名・スペック・効果を再解決＆マージ
     if (isUnid && isWisdom) {
@@ -483,12 +485,14 @@ export class KnowledgeDetailModal {
           translate: true,
           language: this.currentLanguage,
           sagesWisdomMode: true,
-          isUnidentified: true
+          isUnidentified: true,
+          isPile
         }) || core.gkl.structuredKnowledge.getKnowledge(queryTarget, {
           translate: true,
           language: this.currentLanguage,
           sagesWisdomMode: true,
-          isUnidentified: true
+          isUnidentified: true,
+          isPile
         });
       }
 
@@ -514,6 +518,7 @@ export class KnowledgeDetailModal {
         ...(wisdomObj || {}),
         ...baseData,
         onum: targetOnum >= 0 ? targetOnum : baseData.onum,
+        ...(isPile ? { isPile: true } : {}),
         isUnidentified: true,
         isWisdomRevealed: true,
         wisdomBadge: true,
@@ -543,20 +548,22 @@ export class KnowledgeDetailModal {
     }
 
     if (baseData.dangerLevel || baseData.category || baseData.isUnidentified || baseData.effectSummary || baseData.name) {
-      return baseData;
+      return isPile && !baseData.isPile ? { ...baseData, isPile: true } : baseData;
     }
 
     if (core?.gkl?.structuredKnowledge) {
-      return core.gkl.structuredKnowledge.getKnowledge(target, {
+      const resolved = core.gkl.structuredKnowledge.getKnowledge(target, {
         isPet,
         isPlayer,
+        isPile,
         translate: true,
         language: this.currentLanguage,
         sagesWisdomMode: false
       }) || baseData;
+      return isPile && resolved && !resolved.isPile ? { ...resolved, isPile: true } : resolved;
     }
 
-    return baseData;
+    return isPile && !baseData.isPile ? { ...baseData, isPile: true } : baseData;
   }
 
   /**
@@ -568,6 +575,7 @@ export class KnowledgeDetailModal {
     const isEn = this.currentLanguage === 'en';
     const target = this.currentTarget;
     const data = this._resolveData() || target;
+    const isPile = Boolean(data.isPile || target.isPile || target.glyphInfo?.isPile);
 
     const isPet = target.type === 'PET' || (target.entity && target.entity.type === 'PET');
     const isMonsterType = Boolean(
@@ -783,6 +791,7 @@ export class KnowledgeDetailModal {
             <div class="knowledge-header-title-box">
               <span class="knowledge-header-title">${headerTitle}</span>
               <span class="knowledge-category-pill">${categoryBadge}</span>
+              ${isPile ? `<span class="kn-pile-pill" style="margin-left: 6px; font-size: 0.72rem; padding: 2px 7px; border-radius: 9999px; background: rgba(14, 165, 233, 0.22); border: 1px solid rgba(56, 189, 248, 0.55); color: #bae6fd; font-weight: 600;" title="${isEn ? 'Multiple items stacked here (only top item visible from afar)' : '複数のアイテム等が重なっています（遠方からは最上部のみ視認可能）'}">📚 ${isEn ? 'PileTop' : '山積み (PileTop)'}</span>` : ''}
               ${isWisdom ? `<span class="kn-wisdom-pill" style="margin-left: 6px; font-size: 0.72rem; padding: 2px 7px; border-radius: 9999px; background: rgba(168, 85, 247, 0.25); border: 1px solid rgba(168, 85, 247, 0.6); color: #e9d5ff; font-weight: 600;">🧙 ${isEn ? "Sage's Wisdom" : "賢者の知恵"}</span>` : ''}
             </div>
           </div>

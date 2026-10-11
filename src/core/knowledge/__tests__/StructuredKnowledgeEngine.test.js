@@ -641,6 +641,58 @@ describe('StructuredKnowledgeEngine', () => {
             const kEn = engine.getKnowledge(floorEntity, { language: 'en' });
             expect(kEn.name).toBe('fencing gloves');
         });
+
+        it('PileTop グリフ・エンティティ (アイテム・未識別アイテム・死体・石像) の解決時に isPile: true が保持され、単体参照キャッシュを汚染しないこと', () => {
+            const engine = new StructuredKnowledgeEngine();
+
+            // 1. 単体アイテム参照 (onum 428: wand of digging) -> isPile は未設定 (falsy)
+            const singleWand = engine.getItemKnowledge(428);
+            expect(singleWand.isPile).toBeUndefined();
+
+            // 2. PileTop アイテムグリフ (GLYPH_OBJ_PILETOP_OFF 7992 + 428 = 8420) -> isPile: true
+            const pileWandByGlyph = engine.getKnowledge(GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF + 428);
+            expect(pileWandByGlyph.isPile).toBe(true);
+
+            // 3. cell.middle オブジェクト ({ type: 'ITEM', subType: 428, isPile: true }) -> isPile: true
+            const pileWandByEntity = engine.getKnowledge({
+                type: 'ITEM',
+                subType: 428,
+                glyph: GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF + 428,
+                isPile: true
+            });
+            expect(pileWandByEntity.isPile).toBe(true);
+
+            // 4. 再度単体アイテム参照 -> キャッシュが isPile: true で汚染されていないこと
+            const singleWandAfter = engine.getItemKnowledge(428);
+            expect(singleWandAfter.isPile).toBeUndefined();
+
+            // 5. 未識別アイテムの PileTop -> isPile: true が保持されること
+            const unidEngine = new StructuredKnowledgeEngine({
+                discoveryStateManager: { isIdentified: () => false }
+            });
+            const unidPile = unidEngine.getKnowledge({
+                type: 'ITEM',
+                subType: 307,
+                glyph: GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF + 307,
+                isPile: true
+            });
+            expect(unidPile.isUnidentified).toBe(true);
+            expect(unidPile.isPile).toBe(true);
+
+            // 6. 死体 (BODY) の PileTop (GLYPH_BODY_PILETOP_OFF = 8473) -> isPile: true
+            const singleCorpse = engine.getKnowledge(GLYPH_OFFSETS.GLYPH_BODY_OFF + 10);
+            expect(singleCorpse.isPile).toBeUndefined();
+            const pileCorpse = engine.getKnowledge(GLYPH_OFFSETS.GLYPH_BODY_PILETOP_OFF + 10);
+            expect(pileCorpse.category).toBe('CORPSE');
+            expect(pileCorpse.isPile).toBe(true);
+
+            // 7. 石像 (STATUE) の PileTop (GLYPH_STATUE_PILETOP_OFF = 8856) -> isPile: true
+            const singleStatue = engine.getKnowledge(GLYPH_OFFSETS.GLYPH_STATUE_OFF + 130);
+            expect(singleStatue.isPile).toBeUndefined();
+            const pileStatue = engine.getKnowledge(GLYPH_OFFSETS.GLYPH_STATUE_PILETOP_OFF + 130);
+            expect(pileStatue.category).toBe('STATUE');
+            expect(pileStatue.isPile).toBe(true);
+        });
     });
 });
 

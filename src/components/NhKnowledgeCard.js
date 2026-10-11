@@ -103,6 +103,7 @@ const CARD_CSS = `
 .badge-category { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 .badge-unidentified { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.4); }
 .badge-wisdom { background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.6); font-weight: 700; }
+.badge-pile { background: rgba(14, 165, 233, 0.22); color: #bae6fd; border: 1px solid rgba(56, 189, 248, 0.55); font-weight: 600; text-transform: none; }
 
 .btn-peek-wisdom {
   background: rgba(245, 158, 11, 0.15);
@@ -848,6 +849,7 @@ export class NhKnowledgeCard extends NhBaseElement {
           </div>
           <div class="card-badges">
             <span class="badge badge-category">${category}</span>
+            ${(data.isPile || data.glyphInfo?.isPile) ? `<span class="badge badge-pile" title="${isEn ? 'Multiple items stacked here (only top item visible from afar)' : '複数のアイテム等が重なっています（遠方からは最上部のみ視認可能）'}">${isEn ? '📚 PileTop' : '📚 山積み (PileTop)'}</span>` : ''}
             ${data.dangerLevel ? `<span class="badge ${this._getDangerClass(data.dangerLevel)}">${data.dangerLevel}</span>` : ''}
             ${isWisdom ? `<span class="badge badge-wisdom">${isEn ? "🧙 Sage's Wisdom" : '🧙 賢者の知恵'}</span>` : ''}
             ${isUnidentified ? `<span class="badge badge-unidentified">${isEn ? 'Unidentified' : '未識別'}</span>` : ''}
