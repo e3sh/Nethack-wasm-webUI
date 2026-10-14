@@ -143,21 +143,22 @@ flowchart TD
 
 さらに、`WasmDirectBindingService.fetchObjectsAt(x, y)` (L1467-1488) において、`out[11]` (`nexthere`) を辿ることで、Worker ブリッジ経由でも床上のスタック（最大10件程度まで安全上限付き）を配列として全件取得できるようにし、コンテナで `cobj != 0` の場合は中身リスト（`contents`）も1階層取得可能にします。
 
-### 3.2 `GKLEventRouter.js` ＆ `AreaStateManager.js`（`cell.middle` への格納）
-1. **プレイヤー足元および近傍の自動同期**:
-   - `AreaStateManager.syncPlayerFeetFloor()` (L489-504) および `syncFromDirectBinding()` (L510-554) にて、地形（`cell.bottom`）・モンスター（`cell.top`）だけでなく、`cell.middle` が存在するセル（またはプレイヤー足元 `(px, py)`）に対して `directBindingService.getObjectsAt(x, y)` を呼び出し、`cell.middle.directObject = floorObjs[0]` および `cell.middle.floorObjects = floorObjs`、`cell.middle.isPile = floorObjs.length > 1` を格納する。
-   - `GKLEventRouter.js` (L88-100) の `syncFromWorkerBridge` 呼び出しでも、プレイヤー足元 `(px, py)` の床オブジェクトを同期する。
-2. **`updateGlyph` 時のキャッシュ維持と更新**:
+### 3.2 `GKLEventRouter.js` ＆ `AreaStateManager.js`（`cell.middle` への格納と `extraPileCount` の同期）
+1. **プレイヤー足元および視認マスの自動同期**:
+   - `AreaStateManager.syncPlayerFeetFloor()` (L489-504) および `syncFromDirectBinding()` (L510-554) にて、地形（`cell.bottom`）・モンスター（`cell.top`）だけでなく、`cell.middle` が存在するセル（またはプレイヤー足元 `(px, py)`）に対して床オブジェクトを照会し、`cell.middle.directObject = floorObjs[0]`、`cell.middle.floorObjects = floorObjs`、`cell.middle.isPile = floorObjs.length > 1`、および **最上段を除いた下層アイテム数 `cell.middle.extraPileCount = Math.max(0, floorObjs.length - 1)`** を格納する。
+   - `GKLEventRouter.js` (L88-100) の `syncFromWorkerBridge` 呼び出しでも、プレイヤー足元 `(px, py)` および視界内の PileTop セルの床オブジェクト（またはスタック数）を同期する。
+2. **`updateGlyph` 時のキャッシュ維持と視界外リーク防止**:
    - `AreaStateManager.updateGlyph(x, y, glyphId, ...)` (L356-370) で `ITEM` / `BODY` / `STATUE` が描画された際、Direct Memory が即座に読める場合は `getObjectsAt(x, y)` をアタッチし、また `glyphClassifier.classifyGlyph` の `isPile` フラグ（`GLYPH_OBJ_PILETOP_OFF` 等）も `cell.middle.isPile` に反映する。
+   - **【視界外ネタバレ防止】**: プレイヤーの視界外にある記憶マス（`print_glyph` が新規に送られていないマス）では、モンスターが勝手にアイテムを拾ったり落としたりしても `cell.middle.extraPileCount` をバックグラウンド更新せず、**「プレイヤーが最後に視認した時点の `+N`」** を保持する。
 
 ### 3.3 `InspectionService.js`（オンデマンド検査時の床オブジェクト取得とデータ受け渡し）
 `src/core/knowledge/services/InspectionService.js` を以下のように改修します。
 
 1. **`inspectCellOnDemand(targetPos, options)` (L78-95)**:
-   - 対象セルに `cell.middle` があり、まだ `cell.middle.directObject` が未取得（または最新ターンでない）の場合、`await p.wasmDirectBindingService.fetchObjectsAt(targetPos.x, targetPos.y)` を実行し、`cell.middle.directObject = floorObjs[0]`、`cell.middle.floorObjects = floorObjs`、`cell.middle.isPile = floorObjs.length > 1 || cell.middle.isPile` をセットする。
+   - 対象セルに `cell.middle` があり、まだ `cell.middle.directObject` が未取得（または最新ターンでない）の場合、`await p.wasmDirectBindingService.fetchObjectsAt(targetPos.x, targetPos.y)` を実行し、`cell.middle.directObject = floorObjs[0]`、`cell.middle.floorObjects = floorObjs`、`cell.middle.isPile = floorObjs.length > 1 || cell.middle.isPile`、`cell.middle.extraPileCount = Math.max(0, floorObjs.length - 1)` をセットして `markDirty(targetPos.x, targetPos.y)` を呼ぶ。
 2. **`getInspectionTargetAt(targetPos)` (L97-170) および `getKnowledgeForEntity(entityInfo, options)` (L172-255)**:
-   - `cell.middle` から検査ターゲットを生成する際、`directObject`、`floorObjects`、`isPile` を `target` オブジェクトに欠落なくコピーする。
-   - `getKnowledgeForEntity` 内で `p.knowledgeEngine.getKnowledge()` を呼ぶ際、単なる `{ subType, category, glyph }` だけでなく、`{ ...entityInfo, onum: entityInfo.directObject?.otyp ?? entityInfo.subType, directObject: entityInfo.directObject, floorObjects: entityInfo.floorObjects, isPile: entityInfo.isPile }` を渡す。
+   - `cell.middle` から検査ターゲットを生成する際、`directObject`、`floorObjects`、`isPile`、`extraPileCount` を `target` オブジェクトに欠落なくコピーする。
+   - `getKnowledgeForEntity` 内で `p.knowledgeEngine.getKnowledge()` を呼ぶ際、単なる `{ subType, category, glyph }` だけでなく、`{ ...entityInfo, onum: entityInfo.directObject?.otyp ?? entityInfo.subType, directObject: entityInfo.directObject, floorObjects: entityInfo.floorObjects, isPile: entityInfo.isPile, extraPileCount: entityInfo.extraPileCount }` を渡す。
 
 ### 3.4 `StructuredKnowledgeEngine.js` ＆ `ItemSpecPresenter.js`（動的インスタンス仕様の構築）
 1. **`StructuredKnowledgeEngine.js`**:
@@ -170,10 +171,10 @@ flowchart TD
      - `directObj?.corpsenm >= 0` があればグリフ逆引きよりも優先してモンスター種別を特定する。
      - 死体の場合、`directObj?.age` と現在のゲームターン数（`u.umoved` / `moves`）の差分から経過ターン数を計算可能にし、像の場合は `directObj?.cobjPtr !== 0`（像の中に本やアイテムが入っているか）や歴史的彫像フラグを保持する。
    - **スタック・束（Pile）情報の付与**:
-     - `directObj?.quan > 1`（同一アイテムの束、例: 12本の矢）と、`floorObjects?.length > 1 || isPile`（複数種類のアイテムの山）を知識データの `instanceInfo` として付与する。
+     - `directObj?.quan > 1`（同一アイテムの束、例: 12本の矢）と、`floorObjects?.length > 1 || isPile`（複数種類のアイテムの山）、および **`extraPileCount: Math.max(0, (floorObjects?.length || 1) - 1)`**（表出している最上段アイテムのさらに下に埋まっているアイテム数）を知識データのトップレベルおよび `instanceInfo` として付与する。
 2. **`ItemSpecPresenter.js` (`getAdaptiveItemSpecs`, L19-289)**:
    - 静的マスタデータだけでなく、`item.directObject` / `item.instanceInfo` が存在する場合に以下の動的スペックバッジ・項目を生成する（**通常時はプレイヤー既知フラグ `bknown` / `known` / `lknown` / `tknown` / `cknown` が `true` の項目のみ表示し、`isWisdomRevealed: true` (Peek 時) は全項目を紫色の `[知恵]` ハイライト付きで開示**）：
-     - **個数・山状態**: `quan > 1` なら個数（例: `×12`）、`isPile` なら「複数アイテムの山（計Nスタック）」および下層アイテム一覧（Peek 時または足元視認時）。
+     - **個数・山状態**: `quan > 1` なら個数（例: `×12`）、`isPile` なら **「山積み（下に `+N` 個のアイテム）」** および下層アイテム一覧（Peek 時または足元視認時）。
      - **BUC 状態**: `bknown` または Peek 時に「祝福 (Blessed) / 無呪 (Uncursed) / 呪い (Cursed)」を表示（未知時は「不明 (Unknown)」）。
      - **強化値・チャージ数 (`spe`)**: 武器・防具・杖・魔道具・指輪で、`known` または Peek 時に `+2` や `(0:5)` 等の数値を表示。
      - **劣化・コーティング状態**: `oeroded` / `oeroded2`（錆・腐食・焼損・虫食い度）、`oerodeproof`（耐食処理済）、`greased`（グリース塗布）を表示（これらは視覚的に外観から判別可能な属性）。
@@ -184,9 +185,19 @@ flowchart TD
 
 ---
 
-## 4. 調査結果③：UI 層の「View 特化」純化チェック
+## 4. 調査結果③：UI 層の「View 特化」純化チェック ＆ PileTop `[+1]` / `[+2]` 表示設計
 
-`NhKnowledgeCard.js` と `KnowledgeDetailModal.js` を精査した結果、以下の不純物（ビジネスロジックの混入）と、一時的にコメントアウトされている Peek UI が確認されました。
+`NhKnowledgeCard.js` と `KnowledgeDetailModal.js`、さらにマップレンダラー（`MainViewportRenderer.js` / `WebGPUHD2DRenderer.js`）および吹き出し（`FloatingContextActions.js`）における PileTop 表示を以下のように統一・純化します。
+
+### 4.0 マップ＆ナレッジ共通の PileTop `[+1]` / `[+2]` 表示ルール
+最上段（1個目）のアイテムはすでにマップ上のタイル絵やカードのタイトルとして表出しているため、バッジには総数ではなく **「その下にあと何個隠れているか（`extraPileCount = pileCount - 1`）」** を **`+1`**, **`+2`** の形式で表示します。これにより、カウント未取得時の **`+`**（下にまだ何かある）とメンタルモデルが完全に一致し、直感的に把握できます。
+
+| 状態 | マップ右下ミニバッジ<br/>(`MainViewportRenderer` / `WebGPUHD2DRenderer`) | ナレッジピル・バッジ<br/>(`FloatingContextActions` / `NhKnowledgeCard` / `KnowledgeDetailModal`) |
+| :--- | :--- | :--- |
+| **山積みでない (`!isPile`)** | 非表示 | 非表示 |
+| **山積み・下層数未確定 (`extraPileCount` 未取得)** | **`+`** (`10x10px` 枠) | **`📚 山積み (+)`** / `📚 Pile (+)` |
+| **山積み・下層 1〜9個 (`extraPileCount = 1..9`)** | **`+1`** 〜 **`+9`** (`14x10px` ピル枠) | **`📚 山積み (+1)`** 〜 **`📚 山積み (+9)`** / `📚 Pile (+N)` |
+| **山積み・下層 10個以上 (`extraPileCount >= 10`)** | **`+9+`** または **`++`** (`16x10px` ピル枠) | **`📚 山積み (+12)`** （ナレッジ側は正確な数値を表示） |
 
 ### 4.1 `KnowledgeDetailModal.js` の問題点と純化方針
 `examples/gkl-pure-js-client/modules/components/KnowledgeDetailModal.js` には、現在以下の直接参照と独自解決ロジックが残存しています：
@@ -199,19 +210,64 @@ flowchart TD
    - **純化方針**: `KnowledgeDetailModal` は自前でマスタデータを一切検索せず、`GKLPlugin` / `StructuredKnowledgeEngine.getKnowledge(this.currentRawData, { sagesWisdomMode: this.isPeekWisdom || this.isGlobalWisdom })` を呼び出すだけの純粋な View とする。これにより、エンジン側で構築した `specs`（コンテナ状態や BUC・強化値等を含む）と `[外見名 [真名]]` フォーマットがそのままモーダルに描画される。
 3. **Peek Wisdom ボタンとキーバインドの復元 (L205-229, L798-800)**:
    - 現在省略されているヘッダーの `#btn-modal-peek-wisdom`（👁️ 覗き見知恵トグルボタン）と、モーダル表示中の `w` / `W` キーによるトグル操作を復元する。
+4. **PileTop バッジの `+N` 化 (L794)**:
+   - `extraPileCount > 0` の場合は `📚 山積み (+${extraPileCount})`（英語: `📚 Pile (+${extraPileCount})`）、未確定時は `📚 山積み (+)` を表示する。
 
-### 4.2 `NhKnowledgeCard.js` の問題点と純化方針
-`src/components/NhKnowledgeCard.js` には以下の課題があります：
+### 4.2 `NhKnowledgeCard.js` および `FloatingContextActions.js` の問題点と純化方針
+`src/components/NhKnowledgeCard.js` および `FloatingContextActions.js` には以下の課題があります：
 
 1. **Peek トグル時のデータ再解決または完全参照**:
    - `togglePeekWisdom()` (L480-483) は `this.isPeekRevealed = !this.isPeekRevealed; this.render();` を行っているが、`_renderLayer1Spec()` (L940-985) では `Category` / `Weight` / `Material` / `BUC Status` の4ボックスしか描画しておらず、`ItemSpecPresenter.getAdaptiveItemSpecs()` が生成する適応型スペック（または `directObject` の個数・強化値・コンテナ施錠状態・床スタック情報）が表示されていない。
    - **純化方針**: `StructuredKnowledgeEngine.getItemKnowledge()` が通常データ（`specs`）と併せて `wisdomSpecs`（`isWisdomRevealed: true` で `getAdaptiveItemSpecs` を呼んだ配列）および `instanceSpecs`（個数・BUC・コンテナ状態等）を返却するようにし、`NhKnowledgeCard` は `isPeekRevealed` の状態に応じて `wisdomSpecs` と `specs` を切り替えて描画するだけの View に純化する。
 2. **Peek Wisdom UI トリガーの復元 (L613-631, L850-857)**:
    - カードヘッダー／フッターの `#peekWisdomBtn`（👁️ ボタン）および `w` キーのショートカットを復元する。
+3. **PileTop バッジの `+N` 化**:
+   - `NhKnowledgeCard.js` (L852) と `FloatingContextActions.js` (L276-278) の山積みバッジも同様に `extraPileCount > 0` なら `📚 山積み (+${extraPileCount})` を表示する。
 
 ---
 
-## 5. 最新モジュール構成に即した実装計画（ファイル別改修タスクリスト）
+## 5. 冒険手帳（`AdventureLogManager`）＆ 3段階ガイド・知恵支援ポリシー統合設計
+
+覗き見知恵（Peek Wisdom）の解放にあたり、**「操作ミス（`w` キーやボタン誤クリック）による意図しないネタバレ」**や**「自力コンプリート（縛りプレイ）を目指すプレイヤーの手帳汚染」**を防ぎつつ、周回メタプログレッションとしての楽しさを最大化するため、現行の [`AdventureLogManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/lore/AdventureLogManager.js) の `oracleGuideAlwaysUnlocked`（神託公式ガイドモード）を **「3段階のガイド・知恵支援モード（`guideAssistanceMode`）」** へ拡張します。
+
+### 5.1 なぜ覗き見には「個別詳細値（強化値 `spe`・BUC・箱の中身等）」の開示が不可欠か
+[`ground_truth_knowledge_audit_architecture.ja.md`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/7_futures/ground_truth_knowledge_audit_architecture.ja.md)（実機観測ナレッジ監査）と本設計書（覗き見知恵）では、扱うデータの階層が明確に異なります。
+
+| 機能領域 | 対象C構造体 | 扱う情報の性質 | 強化値 (`spe`)・呪い (`BUC`)・箱状態等の扱い |
+| :--- | :--- | :--- | :--- |
+| **冒険手帳 ＆ ナレッジ監査**<br/>(`AdventureLogManager` / `KnowledgeAuditor`) | 不変マスタ定義<br/>(`struct objclass` / `permonst`) | セッション横断の普遍的知識（基礎重量・価格・基本ダイス） | **対象外**（個体ごとのランダム変動値でありマスタ監査には不要） |
+| **覗き見知恵 (Peek Wisdom)**<br/>(`StructuredKnowledgeEngine` / `ItemSpecPresenter`) | 個別インスタンス<br/>(`struct obj` + `objclass`) | 今目の前にある1個体の正体と隠された個体状態 | **必須**（武器・防具・箱・缶詰・死体などは最初から品目名自体が判明しているため、`spe`・`BUC`・罠・中身・`corpsenm` が見えないと覗き見の意味がなくなる） |
+
+### 5.2 誤操作防止と縛りプレイを両立する「3段階の支援モード」
+チェックボックスを増やしてUIを複雑化させるのではなく、既存の「🔮 公式ガイドモード」スイッチを以下の **3段階プリセットモード** に進化させます。これにより、検査カードやモーダル上での誤操作（うっかり `w` キーを押して未知アイテムをネタバレしてしまう事故）をシステム側で確実にロックできます。
+
+| モード | 名称・コンセプト | 神託 (`Oracle`) | 覗き見知恵 (`Peek Wisdom`) の可否と挙動 | 誤操作防止・プレイスタイル上の意味 |
+| :--- | :--- | :--- | :--- | :--- |
+| **Lv.0** | **🛡️ ストイック**<br/>(`STOIC` / 支援なし) | ゲーム内で獲得した神託のみ表示 | **完全無効**<br/>（👁️ボタン非表示・`w`キー無効） | ネタバレや支援を一切使わない純粋ローグライク層向け。誤操作リスク 0%。 |
+| **Lv.1** | **🧭 歴戦の鑑識眼**<br/>(`VETERAN` / 手帳連動)<br/>*※推奨デフォルト* | ゲーム内で獲得した神託のみ表示 | **「冒険手帳に正式登録済みの品目 (`onum`)」のみ覗き見可能**<br/>（手帳未登録の未知アイテムは `🔒 手帳未登録` として覗き見ロック） | **【誤操作防止の要】** 初見の未知アイテムは誤って `w` を押しても絶対に透視されず、初見のスリルと自力鑑定の喜びが守られる。一方、過去の周回で一度でも自力鑑定して手帳に載せたアイテムなら、次回以降はシャッフル外見の正体や**個別詳細値（強化値 `spe`・呪い `BUC`・箱の罠等）**をペナルティなしで快適に透視できる。 |
+| **Lv.2** | **🔮 公式ガイド・全知**<br/>(`SAGE_GUIDE` / 旧ガイドモード拡張) | 全20件を公式ガイドとして常時開示 | **手帳未登録の未知アイテムを含め、すべて覗き見可能**<br/>（未登録品を覗き見した場合は手帳に **「👁️ 賢者の知恵で解禁」マーク** を付与してアンロック） | 初心者・検証プレイ向け。未知の品でも即座に真名と個別詳細値を透視できる。 |
+
+### 5.3 冒険手帳における「👁️ 覗き見解禁マーク」と「正式鑑定への昇格（アップグレード）」
+Lv.2（`SAGE_GUIDE`）で未登録アイテムを覗き見した際、あるいは自主的な縛りプレイ（「自力鑑定100%コンプリート」等）を支援するため、[`AdventureLogManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/lore/AdventureLogManager.js) のアンロック状態に以下のライフサイクルを導入します。
+
+```mermaid
+stateDiagram-v2
+    [*] --> LOCKED: 未遭遇・未識別
+    LOCKED --> PEEKED: Lv.2 モードで未鑑定品を覗き見<br/>(👁️ 覗き見解禁マーク付与)
+    LOCKED --> IDENTIFIED: ゲーム内で正式鑑定 (oc_name_known == 1)<br/>(🎓 正式解禁)
+    PEEKED --> IDENTIFIED: 後日または同ランで正式鑑定に成功<br/>(✨ 👁️マークが消え正式解禁へ昇格！)
+```
+
+1. **`peekedObjects: Set<number>` の保持**:
+   - `AdventureLogManager` に `this.peekedObjects = new Set()` を追加（`LocalStorage` に永続化）。
+   - 手帳未登録（`!this.unlockedObjects.has(onum)`）の状態で Peek Wisdom を実行した場合、`this.unlockedObjects.add(onum)` と同時に `this.peekedObjects.add(onum)` に記録し、手帳一覧や進捗統計で **「👁️ 賢者の知恵による解禁」** として区別表示する。
+2. **正式鑑定による昇格（取り返しのつかないデータ汚染の防止）**:
+   - すでに `peekedObjects` に入っているアイテムであっても、その後のプレイでプレイヤーが自力で正式鑑定（`DiscoveryStateManager` 等から `unlockObject(onum, { viaPeek: false })` が呼ばれた時）に成功した場合、**`this.peekedObjects.delete(onum)` を実行して「正式解禁（🎓）」へ昇格**させる。
+   - これにより、「一度でも覗き見を使うとセーブデータに一生傷が残る」というストレスを無くしつつ、「👁️マークをすべて消して100%自力鑑定にする」という前向きなやり込み目標として機能させる。
+
+---
+
+## 6. 最新モジュール構成に即した実装計画（ファイル別改修タスクリスト）
 
 本体コードの実装フェーズでは、以下の順序とモジュール分担で改修を実施します。
 
@@ -225,28 +281,35 @@ flowchart TD
    - `_decodeObjectInfoFromWords(words, ptr)` ヘルパーに統一し、`long[12]` から拡張フラグ・`corpsenm`・`age`・`cobjPtr`・`nextherePtr` をデコード。
    - `fetchObjectsAt(x, y)` で `nextherePtr` を辿り、床上のスタック全件（`floorObjects` 配列）と、コンテナ（`cobjPtr !== 0`）の中身リストを取得するよう強化。
 
-### Phase 2: 状態管理 ＆ 検査サービス（`AreaStateManager` / `InspectionService`）の連携
-3. **[`src/core/knowledge/state/AreaStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/state/AreaStateManager.js) (L356-370, L489-554) ＆ [`GKLEventRouter.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/coordinators/GKLEventRouter.js) (L88-100)**
-   - `syncPlayerFeetFloor()` および `syncFromDirectBinding()` にて、`cell.middle` に `directObject`（最上位オブジェクト）、`floorObjects`（スタック配列）、`isPile` を同期。
-4. **[`src/core/knowledge/services/InspectionService.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/services/InspectionService.js) (L78-255)**
-   - `inspectCellOnDemand(targetPos, options)` で `cell?.middle` が存在する場合に `fetchObjectsAt(targetPos.x, targetPos.y)` を実行して `cell.middle.directObject` / `floorObjects` を最新化。
-   - `getInspectionTargetAt` と `getKnowledgeForEntity` で `directObject`, `floorObjects`, `isPile` を `StructuredKnowledgeEngine` へ引き渡す。
+### Phase 2: 状態管理・検査サービス・冒険手帳ポリシー（`AreaStateManager` / `InspectionService` / `AdventureLogManager`）の連携
+3. **[`src/core/knowledge/lore/AdventureLogManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/lore/AdventureLogManager.js)**
+   - `guideAssistanceMode` (`'STOIC' | 'VETERAN' | 'SAGE_GUIDE'`, 旧 `oracleGuideAlwaysUnlocked` と後方互換維持) と `peekedObjects: Set<number>` を追加。
+   - `canPeekObject(onum)`（覗き見可能かどうかの判定）および `unlockObject(identifier, { viaPeek = false })`（覗き見解禁マーク付与と、正式鑑定時の `peekedObjects` からの昇格削除）を実装。
+4. **[`src/core/knowledge/state/AreaStateManager.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/state/AreaStateManager.js) (L356-370, L489-554) ＆ [`GKLEventRouter.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/coordinators/GKLEventRouter.js) (L88-100)**
+   - `syncPlayerFeetFloor()` および `syncFromDirectBinding()` にて、`cell.middle` に `directObject`（最上位オブジェクト）、`floorObjects`（スタック配列）、`isPile`、および **`extraPileCount`（最上段を除いた下層アイテム数 `floorObjects.length - 1`）** を同期。
+5. **[`src/core/knowledge/services/InspectionService.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/services/InspectionService.js) (L78-255)**
+   - `inspectCellOnDemand(targetPos, options)` で `cell?.middle` が存在する場合に `fetchObjectsAt(targetPos.x, targetPos.y)` を実行して `cell.middle.directObject` / `floorObjects` / `extraPileCount` を最新化。
+   - `getInspectionTargetAt` と `getKnowledgeForEntity` で `directObject`, `floorObjects`, `isPile`, `extraPileCount` を `StructuredKnowledgeEngine` へ引き渡す。
 
 ### Phase 3: 知識エンジン ＆ プレゼンター（`StructuredKnowledgeEngine` / `ItemSpecPresenter`）の統合
-5. **[`src/core/knowledge/engines/StructuredKnowledgeEngine.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/engines/StructuredKnowledgeEngine.js) (L411-702)**
-   - `getUnidentifiedItemKnowledge()` が `onum`, `directObject`, `floorObjects`, `isPile`, `wisdomSpecs` を欠落なく保持するよう修正。
-   - `getItemKnowledge()` にて、`directObject` がある場合の `dknown == 0`（遠距離未確認マスク）と `dknown == 1`（シャッフル外見名表示）の出し分け、および `sagesWisdomMode: true` での真名・全属性解放を実装。
+6. **[`src/core/knowledge/engines/StructuredKnowledgeEngine.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/engines/StructuredKnowledgeEngine.js) (L411-702)**
+   - `getUnidentifiedItemKnowledge()` が `onum`, `directObject`, `floorObjects`, `isPile`, `extraPileCount`, `wisdomSpecs` を欠落なく保持するよう修正。
+   - `getItemKnowledge()` にて、`directObject` がある場合の `dknown == 0`（遠距離未確認マスク）と `dknown == 1`（シャッフル外見名表示）の出し分け、および `sagesWisdomMode: true`（かつ `canPeekObject(targetOnum)` 許可時）での真名・全属性解放を実装。
    - 缶詰（`TIN`）・フィギュア（`FIGURINE`）・死体（`CORPSE`）・像（`STATUE`）で `directObject.corpsenm` と `directObject.age` を反映。
-6. **[`src/core/knowledge/presenters/ItemSpecPresenter.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/presenters/ItemSpecPresenter.js) (L19-289)**
-   - `getAdaptiveItemSpecs(item, isWisdomRevealed)` に `directObject` / `floorObjects` の動的インスタンス情報（個数 `quan`、BUC状態、強化値/チャージ `spe`、錆/腐食度、箱の施錠/罠/中身有無、床スタック一覧）を組み込み、通常時は既知フラグ（`bknown`, `known`, `lknown`, `tknown`, `cknown`）に従い、Peek 時は全開示するロジックを追加。
+7. **[`src/core/knowledge/presenters/ItemSpecPresenter.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/knowledge/presenters/ItemSpecPresenter.js) (L19-289)**
+   - `getAdaptiveItemSpecs(item, isWisdomRevealed)` に `directObject` / `floorObjects` の動的インスタンス情報（個数 `quan`、BUC状態、強化値/チャージ `spe`、錆/腐食度、箱の施錠/罠/中身有無、下層 `+N` 案内・床スタック一覧）を組み込み、通常時は既知フラグ（`bknown`, `known`, `lknown`, `tknown`, `cknown`）に従い、Peek 時は全開示するロジックを追加。
 
-### Phase 4: UI 層の「View 特化」純化 ＆ Peek Wisdom 操作の復元
-7. **[`examples/gkl-pure-js-client/modules/components/KnowledgeDetailModal.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/examples/gkl-pure-js-client/modules/components/KnowledgeDetailModal.js)**
+### Phase 4: UI 層の「View 特化」純化 ＆ Peek Wisdom 操作・PileTop `[+1]` / `[+2]` 表示の統合
+8. **[`examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js) ＆ [`WebGPUHD2DRenderer.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js)**
+   - `isPile` ミニバッジ描画にて、`cell.middle.extraPileCount > 0` が判明している場合は `[+1]`〜`[+9]`（10以上は `[+9+]` または `[++]`）、未確定時は従来の `[+]` を描画する。
+9. **[`examples/gkl-pure-js-client/modules/components/KnowledgeDetailModal.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/examples/gkl-pure-js-client/modules/components/KnowledgeDetailModal.js)**
    - `OBJECT_KNOWLEDGE_MAP` と `getOnumFromGlyph` の直接 import を削除。
    - `_resolveData()` を `GKLPlugin` / `StructuredKnowledgeEngine.getKnowledge(rawData, { sagesWisdomMode })` の呼び出しに一本化。
-   - ヘッダーの `#btn-modal-peek-wisdom` ボタンと `w`/`W` キーのショートカットを復元。
-8. **[`src/components/NhKnowledgeCard.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/components/NhKnowledgeCard.js)**
-   - エンジンから渡された `specs` / `wisdomSpecs` / `instanceInfo` を描画する純粋な View に整理。
-   - `#peekWisdomBtn` ボタンと `w` キーのショートカットを復元。
-9. **単体テストの追加・検証**:
-   - `tests/unit/floor_item_direct_binding_peek.test.js` を新設し、①遠距離未確認（`dknown=0`）、②近傍未鑑定（`dknown=1, oc_name_known=0` でのシャッフル外見表示）、③Peek Wisdom トグル時の真名・BUC・箱状態・死体種別の完全開示、④Direct Binding 無効時のフォールバックの4ケースを自動検証する。
+   - `AdventureLogManager.canPeekObject(onum)` に応じてヘッダーの `#btn-modal-peek-wisdom` ボタンの有効／ロック表示（`🔒 手帳未登録`）／非表示を切り替え、許可時のみ `w`/`W` キーのショートカットを受け付ける。
+   - PileTop ピルを `extraPileCount > 0` 時に `📚 山積み (+${extraPileCount})` として描画する。
+10. **[`src/components/NhKnowledgeCard.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/components/NhKnowledgeCard.js) ＆ [`FloatingContextActions.js`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/examples/gkl-pure-js-client/modules/components/FloatingContextActions.js)**
+    - エンジンから渡された `specs` / `wisdomSpecs` / `instanceInfo` を描画する純粋な View に整理し、PileTop バッジを `📚 山積み (+${extraPileCount})` 表示に統一。
+    - 支援モード（`canPeekObject`）に従い `#peekWisdomBtn` ボタンと `w` キーのショートカットを復元。
+11. **単体テストの追加・検証**:
+    - `tests/unit/floor_item_direct_binding_peek.test.js` を新設し、①遠距離未確認（`dknown=0`）、②近傍未鑑定（`dknown=1, oc_name_known=0` でのシャッフル外見表示）、③Peek Wisdom トグル時の真名・強化値 `spe`・BUC・箱状態・死体種別の完全開示、④3段階支援モード（`STOIC` / `VETERAN` / `SAGE_GUIDE`）による覗き見ロックと `peekedObjects` の昇格ライフサイクル、⑤PileTop の `extraPileCount`（`+1`, `+2` 等）の算出と表示を自動検証する。
+

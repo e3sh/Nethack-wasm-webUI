@@ -2,7 +2,7 @@
 title: コンテキスト連動型・岩盤（STONE）可視化 ＆ 掘削アシストレンダリング構想
 status: proposed
 created: 2026-10-11
-last_updated: 2026-10-11
+last_updated: 2026-10-12
 related_docs:
   - ../2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md
   - ../3_gkl/AreaStateManager_Architecture_and_Specification.ja.md
@@ -79,10 +79,52 @@ Stage 8.3-B の基盤整備により、GKL は現在 **① `print_glyph` で一�
 
 ---
 
-## 5. 関連モジュール
+## 5. 発展構想：マップ上への ContextActions コマンド数オーバーラップ表示と UI 省スペース化
+
+### 5.1 背景と狙い（UI 面積の削減と直感性の向上）
+現在、右サイドパネルの中段（`#card-actions` 内の `#gkl-direction-pad`）には「囲」型の 3×3 方向フィルターインジケーター（`DirectionPad`）が配置され、周囲8方向＋足元の推奨アクション数（`.gkl-dir-badge`）を表示しているが、サイドパネルの縦幅を大きく占有している。
+
+一方で、盤面クリック時にはすでに `CanvasInteractionController` と `FloatingContextActions` により、**隣接マスや足元を直接クリックして吹き出し型の ContextActions メニューを展開する仕組み**が稼働している。
+
+そこで、マップ画面と ContextActions を連動させる発展形として、**設定に応じて自キャラ周囲（隣接8マス＋足元）のマップ上に直接コマンド数バッジをオーバーラップ表示し、サイドパネルの 3×3 インジケータを省略・シンプル化できる仕組み**を導入する。
+
+- **UX 上のメリット**:
+  1. **視線移動のゼロ化**: 「マップ上の自キャラ周囲」と「右サイドパネルの 3×3 パッド」の間で視線を往復させる必要がなくなり、「隣のマスにバッジが出ている ➔ そのままそのマスをクリックしてアクション実行」という直感的な操作が盤面内で完結する。
+  2. **掘削アシストとの完全な親和性**: コンテキスト連動で浮かび上がった掘削可能岩盤（`STONE`）の上にコマンド数インジケータが表示されることで、「ここが掘れる（クリックで掘削コマンドが出る）」ことが視覚的に一目瞭然となる。
+  3. **サイドパネルの省スペース化**: マップ上のオーバーラップ表示を有効にした際、サイドパネルの 3×3 キーパッド（または推奨アクション枠全体）を非表示・折りたたみ可能にすることで、インベントリや戦術アドバイスの表示領域を大幅に拡大できる。
+
+### 5.2 レンダリングと UI 制御を複雑化させないためのアーキテクチャ方針
+「マップのレンダリングに UI インジケータを含めると処理や制御が複雑化するのではないか」という懸念に対しては、**地形キャッシュや 3D パイプラインと UI オーバーレイ層を厳密に分離する**ことでシンプルに実装できる。
+
+1. **オフスクリーン背景や WebGPU 3D インスタンスバッファには含めない（分離の原則）**
+   - `VirtualDungeonScreen`（背景キャッシュ）や `WebGPUHD2DRenderer` の 3D インスタンスバッファにバッジを組み込むと、アクション数が変化するたびに Dirty フラッシュや GPU バッファ再構築が必要になり制御が複雑化する。
+   - 代わりに、現在すでに **アイテム山積み `[+]`・ペット `[♥]`・騎乗 `[R]` のミニバッジを描画している「最前面 2D オーバーレイパス」** に相乗りする。
+     - **2D グラフィックモード (`MainViewportRenderer`)**: 背景転送後の動的ループ内で Canvas 2D API によりバッジを描画。
+     - **WebGPU HD-2D モード (`WebGPUHD2DRenderer`)**: 3D キャンバスの上に重なる透明 2D キャンバス（`fxCanvas`）上で、`worldToScreen(x, y, z)` を用いて 3D 座標からスクリーン座標へ投影しバッジを描画。
+   - 走査対象はフロア全体（80×24）ではなく **自キャラ周囲の最大 9 マス（`dx: -1..1, dy: -1..1`）のみ** であるため、描画負荷は実質ゼロに近い。
+
+2. **入力制御（クリック当たり判定）は既存の `CanvasInteractionController` をそのまま利用**
+   - レンダラー側にボタンのクリック判定やイベントリスナーを新規実装する必要はない。
+   - 既存の `CanvasInteractionController.handleCanvasInspect()` が 2D / 3D レイキャスト / ASCII のすべてにおいてクリック位置をグリッド座標 `(gx, gy)` に変換し、`FloatingContextActions`（吹き出しメニュー）を自動展開するため、**レンダラーは純粋に「バッジの見た目を描画するだけ」の片方向データフロー**に保たれる。
+
+### 5.3 表示ルールと既存バッジとの棲み分け
+1. **視覚ノイズの防止（固有アクションのみカウント）**
+   - 通常の「移動（1歩歩く）」や「待機」などのデフォルトアクションはカウントに含めず、現在の `DirectionPad` と同様に **GKL が導出した固有の ContextActions（扉の開閉、掘削、罠解除、拾う、階段移動、会話など）が 1 件以上あるマスにのみ** インジケータ（数字バッジ＋控えめなガイド枠）を表示する。これにより、通常の移動中は視界がクリアに保たれる。
+2. **既存ミニバッジとの配置分離**
+   - アイテム山積み `[+]` は**タイル右下**、ペット `[♥]` / 騎乗 `[R]` は**キャラ頭上右上**に配置されているため、ContextActions のコマンド数バッジは **タイル左上（または上辺コーナー）** にシアン／アンバー系のピル型ミニバッジとして配置し、重なりを防止する。
+3. **`UIConfigStore` による表示設定の切り替え**
+   - `mapActionIndicator`（マップ上のアクション数オーバーレイ表示: ON/OFF）およびサイドパネル側の 3×3 パッド表示設定を追加し、盤面直感操作スタイルと従来のサイドパネル操作スタイルをユーザーが自由に選択・併用できるようにする。
+
+---
+
+## 6. 関連モジュール
 - `src/core/knowledge/state/AreaStateManager.js`
 - `src/core/knowledge/ActionSignalResolver.js` / `ContextActionEngine.js`
+- `src/ui-controller/UIConfigStore.js`
 - `examples/gkl-pure-js-client/modules/renderers/VirtualDungeonScreen.js`
 - `examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js`
 - `examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js`
 - `examples/gkl-pure-js-client/modules/renderers/MinimapHudRenderer.js`
+- `examples/gkl-pure-js-client/modules/components/DirectionPad.js`
+- `examples/gkl-pure-js-client/modules/components/FloatingContextActions.js`
+- `examples/gkl-pure-js-client/modules/interaction/CanvasInteractionController.js`

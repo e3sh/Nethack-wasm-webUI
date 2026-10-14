@@ -31,11 +31,11 @@ last_updated: 2026-10-11
 ## 📊 メイン仕様書・ガイド ダッシュボード (Core Documents)
 
 ### 0. 🧭 システム現有能力カタログ ＆ 設計憲法 (`docs/SYSTEM_CAPABILITIES.md`)
-システム全体の機能・API・データ資産インベントリ、責務境界、アーキテクチャ5大原則、重複機能統廃合、未接続パイプライン分析を集約した総合カタログです。
+システム全体の機能・API・データ資産インベントリ、責務境界、アーキテクチャ6大原則、重複機能統廃合、未接続パイプライン分析を集約した総合カタログです。
 
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `🟢 implemented` | `src/` 全体 | システム現有能力カタログ、WASM通信・同期（Phase 8 `shim_bridge.c` / IRC）、状態解析、データ・伝承、UI制御、アーキテクチャ5大原則、統廃合・ギャップ分析 |
+| **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `🟢 implemented` | `src/` 全体 | システム現有能力カタログ、WASM通信・同期（Phase 8 `shim_bridge.c` / IRC）、状態解析、データ・伝承、UI制御、アーキテクチャ6大原則、統廃合・ギャップ分析 |
 
 ---
 
@@ -45,7 +45,7 @@ last_updated: 2026-10-11
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
 | **[gkl_documentation.md](./3_gkl/gkl_documentation.md)** | `🟢 implemented` | `src/core/knowledge/` | GKL 総合アーキテクチャ・プラグイン構造・API利用ガイド |
-| **[GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)** | `🚧 in-progress` | `src/core/knowledge/GKLPlugin.js` | GKLPlugin モジュール分割・アーキテクチャ適正化設計書 (ROADMAP 2.2) |
+| **[GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)** | `🟢 implemented` | `src/core/knowledge/GKLPlugin.js` | GKLPlugin モジュール分割・アーキテクチャ適正化設計書 (ROADMAP 2.2) |
 | **[floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md)** | `⏸️ pending` | `AreaStateManager.js`<br>`NhKnowledgeCard.js` | 床アイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵（Peek Wisdom）統合設計書 |
 | **[AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md)** | `🟢 implemented` | `src/core/knowledge/state/AreaStateManager.js` | 空間状態総合オーケストレーター仕様書（Stage 8.3-A フロア全域ダンプ対応）＆ 4分割計画 |
 | **[TacticalAdvisor_Specification_and_Architecture.md](./3_gkl/TacticalAdvisor_Specification_and_Architecture.md)** | `🟢 implemented` | `src/core/knowledge/engines/TacticalAdvisor.js` | データ駆動型戦術アドバイザー（ADVICE_DEFINITIONS 7系統）設計仕様 |
@@ -69,7 +69,7 @@ Vitest による全自動単体・統合テスト基盤、プロトコル検証�
 
 | ドキュメント | ステータス | 関連ソースコード / ツール | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 implemented` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（**全136スイート・1,670テスト 100% PASS**） |
+| **[README.md (テストガイド)](./8_testing/README.md)** | `🟢 implemented` | `tests/`, `tools/dev_tools.html` | WebUICore テストガイド（最新のテスト状況は ROADMAP を参照） |
 | **[Scenario_Testing_and_Event_Capture_Architecture.md](./8_testing/Scenario_Testing_and_Event_Capture_Architecture.md)** | `🟢 implemented` | `tools/scenario-recorder.html` | 下り方向：実機イベントキャプチャ＆統合シナリオ再生仕様書 |
 | **[Sequence_Protocol_Validation_Architecture.md](./8_testing/Sequence_Protocol_Validation_Architecture.md)** | `🟢 implemented` | `tests/protocol/` | 上り方向：キーシーケンス・プロトコル3重防壁検証仕様書 |
 | **[📦 archive/ サブフォルダ](./8_testing/archive/)** | `📦 archived` | `tests/` | 完了したテスト基盤刷新ロードマップ（全5フェーズ）等の過去移行計画を退避（2ファイル退避済） |
@@ -92,8 +92,8 @@ WASM Cコアをバックグラウンド Web Worker で駆動し、Phase 8 単一
 
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[official_shim_direct_binding_implementation_plan.md](./1_driver/official_shim_direct_binding_implementation_plan.md)** | `🚧 in-progress` | `src/driver/shim/shim_bridge.c`<br>`WasmDirectBindingService.js` | **Phase 8: 公式Shim構造化バインディング ＆ C構造体メモリ直結 実装計画書** (Stage 8.1〜8.3-A 完了) |
-| **[direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md)** | `⏸️ pending` | `src/driver/`<br>`WasmDirectBindingService.js` | Direct Binding (`CALL_SHIM`) アイドリング調停 ＆ `--More--` 待機・メッセージライフサイクル是正計画 (ROADMAP 2.5) |
+| **[official_shim_direct_binding_implementation_plan.md](./1_driver/official_shim_direct_binding_implementation_plan.md)** | `🚧 in-progress` | `src/driver/shim/shim_bridge.c`<br>`WasmDirectBindingService.js` | **Phase 8: 公式Shim構造化バインディング ＆ C構造体メモリ直結 実装計画書** (Stage 8.1〜8.3-B 完了 / 8.3-C・8.4 は ROADMAP 参照) |
+| **[direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md)** | `🟢 implemented` | `src/driver/`<br>`WasmDirectBindingService.js` | Direct Binding (`CALL_SHIM`) アイドリング調停 ＆ `--More--` 待機・メッセージライフサイクル是正計画 (ROADMAP 2.5) |
 | **[driver_core_spec.md](./1_driver/driver_core_spec.md)** | `🟢 implemented` | `src/driver/NetHackWasmDriver.js` | NetHack WASM Driver コア仕様書（Phase 8 `shim_bridge.c` / ターン静止調停含む） |
 | **[driver_api_reference.md](./1_driver/driver_api_reference.md)** | `🟢 implemented` | `src/driver/` | Web Worker 通信プロトコル・Direct Binding RPC (`callShim`)・API リファレンス |
 | **[driver_quickstart_guide.md](./1_driver/driver_quickstart_guide.md)** | `🟢 implemented` | `src/driver/` | ドライバ クイックスタートガイド |
@@ -107,7 +107,7 @@ WASM Cコアをバックグラウンド Web Worker で駆動し、Phase 8 単一
 
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)** | `🚧 in-progress` | `AreaStateManager.js`<br>`VirtualDungeonScreen.js` | Shim-Driven 確定同期型レンダリング・パイプライン刷新設計書 (Stage 8.3-B) |
+| **[shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)** | `🟢 implemented` | `AreaStateManager.js`<br>`VirtualDungeonScreen.js` | Shim-Driven 確定同期型レンダリング・パイプライン刷新設計書 (Stage 8.3-B) |
 | **[ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)** | `🟢 implemented` | `src/ui-controller/`<br>`src/components/`<br>`<nh-*>` | UIController (Headless UI) アーキテクチャ設計仕様書（Model/View完全分離・Web Components共通基盤・Phase E） |
 | **[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md)** | `🟢 implemented` | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js` | イマーシブHUD ＆ 過去ログドロワーメッセージウィンドウ仕様書 (Phase D) |
 | **[modal_interaction_and_navigation_guide.ja.md](./2_client_ui/modal_interaction_and_navigation_guide.ja.md)** | `🟢 implemented` | `src/components/`<br>`src/ui-controller/` | モーダル操作性＆ナビゲーション統合設計ガイド (キーボード/パッド完結・3層協調) |
@@ -182,7 +182,7 @@ Web Audio API を活用した 3 層分離サウンドコーディネーター �
 docs/
 ├── README.md                       # ドキュメント総合ポータル（本ファイル: SSOT）
 ├── ROADMAP.md                      # 総合ロードマップ＆進捗ダッシュボード
-├── SYSTEM_CAPABILITIES.md          # システム現有能力カタログ＆アーキテクチャ5大原則
+├── SYSTEM_CAPABILITIES.md          # システム現有能力カタログ＆アーキテクチャ6大原則
 ├── FAQ_and_Configuration_Guide.md  # 逆引き設定・セーブデータ管理 FAQ / 開発者ガイド
 ├── 1_driver/                       # WASM Driver & Phase 8 Direct Binding 仕様書 (直下6本 + archive/)
 ├── 2_client_ui/                    # UI / WebUICore / レンダラー仕様書 (直下10本 + archive/)

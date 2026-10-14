@@ -27,8 +27,8 @@ last_updated: 2026-10-11
 3. [③ データ・伝承資産 (Data & Lore Assets)](#③-データ伝承資産-data--lore-assets)
 4. [④ UI制御・操作調停 (UIController & Web Components)](#④-ui制御操作調停-uicontroller--web-components)
 5. [⑤ アーキテクチャの基本憲法（設計判断ルール）](#⑤-アーキテクチャの基本憲法設計判断ルール)
-6. [⑥ 機能重複の統廃合候補 (Consolidation Candidates)](#⑥-機能重複の統廃合候補-consolidation-candidates)
-7. [⑦ 不足機能・未接続パイプラインのギャップ分析 (Capability Gaps & Missing Links)](#⑦-不足機能未接続パイプラインのギャップ分析-capability-gaps--missing-links)
+6. [⑥ 機能重複およびレガシー文字列パースの統廃合・退役候補 (Consolidation & Retirement Candidates)](#⑥-機能重複およびレガシー文字列パースの統廃合退役候補-consolidation--retirement-candidates)
+7. [⑦ ギャップ分析と解消状況 (Capability Gaps & Resolution Status)](#⑦-ギャップ分析と解消状況-capability-gaps--resolution-status)
 
 ---
 
@@ -378,5 +378,5 @@ Phase 8 の C 構造体メモリ直結（`SHIM_DIRECT`）が有効な場合、�
 
 ## 8. まとめ
 
-NetHack WASM WebUI は、「通信・同期（Phase 8 Direct Binding + IRC）」「状態解析」「データ・伝承」「UI調停（Headless UI + Web Components）」「マルチドライバ音響（Phase 6）」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャ（**全136スイート・1,670テスト PASS**）を保有しています。  
+NetHack WASM WebUI は、「通信・同期（Phase 8 Direct Binding + IRC）」「状態解析」「データ・伝承」「UI調停（Headless UI + Web Components）」「マルチドライバ音響（Phase 6）」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャ（テスト状況は [ROADMAP](./ROADMAP.md) を参照）を保有しています。  
 今後の開発においても、新規に車輪を再発明することなく、**本カタログに記載された現有能力と Phase 8 メモリ直結基盤を活用して残るパイプラインを結線していくこと** が最短かつ最も堅牢な進化ルートとなります。

@@ -67,7 +67,8 @@ graph TD
 
 * **モンスター**: 個体の一時的なAC変動（防具着用）や現在HP（`mhp`）ではなく、`struct permonst`（`mons[monOffset]`）の基本AC・移動速度・耐性・攻撃ダイスを突合する。
 * **アイテム**: 個体の強化値（`spe`）や呪い・サビではなく、`struct objclass`（`objects[otyp]`）の基本重量・価格・材質・小型/大型ダメージを突合する。
-* **結論**: 「マスタポインタ（`permonst` / `objects[otyp]`）を突合する」という原則を守る限り、ゲーム中の動的バフ・デバフによる誤検知は100%発生しない。
+  * **※覗き見知恵（Peek Wisdom）との役割分担**: 強化値（`spe`）・BUC・箱の罠や中身・死体種別（`corpsenm`）といった `struct obj` の動的個体値は、本監査の対象外とする一方、ゲーム内の検査アクションである「覗き見知恵」（[`floor_item_direct_binding_and_peek_wisdom_architecture.ja.md`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/docs/3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) §5.1）側でフル開示する。
+* **結論**: 「マスタポインタ（`permonst` / `objects[otyp]`）を突合する」という原則を守る限り、ゲーム中の動的バフ・デバフによる誤検知は100%発生せず、また「正式鑑定によるアンロック」と「覗き見（`SAGE_GUIDE` モード）によるアンロック」のどちらを契機としても同一の不変マスタを安全に監査できる。
 
 ---
 
@@ -127,14 +128,16 @@ sequenceDiagram
 ```
 
 ### 5.2 LocalStorage 永続化スキーマ構想
-手帳の既存キー（`nethack_webui_adventure_log`）内に `auditDiffs` セクションを増設する：
+手帳の既存キー（`nethack_webui_adventure_log`）内に、3段階ガイド支援モード（`guideAssistanceMode`）・覗き見解禁記録（`peekedObjects`：正式鑑定時に削除・昇格）と併せて `auditDiffs` セクションを増設する：
 
 ```json
 {
+  "guideAssistanceMode": "VETERAN",
   "unlockedMonsters": [0, 15, 42],
-  "unlockedObjects": [10, 105],
+  "unlockedObjects": [10, 105, 210],
+  "peekedObjects": [210],
   "unlockedRumors": ["rumor_001"],
-  "stats": { "monstersCount": 3, "objectsCount": 2 },
+  "stats": { "monstersCount": 3, "objectsCount": 3, "peekedObjectsCount": 1 },
 
   "auditDiffs": {
     "version": "5.0.0-wasm",
