@@ -72,6 +72,9 @@ last_updated: 2026-10-14
   - [x] **【先行着手 3】AreaStateManager 4モジュール分割・責務整理 (Spatial Grid / Inference / Landmark / Projector 分離)**
     - [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md) (`🟢 implemented`)
     - `src/core/knowledge/state/AreaStateManager.js` (1,552行 ➔ 437行、約71.8%削減) の責務分離。`TerrainInferenceEngine.js`（地形・物理推論）、`DungeonLandmarkRegistry.js`（階段・ランドマーク・店舗台帳）、`ViewportTileProjector.js`（戦術視野・カメラ投影）へ分割し、Stage 8.3-B の投機的仮床撤廃・Commit駆動投影をピンポイントかつ安全に導入可能にする基盤を確立 (全138スイート・1,707テスト PASS)。
+  - [ ] **【先行着手 4】WasmDirectBindingService モジュール分割・責務適正化 (神クラス解消 ＆ 薄型ファサード再編)**
+    - [wasm_direct_binding_service_modularization_plan.ja.md](./2_client_ui/wasm_direct_binding_service_modularization_plan.ja.md) (`⏸️ pending` / 2026-10-15 策定)
+    - `src/core/knowledge/services/WasmDirectBindingService.js` (2,160行 ➔ 約350行、約84%削減) の神クラス解消。`WasmSyncCoordinator`（同期バリア・通信調停）、`InventoryWasmAdapter`（所持品・装備・重量）、`PlayerWasmAdapter`（耐性・スキル・呪文・プロファイル）、`SpatialWasmAdapter`（空間・地形・部屋・罠）、`MonsterWasmAdapter`（モンスター真値・状態）、`DiscoveryWasmAdapter`（識別図鑑・外見）へ分離し、Stage 8.5 の不可分同期およびプロファイル拡張をクリーンに導入可能な基盤を確立。
   - [x] **Stage 8.3-B: Shim-Driven 確定同期型レンダリング・パイプラインの刷新 (＆ §2.5 Sync Barrier 調停統合)**
     - [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md) (`🟢 implemented`) / [direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md) (`🟢 implemented`)
     - ターン同期ライフサイクル (Sync Barrier: Phase 1 ACTION ➔ Phase 2 STREAMING ➔ Phase 3 SETTLED & SHIM SYNC ➔ Phase 4 COMMIT `areaStateCommitted`) の確立と `--More--` 待機ガード (`isMorePromptActive`)・世代排他制御 (`_syncGeneration`) の統合
@@ -93,6 +96,31 @@ last_updated: 2026-10-14
     - `getPlayerSummary()` から `dnum` によるブランチ 100% 確定同定（`branch:dlvl` キャッシュ分離 ＆ 新エリア突入演出 `AREA_ENTERED` 発火）
     - `ublesscnt` をタイムライン燃料計（お祈りタイマー）へ直結（推測誤差ゼロ）
     - `SHIM_CMD_GET_PLAYER_PROPS` (0x32) から `uprops`（耐性配列）を抽出して `AttributeStateManager` へ注入
+  - [ ] **Stage 8.5: Direct Binding 前提の同期ライフサイクル・画面構成の抜本的再構築 ＆ ネイティブ操作分離 (構想・設計完了)**
+    - **設計書**: [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) (`⏸️ pending` / 2026-10-15 策定)
+    - **背景と課題**: セーブ再開時のインベントリ未取得（Sync Barrier 世代競合による Stale Cancel）、種族・職業（Role/Race）の「考古学者/人間」固定化、および旧メッセージパース時代のライフサイクルフラグ散在の根本的一掃。
+    - **基本原則**:
+      1. **Direct Binding 第一級市民（Ground Truth）原則**: C構造体メモリが唯一の真実（SSOT）。
+      2. **NetHack ネイティブ操作の尊重とUI拡張の直交分離**: 通常プレイ中のゲームキー（`/`, `\`, `^X` 等）は 100% Cコアへ素通し（ネイティブパススルー）。UIモーダル表示中のみキートラップを適用。WebUI拡張機能は画面上の統合ツールバー（Quick Dock）から開く形式へ分離。
+      3. **ステータス表示の On-Demand 化（表示更新タイミング ＝ 開くタイミング）**: ステータスバーの「▽」インライン展開アコーディオンと毎ターンの耐性・スキル・魔法DOM再構築を全廃。専用のキャラクター詳細ダイアログを新設し、開いた瞬間に Cコアメモリから最新データを一括取得して描画。
+    - **マイグレーションフェーズ**:
+      - **Phase 1**: Cコア＆Direct Binding拡張（`SHIM_CMD_GET_PLAYER_PROFILE` 実装による Role, Race, Gender, Align, Name 真値取得と `AttributeStateManager` 結合）
+      - **Phase 2**: アトミック同期パイプライン化（セーブ復帰時インベントリ空化の撲滅、不可分同期保証、`setTimeout` 遅延ハック排除）
+      - **Phase 3**: ステータス画面のOn-Demand化＆ネイティブキー横取り整理（通常時キー透過、モーダル中のみキートラップ、`[👤 キャラクター]` 詳細ダイアログ新設）
+      - **Phase 4**: ライフサイクルステートマシン統合（`GameLifecycleState`）＆レガシー対症療法コード全廃
+  - [x] **【先行完了】WasmDirectBindingService.js の責務分離・モジュール分割 ＆ ファサード化 (Stage 8.5 先行基盤)** (`🟢 implemented` / 2026-10-15 完遂)
+    - **設計書**: [wasm_direct_binding_service_modularization_plan.ja.md](./2_client_ui/wasm_direct_binding_service_modularization_plan.ja.md)
+    - **背景と課題**: Stage 8.1〜8.3-C を通じて肥大化した神クラス `WasmDirectBindingService.js` (2,160行) を、Stage 8.5 の前提基盤としてドメイン別アダプタ群と Sync Barrier コーディネーターへ分割。
+    - **実装実績**:
+      - `BindingConstants.js` (413行): 共有定数・テーブル・純粋デコード関数
+      - `WasmSyncCoordinator.js` (530行): Sync Barrier・Worker 非同期調停・世代管理・一括/オンデマンド同期
+      - `InventoryWasmAdapter.js` (491行): 所持品リンクリスト・装備ポインタ・真の重量・床アイテム
+      - `SpatialWasmAdapter.js` (350行): セル・地形ダンプ・部屋種別・罠・刻み文字
+      - `MonsterWasmAdapter.js` (258行): モンスター真値・状態・周辺モンスター同期
+      - `PlayerWasmAdapter.js` (208行): プレイヤー耐性・スキル・呪文・プロファイル
+      - `DiscoveryWasmAdapter.js` (127行): 識別図鑑・外見インデックス・仮名
+      - `WasmDirectBindingService.js` (631行): 上記を束ねる薄いファサード（**70.8%削減、1,529行削減**）
+    - **検証**: 全144テストファイル（1,765+テスト）100% PASS、ゼロオーバーヘッド・後方互換性完全維持。
 
 #### 🗺️ Phase 8 がもたらす「後続機能・構想への影響・恩恵マップ」
 Phase 8 による C構造体メモリ直結によって、これまで「テキスト画面解析」や「複雑な推定・推論」に頼っていた多くの機能が、**確定情報（Ground Truth）の直接取得**へと劇的に単純化・堅牢化されます。

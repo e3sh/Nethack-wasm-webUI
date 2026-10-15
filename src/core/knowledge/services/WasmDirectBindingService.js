@@ -13,415 +13,14 @@
 
 // NetHackMemory.js は UMD / Worker (importScripts) との互換性維持のため副作用インポート
 import '../../../driver/NetHackMemory.js';
-import { SKILL_RANKS } from '../state/SkillStateManager.js';
-
-const getGlobalMemoryClass = () => {
-    if (typeof globalThis !== 'undefined' && globalThis.NetHackMemory) return globalThis.NetHackMemory;
-    if (typeof window !== 'undefined' && window.NetHackMemory) return window.NetHackMemory;
-    if (typeof global !== 'undefined' && global.NetHackMemory) return global.NetHackMemory;
-    return null;
-};
-
-export const SHIM_CMD = {
-    GET_CELL_INFO: 0x10,
-    DUMP_LEVEL_TERRAIN: 0x11,
-    GET_TRAP_AT: 0x12,
-    GET_ENGRAVING_AT: 0x13,
-    GET_ROOM_TYPE: 0x14,
-
-    GET_OBJECT_AT: 0x20,
-    GET_MONSTER_AT: 0x21,
-    GET_MONSTER_INFO: 0x22,
-    GET_MONSTER_STATE: 0x23,
-
-    GET_PLAYER_SUMMARY: 0x30,
-    GET_PLAYER_PTR: 0x31,
-    GET_PLAYER_PROPS: 0x32,
-
-    GET_INVENT_PTR: 0x40,
-    GET_EQUIPMENT_PTRS: 0x41,
-    DUMP_OBJECT_INFO: 0x42,
-    DUMP_ALL_INVENT: 0x43,
-
-    DUMP_SPELL_BOOK: 0x50,
-    DUMP_SKILLS: 0x51,
-
-    DUMP_DISCOVERIES: 0x60,
-    GET_OBJECT_UNAME: 0x61,
-    DUMP_DESCR_INDEXES: 0x62,
-
-    GET_SYMBOL_PTR: 0x70,
-};
-
-export const LEVL_TYP = {
-    STONE: 0,
-    VWALL: 1,
-    HWALL: 2,
-    TLCORNER: 3,
-    TRCORNER: 4,
-    BLCORNER: 5,
-    BRCORNER: 6,
-    CROSSWALL: 7,
-    TUWALL: 8,
-    TDWALL: 9,
-    TLWALL: 10,
-    TRWALL: 11,
-    DBWALL: 12,
-    TREE: 13,
-    SDOOR: 14,
-    SCORR: 15,
-    POOL: 16,
-    MOAT: 17,
-    WATER: 18,
-    DRAWBRIDGE_UP: 19,
-    LAVAPOOL: 20,
-    LAVAWALL: 21,
-    IRONBARS: 22,
-    DOOR: 23,
-    CORR: 24,
-    ROOM: 25,
-    STAIRS: 26,
-    LADDER: 27,
-    FOUNTAIN: 28,
-    THRONE: 29,
-    SINK: 30,
-    GRAVE: 31,
-    ALTAR: 32,
-    ICE: 33,
-    DRAWBRIDGE_DOWN: 34,
-    AIR: 35,
-    CLOUD: 36
-};
-
-export const DOOR_STATE = {
-    D_NODOOR: 0x00,
-    D_BROKEN: 0x01,
-    D_ISOPEN: 0x02,
-    D_CLOSED: 0x04,
-    D_LOCKED: 0x08,
-    D_TRAPPED: 0x10
-};
-
-export const ALTAR_MASK = {
-    AM_NONE: 0x00,
-    AM_CHAOTIC: 0x01,
-    AM_NEUTRAL: 0x02,
-    AM_LAWFUL: 0x04,
-    AM_MASK: 0x07,
-    AM_SHRINE: 0x08,
-    AM_SANCTUM: 0x10
-};
-
-/**
- * struct rm の flags (altarmask) から祭壇の属性・グリフを解析
- * @param {number} flags 
- * @returns {Object}
- */
-export function parseAltarFlags(flags) {
-    const isSanctum = Boolean(flags & ALTAR_MASK.AM_SANCTUM);
-    const isShrine = Boolean(flags & ALTAR_MASK.AM_SHRINE);
-    const alignBits = flags & ALTAR_MASK.AM_MASK;
-
-    let alignment = 'neutral';
-    let alignmentJa = '中立';
-    let glyph = 4008;
-
-    if (isSanctum) {
-        alignment = 'other';
-        alignmentJa = '聖域';
-        glyph = 4010;
-    } else if (alignBits === ALTAR_MASK.AM_LAWFUL) {
-        alignment = 'lawful';
-        alignmentJa = '秩序';
-        glyph = 4009;
-    } else if (alignBits === ALTAR_MASK.AM_CHAOTIC) {
-        alignment = 'chaotic';
-        alignmentJa = '混沌';
-        glyph = 4007;
-    } else if (alignBits === ALTAR_MASK.AM_NEUTRAL) {
-        alignment = 'neutral';
-        alignmentJa = '中立';
-        glyph = 4008;
-    } else if (alignBits === ALTAR_MASK.AM_NONE) {
-        alignment = 'unaligned';
-        alignmentJa = '無属性';
-        glyph = 4006;
-    }
-
-    return {
-        alignment,
-        alignmentJa,
-        isSanctum,
-        isShrine,
-        glyph
-    };
-}
-
-export const ROOM_TYPE = {
-    OROOM: 0,
-    THEMEROOM: 1,
-    COURT: 2,
-    SWAMP: 3,
-    VAULT: 4,
-    BEEHIVE: 5,
-    MORGUE: 6,
-    BARRACKS: 7,
-    ZOO: 8,
-    DELPHI: 9,
-    TEMPLE: 10,
-    LEPREHALL: 11,
-    COCKNEST: 12,
-    ANTHOLE: 13,
-    SHOPBASE: 14,
-    ARMORSHOP: 15,
-    SCROLLSHOP: 16,
-    POTIONSHOP: 17,
-    WEAPONSHOP: 18,
-    FOODSHOP: 19,
-    RINGSHOP: 20,
-    WANDSHOP: 21,
-    TOOLSHOP: 22,
-    BOOKSHOP: 23,
-    FODDERSHOP: 24,
-    CANDLESHOP: 25
-};
-
-export const ROOM_NAMES = {
-    0: { name: 'Ordinary Room', nameJa: '普通の部屋' },
-    1: { name: 'Theme Room', nameJa: 'テーマ部屋' },
-    2: { name: 'Throne Room', nameJa: '玉座の間' },
-    3: { name: 'Swamp', nameJa: '沼地' },
-    4: { name: 'Vault', nameJa: '宝物庫' },
-    5: { name: 'Beehive', nameJa: '蜂の巣' },
-    6: { name: 'Morgue', nameJa: '死体安置所' },
-    7: { name: 'Barracks', nameJa: '兵舎' },
-    8: { name: 'Zoo', nameJa: '動物園' },
-    9: { name: 'Delphi', nameJa: '神託所' },
-    10: { name: 'Temple', nameJa: '寺院' },
-    11: { name: 'Leprechaun Hall', nameJa: 'レプラホーンの広間' },
-    12: { name: 'Cockatrice Nest', nameJa: 'コカトリスの巣' },
-    13: { name: 'Anthole', nameJa: '蟻の巣' },
-    14: { name: 'General Store', nameJa: '雑貨屋' },
-    15: { name: 'Armor Shop', nameJa: '防具屋' },
-    16: { name: 'Scroll Shop', nameJa: '巻物屋' },
-    17: { name: 'Potion Shop', nameJa: '薬屋' },
-    18: { name: 'Weapon Shop', nameJa: '武器屋' },
-    19: { name: 'Delicatessen', nameJa: '食料品店' },
-    20: { name: 'Jewelry Shop', nameJa: '宝石店' },
-    21: { name: 'Wand Shop', nameJa: '杖屋' },
-    22: { name: 'Tool Shop', nameJa: '道具屋' },
-    23: { name: 'Bookstore', nameJa: '書店' },
-    24: { name: 'Health Food Store', nameJa: '自然食品店' },
-    25: { name: 'Candle Shop', nameJa: '蝋燭屋' }
-};
-
-export const TRAP_TYPE = {
-    NO_TRAP: 0,
-    ARROW_TRAP: 1,
-    DART_TRAP: 2,
-    ROCKTRAP: 3,
-    SQKY_BOARD: 4,
-    BEAR_TRAP: 5,
-    LANDMINE: 6,
-    ROLLING_BOULDER_TRAP: 7,
-    SLP_GAS_TRAP: 8,
-    RUST_TRAP: 9,
-    FIRE_TRAP: 10,
-    PIT: 11,
-    SPIKED_PIT: 12,
-    HOLE: 13,
-    TRAPDOOR: 14,
-    TELEP_TRAP: 15,
-    LEVEL_TELEP: 16,
-    MAGIC_PORTAL: 17,
-    WEB: 18,
-    STATUE_TRAP: 19,
-    MAGIC_TRAP: 20,
-    ANTI_MAGIC: 21,
-    POLY_TRAP: 22,
-    VIBRATING_SQUARE: 23
-};
-
-export const TRAP_NAMES = {
-    1: { name: 'arrow trap', nameJa: '矢の罠' },
-    2: { name: 'dart trap', nameJa: 'ダーツの罠' },
-    3: { name: 'rock trap', nameJa: '落石の罠' },
-    4: { name: 'squeaky board', nameJa: '鳴る床板' },
-    5: { name: 'bear trap', nameJa: 'トラバサミ' },
-    6: { name: 'land mine', nameJa: '地雷' },
-    7: { name: 'rolling boulder trap', nameJa: '大岩の罠' },
-    8: { name: 'sleeping gas trap', nameJa: '睡眠ガスの罠' },
-    9: { name: 'rust trap', nameJa: 'サビの罠' },
-    10: { name: 'fire trap', nameJa: '火炎の罠' },
-    11: { name: 'pit', nameJa: '落とし穴 (ピット)' },
-    12: { name: 'spiked pit', nameJa: 'トゲ付きピット' },
-    13: { name: 'hole', nameJa: '大穴' },
-    14: { name: 'trap door', nameJa: '落とし扉' },
-    15: { name: 'teleportation trap', nameJa: 'テレポートの罠' },
-    16: { name: 'level teleporter', nameJa: '階層テレポートの罠' },
-    17: { name: 'magic portal', nameJa: '魔法のポータル' },
-    18: { name: 'web', nameJa: 'クモの巣' },
-    19: { name: 'statue trap', nameJa: '像の罠' },
-    20: { name: 'magic trap', nameJa: '魔法の罠' },
-    21: { name: 'anti-magic field', nameJa: '反魔法の場' },
-    22: { name: 'polymorph trap', nameJa: '変化の罠' },
-    23: { name: 'vibrating square', nameJa: '振動する床' }
-};
-
-export const ENGRAVING_TYPE = {
-    DUST: 1,
-    ENGRAVE: 2,
-    BURN: 3,
-    MARK: 4,
-    ENGR_BLOOD: 5,
-    HEADSTONE: 6
-};
-
-export const ENGRAVING_NAMES = {
-    1: { name: 'dust', nameJa: '砂/埃' },
-    2: { name: 'engraved', nameJa: '彫り' },
-    3: { name: 'burned', nameJa: '焼き' },
-    4: { name: 'mark', nameJa: '印' },
-    5: { name: 'blood', nameJa: '血' },
-    6: { name: 'headstone', nameJa: '墓石' }
-};
-
-export const EQUIPMENT_SLOT_NAMES = [
-    'weapon',      // 0: uwep
-    'offhand',     // 1: uswapwep
-    'quiver',      // 2: uquiver
-    'suit',        // 3: uarm (鎧/胴防具)
-    'cloak',       // 4: uarmc (マント)
-    'helmet',      // 5: uarmh (兜/帽子)
-    'shield',      // 6: uarms (盾)
-    'gloves',      // 7: uarmg (手袋)
-    'boots',       // 8: uarmf (靴)
-    'shirt',       // 9: uarmu (シャツ/下着)
-    'amulet',      // 10: uamul (魔除け)
-    'ring_left',   // 11: uleft (左手指輪)
-    'ring_right',  // 12: uright (右手指輪)
-    'blindfold'    // 13: ublindf (目隠し/眼鏡)
-];
-
-export const EQUIPMENT_FIELD_KEYS = [
-    'uwep', 'uswapwep', 'uquiver', 'uarm', 'uarmc', 'uarmh',
-    'uarms', 'uarmg', 'uarmf', 'uarmu', 'uamul', 'uleft', 'uright', 'ublindf'
-];
-
-export const SKILL_DEFINITIONS = [
-    null, // 0: P_NONE
-    { id: 1, name: 'dagger', nameJa: '短剣' },
-    { id: 2, name: 'knife', nameJa: 'ナイフ' },
-    { id: 3, name: 'axe', nameJa: '斧' },
-    { id: 4, name: 'pick-axe', nameJa: 'つるはし' },
-    { id: 5, name: 'short sword', nameJa: 'ショートソード' },
-    { id: 6, name: 'broadsword', nameJa: 'ブロードソード' },
-    { id: 7, name: 'long sword', nameJa: 'ロングソード' },
-    { id: 8, name: 'two-handed sword', nameJa: '両手剣' },
-    { id: 9, name: 'scimitar', nameJa: '三日月刀' },
-    { id: 10, name: 'club', nameJa: 'こん棒' },
-    { id: 11, name: 'mace', nameJa: 'メイス' },
-    { id: 12, name: 'morning star', nameJa: 'モーニングスター' },
-    { id: 13, name: 'flail', nameJa: 'フレイル' },
-    { id: 14, name: 'hammer', nameJa: 'ハンマー' },
-    { id: 15, name: 'quarterstaff', nameJa: '六尺棒' },
-    { id: 16, name: 'polearms', nameJa: '長柄武器' },
-    { id: 17, name: 'spear', nameJa: '槍' },
-    { id: 18, name: 'trident', nameJa: '三叉槍' },
-    { id: 19, name: 'lance', nameJa: 'ランス' },
-    { id: 20, name: 'bow', nameJa: '弓' },
-    { id: 21, name: 'sling', nameJa: 'スリング' },
-    { id: 22, name: 'crossbow', nameJa: 'クロスボウ' },
-    { id: 23, name: 'dart', nameJa: 'ダーツ' },
-    { id: 24, name: 'shuriken', nameJa: '手裏剣' },
-    { id: 25, name: 'boomerang', nameJa: 'ブーメラン' },
-    { id: 26, name: 'whip', nameJa: '鞭' },
-    { id: 27, name: 'unicorn horn', nameJa: 'ユニコーンの角' },
-    { id: 28, name: 'attack spell', nameJa: '攻撃魔法' },
-    { id: 29, name: 'healing spell', nameJa: '回復魔法' },
-    { id: 30, name: 'divination spell', nameJa: '予見魔法' },
-    { id: 31, name: 'enchantment spell', nameJa: '付与魔法' },
-    { id: 32, name: 'cleric spell', nameJa: '僧侶魔法' },
-    { id: 33, name: 'escape spell', nameJa: '脱出魔法' },
-    { id: 34, name: 'matter spell', nameJa: '物質魔法' },
-    { id: 35, name: 'bare-handed combat', nameJa: '素手格闘' },
-    { id: 36, name: 'two-weapon combat', nameJa: '二刀流' },
-    { id: 37, name: 'riding', nameJa: '乗馬' }
-];
-
-export const SKILL_LEVEL_RANKS = [
-    SKILL_RANKS.RESTRICTED,   // 0: P_ISRESTRICTED
-    SKILL_RANKS.UNSKILLED,    // 1: P_UNSKILLED
-    SKILL_RANKS.BASIC,        // 2: P_BASIC
-    SKILL_RANKS.SKILLED,      // 3: P_SKILLED
-    SKILL_RANKS.EXPERT,       // 4: P_EXPERT
-    SKILL_RANKS.MASTER,       // 5: P_MASTER
-    SKILL_RANKS.GRAND_MASTER  // 6: P_GRAND_MASTER
-];
-
-export function parseSkillsBuffer(raw, weaponSlots = 0) {
-    if (!raw || raw.length < 38 * 2) return [];
-    const skills = [];
-    for (let i = 1; i < 38; i++) {
-        const def = SKILL_DEFINITIONS[i];
-        if (!def) continue;
-        const skillLev = raw[i * 2 + 0];
-        const maxSkillLev = raw[i * 2 + 1];
-
-        const rank = SKILL_LEVEL_RANKS[skillLev] || SKILL_RANKS.RESTRICTED;
-        const maxRank = SKILL_LEVEL_RANKS[maxSkillLev] || SKILL_RANKS.RESTRICTED;
-        const isRestricted = (skillLev === 0 && maxSkillLev === 0);
-        // Direct Binding では練習経験値 (P_ADVANCE) が未取得のため、未練習スキルを誤って向上可能とみなさないよう安全に false とする
-        const canEnhance = false;
-
-        skills.push({
-            id: i,
-            name: def.name,
-            nameJa: def.nameJa,
-            nameRaw: def.name,
-            skillLevel: skillLev,
-            maxSkillLevel: maxSkillLev,
-            rank,
-            maxRank,
-            isRestricted,
-            canEnhance,
-            weaponSlots
-        });
-    }
-    return skills;
-}
-
-export function parseSpellBookBuffer(raw, countLimit = null) {
-    if (!raw || (!Array.isArray(raw) && !(raw instanceof Int32Array))) return [];
-    const spells = [];
-    // NetHack 5.0 の MAXSPELL は最大 52 エントリ。それ以上のインデックスはバッファの未初期化領域または範囲外
-    const MAX_SPELL_ENTRIES = 52;
-    // countLimit が正の数の場合のみ件数上限として扱い、0 や null（Cコアの戻り値 0: 成功）の場合は MAX_SPELL_ENTRIES まで走査
-    const maxEntries = (typeof countLimit === 'number' && countLimit > 0)
-        ? Math.min(countLimit, MAX_SPELL_ENTRIES)
-        : MAX_SPELL_ENTRIES;
-
-    for (let i = 0; i < maxEntries; i++) {
-        const base = i * 3;
-        const sp_id = raw[base + 0];
-        const sp_lev = raw[base + 1];
-        const sp_know = raw[base + 2];
-        // NetHack 仕様: spl_book[] は先頭から連続して格納され、最初の NO_SPELL (0) で配列が終端する
-        if (!sp_id || sp_id <= 0) break;
-
-        const letter = (i < 26) ? String.fromCharCode(97 + i) : String.fromCharCode(65 + i - 26);
-        spells.push({
-            index: i,
-            letter,
-            id: sp_id,
-            onum: sp_id,
-            level: sp_lev,
-            retention: sp_know,
-            isForgotten: sp_know <= 0
-        });
-    }
-    return spells;
-}
+export * from './binding/BindingConstants.js';
+import { getGlobalMemoryClass } from './binding/BindingConstants.js';
+import { DiscoveryWasmAdapter } from './binding/DiscoveryWasmAdapter.js';
+import { PlayerWasmAdapter } from './binding/PlayerWasmAdapter.js';
+import { MonsterWasmAdapter } from './binding/MonsterWasmAdapter.js';
+import { SpatialWasmAdapter } from './binding/SpatialWasmAdapter.js';
+import { InventoryWasmAdapter } from './binding/InventoryWasmAdapter.js';
+import { WasmSyncCoordinator } from './binding/WasmSyncCoordinator.js';
 
 export class WasmDirectBindingService {
     /**
@@ -445,36 +44,73 @@ export class WasmDirectBindingService {
         // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
         this._mode = options.mode || options.directBindingMode || 'auto';
 
-        // Web Worker 隔離調停用キャッシュ
-        this._cachedCellInfo = null;
-        this._cachedCellX = -1;
-        this._cachedCellY = -1;
-        this._cachedRoom = null;
-        this._cachedTrap = null;
-        this._cachedEngraving = null;
-        this._cachedInventory = [];
-        this._cachedInventoryWeight = -1;
-        this._cachedPlayerFloorObjects = [];
-        this._cachedFloorObjectsX = -1;
-        this._cachedFloorObjectsY = -1;
-        this._hasFloorObjectsCache = false;
-        this._cachedEquipmentPtrs = { rawPtrs: {}, slotByPtr: new Map(), ptrBySlot: new Map() };
-        this._cachedPlayerSummary = null;
-        this._cachedLevelTerrain = null;
-        this._cachedMonsters = new Map();
-        this._cachedDiscoveries = null;
-        this._cachedDescrIndexes = null;
-        this._cachedPlayerProps = null;
-        this._cachedSkills = null;
-        this._cachedWeaponSlots = 0;
-        this._cachedSpells = null;
-
-        // Sync Barrier / 世代管理 (Stage 8.3-B / §2.5)
-        this._syncGeneration = 0;
-        this._isSyncing = false;
-        this._currentSyncPromise = null;
-        this._lastCompletedSyncGeneration = -1;
+        // サブモジュール・アダプタ群の初期化
+        this.discoveryAdapter = new DiscoveryWasmAdapter();
+        this.playerAdapter = new PlayerWasmAdapter();
+        this.monsterAdapter = new MonsterWasmAdapter();
+        this.spatialAdapter = new SpatialWasmAdapter();
+        this.inventoryAdapter = new InventoryWasmAdapter();
+        this.syncCoordinator = new WasmSyncCoordinator();
     }
+
+    // --- キャッシュプロパティの後方互換プロキシ ---
+    get _cachedDiscoveries() { return this.discoveryAdapter.cachedDiscoveries; }
+    set _cachedDiscoveries(v) { this.discoveryAdapter.cachedDiscoveries = v; }
+    get _cachedDescrIndexes() { return this.discoveryAdapter.cachedDescrIndexes; }
+    set _cachedDescrIndexes(v) { this.discoveryAdapter.cachedDescrIndexes = v; }
+
+    get _cachedSkills() { return this.playerAdapter.cachedSkills; }
+    set _cachedSkills(v) { this.playerAdapter.cachedSkills = v; }
+    get _cachedWeaponSlots() { return this.playerAdapter.cachedWeaponSlots; }
+    set _cachedWeaponSlots(v) { this.playerAdapter.cachedWeaponSlots = v; }
+    get _cachedSpells() { return this.playerAdapter.cachedSpells; }
+    set _cachedSpells(v) { this.playerAdapter.cachedSpells = v; }
+    get _cachedPlayerProps() { return this.playerAdapter.cachedPlayerProps; }
+    set _cachedPlayerProps(v) { this.playerAdapter.cachedPlayerProps = v; }
+    get _cachedPlayerSummary() { return this.playerAdapter.cachedPlayerSummary; }
+    set _cachedPlayerSummary(v) { this.playerAdapter.cachedPlayerSummary = v; }
+
+    get _cachedMonsters() { return this.monsterAdapter.cachedMonsters; }
+    set _cachedMonsters(v) { this.monsterAdapter.cachedMonsters = v; }
+
+    get _cachedCellInfo() { return this.spatialAdapter.cachedCellInfo; }
+    set _cachedCellInfo(v) { this.spatialAdapter.cachedCellInfo = v; }
+    get _cachedCellX() { return this.spatialAdapter.cachedCellX; }
+    set _cachedCellX(v) { this.spatialAdapter.cachedCellX = v; }
+    get _cachedCellY() { return this.spatialAdapter.cachedCellY; }
+    set _cachedCellY(v) { this.spatialAdapter.cachedCellY = v; }
+    get _cachedRoom() { return this.spatialAdapter.cachedRoom; }
+    set _cachedRoom(v) { this.spatialAdapter.cachedRoom = v; }
+    get _cachedTrap() { return this.spatialAdapter.cachedTrap; }
+    set _cachedTrap(v) { this.spatialAdapter.cachedTrap = v; }
+    get _cachedEngraving() { return this.spatialAdapter.cachedEngraving; }
+    set _cachedEngraving(v) { this.spatialAdapter.cachedEngraving = v; }
+    get _cachedLevelTerrain() { return this.spatialAdapter.cachedLevelTerrain; }
+    set _cachedLevelTerrain(v) { this.spatialAdapter.cachedLevelTerrain = v; }
+
+    get _cachedInventory() { return this.inventoryAdapter.cachedInventory; }
+    set _cachedInventory(v) { this.inventoryAdapter.cachedInventory = v; }
+    get _cachedInventoryWeight() { return this.inventoryAdapter.cachedInventoryWeight; }
+    set _cachedInventoryWeight(v) { this.inventoryAdapter.cachedInventoryWeight = v; }
+    get _cachedPlayerFloorObjects() { return this.inventoryAdapter.cachedPlayerFloorObjects; }
+    set _cachedPlayerFloorObjects(v) { this.inventoryAdapter.cachedPlayerFloorObjects = v; }
+    get _cachedFloorObjectsX() { return this.inventoryAdapter.cachedFloorObjectsX; }
+    set _cachedFloorObjectsX(v) { this.inventoryAdapter.cachedFloorObjectsX = v; }
+    get _cachedFloorObjectsY() { return this.inventoryAdapter.cachedFloorObjectsY; }
+    set _cachedFloorObjectsY(v) { this.inventoryAdapter.cachedFloorObjectsY = v; }
+    get _hasFloorObjectsCache() { return this.inventoryAdapter.hasFloorObjectsCache; }
+    set _hasFloorObjectsCache(v) { this.inventoryAdapter.hasFloorObjectsCache = v; }
+    get _cachedEquipmentPtrs() { return this.inventoryAdapter.cachedEquipmentPtrs; }
+    set _cachedEquipmentPtrs(v) { this.inventoryAdapter.cachedEquipmentPtrs = v; }
+
+    get _syncGeneration() { return this.syncCoordinator.syncGeneration; }
+    set _syncGeneration(v) { this.syncCoordinator.syncGeneration = v; }
+    get _isSyncing() { return this.syncCoordinator.isSyncing; }
+    set _isSyncing(v) { this.syncCoordinator.isSyncing = v; }
+    get _currentSyncPromise() { return this.syncCoordinator.currentSyncPromise; }
+    set _currentSyncPromise(v) { this.syncCoordinator.currentSyncPromise = v; }
+    get _lastCompletedSyncGeneration() { return this.syncCoordinator.lastCompletedSyncGeneration; }
+    set _lastCompletedSyncGeneration(v) { this.syncCoordinator.lastCompletedSyncGeneration = v; }
 
     /**
      * Phase 1 (ACTION): ユーザー操作送出時に呼び出し、Sync Barrier 世代を進めて
@@ -482,31 +118,16 @@ export class WasmDirectBindingService {
      * @returns {number} 更新後の世代ID
      */
     notifyActionSent() {
-        this._syncGeneration += 1;
-        this._isSyncing = false;
-        this._currentSyncPromise = null;
-        this._hasFloorObjectsCache = false;
-        return this._syncGeneration;
+        return this.syncCoordinator.notifyActionSent(this.inventoryAdapter);
     }
 
     /**
      * フロア移動時 (clear_nhwindow / prepareFloorTransition) に前フロアのキャッシュを無効化
      */
     clearFloorCaches() {
-        this._cachedLevelTerrain = null;
-        this._cachedCellInfo = null;
-        this._cachedCellX = -1;
-        this._cachedCellY = -1;
-        this._cachedRoom = null;
-        this._cachedTrap = null;
-        this._cachedEngraving = null;
-        this._cachedPlayerFloorObjects = [];
-        this._cachedFloorObjectsX = -1;
-        this._cachedFloorObjectsY = -1;
-        this._hasFloorObjectsCache = false;
-        if (this._cachedMonsters) {
-            this._cachedMonsters.clear();
-        }
+        this.spatialAdapter.clearFloorCaches();
+        this.monsterAdapter.clearFloorCaches();
+        this.inventoryAdapter.clearFloorCaches();
     }
 
     /**
@@ -614,50 +235,11 @@ export class WasmDirectBindingService {
      * @param {number} [ptr=0] 
      * @param {number} [cobjPtr=0] 
      * @param {number} [o_id=0] 
+     * @param {number} [corpsenm=-1]
      * @returns {Object|null}
      */
     unpackObjectBuffer(rawValues, ptr = 0, cobjPtr = 0, o_id = 0, corpsenm = -1) {
-        if (!rawValues || rawValues.length < 8) return null;
-        const otyp = rawValues[0];
-        const owt = rawValues[1];
-        const quan = rawValues[2];
-        const spe = (rawValues[3] << 24) >> 24;
-        const oclass = rawValues[4];
-        const invletCode = rawValues[5];
-        const invlet = (invletCode > 0 && invletCode < 128) ? String.fromCharCode(invletCode) : '';
-        const flagsRaw = rawValues[6];
-        const weight = rawValues[7];
-        const resolvedCorpsenm = (typeof corpsenm === 'number' && corpsenm >= 0)
-            ? corpsenm
-            : (rawValues.length >= 9 && rawValues[8] >= 0 && rawValues[8] < 400 ? rawValues[8] : -1);
-
-        const flags = {
-            blessed: Boolean(flagsRaw & 0x01),
-            cursed: Boolean(flagsRaw & 0x02),
-            bknown: Boolean(flagsRaw & 0x04),
-            dknown: Boolean(flagsRaw & 0x08),
-            rknown: Boolean(flagsRaw & 0x10),
-            oeroded: (flagsRaw >> 5) & 0x03,
-            oeroded2: (flagsRaw >> 7) & 0x03,
-            known: Boolean(flagsRaw & 0x200),
-        };
-
-        return {
-            ptr,
-            rawObjPtr: ptr,
-            otyp,
-            onum: otyp, // onum は otyp と 1:1 に一致
-            owt,
-            quan,
-            spe,
-            oclass,
-            invlet,
-            flags,
-            weight,
-            cobjPtr,
-            o_id,
-            corpsenm: resolvedCorpsenm
-        };
+        return this.inventoryAdapter.unpackObjectBuffer(rawValues, ptr, cobjPtr, o_id, corpsenm);
     }
 
     /**
@@ -665,76 +247,7 @@ export class WasmDirectBindingService {
      * @returns {Array<Object>} アイテム構造化情報配列
      */
     getInventory() {
-        if (!this.isAvailable()) return [];
-
-        if (this.hasLiveMemory) {
-            // SHIM_CMD_DUMP_ALL_INVENT による一括取得を最優先 (Stage 8.2)
-            const bufSize = 4800; // 100 items * 48 bytes
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (bufPtr) {
-                try {
-                    const count = this.memory.bridgeCall(SHIM_CMD.DUMP_ALL_INVENT, 0, 0, bufPtr, bufSize);
-                    if (count >= 0) {
-                        const raw = this.memory.readInt32Array(bufPtr, count * 12);
-                        const items = [];
-                        const ITEM_FIELDS = 12;
-                        for (let i = 0; i < count; i++) {
-                            const base = i * ITEM_FIELDS;
-                            const raw8 = raw.slice(base, base + 8);
-                            const ptr = raw[base + 8] || 0;
-                            const o_id = raw[base + 9] || 0;
-                            const cobjPtr = raw[base + 10] || 0;
-                            const corpsenm = raw[base + 11] ?? -1;
-                            const item = this.unpackObjectBuffer(raw8, ptr, cobjPtr, o_id, corpsenm);
-                            if (item) items.push(item);
-                        }
-                        this._cachedInventory = items;
-                        return items;
-                    }
-                } finally {
-                    this.memory.freeBuffer(bufPtr);
-                }
-            }
-
-            // 万一のフォールバック (個別走査)
-            const headPtr = this.memory.bridgeCall(SHIM_CMD.GET_INVENT_PTR, 0, 0, 0, 0);
-            if (!headPtr || headPtr <= 0) return [];
-
-            const items = [];
-            const visited = new Set();
-            const MAX_ITEMS = 100; // 安全上限（52文字+予備）
-            const singleBufSize = 36;
-            const singleBufPtr = this.memory.allocateBuffer(singleBufSize);
-            if (!singleBufPtr) return [];
-
-            try {
-                let currPtr = headPtr;
-                while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_ITEMS) {
-                    visited.add(currPtr);
-
-                    const res = this.memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, singleBufPtr, singleBufSize);
-                    if (res === 0) {
-                        const rawValues = this.memory.readInt32Array(singleBufPtr, 9);
-                        const cobjPtr = this.memory.getValue(currPtr + 8, 'i32');
-                        const o_id = this.memory.getValue(currPtr + 12, 'i32');
-                        const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id);
-                        if (item) {
-                            items.push(item);
-                        }
-                    }
-
-                    // 次のアイテムへのポインタ (offset +0x00: struct obj *nobj)
-                    currPtr = this.memory.getValue(currPtr, 'i32');
-                }
-            } finally {
-                this.memory.freeBuffer(singleBufPtr);
-            }
-
-            this._cachedInventory = items;
-            return items;
-        }
-
-        return this._cachedInventory || [];
+        return this.inventoryAdapter.getInventory(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -742,52 +255,7 @@ export class WasmDirectBindingService {
      * @returns {{ rawPtrs: Object, slotByPtr: Map<number, string>, ptrBySlot: Map<string, number> }}
      */
     getEquipmentPtrs() {
-        const defaultResult = {
-            rawPtrs: {},
-            slotByPtr: new Map(),
-            ptrBySlot: new Map()
-        };
-
-        if (!this.isAvailable()) return defaultResult;
-
-        if (this.hasLiveMemory) {
-            // long[14] = 56 bytes
-            const bufSize = 56;
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (!bufPtr) return defaultResult;
-
-            try {
-                const res = this.memory.bridgeCall(SHIM_CMD.GET_EQUIPMENT_PTRS, 0, 0, bufPtr, bufSize);
-                if (res !== 0) return defaultResult;
-
-                const ptrArray = this.memory.readInt32Array(bufPtr, 14);
-                const rawPtrs = {};
-                const slotByPtr = new Map();
-                const ptrBySlot = new Map();
-
-                for (let i = 0; i < 14; i++) {
-                    const ptr = ptrArray[i] || 0;
-                    const fieldKey = EQUIPMENT_FIELD_KEYS[i];
-                    const slotName = EQUIPMENT_SLOT_NAMES[i];
-
-                    rawPtrs[fieldKey] = ptr;
-                    if (ptr > 0) {
-                        slotByPtr.set(ptr, slotName);
-                        ptrBySlot.set(slotName, ptr);
-                    }
-                }
-
-                return {
-                    rawPtrs,
-                    slotByPtr,
-                    ptrBySlot
-                };
-            } finally {
-                this.memory.freeBuffer(bufPtr);
-            }
-        }
-
-        return this._cachedEquipmentPtrs || defaultResult;
+        return this.inventoryAdapter.getEquipmentPtrs(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -795,27 +263,7 @@ export class WasmDirectBindingService {
      * @returns {Uint8Array|null} 各 onum の識別フラグ (1: 既知, 0: 未知)
      */
     getDiscoveries() {
-        if (!this.isAvailable()) return null;
-
-        if (this.hasLiveMemory) {
-            const bufSize = 1024;
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (!bufPtr) return null;
-
-            try {
-                const res = this.memory.bridgeCall(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, bufPtr, bufSize);
-                if (res === 0) {
-                    // 有効なオブジェクト数 (約 500) 分を Uint8Array で読み取り
-                    const raw = this.memory.readUint8Array(bufPtr, 600);
-                    return new Uint8Array(raw);
-                }
-            } finally {
-                this.memory.freeBuffer(bufPtr);
-            }
-            return null;
-        }
-
-        return this._cachedDiscoveries || null;
+        return this.discoveryAdapter.getDiscoveries(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -824,22 +272,7 @@ export class WasmDirectBindingService {
      * @returns {string|null}
      */
     getObjectUname(onum) {
-        if (!this.isAvailable() || !this.hasLiveMemory || typeof onum !== 'number' || onum < 0) return null;
-
-        const bufSize = 128;
-        const bufPtr = this.memory.allocateBuffer(bufSize);
-        if (!bufPtr) return null;
-
-        try {
-            const res = this.memory.bridgeCall(SHIM_CMD.GET_OBJECT_UNAME, onum, 0, bufPtr, bufSize);
-            if (res === 1) {
-                const str = this.memory.readString(bufPtr, bufSize);
-                return str ? str.trim() : null;
-            }
-        } finally {
-            this.memory.freeBuffer(bufPtr);
-        }
-        return null;
+        return this.discoveryAdapter.getObjectUname(onum, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -847,29 +280,7 @@ export class WasmDirectBindingService {
      * @returns {Int32Array|null} 各 onum の現在の外見インデックス (appearanceOnum)
      */
     getDescrIndexes() {
-        if (!this.isAvailable()) return null;
-
-        if (this.hasLiveMemory) {
-            const bufSize = 2400; // 600 ints = 2400 bytes
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (!bufPtr) return null;
-
-            try {
-                const res = this.memory.bridgeCall(SHIM_CMD.DUMP_DESCR_INDEXES, 0, 0, bufPtr, bufSize);
-                if (res > 0) {
-                    const count = Math.min(600, res + 1);
-                    const raw = this.memory.readInt32Array(bufPtr, count);
-                    const arr = new Int32Array(raw);
-                    this._cachedDescrIndexes = arr;
-                    return arr;
-                }
-            } finally {
-                this.memory.freeBuffer(bufPtr);
-            }
-            return null;
-        }
-
-        return this._cachedDescrIndexes || null;
+        return this.discoveryAdapter.getDescrIndexes(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -877,11 +288,7 @@ export class WasmDirectBindingService {
      * @param {Int32Array|Array<number>|null} arr
      */
     setCachedDescrIndexes(arr) {
-        if (!arr) {
-            this._cachedDescrIndexes = null;
-        } else {
-            this._cachedDescrIndexes = arr instanceof Int32Array ? arr : new Int32Array(arr);
-        }
+        this.discoveryAdapter.setCachedDescrIndexes(arr);
     }
 
     /**
@@ -890,22 +297,7 @@ export class WasmDirectBindingService {
      * @returns {number} 総所持重量 (利用不可時: -1)
      */
     getInventoryWeight() {
-        if (!this.isAvailable()) return -1;
-
-        if (this.hasLiveMemory) {
-            const items = this.getInventory();
-            let totalWeight = 0;
-            items.forEach(it => {
-                if (it.oclass === 1) { // 金貨
-                    totalWeight += Math.floor((it.quan || 0) / 100);
-                } else {
-                    totalWeight += (it.weight || 0);
-                }
-            });
-            return totalWeight;
-        }
-
-        return this._cachedInventoryWeight >= 0 ? this._cachedInventoryWeight : -1;
+        return this.inventoryAdapter.getInventoryWeight(this.memory, this.isAvailable(), this.hasLiveMemory, () => this.getInventory());
     }
 
     /**
@@ -914,31 +306,7 @@ export class WasmDirectBindingService {
      * @returns {number} アイテム重量 (利用不可時: -1)
      */
     getObjectWeight(objPtr) {
-        if (!objPtr || objPtr <= 0) return 0;
-        if (!this.isAvailable()) return -1;
-
-        if (this.hasLiveMemory) {
-            const bufSize = 32;
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (!bufPtr) return -1;
-            try {
-                const res = this.memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, objPtr, 0, bufPtr, bufSize);
-                if (res === 0) {
-                    const rawValues = this.memory.readInt32Array(bufPtr, 8);
-                    return rawValues[7]; // weight(o)
-                }
-            } finally {
-                this.memory.freeBuffer(bufPtr);
-            }
-            return -1;
-        }
-
-        // Worker 隔離環境: キャッシュから探索
-        const found = this._cachedInventory.find(it => it.ptr === objPtr || it.rawObjPtr === objPtr);
-        if (found && typeof found.weight === 'number') {
-            return found.weight;
-        }
-        return -1;
+        return this.inventoryAdapter.getObjectWeight(objPtr, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -947,7 +315,7 @@ export class WasmDirectBindingService {
      * @returns {number} コンテナ重量 (利用不可時: -1)
      */
     getContainerWeight(objPtr) {
-        return this.getObjectWeight(objPtr);
+        return this.inventoryAdapter.getContainerWeight(objPtr, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -958,289 +326,25 @@ export class WasmDirectBindingService {
      * @returns {Promise<boolean>}
      */
     async syncFromWorkerBridge(options = {}) {
-        if (this._mode === 'fallback') return false;
-        if (!this.bridge || typeof this.bridge.callShim !== 'function') return false;
-
-        // 同一世代で同期処理が進行中の場合、重複呼び出しによる相互キャンセルを防止して既存Promiseを再利用
-        if (this._isSyncing && this._currentSyncPromise) {
-            return await this._currentSyncPromise;
-        }
-
-        const syncGen = ++this._syncGeneration;
-        this._isSyncing = true;
-        const isStale = () => {
-            if (options.protected) return false;
-            return syncGen !== this._syncGeneration;
+        const adapters = {
+            discovery: this.discoveryAdapter,
+            player: this.playerAdapter,
+            monster: this.monsterAdapter,
+            spatial: this.spatialAdapter,
+            inventory: this.inventoryAdapter
         };
-
-        const x = options.playerX ?? this._cachedCellX;
-        const y = options.playerY ?? this._cachedCellY;
-
-        const runSync = async () => {
-            try {
-                if (x >= 0 && y >= 0) {
-                    // 1. 足元セル情報
-                    const cellRes = await this.bridge.callShim(SHIM_CMD.GET_CELL_INFO, x, y);
-                    if (isStale()) return false;
-
-                    if (cellRes && typeof cellRes.result === 'number' && cellRes.result >= 0) {
-                        const res = cellRes.result;
-                        const typ = res & 0xFF;
-                        const flags = (res >> 8) & 0xFF;
-                        const lit = Boolean((res >> 16) & 0x01);
-                        const roomno = (res >> 17) & 0x7F;
-
-                        const isDoor = (typ === LEVL_TYP.DOOR || typ === LEVL_TYP.SDOOR);
-                        const door = isDoor ? {
-                            isClosed: Boolean(flags & DOOR_STATE.D_CLOSED),
-                            isLocked: Boolean(flags & DOOR_STATE.D_LOCKED),
-                            isOpen: Boolean(flags & DOOR_STATE.D_ISOPEN),
-                            isBroken: Boolean(flags & DOOR_STATE.D_BROKEN),
-                            isTrapped: Boolean(flags & DOOR_STATE.D_TRAPPED),
-                            isSecret: (typ === LEVL_TYP.SDOOR),
-                            isNoDoor: (flags & 0x0F) === 0
-                        } : null;
-
-                        let nextRoom = null;
-                        // 2. 部屋種別
-                        if (roomno > 0) {
-                            const roomRes = await this.bridge.callShim(SHIM_CMD.GET_ROOM_TYPE, roomno);
-                            if (isStale()) return false;
-                            if (roomRes && typeof roomRes.result === 'number') {
-                                const rtype = roomRes.result;
-                                const info = ROOM_NAMES[rtype] || { name: 'Room', nameJa: '部屋' };
-                                nextRoom = {
-                                    roomno,
-                                    rtype,
-                                    isShop: (rtype >= ROOM_TYPE.SHOPBASE),
-                                    name: info.name,
-                                    nameJa: info.nameJa
-                                };
-                            }
-                        }
-
-                        // 3. 罠
-                        let nextTrap = null;
-                        const trapRes = await this.bridge.callShim(SHIM_CMD.GET_TRAP_AT, x, y);
-                        if (isStale()) return false;
-                        if (trapRes && typeof trapRes.result === 'number' && trapRes.result > 0) {
-                            const tRes = trapRes.result;
-                            const ttyp = tRes & 0xFF;
-                            const tseen = Boolean((tRes >> 8) & 0x01);
-                            const once = Boolean((tRes >> 9) & 0x01);
-                            const info = TRAP_NAMES[ttyp] || { name: 'trap', nameJa: '罠' };
-                            nextTrap = {
-                                x,
-                                y,
-                                ttyp,
-                                tseen,
-                                once,
-                                name: info.name,
-                                nameJa: info.nameJa
-                            };
-                        }
-
-                        // 4. 刻み文字
-                        let nextEngraving = null;
-                        const engrRes = await this.bridge.callShim(SHIM_CMD.GET_ENGRAVING_AT, x, y, 256, 'string');
-                        if (isStale()) return false;
-                        if (engrRes && typeof engrRes.result === 'number' && engrRes.result > 0) {
-                            const engrType = engrRes.result;
-                            const text = engrRes.buffer || '';
-                            const info = ENGRAVING_NAMES[engrType] || { name: 'engraving', nameJa: '刻み文字' };
-                            nextEngraving = {
-                                x,
-                                y,
-                                text,
-                                engrType,
-                                typeName: info.name,
-                                typeNameJa: info.nameJa,
-                                isElbereth: text.includes('Elbereth')
-                            };
-                        }
-
-                        this._cachedCellX = x;
-                        this._cachedCellY = y;
-                        this._cachedCellInfo = { x, y, typ, flags, lit, roomno, door };
-                        this._cachedRoom = nextRoom;
-                        this._cachedTrap = nextTrap;
-                        this._cachedEngraving = nextEngraving;
-                    }
-                }
-
-                // 5. 装備スロットポインタおよび所持品一括ダンプ同期 (Stage 8.2 / DUMP_ALL_INVENT)
-                if (options.syncInventory || options.syncInventory !== false) {
-                    const eqRes = await this.bridge.callShim(SHIM_CMD.GET_EQUIPMENT_PTRS, 0, 0, 56, 'int32');
-                    if (isStale()) return false;
-                    if (eqRes && Array.isArray(eqRes.buffer)) {
-                        const ptrArray = eqRes.buffer;
-                        const rawPtrs = {};
-                        const slotByPtr = new Map();
-                        const ptrBySlot = new Map();
-
-                        for (let i = 0; i < 14; i++) {
-                            const ptr = ptrArray[i] || 0;
-                            const fieldKey = EQUIPMENT_FIELD_KEYS[i];
-                            const slotName = EQUIPMENT_SLOT_NAMES[i];
-                            rawPtrs[fieldKey] = ptr;
-                            if (ptr > 0) {
-                                slotByPtr.set(ptr, slotName);
-                                ptrBySlot.set(slotName, ptr);
-                            }
-                        }
-
-                        this._cachedEquipmentPtrs = {
-                            rawPtrs,
-                            slotByPtr,
-                            ptrBySlot
-                        };
-                    }
-
-                    // 5-b. 全所持品の一括同期 (SHIM_CMD_DUMP_ALL_INVENT: 最大100個 = 4800 bytes)
-                    const invRes = await this.bridge.callShim(SHIM_CMD.DUMP_ALL_INVENT, 0, 0, 4800, 'int32');
-                    if (isStale()) return false;
-                    if (invRes && Array.isArray(invRes.buffer)) {
-                        const count = typeof invRes.result === 'number' ? Math.max(0, invRes.result) : 0;
-                        const raw = invRes.buffer;
-                        const items = [];
-                        const ITEM_FIELDS = 12;
-
-                        for (let i = 0; i < count; i++) {
-                            const base = i * ITEM_FIELDS;
-                            if (base + ITEM_FIELDS <= raw.length) {
-                                const raw8 = raw.slice(base, base + 8);
-                                const ptr = raw[base + 8] || 0;
-                                const o_id = raw[base + 9] || 0;
-                                const cobjPtr = raw[base + 10] || 0;
-                                const corpsenm = raw[base + 11] ?? -1;
-                                const item = this.unpackObjectBuffer(raw8, ptr, cobjPtr, o_id, corpsenm);
-                                if (item) {
-                                    items.push(item);
-                                }
-                            }
-                        }
-                        this._cachedInventory = items;
-                        this._cachedInventoryWeight = items.reduce((sum, it) => sum + (it.weight || 0), 0);
-                    }
-
-                    // 5-c. 全アイテム識別状態 (objects[i].oc_name_known) および外見インデックス (objects[i].oc_descr_idx) の一括同期
-                    if (options.syncDiscoveries !== false) {
-                        try {
-                            const discRes = await this.bridge.callShim(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, 600, 'uint8');
-                            if (isStale()) return false;
-                            if (discRes && Array.isArray(discRes.buffer)) {
-                                this._cachedDiscoveries = new Uint8Array(discRes.buffer);
-                            }
-                        } catch (e) {
-                            // ignore shim call errors in fallback/unsupported scenarios
-                        }
-                        try {
-                            const descrRes = await this.bridge.callShim(SHIM_CMD.DUMP_DESCR_INDEXES, 0, 0, 2400, 'int32');
-                            if (isStale()) return false;
-                            if (descrRes && typeof descrRes.result === 'number' && descrRes.result > 0 && Array.isArray(descrRes.buffer)) {
-                                const count = Math.min(descrRes.buffer.length, descrRes.result + 1);
-                                this._cachedDescrIndexes = new Int32Array(descrRes.buffer.slice(0, count));
-                            }
-                        } catch (e) {
-                            // ignore shim call errors in fallback/unsupported scenarios
-                        }
-                    }
-                }
-
-                // 6. 足元 (x, y) の床アイテム一覧同期 (Stage 8.2-C / Stage 8.3-B)
-                if (options.syncFloorObjects === true && x >= 0 && y >= 0) {
-                    try {
-                        const floorItems = await this.fetchObjectsAt(x, y);
-                        if (isStale()) return false;
-                        this._cachedPlayerFloorObjects = floorItems || [];
-                        this._cachedFloorObjectsX = x;
-                        this._cachedFloorObjectsY = y;
-                        this._hasFloorObjectsCache = true;
-                    } catch (e) {
-                        this._cachedPlayerFloorObjects = [];
-                        this._cachedFloorObjectsX = x;
-                        this._cachedFloorObjectsY = y;
-                        this._hasFloorObjectsCache = true;
-                    }
-                }
-
-                // 7. フロア全域の地形一括同期 (Stage 8.3-A / 8.3-B)
-                if (options.syncLevelTerrain === true) {
-                    try {
-                        await this.fetchLevelTerrain();
-                        if (isStale()) return false;
-                    } catch (e) {
-                        // silent fallback
-                    }
-                }
-
-                // 8. 周辺モンスターの真値同期 (Stage 8.3-A)
-                if (Array.isArray(options.surroundingMonsters) && options.surroundingMonsters.length > 0) {
-                    try {
-                        await this.syncSurroundingMonsters(options.surroundingMonsters);
-                        if (isStale()) return false;
-                    } catch (e) {
-                        // silent fallback
-                    }
-                }
-
-                // 9. プレイヤー属性・耐性 (SHIM_CMD_GET_PLAYER_PROPS: 69 * 4 = 276 bytes)
-                if (options.syncPlayerProps !== false) {
-                    try {
-                        const propsRes = await this.bridge.callShim(SHIM_CMD.GET_PLAYER_PROPS, 0, 0, 276, 'int32');
-                        if (isStale()) return false;
-                        if (propsRes && Array.isArray(propsRes.buffer)) {
-                            this._cachedPlayerProps = propsRes.buffer;
-                        }
-                    } catch (e) {
-                        // silent fallback
-                    }
-                }
-
-                // 10. プレイヤー武器・魔法スキル熟練度 (SHIM_CMD_DUMP_SKILLS: 38 * 2 * 4 = 304 bytes)
-                if (options.syncSkills !== false) {
-                    try {
-                        const skillsRes = await this.bridge.callShim(SHIM_CMD.DUMP_SKILLS, 0, 0, 304, 'int32');
-                        if (isStale()) return false;
-                        if (skillsRes && Array.isArray(skillsRes.buffer)) {
-                            const slots = typeof skillsRes.result === 'number' ? skillsRes.result : 0;
-                            this._cachedSkills = parseSkillsBuffer(skillsRes.buffer, slots);
-                            this._cachedWeaponSlots = slots;
-                        }
-                    } catch (e) {
-                        // silent fallback
-                    }
-                }
-
-                // 11. プレイヤー修得魔法 (SHIM_CMD_DUMP_SPELL_BOOK: 1024 bytes)
-                if (options.syncSpells !== false) {
-                    try {
-                        const spellRes = await this.bridge.callShim(SHIM_CMD.DUMP_SPELL_BOOK, 0, 0, 1024, 'int32');
-                        if (isStale()) return false;
-                        if (spellRes && Array.isArray(spellRes.buffer)) {
-                            const count = typeof spellRes.result === 'number' ? spellRes.result : null;
-                            this._cachedSpells = parseSpellBookBuffer(spellRes.buffer, count);
-                        }
-                    } catch (e) {
-                        // silent fallback
-                    }
-                }
-
-                this._lastCompletedSyncGeneration = syncGen;
-                return true;
-            } catch (err) {
-                console.warn('[WasmDirectBindingService] syncFromWorkerBridge error:', err);
-                return false;
-            } finally {
-                if (syncGen === this._syncGeneration) {
-                    this._isSyncing = false;
-                    this._currentSyncPromise = null;
-                }
-            }
+        const fallbackCoords = {
+            x: this.spatialAdapter.cachedCellX,
+            y: this.spatialAdapter.cachedCellY
         };
-
-        this._currentSyncPromise = runSync();
-        return await this._currentSyncPromise;
+        return await this.syncCoordinator.syncFromWorkerBridge(
+            options,
+            this.bridge,
+            this._mode,
+            adapters,
+            fallbackCoords,
+            this
+        );
     }
 
     /**
@@ -1248,20 +352,12 @@ export class WasmDirectBindingService {
      * @returns {Promise<boolean>}
      */
     async syncAttributesOnDemand() {
-        if (!this.isAvailable()) return false;
-        if (this.hasLiveMemory) return true;
-        if (this.bridge && typeof this.bridge.callShim === 'function') {
-            try {
-                const propsRes = await this.bridge.callShim(SHIM_CMD.GET_PLAYER_PROPS, 0, 0, 276, 'int32');
-                if (propsRes && Array.isArray(propsRes.buffer)) {
-                    this._cachedPlayerProps = propsRes.buffer;
-                    return true;
-                }
-            } catch (e) {
-                console.warn('[WasmDirectBindingService] syncAttributesOnDemand error:', e);
-            }
-        }
-        return false;
+        return await this.syncCoordinator.syncAttributesOnDemand(
+            this.bridge,
+            this.isAvailable(),
+            this.hasLiveMemory,
+            this.playerAdapter
+        );
     }
 
     /**
@@ -1269,25 +365,13 @@ export class WasmDirectBindingService {
      * @returns {Promise<boolean>}
      */
     async syncSkillsOnDemand() {
-        if (!this.isAvailable()) return false;
-        if (this.hasLiveMemory) {
-            this.dumpSkills();
-            return true;
-        }
-        if (this.bridge && typeof this.bridge.callShim === 'function') {
-            try {
-                const skillsRes = await this.bridge.callShim(SHIM_CMD.DUMP_SKILLS, 0, 0, 304, 'int32');
-                if (skillsRes && Array.isArray(skillsRes.buffer)) {
-                    const slots = typeof skillsRes.result === 'number' ? skillsRes.result : 0;
-                    this._cachedSkills = parseSkillsBuffer(skillsRes.buffer, slots);
-                    this._cachedWeaponSlots = slots;
-                    return true;
-                }
-            } catch (e) {
-                console.warn('[WasmDirectBindingService] syncSkillsOnDemand error:', e);
-            }
-        }
-        return false;
+        return await this.syncCoordinator.syncSkillsOnDemand(
+            this.bridge,
+            this.isAvailable(),
+            this.hasLiveMemory,
+            this.playerAdapter,
+            this.memory
+        );
     }
 
     /**
@@ -1295,24 +379,13 @@ export class WasmDirectBindingService {
      * @returns {Promise<boolean>}
      */
     async syncSpellBookOnDemand() {
-        if (!this.isAvailable()) return false;
-        if (this.hasLiveMemory) {
-            this.dumpSpellBook();
-            return true;
-        }
-        if (this.bridge && typeof this.bridge.callShim === 'function') {
-            try {
-                const spellRes = await this.bridge.callShim(SHIM_CMD.DUMP_SPELL_BOOK, 0, 0, 1024, 'int32');
-                if (spellRes && Array.isArray(spellRes.buffer)) {
-                    const count = typeof spellRes.result === 'number' ? spellRes.result : null;
-                    this._cachedSpells = parseSpellBookBuffer(spellRes.buffer, count);
-                    return true;
-                }
-            } catch (e) {
-                console.warn('[WasmDirectBindingService] syncSpellBookOnDemand error:', e);
-            }
-        }
-        return false;
+        return await this.syncCoordinator.syncSpellBookOnDemand(
+            this.bridge,
+            this.isAvailable(),
+            this.hasLiveMemory,
+            this.playerAdapter,
+            this.memory
+        );
     }
 
     /**
@@ -1320,29 +393,13 @@ export class WasmDirectBindingService {
      * @returns {Promise<boolean>}
      */
     async syncDiscoveriesOnDemand() {
-        if (!this.isAvailable()) return false;
-        if (this.hasLiveMemory) {
-            this.getDiscoveries();
-            this.getDescrIndexes();
-            return true;
-        }
-        if (this.bridge && typeof this.bridge.callShim === 'function') {
-            try {
-                const discRes = await this.bridge.callShim(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, 600, 'uint8');
-                if (discRes && Array.isArray(discRes.buffer)) {
-                    this._cachedDiscoveries = new Uint8Array(discRes.buffer);
-                }
-                const descrRes = await this.bridge.callShim(SHIM_CMD.DUMP_DESCR_INDEXES, 0, 0, 2400, 'int32');
-                if (descrRes && typeof descrRes.result === 'number' && descrRes.result > 0 && Array.isArray(descrRes.buffer)) {
-                    const count = Math.min(descrRes.buffer.length, descrRes.result + 1);
-                    this._cachedDescrIndexes = new Int32Array(descrRes.buffer.slice(0, count));
-                }
-                return true;
-            } catch (e) {
-                console.warn('[WasmDirectBindingService] syncDiscoveriesOnDemand error:', e);
-            }
-        }
-        return false;
+        return await this.syncCoordinator.syncDiscoveriesOnDemand(
+            this.bridge,
+            this.isAvailable(),
+            this.hasLiveMemory,
+            this.discoveryAdapter,
+            this.memory
+        );
     }
 
     /**
@@ -1350,26 +407,7 @@ export class WasmDirectBindingService {
      * @returns {Array<Object>}
      */
     dumpSkills() {
-        if (!this.isAvailable()) return this._cachedSkills || [];
-        if (this.hasLiveMemory) {
-            const bufSize = 38 * 2 * 4; // 304 bytes
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (bufPtr) {
-                try {
-                    const slots = this.memory.bridgeCall(SHIM_CMD.DUMP_SKILLS, 0, 0, bufPtr, bufSize);
-                    if (slots >= 0) {
-                        const raw = this.memory.readInt32Array(bufPtr, 38 * 2);
-                        const skills = parseSkillsBuffer(raw, slots);
-                        this._cachedSkills = skills;
-                        this._cachedWeaponSlots = slots;
-                        return skills;
-                    }
-                } finally {
-                    this.memory.freeBuffer(bufPtr);
-                }
-            }
-        }
-        return this._cachedSkills || [];
+        return this.playerAdapter.dumpSkills(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1377,11 +415,7 @@ export class WasmDirectBindingService {
      * @returns {Array<Object>}
      */
     getSkills() {
-        if (!this.isAvailable()) return [];
-        if (this.hasLiveMemory) {
-            return this.dumpSkills();
-        }
-        return this._cachedSkills || [];
+        return this.playerAdapter.getSkills(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1389,25 +423,7 @@ export class WasmDirectBindingService {
      * @returns {Array<Object>}
      */
     dumpSpellBook() {
-        if (!this.isAvailable()) return this._cachedSpells || [];
-        if (this.hasLiveMemory) {
-            const bufSize = 1024;
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (bufPtr) {
-                try {
-                    const res = this.memory.bridgeCall(SHIM_CMD.DUMP_SPELL_BOOK, 0, 0, bufPtr, bufSize);
-                    if (res >= 0) {
-                        const raw = this.memory.readInt32Array(bufPtr, 256);
-                        const spells = parseSpellBookBuffer(raw, res);
-                        this._cachedSpells = spells;
-                        return spells;
-                    }
-                } finally {
-                    this.memory.freeBuffer(bufPtr);
-                }
-            }
-        }
-        return this._cachedSpells || [];
+        return this.playerAdapter.dumpSpellBook(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1415,11 +431,7 @@ export class WasmDirectBindingService {
      * @returns {Array<Object>}
      */
     getSpellBook() {
-        if (!this.isAvailable()) return [];
-        if (this.hasLiveMemory) {
-            return this.dumpSpellBook();
-        }
-        return this._cachedSpells || [];
+        return this.playerAdapter.getSpellBook(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1428,15 +440,7 @@ export class WasmDirectBindingService {
      * @returns {Promise<Array<Object>>}
      */
     async syncSurroundingMonsters(coords = []) {
-        if (!Array.isArray(coords) || coords.length === 0) return [];
-        const results = [];
-        for (const c of coords) {
-            if (typeof c.x === 'number' && typeof c.y === 'number') {
-                const mon = await this.fetchFullMonsterAt(c.x, c.y);
-                if (mon) results.push(mon);
-            }
-        }
-        return results;
+        return await this.syncCoordinator.syncSurroundingMonsters(coords, (x, y) => this.fetchFullMonsterAt(x, y));
     }
 
     /**
@@ -1446,77 +450,7 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getCellInfo(x, y) {
-        if (!this.isAvailable()) return null;
-        if (typeof x !== 'number' || typeof y !== 'number') return null;
-
-        if (this.hasLiveMemory) {
-            const res = this.memory.bridgeCall(SHIM_CMD.GET_CELL_INFO, x, y, 0, 0);
-            if (res < 0) return null;
-
-            const typ = res & 0xFF;
-            const flags = (res >> 8) & 0xFF;
-            const lit = Boolean((res >> 16) & 0x01);
-            const roomno = (res >> 17) & 0xFF;
-
-            const isDoor = (typ === LEVL_TYP.DOOR || typ === LEVL_TYP.SDOOR);
-            const isAltar = (typ === LEVL_TYP.ALTAR);
-            const door = isDoor ? {
-                isClosed: Boolean(flags & DOOR_STATE.D_CLOSED),
-                isLocked: Boolean(flags & DOOR_STATE.D_LOCKED),
-                isOpen: Boolean(flags & DOOR_STATE.D_ISOPEN),
-                isBroken: Boolean(flags & DOOR_STATE.D_BROKEN),
-                isTrapped: Boolean(flags & DOOR_STATE.D_TRAPPED),
-                isSecret: (typ === LEVL_TYP.SDOOR),
-                isNoDoor: (flags & 0x0F) === 0
-            } : null;
-            const altar = isAltar ? parseAltarFlags(flags) : null;
-
-            return {
-                x,
-                y,
-                typ,
-                flags,
-                lit,
-                roomno,
-                door,
-                altar
-            };
-        }
-
-        // Worker 隔離環境の場合：キャッシュされた足元情報を最優先返却
-        if (this._cachedCellInfo && this._cachedCellX === x && this._cachedCellY === y) {
-            return this._cachedCellInfo;
-        }
-
-        // 全フロア地形キャッシュ (_cachedLevelTerrain: 80x21) が存在する場合は該当セルの typ を返却
-        if (this._cachedLevelTerrain && x >= 0 && x < 80 && y >= 0 && y < 21) {
-            const idx = y * 80 + x;
-            if (idx >= 0 && idx < this._cachedLevelTerrain.length) {
-                const typ = this._cachedLevelTerrain[idx];
-                const isDoor = (typ === LEVL_TYP.DOOR || typ === LEVL_TYP.SDOOR);
-                const isAltar = (typ === LEVL_TYP.ALTAR);
-                return {
-                    x,
-                    y,
-                    typ,
-                    flags: 0,
-                    lit: false,
-                    roomno: 0,
-                    door: isDoor ? {
-                        isClosed: false,
-                        isLocked: false,
-                        isOpen: false,
-                        isBroken: false,
-                        isTrapped: false,
-                        isSecret: (typ === LEVL_TYP.SDOOR),
-                        isNoDoor: true
-                    } : null,
-                    altar: isAltar ? parseAltarFlags(0) : null
-                };
-            }
-        }
-
-        return null;
+        return this.spatialAdapter.getCellInfo(x, y, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1524,29 +458,7 @@ export class WasmDirectBindingService {
      * @returns {Uint8Array|null}
      */
     dumpLevelTerrain() {
-        if (!this.isAvailable()) return null;
-
-        if (this.hasLiveMemory) {
-            const COLNO = 80;
-            const ROWNO = 21;
-            const size = COLNO * ROWNO;
-
-            const bufPtr = this.memory.allocateBuffer(size);
-            if (!bufPtr) return null;
-
-            try {
-                const res = this.memory.bridgeCall(SHIM_CMD.DUMP_LEVEL_TERRAIN, 0, 0, bufPtr, size);
-                if (res !== 0) return null;
-
-                const terrain = this.memory.readUint8Array(bufPtr, size);
-                this._cachedLevelTerrain = terrain;
-                return terrain;
-            } finally {
-                this.memory.freeBuffer(bufPtr);
-            }
-        }
-
-        return this._cachedLevelTerrain || null;
+        return this.spatialAdapter.dumpLevelTerrain(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1554,29 +466,7 @@ export class WasmDirectBindingService {
      * @returns {Promise<Uint8Array|null>}
      */
     async fetchLevelTerrain() {
-        if (!this.isAvailable()) return null;
-
-        if (this.hasLiveMemory) {
-            return this.dumpLevelTerrain();
-        }
-
-        if (this.bridge && typeof this.bridge.callShim === 'function') {
-            try {
-                const COLNO = 80;
-                const ROWNO = 21;
-                const size = COLNO * ROWNO;
-                const res = await this.bridge.callShim(SHIM_CMD.DUMP_LEVEL_TERRAIN, 0, 0, size, 'uint8');
-                if (res && res.result === 0 && Array.isArray(res.buffer)) {
-                    this._cachedLevelTerrain = new Uint8Array(res.buffer);
-                    return this._cachedLevelTerrain;
-                }
-            } catch (err) {
-                console.warn('[WasmDirectBindingService] fetchLevelTerrain error:', err);
-                return null;
-            }
-        }
-
-        return this._cachedLevelTerrain || null;
+        return this.spatialAdapter.fetchLevelTerrain(this.bridge, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1584,13 +474,7 @@ export class WasmDirectBindingService {
      * @param {Uint8Array|Array<number>} terrain
      */
     setCachedLevelTerrain(terrain) {
-        if (!terrain) {
-            this._cachedLevelTerrain = null;
-        } else if (terrain instanceof Uint8Array) {
-            this._cachedLevelTerrain = terrain;
-        } else if (Array.isArray(terrain)) {
-            this._cachedLevelTerrain = new Uint8Array(terrain);
-        }
+        this.spatialAdapter.setCachedLevelTerrain(terrain);
     }
 
     /**
@@ -1600,34 +484,7 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getTrapAt(x, y) {
-        if (!this.isAvailable()) return null;
-        if (typeof x !== 'number' || typeof y !== 'number') return null;
-
-        if (this.hasLiveMemory) {
-            const res = this.memory.bridgeCall(SHIM_CMD.GET_TRAP_AT, x, y, 0, 0);
-            if (!res || res <= 0) return null;
-
-            const ttyp = res & 0xFF;
-            const tseen = Boolean((res >> 8) & 0x01);
-            const once = Boolean((res >> 9) & 0x01);
-            const info = TRAP_NAMES[ttyp] || { name: 'trap', nameJa: '罠' };
-
-            return {
-                x,
-                y,
-                ttyp,
-                tseen,
-                once,
-                name: info.name,
-                nameJa: info.nameJa
-            };
-        }
-
-        if (this._cachedTrap && this._cachedCellX === x && this._cachedCellY === y) {
-            return this._cachedTrap;
-        }
-
-        return null;
+        return this.spatialAdapter.getTrapAt(x, y, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1637,41 +494,7 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getEngravingAt(x, y) {
-        if (!this.isAvailable()) return null;
-        if (typeof x !== 'number' || typeof y !== 'number') return null;
-
-        if (this.hasLiveMemory) {
-            const bufSize = 256;
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (!bufPtr) return null;
-
-            try {
-                const engrType = this.memory.bridgeCall(SHIM_CMD.GET_ENGRAVING_AT, x, y, bufPtr, bufSize);
-                if (engrType <= 0) return null;
-
-                const text = this.memory.readString(bufPtr, bufSize) || '';
-                const info = ENGRAVING_NAMES[engrType] || { name: 'engraving', nameJa: '刻み文字' };
-                const isElbereth = text.includes('Elbereth');
-
-                return {
-                    x,
-                    y,
-                    text,
-                    engrType,
-                    typeName: info.name,
-                    typeNameJa: info.nameJa,
-                    isElbereth
-                };
-            } finally {
-                this.memory.freeBuffer(bufPtr);
-            }
-        }
-
-        if (this._cachedEngraving && this._cachedCellX === x && this._cachedCellY === y) {
-            return this._cachedEngraving;
-        }
-
-        return null;
+        return this.spatialAdapter.getEngravingAt(x, y, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1680,36 +503,7 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getRoomType(roomno) {
-        if (!this.isAvailable()) return null;
-        if (typeof roomno !== 'number' || roomno <= 0) {
-            return {
-                roomno: 0,
-                rtype: ROOM_TYPE.OROOM,
-                isShop: false,
-                name: ROOM_NAMES[0].name,
-                nameJa: ROOM_NAMES[0].nameJa
-            };
-        }
-
-        if (this.hasLiveMemory) {
-            const rtype = this.memory.bridgeCall(SHIM_CMD.GET_ROOM_TYPE, roomno, 0, 0, 0);
-            const info = ROOM_NAMES[rtype] || { name: 'Room', nameJa: '部屋' };
-            const isShop = (rtype >= ROOM_TYPE.SHOPBASE);
-
-            return {
-                roomno,
-                rtype,
-                isShop,
-                name: info.name,
-                nameJa: info.nameJa
-            };
-        }
-
-        if (this._cachedRoom && this._cachedRoom.roomno === roomno) {
-            return this._cachedRoom;
-        }
-
-        return null;
+        return this.spatialAdapter.getRoomType(roomno, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1719,11 +513,7 @@ export class WasmDirectBindingService {
      * @returns {number} struct monst*
      */
     getMonsterAt(x, y) {
-        if (!this.hasLiveMemory) return 0;
-        if (typeof x !== 'number' || typeof y !== 'number') return 0;
-
-        const ptr = this.memory.bridgeCall(SHIM_CMD.GET_MONSTER_AT, x, y, 0, 0);
-        return (ptr && ptr > 0) ? ptr : 0;
+        return this.monsterAdapter.getMonsterAt(x, y, this.memory, this.hasLiveMemory);
     }
 
     /**
@@ -1733,37 +523,7 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getMonsterInfo(x, y) {
-        if (!this.isAvailable()) return null;
-        if (typeof x !== 'number' || typeof y !== 'number') return null;
-
-        if (this.hasLiveMemory) {
-            const res = this.memory.bridgeCall(SHIM_CMD.GET_MONSTER_INFO, x, y, 0, 0);
-            if (res <= 0) return null;
-
-            const peaceful = Boolean(res & 0x01);
-            const tame = Boolean((res >> 1) & 0x01);
-            const hp = (res >> 8) & 0xFFF;
-            const hpmax = (res >> 20) & 0xFFF;
-
-            return {
-                peaceful,
-                tame,
-                hp,
-                hpmax
-            };
-        }
-
-        const cached = this._cachedMonsters ? this._cachedMonsters.get(`${x},${y}`) : null;
-        if (cached) {
-            return {
-                peaceful: Boolean(cached.peaceful),
-                tame: Boolean(cached.tame),
-                hp: cached.hp || 0,
-                hpmax: cached.hpmax || 0
-            };
-        }
-
-        return null;
+        return this.monsterAdapter.getMonsterInfo(x, y, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1773,45 +533,7 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getMonsterState(x, y) {
-        if (!this.isAvailable()) return null;
-        if (typeof x !== 'number' || typeof y !== 'number') return null;
-
-        if (this.hasLiveMemory) {
-            const monPtr = this.getMonsterAt(x, y);
-            if (!monPtr) return null;
-
-            const res = this.memory.bridgeCall(SHIM_CMD.GET_MONSTER_STATE, x, y, 0, 0);
-            if (res < 0) return null;
-
-            return {
-                ptr: monPtr,
-                sleeping: Boolean(res & 0x01),
-                fleeing: Boolean((res >> 1) & 0x01),
-                paralyzed: Boolean((res >> 2) & 0x01),
-                confused: Boolean((res >> 3) & 0x01),
-                stunned: Boolean((res >> 4) & 0x01),
-                isShopkeeper: Boolean((res >> 5) & 0x01),
-                isPriest: Boolean((res >> 6) & 0x01),
-                isChameleon: Boolean((res >> 7) & 0x01)
-            };
-        }
-
-        const cached = this._cachedMonsters ? this._cachedMonsters.get(`${x},${y}`) : null;
-        if (cached) {
-            return {
-                ptr: cached.ptr || 0,
-                sleeping: Boolean(cached.sleeping),
-                fleeing: Boolean(cached.fleeing),
-                paralyzed: Boolean(cached.paralyzed),
-                confused: Boolean(cached.confused),
-                stunned: Boolean(cached.stunned),
-                isShopkeeper: Boolean(cached.isShopkeeper),
-                isPriest: Boolean(cached.isPriest),
-                isChameleon: Boolean(cached.isChameleon)
-            };
-        }
-
-        return null;
+        return this.monsterAdapter.getMonsterState(x, y, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1821,35 +543,7 @@ export class WasmDirectBindingService {
      * @returns {Object|null}
      */
     getFullMonsterAt(x, y) {
-        if (!this.isAvailable()) return null;
-
-        if (this.hasLiveMemory) {
-            const monPtr = this.getMonsterAt(x, y);
-            if (!monPtr) return null;
-
-            const info = this.getMonsterInfo(x, y);
-            const state = this.getMonsterState(x, y) || {};
-
-            return {
-                x,
-                y,
-                ptr: monPtr,
-                peaceful: info ? info.peaceful : false,
-                tame: info ? info.tame : false,
-                hp: info ? info.hp : 0,
-                hpmax: info ? info.hpmax : 0,
-                sleeping: Boolean(state.sleeping),
-                fleeing: Boolean(state.fleeing),
-                paralyzed: Boolean(state.paralyzed),
-                confused: Boolean(state.confused),
-                stunned: Boolean(state.stunned),
-                isShopkeeper: Boolean(state.isShopkeeper),
-                isPriest: Boolean(state.isPriest),
-                isChameleon: Boolean(state.isChameleon)
-            };
-        }
-
-        return (this._cachedMonsters && this._cachedMonsters.get(`${x},${y}`)) || null;
+        return this.monsterAdapter.getFullMonsterAt(x, y, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1859,59 +553,7 @@ export class WasmDirectBindingService {
      * @returns {Promise<Object|null>}
      */
     async fetchFullMonsterAt(x, y) {
-        if (!this.isAvailable()) return null;
-
-        if (this.hasLiveMemory) {
-            return this.getFullMonsterAt(x, y);
-        }
-
-        if (this.bridge && typeof this.bridge.callShim === 'function') {
-            try {
-                const ptrRes = await this.bridge.callShim(SHIM_CMD.GET_MONSTER_AT, x, y);
-                const monPtr = (ptrRes && typeof ptrRes.result === 'number') ? ptrRes.result : 0;
-                if (!monPtr || monPtr <= 0) return null;
-
-                const [infoRes, stateRes] = await Promise.all([
-                    this.bridge.callShim(SHIM_CMD.GET_MONSTER_INFO, x, y),
-                    this.bridge.callShim(SHIM_CMD.GET_MONSTER_STATE, x, y)
-                ]);
-
-                const iVal = (infoRes && typeof infoRes.result === 'number') ? infoRes.result : 0;
-                const sVal = (stateRes && typeof stateRes.result === 'number') ? stateRes.result : 0;
-
-                const peaceful = Boolean(iVal & 0x01);
-                const tame = Boolean((iVal >> 1) & 0x01);
-                const hp = (iVal >> 8) & 0xFFF;
-                const hpmax = (iVal >> 20) & 0xFFF;
-
-                const mon = {
-                    x,
-                    y,
-                    ptr: monPtr,
-                    peaceful,
-                    tame,
-                    hp,
-                    hpmax,
-                    sleeping: Boolean(sVal & 0x01),
-                    fleeing: Boolean((sVal >> 1) & 0x01),
-                    paralyzed: Boolean((sVal >> 2) & 0x01),
-                    confused: Boolean((sVal >> 3) & 0x01),
-                    stunned: Boolean((sVal >> 4) & 0x01),
-                    isShopkeeper: Boolean((sVal >> 5) & 0x01),
-                    isPriest: Boolean((sVal >> 6) & 0x01),
-                    isChameleon: Boolean((sVal >> 7) & 0x01)
-                };
-
-                if (!this._cachedMonsters) this._cachedMonsters = new Map();
-                this._cachedMonsters.set(`${x},${y}`, mon);
-                return mon;
-            } catch (err) {
-                console.warn(`[WasmDirectBindingService] fetchFullMonsterAt(${x},${y}) error:`, err);
-                return null;
-            }
-        }
-
-        return null;
+        return this.monsterAdapter.fetchFullMonsterAt(x, y, this.bridge, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1921,12 +563,7 @@ export class WasmDirectBindingService {
      * @param {Object} monster
      */
     setCachedMonster(x, y, monster) {
-        if (!this._cachedMonsters) this._cachedMonsters = new Map();
-        if (monster) {
-            this._cachedMonsters.set(`${x},${y}`, { x, y, ...monster });
-        } else {
-            this._cachedMonsters.delete(`${x},${y}`);
-        }
+        this.monsterAdapter.setCachedMonster(x, y, monster);
     }
 
     /**
@@ -1936,15 +573,7 @@ export class WasmDirectBindingService {
      * @returns {boolean}
      */
     hasFloorObjectsCacheAt(x, y) {
-        if (!this.isAvailable()) return false;
-        if (typeof x !== 'number' || typeof y !== 'number') return false;
-        if (this.hasLiveMemory) return true;
-        return Boolean(
-            this._hasFloorObjectsCache &&
-            this._cachedFloorObjectsX === x &&
-            this._cachedFloorObjectsY === y &&
-            Array.isArray(this._cachedPlayerFloorObjects)
-        );
+        return this.inventoryAdapter.hasFloorObjectsCacheAt(x, y, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -1954,19 +583,10 @@ export class WasmDirectBindingService {
      * @param {Array<Object>|null} items
      */
     setCachedFloorObjects(x, y, items) {
-        if (items === null || items === undefined) {
-            this._cachedPlayerFloorObjects = [];
-            this._cachedFloorObjectsX = -1;
-            this._cachedFloorObjectsY = -1;
-            this._hasFloorObjectsCache = false;
-        } else {
-            this._cachedPlayerFloorObjects = Array.isArray(items) ? items : [];
-            this._cachedFloorObjectsX = x;
-            this._cachedFloorObjectsY = y;
-            this._cachedCellX = x;
-            this._cachedCellY = y;
-            this._hasFloorObjectsCache = true;
-        }
+        this.inventoryAdapter.setCachedFloorObjects(x, y, items, (cx, cy) => {
+            this._cachedCellX = cx;
+            this._cachedCellY = cy;
+        });
     }
 
     /**
@@ -1976,51 +596,7 @@ export class WasmDirectBindingService {
      * @returns {Array<Object>}
      */
     getObjectsAt(x, y) {
-        if (!this.isAvailable()) return [];
-        if (typeof x !== 'number' || typeof y !== 'number') return [];
-
-        if (this.hasLiveMemory) {
-            const headPtr = this.memory.bridgeCall(SHIM_CMD.GET_OBJECT_AT, x, y, 0, 0);
-            if (!headPtr || headPtr <= 0) return [];
-
-            const items = [];
-            const visited = new Set();
-            const MAX_FLOOR_ITEMS = 50;
-            const bufSize = 36;
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-
-            if (bufPtr) {
-                try {
-                    let currPtr = headPtr;
-                    while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_FLOOR_ITEMS) {
-                        visited.add(currPtr);
-                        const res = this.memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, bufPtr, bufSize);
-                        if (res === 0) {
-                            const rawValues = this.memory.readInt32Array(bufPtr, 9);
-                            const cobjPtr = this.memory.getValue(currPtr + 8, 'i32');
-                            const o_id = this.memory.getValue(currPtr + 12, 'i32');
-                            const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id);
-                            if (item) {
-                                items.push(item);
-                            }
-                        }
-                        currPtr = this.memory.getValue(currPtr + 4, 'i32');
-                    }
-                } finally {
-                    this.memory.freeBuffer(bufPtr);
-                }
-            }
-            return items;
-        }
-
-        // Worker 隔離環境: 足元座標と一致する場合はキャッシュを返却
-        if (((this._cachedFloorObjectsX === x && this._cachedFloorObjectsY === y) ||
-             (this._cachedCellX === x && this._cachedCellY === y)) &&
-            this._cachedPlayerFloorObjects) {
-            return this._cachedPlayerFloorObjects;
-        }
-
-        return [];
+        return this.inventoryAdapter.getObjectsAt(x, y, this.memory, this.isAvailable(), this.hasLiveMemory, this._cachedCellX, this._cachedCellY);
     }
 
     /**
@@ -2030,71 +606,7 @@ export class WasmDirectBindingService {
      * @returns {Promise<Array<Object>>}
      */
     async fetchObjectsAt(x, y) {
-        if (!this.isAvailable()) return [];
-        if (this.hasLiveMemory) {
-            return this.getObjectsAt(x, y);
-        }
-        if (this.bridge && typeof this.bridge.callShim === 'function') {
-            try {
-                const headRes = await this.bridge.callShim(SHIM_CMD.GET_OBJECT_AT, x, y);
-                const headPtr = (headRes && typeof headRes.result === 'number') ? headRes.result : 0;
-                const items = [];
-                if (headPtr > 0) {
-                    const visited = new Set();
-                    const MAX_FLOOR_ITEMS = 50;
-                    let currPtr = headPtr;
-                    while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_FLOOR_ITEMS) {
-                        visited.add(currPtr);
-                        const objRes = await this.bridge.callShim(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, 36, 'int32');
-                        if (objRes && Array.isArray(objRes.buffer)) {
-                            let nextPtr = 0;
-                            let cobjPtr = 0;
-                            let o_id = 0;
-                            let corpsenm = -1;
-
-                            if (objRes.buffer.length >= 12) {
-                                // 新仕様 (Worker補完あり): 9 words (0..8, 8=corpsenm) + nexthere(9) + cobj(10) + o_id(11)
-                                corpsenm = objRes.buffer[8] ?? -1;
-                                nextPtr = objRes.buffer[9] || 0;
-                                cobjPtr = objRes.buffer[10] || 0;
-                                o_id = objRes.buffer[11] || 0;
-                            } else if (objRes.buffer.length === 11) {
-                                // 旧仕様 (Worker補完あり): 8 words (0..7) + nexthere(8) + cobj(9) + o_id(10)
-                                nextPtr = objRes.buffer[8] || 0;
-                                cobjPtr = objRes.buffer[9] || 0;
-                                o_id = objRes.buffer[10] || 0;
-                            } else if (objRes.buffer.length === 9) {
-                                // 新仕様 (単体・補完なし): 9 words (0..8, 8=corpsenm)
-                                corpsenm = objRes.buffer[8] ?? -1;
-                                nextPtr = 0;
-                            } else if (objRes.buffer.length >= 8) {
-                                // 旧仕様 (単体・補完なし): 8 words (0..7)
-                                nextPtr = 0;
-                            } else {
-                                break;
-                            }
-
-                            const item = this.unpackObjectBuffer(objRes.buffer, currPtr, cobjPtr, o_id, corpsenm);
-                            if (item) items.push(item);
-
-                            // ポインタ不正ガード: 1024未満のアドレスは無効ポインタとして安全終了
-                            currPtr = (nextPtr >= 1024) ? nextPtr : 0;
-                        } else {
-                            break;
-                        }
-                    }
-                }
-                this._cachedPlayerFloorObjects = items;
-                this._cachedFloorObjectsX = x;
-                this._cachedFloorObjectsY = y;
-                this._hasFloorObjectsCache = true;
-                return items;
-            } catch (err) {
-                console.warn(`[WasmDirectBindingService] fetchObjectsAt(${x},${y}) error:`, err);
-                return [];
-            }
-        }
-        return [];
+        return this.inventoryAdapter.fetchObjectsAt(x, y, this.bridge, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -2103,28 +615,7 @@ export class WasmDirectBindingService {
      * @returns {Array<number>|null}
      */
     getPlayerProps() {
-        if (!this.isAvailable()) return this._cachedPlayerProps || null;
-
-        if (this.hasLiveMemory) {
-            const LAST_PROP = 68;
-            const count = LAST_PROP + 1;
-            const bufSize = count * 4;
-            const bufPtr = this.memory.allocateBuffer(bufSize);
-            if (!bufPtr) return this._cachedPlayerProps || null;
-
-            try {
-                const res = this.memory.bridgeCall(SHIM_CMD.GET_PLAYER_PROPS, 0, 0, bufPtr, bufSize);
-                if (res > 0) {
-                    const raw = this.memory.readInt32Array(bufPtr, res);
-                    this._cachedPlayerProps = Array.from(raw);
-                    return this._cachedPlayerProps;
-                }
-            } finally {
-                this.memory.freeBuffer(bufPtr);
-            }
-        }
-
-        return this._cachedPlayerProps || null;
+        return this.playerAdapter.getPlayerProps(this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 
     /**
@@ -2132,28 +623,7 @@ export class WasmDirectBindingService {
      * @returns {Promise<Array<number>|null>}
      */
     async fetchPlayerProps() {
-        if (!this.isAvailable()) return null;
-
-        if (this.hasLiveMemory) {
-            return this.getPlayerProps();
-        }
-
-        if (this.bridge && typeof this.bridge.callShim === 'function') {
-            try {
-                const LAST_PROP = 68;
-                const count = LAST_PROP + 1;
-                const bufSize = count * 4;
-                const res = await this.bridge.callShim(SHIM_CMD.GET_PLAYER_PROPS, 0, 0, bufSize, 'int32');
-                if (res && Array.isArray(res.buffer)) {
-                    this._cachedPlayerProps = res.buffer;
-                    return this._cachedPlayerProps;
-                }
-            } catch (e) {
-                console.warn('[WasmDirectBindingService] fetchPlayerProps error:', e);
-            }
-        }
-
-        return this._cachedPlayerProps || null;
+        return this.playerAdapter.fetchPlayerProps(this.bridge, this.memory, this.isAvailable(), this.hasLiveMemory);
     }
 }
 
