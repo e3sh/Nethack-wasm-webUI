@@ -576,3 +576,71 @@ export function parsePlayerProfileBuffer(raw, roleNameStr = null, raceNameStr = 
         playerName: playerName || ''
     };
 }
+
+/**
+ * NetHack 5.0 公式ダンジョンブランチ定義 (dungeon.lua 順)
+ */
+export const DUNGEON_BRANCHES = [
+    { id: 'dungeon', name: 'The Dungeons of Doom', nameJa: 'メインダンジョン', theme: 'dungeon' },
+    { id: 'gehennom', name: 'Gehennom', nameJa: 'ゲヘナ', theme: 'hell' },
+    { id: 'mines', name: 'The Gnomish Mines', nameJa: 'ノームの鉱山', theme: 'cave' },
+    { id: 'quest', name: 'The Quest', nameJa: 'クエスト', theme: 'quest' },
+    { id: 'sokoban', name: 'Sokoban', nameJa: '倉庫番', theme: 'puzzle' },
+    { id: 'fort_ludios', name: 'Fort Ludios', nameJa: 'フォート・ルディオス', theme: 'gold' },
+    { id: 'vlad_tower', name: "Vlad's Tower", nameJa: 'ヴラドの塔', theme: 'vampire' },
+    { id: 'elemental_planes', name: 'The Elemental Planes', nameJa: '元素界', theme: 'celestial' },
+    { id: 'tutorial', name: 'The Tutorial', nameJa: 'チュートリアル', theme: 'tutorial' }
+];
+
+/**
+ * ダンジョン番号 (dnum) からダンジョンブランチメタデータを取得
+ * @param {number} dnum
+ * @returns {Object}
+ */
+export function getDungeonBranch(dnum) {
+    if (typeof dnum === 'number' && dnum >= 0 && dnum < DUNGEON_BRANCHES.length) {
+        return DUNGEON_BRANCHES[dnum];
+    }
+    return DUNGEON_BRANCHES[0];
+}
+
+/**
+ * SHIM_CMD_GET_PLAYER_SUMMARY (0x30) バッファからプレイヤーサマリー（dnum, ublesscnt, ugangr等）をデコード (純粋関数)
+ * @param {Array<number>|Int32Array} raw - 最低 8 要素の int32 配列
+ * @returns {Object|null}
+ */
+export function parsePlayerSummaryBuffer(raw) {
+    if (!raw || (!Array.isArray(raw) && !(raw instanceof Int32Array)) || raw.length < 8) {
+        return null;
+    }
+
+    const dnum = raw[0];
+    const dlevel = raw[1];
+    const ublesscnt = raw[2];
+    const ugangr = raw[3];
+    const uluck = raw[4];
+    const ualignRecord = raw[5];
+    const uhunger = raw[6];
+    const moves = raw[7];
+
+    const branch = getDungeonBranch(dnum);
+    const branchId = branch.id;
+    const floorKey = (dnum === 0) ? `Dlvl:${dlevel}` : `${branchId}:${dlevel}`;
+
+    return {
+        dnum,
+        dlevel,
+        ublesscnt,
+        ugangr,
+        uluck,
+        ualignRecord,
+        uhunger,
+        moves,
+        branchId,
+        branchName: branch.name,
+        branchNameJa: branch.nameJa,
+        theme: branch.theme,
+        floorKey,
+        canPray: ublesscnt === 0 && ugangr === 0
+    };
+}

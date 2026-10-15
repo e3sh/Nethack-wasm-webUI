@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-10-14
+last_updated: 2026-10-15
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -72,30 +72,33 @@ last_updated: 2026-10-14
   - [x] **【先行着手 3】AreaStateManager 4モジュール分割・責務整理 (Spatial Grid / Inference / Landmark / Projector 分離)**
     - [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md) (`🟢 implemented`)
     - `src/core/knowledge/state/AreaStateManager.js` (1,552行 ➔ 437行、約71.8%削減) の責務分離。`TerrainInferenceEngine.js`（地形・物理推論）、`DungeonLandmarkRegistry.js`（階段・ランドマーク・店舗台帳）、`ViewportTileProjector.js`（戦術視野・カメラ投影）へ分割し、Stage 8.3-B の投機的仮床撤廃・Commit駆動投影をピンポイントかつ安全に導入可能にする基盤を確立 (全138スイート・1,707テスト PASS)。
-  - [ ] **【先行着手 4】WasmDirectBindingService モジュール分割・責務適正化 (神クラス解消 ＆ 薄型ファサード再編)**
-    - [wasm_direct_binding_service_modularization_plan.ja.md](./2_client_ui/wasm_direct_binding_service_modularization_plan.ja.md) (`⏸️ pending` / 2026-10-15 策定)
-    - `src/core/knowledge/services/WasmDirectBindingService.js` (2,160行 ➔ 約350行、約84%削減) の神クラス解消。`WasmSyncCoordinator`（同期バリア・通信調停）、`InventoryWasmAdapter`（所持品・装備・重量）、`PlayerWasmAdapter`（耐性・スキル・呪文・プロファイル）、`SpatialWasmAdapter`（空間・地形・部屋・罠）、`MonsterWasmAdapter`（モンスター真値・状態）、`DiscoveryWasmAdapter`（識別図鑑・外見）へ分離し、Stage 8.5 の不可分同期およびプロファイル拡張をクリーンに導入可能な基盤を確立。
+  - [x] **【先行着手 4】WasmDirectBindingService モジュール分割・責務適正化 (神クラス解消 ＆ 薄型ファサード再編)**
+    - [wasm_direct_binding_service_modularization_plan.ja.md](./2_client_ui/wasm_direct_binding_service_modularization_plan.ja.md) (`🟢 implemented` / 2026-10-15 完遂)
+    - `src/core/knowledge/services/WasmDirectBindingService.js` (2,160行 ➔ 約350行、約84%削減) の神クラス解消。`WasmSyncCoordinator`（同期バリア・通信調停）、`InventoryWasmAdapter`（所持品・装備・重量）、`PlayerWasmAdapter`（耐性・スキル・呪文・プロファイル）、`SpatialWasmAdapter`（空間・地形・部屋・罠）、`MonsterWasmAdapter`（モンスター真値・状態）、`DiscoveryWasmAdapter`（識別図鑑・外見）へ分離し、Stage 8.5 の不可分同期およびプロファイル拡張をクリーンに導入可能な基盤を確立 (全144テストファイル・1,765テスト 100% PASS)。
   - [x] **Stage 8.3-B: Shim-Driven 確定同期型レンダリング・パイプラインの刷新 (＆ §2.5 Sync Barrier 調停統合)**
     - [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md) (`🟢 implemented`) / [direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md) (`🟢 implemented`)
     - ターン同期ライフサイクル (Sync Barrier: Phase 1 ACTION ➔ Phase 2 STREAMING ➔ Phase 3 SETTLED & SHIM SYNC ➔ Phase 4 COMMIT `areaStateCommitted`) の確立と `--More--` 待機ガード (`isMorePromptActive`)・世代排他制御 (`_syncGeneration`) の統合
     - `TerrainInferenceEngine` / `ViewportTileProjector` における Direct Binding アクティブ時の投機的仮床推測（`3992`）副作用の完全根絶、および `STONE (0)` / `SDOOR (14)` / `SCORR (15)` の未踏・ネタバレ防止ガード
     - フロア全域 `dumpLevelTerrain()` の参照用ルックアップテーブル化（未踏領域の非表示化）および `curs` ➔ Sync Barrier 連動の足元 `cell.middle`（床落ちアイテム・山積み）確定更新・Commit 駆動フラッシュ制御 (全138スイート・1,718テスト PASS)
-  - [ ] **Stage 8.3-C: Direct Binding 確定情報（Ground Truth）純化 ＆ 足元地形・インベントリ不具合是正 (最優先次期タスク)**
-    - **設計・是正計画書**: [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md) (`⏸️ pending` / 原因特定・設計完了)
-    - **基本原則（全ドメイン横断・排他ルーティング / 基本憲法6）**: Shim 直結経路 (`SHIM_DIRECT`) とレガシー推測・文字列解析経路 (`FALLBACK_INFERENCE`) を入口で完全分岐。**Tier 1（C 構造体 Ground Truth ＋ `known`/`dknown`/`bknown`/`seenv`） > Tier 2（`print_glyph` 目視確定属性） > Tier 3（`fallback` 時のみの文字列・推論）** の優先順位を厳守し、Direct Binding 稼働時に仮文字列を正規表現で再パースする逆流や仮床推測の上書きを全ドメインで遮断する。
-    - **テストランク制度（Rank S/A/B/C）の導入と不要テスト整理**: 過去の旧仕様（文字列推測や仮床混在）を前提としたテストを通すために本番コードを歪める本末転倒を防止。[テストガイド (`docs/8_testing/README.md`)](./8_testing/README.md) に Rank S（絶対死守: SSOT/Direct Binding真値）〜 Rank C（廃止・削除対象: 旧内部実装依存）を定義し、トレードオフ発生時は Rank S/A を優先して Rank B は `fallback` 隔離、Rank C は積極的に削除・スリム化する。
-    - **Cシム層拡張 (`shim_bridge.c`)**: `SHIM_CMD_DUMP_ALL_INVENT` および `SHIM_CMD_DUMP_OBJECT_INFO` に `o->corpsenm`（死体・像・缶詰のモンスター種別ID）と `o->known`（強化値・チャージ数既知フラグ）を追加出力。
+  - [x] **Stage 8.3-C: Direct Binding 確定情報（Ground Truth）純化 ＆ 足元地形・インベントリ不具合是正** (`🟢 implemented` / 2026-10-15 完遂)
+    - **設計・是正計画書**: [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md) (`🟢 implemented`)
+    - **基本原則（全ドメイン横断・排他ルーティング / 基本憲法6）**: Shim 直結経路 (`SHIM_DIRECT`) とレガシー推測・文字列解析経路 (`FALLBACK_INFERENCE`) を入口で完全分岐。**Tier 1（C 構造体 Ground Truth ＋ `known`/`dknown`/`bknown`/`seenv`） > Tier 2（`print_glyph` 目視確定属性） > Tier 3（`fallback` 時のみの文字列・推論）** の優先順位を厳守し、Direct Binding 稼働時に仮文字列を正規表現で再パースする逆流や仮床推測の上書きを全ドメインで遮断。
+    - **テストランク制度（Rank S/A/B/C）の導入と不要テスト整理**: 過去の旧仕様（文字列推測や仮床混在）を前提としたテストを通すために本番コードを歪める本末転倒を防止。[テストガイド (`docs/8_testing/README.md`)](./8_testing/README.md) に Rank S（絶対死守: SSOT/Direct Binding真値）〜 Rank C（廃止・削除対象: 旧内部実装依存）を定義し、トレードオフ発生時は Rank S/A を優先して Rank B は `fallback` 隔離、Rank C は積極的に削除・スリム化。
+    - **Cシム層拡張 (`shim_bridge.c`)**: `SHIM_CMD_DUMP_ALL_INVENT` および `SHIM_CMD_DUMP_OBJECT_INFO` に `o->corpsenm`（死体・像・缶詰のモンスター種別ID）と `o->known`（強化値・チャージ数既知フラグ）を追加出力完了。
     - **足元地形・像グリフ是正 (`TerrainInferenceEngine.js` / `AreaStateManager.js`)**:
-      - 扉のないドア (`D_NODOOR` / `D_BROKEN` ➔ `3985`) が閉扉 (`3988`) になる不具合、および開扉移動時に目視確定済みの縦横向き (`3986` vs `3987`) が変わる不具合の修正。
-      - 足元・所持品のモンスター像 (`onum: 476`)・死体 (`onum: 265`) が専用グリフ (`GLYPH_STATUE_OFF + corpsenm` / `GLYPH_BODY_OFF + corpsenm`) ではなく汎用オブジェクトグリフになる不具合の修正（旧番号 `295`/`474` のハードコード是正含む）。
+      - 扉のないドア (`D_NODOOR` / `D_BROKEN` ➔ `3985`) が閉扉 (`3988`) になる不具合を解消し、開扉移動時も目視確定済みの向きを最優先保持。
+      - 足元・所持品のモンスター像 (`onum: 476`)・死体 (`onum: 265`) に専用グリフ (`GLYPH_STATUE_OFF + corpsenm` / `GLYPH_BODY_OFF + corpsenm`) を適用完了。
     - **アイコンインベントリ・ナレッジ精度是正 (`glyphClassifier.js` / `InventoryStateManager.js` / `ItemIdentificationResolver.js` / `EquipmentRules.js`)**:
-      - `glyphClassifier.js` の魔法書・杖 `onum` 境界ズレ是正（`SPELLBOOK: 366〜409`, `WAND: 410〜438`）。
-      - `glittering spellbook` の末尾 `"ring"` 誤爆（指輪・装備コマンド化）および `turquoise spellbook` の宝石色誤爆（投擲 `t` コマンド化）の根絶。
-      - 自作缶詰 (`onum: 296`) に内部フラグ `spe` が付与されて `"-2 tin"` となりナレッジが `"tin wand"`（錫の杖）に化ける不具合、および死体にモンスター名が付かない不具合の完全解消。
-  - [ ] **Stage 8.4: ブランチ同定・お祈りタイマー・プレイヤー耐性直結**
-    - `getPlayerSummary()` から `dnum` によるブランチ 100% 確定同定（`branch:dlvl` キャッシュ分離 ＆ 新エリア突入演出 `AREA_ENTERED` 発火）
-    - `ublesscnt` をタイムライン燃料計（お祈りタイマー）へ直結（推測誤差ゼロ）
-    - `SHIM_CMD_GET_PLAYER_PROPS` (0x32) から `uprops`（耐性配列）を抽出して `AttributeStateManager` へ注入
+      - `glyphClassifier.js` の魔法書・杖 `onum` 境界判定（`SPELLBOOK: 366〜409`, `WAND: 410〜437`, `COIN: 438`）を厳密化。
+      - `glittering spellbook` / `turquoise spellbook` のカテゴリ誤爆（指輪・投擲コマンド化）を根絶。
+      - 自作缶詰 (`onum: 296`) の `spe` フラグ誤爆（"tin wand" 化）を完全解消し、モンスター名付き缶詰・死体名称合成を確立 (全146スイート・1,783テスト PASS)。
+  - [x] **Stage 8.4: ブランチ同定・お祈りタイマー・プレイヤー耐性直結** (`🟢 implemented` / 2026-10-15 完遂)
+    - **ブランチ同定 (`SHIM_CMD_GET_PLAYER_SUMMARY` 0x30 -> `u.uz.dnum`)**:
+      - `dnum` から全9ブランチ（メインダンジョン、ゲヘナ、ノームの鉱山、クエスト、倉庫番、フォート・ルディオス、ヴラドの塔、元素界、チュートリアル）を 100% 確定同定し、`branch:dlvl` 形式でフロアキャッシュを完全分離。新エリア突入演出（`areaEntered` / `AREA_ENTERED`）の決定論的発火を確立。
+    - **お祈りタイマー (`u.ublesscnt`)・神の怒り (`u.ugangr`) 直結**:
+      - `u.ublesscnt`（クールダウン残ターン）および `u.ugangr`（神の怒り値）を C コアメモリから直接取得し、`AttributeStateManager` / UI に接続。推測誤差ゼロ、セーブ再開コールドスタートゼロの安全なお祈り判定（`canSafelyPray`）を確立。
+    - **プレイヤー耐性直結 (`SHIM_CMD_GET_PLAYER_PROPS` 0x32 -> `u.uprops`)**:
+      - 69要素の耐性配列から内因性（intrinsic）と外因性（extrinsic）をビット分離し、`AttributeStateManager.syncFromDirectBinding()` を通じて SSOT として完全直結 (全147スイート・1,794テスト 100% PASS)。
   - [ ] **Stage 8.5: Direct Binding 前提の同期ライフサイクル・画面構成の抜本的再構築 ＆ ネイティブ操作分離 (構想・設計完了)**
     - **設計書**: [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) (`⏸️ pending` / 2026-10-15 策定)
     - **背景と課題**: セーブ再開時のインベントリ未取得（Sync Barrier 世代競合による Stale Cancel）、種族・職業（Role/Race）の「考古学者/人間」固定化、および旧メッセージパース時代のライフサイクルフラグ散在の根本的一掃。
@@ -214,11 +217,13 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 
 ## 🟢 4. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全138スイート・1,718テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全147スイート・1,794テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :---: | :--- |
 | **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、基本憲法、重複整理、未接続パイプラインの公式総合カタログ |
+| **GKL・探索同期** | [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)<br>[nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md) | `PlayerWasmAdapter.js`<br>`BindingConstants.js`<br>`AreaStateManager.js`<br>`AttributeStateManager.js`<br>`GKLEventRouter.js` | `🟢 implemented` | **ブランチ同定・お祈りタイマー・プレイヤー耐性直結 (Stage 8.4: 2026-10-15)**<br>`dnum` による全9ブランチ 100% 確定同定 ＆ `branch:dlvl` キャッシュ分離、新エリア突入バナー演出（`AREA_ENTERED`）、`ublesscnt` / `ugangr`（推測誤差ゼロお祈り判定）、`uprops` 69要素耐性配列 SSOT 直結 |
+| **GKL・確定情報** | [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md) | `src/driver/shim/shim_bridge.c`<br>`glyphClassifier.js`<br>`InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`TerrainInferenceEngine.js` | `🟢 implemented` | **Direct Binding 確定情報純化 ＆ 地形・インベントリ不具合是正 (Stage 8.3-C: 2026-10-15)**<br>Cシム層 `corpsenm`/`known` 拡張、像・死体の専用グリフ（`GLYPH_STATUE_OFF`/`GLYPH_BODY_OFF`）適用、扉なし枠（`3985`）適正化、魔法書・杖・缶詰の境界・誤爆根絶 |
 | **描画・同期** | [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)<br>[direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md) | `GKLEventRouter.js`<br>`WasmDirectBindingService.js`<br>`TerrainInferenceEngine.js`<br>`ViewportTileProjector.js`<br>`VirtualDungeonScreen.js`<br>`MainViewportRenderer.js` | `🟢 implemented` | **Shim-Driven 確定同期レンダリング・パイプライン ＆ Sync Barrier 調停 (Stage 8.3-B & §2.5: 2026-10-11)**<br>4フェーズ Turn Lifecycle（`userActionSent` ➔ Streaming ➔ Sync Barrier ➔ `areaStateCommitted`）、`--More--` 待機ガード (`isMorePromptActive`)、世代管理による遅延同期破棄、Direct Binding 時の投機的仮床（`3992`）完全根絶、未踏領域非表示化 ＆ `curs` 連動の足元 `cell.middle` 確定同期フラッシュ |
 | **GKL・空間** | [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md) | `src/core/knowledge/state/AreaStateManager.js`<br>`src/core/knowledge/state/area/` | `🟢 implemented` | **AreaStateManager 4モジュール分割 ＆ 空間状態オーケストレーター (Phase 8 先行3: 2026-10-11)**<br>`AreaStateManager.js` を 1,552行 ➔ 437行（約71.8%削減）へスリム化。`TerrainInferenceEngine`, `DungeonLandmarkRegistry`, `ViewportTileProjector` を分離し 100% 後方互換ファサード化 |
 | **GKL・設計** | [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md) | `src/core/knowledge/GKLPlugin.js`<br>`src/core/knowledge/coordinators/`<br>`src/core/knowledge/services/` | `🟢 implemented` | **GKLPlugin モジュール分割 ＆ アーキテクチャ適正化 (ROADMAP 2.2: 2026-10-11)**<br>`GKLPlugin.js` を 2,613行 ➔ 482行（約81.5%削減）へスリム化。`SilentSyncCoordinator`, `GKLEventRouter`, `GKLFxCoordinator`, `InspectionService`, `AutoTravelService` を分離し 100% 後方互換ファサード化 |

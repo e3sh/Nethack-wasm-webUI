@@ -158,6 +158,15 @@ export class AttributeStateManager {
         this.isSynced = false;
         this.isProfileDirectBound = false;
         this.wasmDirectBindingService = options.wasmDirectBindingService || null;
+
+        // Stage 8.4: プレイヤー真値サマリー（お祈りタイマー・神の怒り・ブランチ）
+        this.playerSummary = null;
+        this.ublesscnt = 0;
+        this.ugangr = 0;
+        this.uluck = 0;
+        this.canSafelyPray = true;
+        this.dnum = 0;
+        this.dlevel = 1;
     }
 
     /**
@@ -186,9 +195,18 @@ export class AttributeStateManager {
             }
         }
 
+        // Stage 8.4: プレイヤー真値サマリー（お祈りタイマー ublesscnt、神の怒り ugangr、ブランチ dnum 等）の自動同期
+        let summaryChanged = false;
+        if (typeof service.getPlayerSummary === 'function') {
+            const summary = service.getPlayerSummary();
+            if (summary) {
+                summaryChanged = this.syncPlayerSummaryFromDirectBinding(summary);
+            }
+        }
+
         const rawProps = typeof service.getPlayerProps === 'function' ? service.getPlayerProps() : null;
         if (!rawProps || !Array.isArray(rawProps) || rawProps.length === 0) {
-            return profileChanged;
+            return profileChanged || summaryChanged;
         }
 
         const wasSynced = this.isSynced;
@@ -328,6 +346,38 @@ export class AttributeStateManager {
         this._recalculateIntrinsics();
 
         return changed;
+    }
+
+    /**
+     * Wasm Cコア Direct Binding から取得したプレイヤー真値サマリーを注入 (Stage 8.4 SSOT)
+     * お祈りタイマー (ublesscnt)、神の怒り (ugangr)、幸運 (uluck)、ブランチ (dnum/dlevel) を推測誤差ゼロで直結
+     * @param {Object} summary
+     * @returns {boolean} 変更があったかどうか
+     */
+    syncPlayerSummaryFromDirectBinding(summary) {
+        if (!summary || typeof summary !== 'object') return false;
+
+        const prevBless = this.ublesscnt;
+        const prevAngr = this.ugangr;
+        const prevLuck = this.uluck;
+        const prevDnum = this.dnum;
+        const prevDlevel = this.dlevel;
+
+        this.playerSummary = summary;
+        this.ublesscnt = typeof summary.ublesscnt === 'number' ? summary.ublesscnt : 0;
+        this.ugangr = typeof summary.ugangr === 'number' ? summary.ugangr : 0;
+        this.uluck = typeof summary.uluck === 'number' ? summary.uluck : 0;
+        this.canSafelyPray = Boolean(summary.canPray);
+        this.dnum = typeof summary.dnum === 'number' ? summary.dnum : 0;
+        this.dlevel = typeof summary.dlevel === 'number' ? summary.dlevel : 1;
+
+        return (
+            prevBless !== this.ublesscnt ||
+            prevAngr !== this.ugangr ||
+            prevLuck !== this.uluck ||
+            prevDnum !== this.dnum ||
+            prevDlevel !== this.dlevel
+        );
     }
 
     /**

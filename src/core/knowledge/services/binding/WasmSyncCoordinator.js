@@ -17,7 +17,8 @@ import {
     EQUIPMENT_SLOT_NAMES,
     parseSkillsBuffer,
     parseSpellBookBuffer,
-    parsePlayerProfileBuffer
+    parsePlayerProfileBuffer,
+    parsePlayerSummaryBuffer
 } from './BindingConstants.js';
 
 export class WasmSyncCoordinator {
@@ -389,6 +390,19 @@ export class WasmSyncCoordinator {
                     }
                 }
 
+                // 13. プレイヤーサマリー (SHIM_CMD_GET_PLAYER_SUMMARY: 32 bytes) (Stage 8.4)
+                if (options.syncSummary !== false && player) {
+                    try {
+                        const summaryRes = await bridge.callShim(SHIM_CMD.GET_PLAYER_SUMMARY, 0, 0, 32, 'int32');
+                        if (isStale()) return false;
+                        if (summaryRes && summaryRes.result === 0 && Array.isArray(summaryRes.buffer)) {
+                            player.cachedPlayerSummary = parsePlayerSummaryBuffer(summaryRes.buffer);
+                        }
+                    } catch (e) {
+                        // silent fallback
+                    }
+                }
+
                 this._lastCompletedSyncGeneration = syncGen;
                 return true;
             } catch (err) {
@@ -553,6 +567,37 @@ export class WasmSyncCoordinator {
                 }
             } catch (e) {
                 console.warn('[WasmSyncCoordinator] syncPlayerProfileOnDemand error:', e);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * プレイヤーサマリー (GET_PLAYER_SUMMARY) のオンデマンド同期 (Stage 8.4)
+     * @param {Object} bridge
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @param {Object} playerAdapter
+     * @param {Object} memory
+     * @returns {Promise<boolean>}
+     */
+    async syncPlayerSummaryOnDemand(bridge, isAvailable, hasLiveMemory, playerAdapter, memory = null) {
+        if (!isAvailable || !playerAdapter) return false;
+
+        if (hasLiveMemory) {
+            playerAdapter.dumpPlayerSummary(memory, isAvailable, hasLiveMemory);
+            return true;
+        }
+
+        if (bridge && typeof bridge.callShim === 'function') {
+            try {
+                const res = await bridge.callShim(SHIM_CMD.GET_PLAYER_SUMMARY, 0, 0, 32, 'int32');
+                if (res && res.result === 0 && Array.isArray(res.buffer)) {
+                    playerAdapter.cachedPlayerSummary = parsePlayerSummaryBuffer(res.buffer);
+                    return true;
+                }
+            } catch (e) {
+                console.warn('[WasmSyncCoordinator] syncPlayerSummaryOnDemand error:', e);
             }
         }
         return false;

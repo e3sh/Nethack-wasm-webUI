@@ -208,6 +208,31 @@ export class GKLEventRouter {
                             core.emit('spellsStateUpdated', p.spellStateManager);
                         }
                     }
+
+                    // 🎯 プレイヤーサマリー（dnumブランチ、ublesscnt祈り、ugangr怒り等）の同期 (Stage 8.4)
+                    if (p.wasmDirectBindingService && typeof p.wasmDirectBindingService.getPlayerSummary === 'function') {
+                        const summary = p.wasmDirectBindingService.getPlayerSummary();
+                        if (summary) {
+                            if (p.areaStateManager && typeof p.areaStateManager.syncPlayerSummary === 'function') {
+                                const areaInfo = p.areaStateManager.syncPlayerSummary(summary);
+                                if (areaInfo && areaInfo.isNewBranch) {
+                                    core.emit('areaEntered', areaInfo);
+                                    if (p.gklFxCoordinator && typeof p.gklFxCoordinator.emitFxTrigger === 'function') {
+                                        p.gklFxCoordinator.emitFxTrigger({
+                                            type: 'AREA_ENTERED',
+                                            branchId: areaInfo.branchId,
+                                            title: areaInfo.branchName,
+                                            titleJa: areaInfo.branchNameJa,
+                                            subtitle: `Level ${areaInfo.dlevel}`,
+                                            theme: areaInfo.theme || 'dungeon',
+                                            bannerDurationMs: 4000
+                                        });
+                                    }
+                                }
+                            }
+                            core.emit('playerSummaryUpdated', summary);
+                        }
+                    }
                 }
 
                 // 🎯 Phase 4 (COMMIT): 状態確定コミットと areaStateCommitted シグナルの発火 (Stage 8.3-B)

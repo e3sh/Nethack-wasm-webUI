@@ -657,6 +657,36 @@ export class WasmDirectBindingService {
             this.memory
         );
     }
+
+    /**
+     * プレイヤーのサマリー情報 (dnum, dlevel, ublesscnt, ugangr等) を取得 (Stage 8.4)
+     * @returns {Object|null}
+     */
+    getPlayerSummary() {
+        return this.playerAdapter.getPlayerSummary(this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
+     * プレイヤーのサマリー情報を非同期取得 (Worker 調停対応) (Stage 8.4)
+     * @returns {Promise<Object|null>}
+     */
+    async fetchPlayerSummary() {
+        return this.playerAdapter.fetchPlayerSummary(this.bridge, this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
+     * プレイヤーサマリー (SHIM_CMD_GET_PLAYER_SUMMARY) のオンデマンド同期 (Stage 8.4)
+     * @returns {Promise<boolean>}
+     */
+    async syncPlayerSummaryOnDemand() {
+        return await this.syncCoordinator.syncPlayerSummaryOnDemand(
+            this.bridge,
+            this.isAvailable(),
+            this.hasLiveMemory,
+            this.playerAdapter,
+            this.memory
+        );
+    }
 }
 
 export default WasmDirectBindingService;

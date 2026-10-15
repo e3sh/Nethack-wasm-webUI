@@ -17,18 +17,24 @@ export function normalizeFloorKey(floorKey) {
     const str = String(floorKey).trim();
     if (!str) return 'Dlvl:1';
 
-    // "Minetown:3", "Mines: 2", "Dlvl: 1", "Sokoban: 1" 等のコロン区切り形式
+    // "Minetown:3", "Mines: 2", "Dlvl: 1", "Sokoban: 1", "dungeon:1" 等のコロン区切り形式
     if (str.includes(':')) {
         const parts = str.split(':');
-        const branch = parts[0].trim() || 'Dlvl';
+        let branch = parts[0].trim() || 'Dlvl';
         const level = parseInt(parts[1], 10) || 1;
+        if (branch.toLowerCase() === 'dungeon' || branch.toLowerCase() === 'dlvl') {
+            branch = 'Dlvl';
+        }
         return `${branch}:${level}`;
     }
 
     const match = str.match(/^([a-zA-Z\s]+)?\s*(\d+)$/i);
     if (match) {
-        const branch = match[1] ? match[1].trim() : 'Dlvl';
+        let branch = match[1] ? match[1].trim() : 'Dlvl';
         const level = parseInt(match[2], 10) || 1;
+        if (branch.toLowerCase() === 'dungeon' || branch.toLowerCase() === 'dlvl') {
+            branch = 'Dlvl';
+        }
         return `${branch || 'Dlvl'}:${level}`;
     }
     return str;
@@ -100,9 +106,12 @@ export class DungeonLandmarkRegistry {
     /**
      * 現在のダンジョン階層（フロア識別子）を設定し、該当フロアの階段キャッシュを反映
      * @param {string|number} floorKey 
+     * @param {object} [options]
+     * @param {boolean} [options.preserveGrid=false] グリッドの初期化 (resetGrid) を抑止するかどうか
      */
-    setCurrentFloor(floorKey) {
+    setCurrentFloor(floorKey, options = {}) {
         if (floorKey !== undefined && floorKey !== null) {
+            const { preserveGrid = false } = options;
             const asm = this.areaStateManager;
             const normalized = normalizeFloorKey(floorKey);
             const floorChanged = this.currentFloor !== normalized;
@@ -134,7 +143,8 @@ export class DungeonLandmarkRegistry {
             }
 
             // clear_nhwindow (isFloorPending) を経由せず直接 setCurrentFloor でフロアが変更された場合はグリッドを初期化
-            if (floorChanged && !wasPending) {
+            // ただし preserveGrid: true が指定されている場合は既存グリッドを保護
+            if (floorChanged && !wasPending && !preserveGrid) {
                 asm.resetGrid();
             }
 

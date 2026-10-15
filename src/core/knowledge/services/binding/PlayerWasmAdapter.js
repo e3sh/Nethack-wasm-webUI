@@ -5,7 +5,7 @@
  * および習得呪文（spellbook）の C構造体デコードとキャッシュ管理を担当。
  */
 
-import { SHIM_CMD, parseSkillsBuffer, parseSpellBookBuffer, parsePlayerProfileBuffer } from './BindingConstants.js';
+import { SHIM_CMD, parseSkillsBuffer, parseSpellBookBuffer, parsePlayerProfileBuffer, parsePlayerSummaryBuffer } from './BindingConstants.js';
 
 export class PlayerWasmAdapter {
     constructor() {
@@ -301,5 +301,85 @@ export class PlayerWasmAdapter {
         }
 
         return this._cachedPlayerProfile || null;
+    }
+
+    /**
+     * プレイヤーのサマリー情報 (dnum, dlevel, ublesscnt, ugangr等) を一括ダンプ同期 (SHIM_CMD_GET_PLAYER_SUMMARY)
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {Object|null}
+     */
+    dumpPlayerSummary(memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return this._cachedPlayerSummary || null;
+        if (hasLiveMemory && memory) {
+            const bufSize = 32; // sizeof(long) * 8
+            const bufPtr = memory.allocateBuffer(bufSize);
+            if (bufPtr) {
+                try {
+                    const res = memory.bridgeCall(SHIM_CMD.GET_PLAYER_SUMMARY, 0, 0, bufPtr, bufSize);
+                    if (res === 0) {
+                        const raw = memory.readInt32Array(bufPtr, 8);
+                        const summary = parsePlayerSummaryBuffer(raw);
+                        if (summary) {
+                            this._cachedPlayerSummary = summary;
+                            return summary;
+                        }
+                    }
+                } finally {
+                    memory.freeBuffer(bufPtr);
+                }
+            }
+        }
+        return this._cachedPlayerSummary || null;
+    }
+
+    /**
+     * 最新のプレイヤーサマリー情報を取得 (Stage 8.4)
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {Object|null}
+     */
+    getPlayerSummary(memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return this._cachedPlayerSummary || null;
+        if (hasLiveMemory) {
+            return this.dumpPlayerSummary(memory, isAvailable, hasLiveMemory);
+        }
+        return this._cachedPlayerSummary || null;
+    }
+
+    /**
+     * プレイヤーサマリー情報を非同期取得 (Worker 調停対応) (Stage 8.4)
+     * @param {Object} bridge
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {Promise<Object|null>}
+     */
+    async fetchPlayerSummary(bridge, memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return null;
+
+        if (hasLiveMemory) {
+            return this.getPlayerSummary(memory, isAvailable, hasLiveMemory);
+        }
+
+        if (bridge && typeof bridge.callShim === 'function') {
+            try {
+                const bufSize = 32;
+                const res = await bridge.callShim(SHIM_CMD.GET_PLAYER_SUMMARY, 0, 0, bufSize, 'int32');
+                if (res && res.result === 0 && Array.isArray(res.buffer)) {
+                    const summary = parsePlayerSummaryBuffer(res.buffer);
+                    if (summary) {
+                        this._cachedPlayerSummary = summary;
+                        return summary;
+                    }
+                }
+            } catch (e) {
+                console.warn('[PlayerWasmAdapter] fetchPlayerSummary error:', e);
+            }
+        }
+
+        return this._cachedPlayerSummary || null;
     }
 }

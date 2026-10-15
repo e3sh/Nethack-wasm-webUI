@@ -102,4 +102,39 @@ describe('Save Restore Direct Binding Sync & Lifecycle', () => {
 
         vi.useRealTimers();
     });
+
+    it('AreaStateManager & DungeonLandmarkRegistry: セーブ復帰時に別階層・別ブランチで地形描画後にフロアキーが確定してもグリッドが破棄されないこと', () => {
+        const { AreaStateManager } = require('../../../../src/core/knowledge/state/AreaStateManager.js');
+        const asm = new AreaStateManager();
+
+        // 1. セーブ復帰開始: clear_nhwindow 受信
+        asm.prepareFloorTransition();
+
+        // 2. docrt() による記憶マップ描画 (print_glyph)
+        asm.grid[5][10] = { bottom: { type: 'floor', symbol: '.' } };
+        expect(asm.grid[5][10]).not.toBeNull();
+
+        // 3. ステータス行から仮フロアキー "Dlvl:3" を受信
+        asm.setCurrentFloor('Dlvl:3');
+        expect(asm.currentFloor).toBe('Dlvl:3');
+        // グリッドは消えていないこと
+        expect(asm.grid[5][10]).not.toBeNull();
+
+        // 4. Direct Binding (Sync Barrier) で真のブランチ "mines:3" が確定
+        const summaryResult = asm.syncPlayerSummary({
+            dnum: 1,
+            dlevel: 3,
+            branchId: 'mines',
+            branchName: 'The Gnomish Mines',
+            branchNameJa: 'ノームの鉱山',
+            floorKey: 'mines:3'
+        });
+
+        expect(summaryResult.floorKey).toBe('mines:3');
+        expect(asm.currentFloor).toBe('mines:3');
+        // 【最重要】DirectBinding確定時でもグリッドが破棄されず保持されていること！
+        expect(asm.grid[5][10]).not.toBeNull();
+        expect(asm.grid[5][10].bottom.symbol).toBe('.');
+    });
 });
+

@@ -69,6 +69,12 @@ export class AreaStateManager {
         this.isFloorTransitioning = false;
         this._needsFullTerrainDump = true;
         this.committedTurnCount = 0;
+
+        // ブランチ同定・追跡 (Stage 8.4)
+        this.currentBranchId = 'dungeon';
+        this.currentDnum = 0;
+        this.currentDlevel = 1;
+        this.playerSummary = null;
     }
 
     /**
@@ -281,13 +287,60 @@ export class AreaStateManager {
         return this.landmarkRegistry.applyStairCacheForFloor(floorKey);
     }
 
-    setCurrentFloor(floorKey) {
+    setCurrentFloor(floorKey, options = {}) {
         const prev = this.currentFloor;
-        const res = this.landmarkRegistry.setCurrentFloor(floorKey);
+        const res = this.landmarkRegistry.setCurrentFloor(floorKey, options);
         if (this.currentFloor !== prev) {
             this._needsFullTerrainDump = true;
         }
         return res;
+    }
+
+    /**
+     * Wasm Cコア Direct Binding から取得したプレイヤーサマリーを同期 (Stage 8.4)
+     * dnum からブランチ (main, mines, gehennom等) を 100% 確定同定し、
+     * branch:dlvl 形式でフロアキャッシュを分離。
+     * @param {Object} [summary] - 省略時は directBindingService.getPlayerSummary() を参照
+     * @returns {{ isNewFloor: boolean, isNewBranch: boolean, floorKey: string, branchId: string, branchName: string, branchNameJa: string, theme: string, dlevel: number }|null}
+     */
+    syncPlayerSummary(summary = null) {
+        const s = summary || (this.directBindingService && typeof this.directBindingService.getPlayerSummary === 'function'
+            ? this.directBindingService.getPlayerSummary()
+            : null);
+        if (!s) return null;
+
+        this.playerSummary = s;
+        const prevBranch = this.currentBranchId;
+
+        this.currentDnum = s.dnum ?? 0;
+        this.currentDlevel = s.dlevel ?? 1;
+        this.currentBranchId = s.branchId || 'dungeon';
+
+        const targetFloorKey = s.floorKey || (this.currentDnum === 0 ? `Dlvl:${this.currentDlevel}` : `${this.currentBranchId}:${this.currentDlevel}`);
+        const normalizedCurrent = normalizeFloorKey(this.currentFloor);
+        const normalizedTarget = normalizeFloorKey(targetFloorKey);
+
+        let isNewFloor = false;
+        if (normalizedCurrent !== normalizedTarget) {
+            // Direct Binding による階層同定（ブランチ名の確定や実階層の補正）は
+            // プレイヤーが実際に階段を移動したのではなく、同一マップに対する識別名の確定である。
+            // そのため、すでに描画されたマップグリッドを初期化(resetGrid)せず、フロアキーのみ同期・承継する。
+            this.setCurrentFloor(normalizedTarget, { preserveGrid: true });
+            isNewFloor = true;
+        }
+
+        const isNewBranch = Boolean(prevBranch && prevBranch !== this.currentBranchId);
+
+        return {
+            isNewFloor,
+            isNewBranch,
+            floorKey: normalizedTarget,
+            branchId: this.currentBranchId,
+            branchName: s.branchName,
+            branchNameJa: s.branchNameJa,
+            theme: s.theme,
+            dlevel: this.currentDlevel
+        };
     }
 
     clearStairCache() {
@@ -716,6 +769,9 @@ export class AreaStateManager {
         if (!this.directBindingService || typeof this.directBindingService.isAvailable !== 'function' || !this.directBindingService.isAvailable()) {
             return;
         }
+
+        // Stage 8.4: ブランチ・フロアサマリー同期
+        this.syncPlayerSummary();
 
         const minX = radius > 0 ? Math.max(0, this.playerX - radius) : 0;
         const maxX = radius > 0 ? Math.min(this.width - 1, this.playerX + radius) : this.width - 1;
