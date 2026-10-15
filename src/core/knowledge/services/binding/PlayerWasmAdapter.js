@@ -17,6 +17,22 @@ export class PlayerWasmAdapter {
         this._cachedPlayerProfile = null;
     }
 
+    /**
+     * プレイヤーに関する全キャッシュを破棄・リセット (新ゲーム開始 / リスタート時)
+     */
+    clearPlayerCaches() {
+        this._cachedPlayerProps = null;
+        this._cachedSkills = null;
+        this._cachedWeaponSlots = 0;
+        this._cachedSpells = null;
+        this._cachedPlayerSummary = null;
+        this._cachedPlayerProfile = null;
+    }
+
+    resetCache() {
+        this.clearPlayerCaches();
+    }
+
     get cachedPlayerProfile() {
         return this._cachedPlayerProfile;
     }

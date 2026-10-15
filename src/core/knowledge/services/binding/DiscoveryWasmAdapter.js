@@ -13,6 +13,15 @@ export class DiscoveryWasmAdapter {
         this._cachedDescrIndexes = null;
     }
 
+    clearDiscoveryCaches() {
+        this._cachedDiscoveries = null;
+        this._cachedDescrIndexes = null;
+    }
+
+    resetCache() {
+        this.clearDiscoveryCaches();
+    }
+
     get cachedDiscoveries() {
         return this._cachedDiscoveries;
     }

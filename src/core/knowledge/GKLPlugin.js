@@ -307,6 +307,7 @@ export class GKLPlugin {
                 this.attributeStateManager.extrinsics = {};
             }
         }
+        this.wasmDirectBindingService?.resetAllCaches?.();
         this.situationCache?.invalidate?.();
         this.interactionContext?.reset?.();
         this.silentSyncCoordinator.reset();

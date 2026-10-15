@@ -133,6 +133,24 @@ export class WasmDirectBindingService {
     }
 
     /**
+     * プレイヤーに関する全キャッシュ（プロファイル・耐性・スキル・魔法等）を無効化
+     */
+    clearPlayerCaches() {
+        this.playerAdapter.clearPlayerCaches();
+    }
+
+    /**
+     * 全てのアダプタのキャッシュおよび同期状態を一括破棄・リセット (新ゲーム開始 / リスタート時)
+     */
+    resetAllCaches() {
+        this.clearPlayerCaches();
+        this.clearFloorCaches();
+        this.discoveryAdapter.resetCache?.();
+        this.inventoryAdapter.resetCache?.();
+        this.syncCoordinator.reset?.();
+    }
+
+    /**
      * 現在の Sync Barrier 世代IDを取得
      * @returns {number}
      */

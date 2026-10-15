@@ -175,6 +175,54 @@ describe('AttributeStateManager - Direct Binding (Wasm Memory Integration)', () 
         expect(summary.level).toBe(3);
     });
 
+    it('correctly updates to new character profile after reset and new game start', () => {
+        // 1回目のゲーム: Valkyrie / Dwarf
+        const game1Service = {
+            getPlayerProps: () => new Array(69).fill(0),
+            getPlayerProfile: () => ({
+                role: 'valkyrie',
+                race: 'dwarf',
+                gender: 'female',
+                alignment: 'lawful',
+                level: 1,
+                playerName: 'Brunhilde'
+            })
+        };
+        manager.syncFromDirectBinding(game1Service);
+        expect(manager.characterInfo.role).toBe('valkyrie');
+        expect(manager.characterInfo.race).toBe('dwarf');
+
+        // quit / restart: manager.reset() が呼ばれる
+        manager.reset();
+        expect(manager.isProfileDirectBound).toBe(false);
+        expect(manager.isSynced).toBe(false);
+        expect(manager.characterInfo.role).toBe('archeologist');
+        expect(manager.characterInfo.race).toBe('human');
+
+        // 2回目のゲーム: Samurai / Human
+        const game2Service = {
+            getPlayerProps: () => new Array(69).fill(0),
+            getPlayerProfile: () => ({
+                role: 'samurai',
+                race: 'human',
+                gender: 'male',
+                alignment: 'lawful',
+                level: 1,
+                playerName: 'Musashi'
+            })
+        };
+        manager.syncFromDirectBinding(game2Service);
+
+        // 前回の Valkyrie / Dwarf ではなく、新しい Samurai / Human に更新されていること
+        expect(manager.isProfileDirectBound).toBe(true);
+        expect(manager.characterInfo.role).toBe('samurai');
+        expect(manager.characterInfo.race).toBe('human');
+        expect(manager.characterInfo.playerName).toBe('Musashi');
+        const summary = manager.getCharacterSummary('ja');
+        expect(summary.roleNameJa).toBe('侍');
+        expect(summary.raceNameJa).toBe('人間');
+    });
+
     describe('updateFromStatus (Safe attribute and player name sync)', () => {
         it('syncs playerName, alignment, and level from status without guessing role or race', () => {
             const status = {

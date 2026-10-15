@@ -1311,6 +1311,7 @@ export class WebUICore {
         this.lastDlevel = undefined;
         this.lastDlevelText = undefined;
         this.statusAccessor = new StatusAccessor();
+        this.gkl?.reset?.();
 
         // clearStorage: true が明示された場合のみセーブデータ・ストレージを破棄
         if (options.clearStorage === true) {

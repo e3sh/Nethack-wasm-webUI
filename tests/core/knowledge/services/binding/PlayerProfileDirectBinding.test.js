@@ -203,6 +203,30 @@ describe('Player Profile Direct Binding (Stage 8.5)', () => {
                 alignment: 'neutral'
             });
             expect(service._cachedPlayerProfile.role).toBe('tourist');
+
+            // resetAllCaches でキャッシュが破棄されること
+            service.resetAllCaches();
+            expect(service.getPlayerProfile()).toBeNull();
+            expect(service._cachedPlayerProfile).toBeNull();
+        });
+
+        it('clears all cached player properties via clearPlayerCaches', () => {
+            const adapter = new PlayerWasmAdapter();
+            adapter.cachedPlayerProfile = { role: 'valkyrie' };
+            adapter.cachedPlayerProps = [1, 2, 3];
+            adapter.cachedPlayerSummary = { ublesscnt: 10 };
+            adapter.cachedSkills = [{ skill: 1 }];
+            adapter.cachedWeaponSlots = 2;
+            adapter.cachedSpells = [{ id: 1 }];
+
+            adapter.clearPlayerCaches();
+
+            expect(adapter.cachedPlayerProfile).toBeNull();
+            expect(adapter.cachedPlayerProps).toBeNull();
+            expect(adapter.cachedPlayerSummary).toBeNull();
+            expect(adapter.cachedSkills).toBeNull();
+            expect(adapter.cachedWeaponSlots).toBe(0);
+            expect(adapter.cachedSpells).toBeNull();
         });
     });
 

@@ -29,6 +29,16 @@ export class WasmSyncCoordinator {
         this._lastCompletedSyncGeneration = -1;
     }
 
+    /**
+     * 同期状態をリセットし、進行中の非同期同期をキャンセル
+     */
+    reset() {
+        this._syncGeneration++;
+        this._isSyncing = false;
+        this._currentSyncPromise = null;
+        this._lastCompletedSyncGeneration = -1;
+    }
+
     get syncGeneration() {
         return this._syncGeneration;
     }

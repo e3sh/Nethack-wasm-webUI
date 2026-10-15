@@ -495,4 +495,15 @@ export class InventoryWasmAdapter {
         this._cachedFloorObjectsY = -1;
         this._hasFloorObjectsCache = false;
     }
+
+    clearAllCaches() {
+        this.clearFloorCaches();
+        this._cachedInventory = [];
+        this._cachedInventoryWeight = -1;
+        this._cachedEquipmentPtrs = { rawPtrs: {}, slotByPtr: new Map(), ptrBySlot: new Map() };
+    }
+
+    resetCache() {
+        this.clearAllCaches();
+    }
 }
