@@ -262,9 +262,9 @@ export class DungeonLandmarkRegistry {
 
             let stairGlyph;
             if (isLadder) {
-                stairGlyph = isUp ? 4004 : 4005;
-            } else {
                 stairGlyph = isUp ? 4000 : 4001;
+            } else {
+                stairGlyph = isUp ? 3998 : 3999;
             }
 
             return this.registerStairAt(x, y, stairGlyph, currentNormalized);

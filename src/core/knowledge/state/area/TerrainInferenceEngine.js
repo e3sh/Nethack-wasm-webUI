@@ -92,9 +92,9 @@ export class TerrainInferenceEngine {
                 if (asm.stairCache && asm.stairCache.has(stairKey)) {
                     return asm.stairCache.get(stairKey).glyph;
                 } else if (asm.prevFloor && parseFloorLevel(asm.prevFloor) > parseFloorLevel(asm.currentFloor)) {
-                    return 4001; // 浅い階に上がってきた場合: 下り階段
+                    return 3999; // 浅い階に上がってきた場合: 下り階段
                 } else {
-                    return 4000; // 深い階に降りてきた場合: 上り階段
+                    return 3998; // 深い階に降りてきた場合: 上り階段
                 }
             }
             case 27: { // LADDER
@@ -102,9 +102,9 @@ export class TerrainInferenceEngine {
                 if (asm.stairCache && asm.stairCache.has(ladderKey)) {
                     return asm.stairCache.get(ladderKey).glyph;
                 } else if (asm.prevFloor && parseFloorLevel(asm.prevFloor) > parseFloorLevel(asm.currentFloor)) {
-                    return 4005; // 下りハシゴ
+                    return 4001; // 下りハシゴ
                 } else {
-                    return 4004; // 上りハシゴ
+                    return 4000; // 上りハシゴ
                 }
             }
             case 28: // FOUNTAIN

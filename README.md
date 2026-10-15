@@ -167,7 +167,7 @@ npm run build:wasm       # NetHack 5.0 WASM コアの再ビルド (WSL2 Linux �
 | ツール | 用途 |
 | :--- | :--- |
 | DevTools Inspector (`src/core/inspector/inspector_console.html`) | ゲーム画面と連動する別ウィンドウのデバッグコンソール。状態ツリー、イベント監視、翻訳管理(未翻訳の収集・日英対比・CSV 出力) |
-| [Knowledge Inspector](tools/knowledge-inspector.html) | GKL 内蔵の構造化知識(モンスター・アイテム等)の閲覧・検証 <br><img src="assets/images/ss_i.png" width="360" alt="Knowledge Inspector" /> |
+| [Knowledge Inspector](https://e3sh.github.io/Nethack-wasm-webUI/tools/knowledge-inspector.html) | GKL 内蔵の構造化知識(モンスター・アイテム等)の閲覧・検証 <br><img src="assets/images/ss_i.png" width="360" alt="Knowledge Inspector" /> |
 | `tools/lore_codex.html` | 未開放分も含めた伝承データの閲覧と、他情報との関連タグ付け(ネタバレあり) |
 | `tools/scenario-recorder.html` | シナリオの記録 |
 | `tools/save_manager.html` | IndexedDB セーブデータの管理 |
