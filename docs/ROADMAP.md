@@ -45,7 +45,7 @@ last_updated: 2026-10-14
   - 1マスずつWASM境界を往復するオーバーヘッドを排除し、単一呼び出しで「真の床 + 施錠フラグ + 明暗」をビットパック一括返却。
 - **マイグレーションステップ**:
   - [x] **Stage 8.1: 単一窓口ブリッジ配備 ＆ ビルド・Driver汎用ゲートウェイ整備**
-    - `src/driver/shim/shim_bridge.c`（単一エクスポート `_shim_bridge_call`）を新設、`scripts/build_wasm_50.ps1` で自動同期・ビルド
+    - `src/driver/shim/shim_bridge.c`（単一エクスポート `_shim_bridge_call`）を新設、`scripts/build_wasm_50_wsl.ps1`（WSL2 Linux ネイティブ）/ `scripts/build_wasm_50.ps1` で自動同期・ビルド
     - `NetHackMemory.js` に `bridgeCall(cmd, a1, a2, buf, len)` を実装
     - `WasmDirectBindingService.js` による基本的なドメイン抽出
   - [x] **Stage 8.2-A: Web Worker 隔離調停プロトコルの配備**

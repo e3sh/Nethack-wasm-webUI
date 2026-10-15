@@ -27,6 +27,7 @@ enum ShimBridgeCmd {
     SHIM_CMD_GET_PLAYER_SUMMARY = 0x30, /* buf=long[8] -> [dnum, dlevel, ublesscnt, ugangr, uluck, ualign_record, uhunger, moves] */
     SHIM_CMD_GET_PLAYER_PTR     = 0x31, /* -> &u */
     SHIM_CMD_GET_PLAYER_PROPS   = 0x32, /* buf=long[LAST_PROP+1] -> uprops (耐性・能力配列一括コピー) */
+    SHIM_CMD_GET_PLAYER_PROFILE = 0x33, /* buf=long[16]+strings(192B) -> [roleIdx, raceIdx, female, align, urole.mnum, urace.mnum, ulevel, initgend, align_record, 0...] + strings: role, race, plname */
 
     /* 4. インベントリ・装備・アイテム系 (0x40〜0x4F) */
     SHIM_CMD_GET_INVENT_PTR     = 0x40, /* -> gi.invent (所持品リンクリスト先頭) */
@@ -175,6 +176,59 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
             long *out = (long*) buf;
             for (int i = 0; i <= LAST_PROP; i++) {
                 out[i] = (long) (u.uprops[i].intrinsic | (u.uprops[i].extrinsic << 16));
+            }
+            return 0;
+        }
+        case SHIM_CMD_GET_PLAYER_PROFILE: {
+            if (!buf || len < (sizeof(long) * 16)) return -1;
+            long *out = (long*) buf;
+            int r_idx = flags.initrole;
+            int rc_idx = flags.initrace;
+            int is_fem = flags.female ? 1 : 0;
+
+            out[0] = (long) r_idx;
+            out[1] = (long) rc_idx;
+            out[2] = (long) is_fem;
+            out[3] = (long) u.ualign.type;
+            out[4] = (long) gu.urole.mnum;
+            out[5] = (long) gu.urace.mnum;
+            out[6] = (long) u.ulevel;
+            out[7] = (long) flags.initgend;
+            out[8] = (long) u.ualign.record;
+            for (int i = 9; i < 16; i++) {
+                out[i] = 0;
+            }
+
+            if (len >= 256) {
+                char *str_buf = (char*) buf;
+                char *role_name_buf = str_buf + 64;   /* offset 64: role name */
+                char *race_name_buf = str_buf + 128;  /* offset 128: race name */
+                char *plname_buf    = str_buf + 192;  /* offset 192: player name */
+
+                memset(role_name_buf, 0, 64);
+                memset(race_name_buf, 0, 64);
+                memset(plname_buf, 0, 64);
+
+                /* ロール英語名 */
+                if (r_idx >= 0 && r_idx < NUM_ROLES) {
+                    const char *rname = (is_fem && roles[r_idx].name.f) ? roles[r_idx].name.f : roles[r_idx].name.m;
+                    if (rname) {
+                        strncpy(role_name_buf, rname, 63);
+                    }
+                }
+
+                /* 種族英語名 */
+                if (rc_idx >= 0 && rc_idx < NUM_RACES) {
+                    const char *rcname = races[rc_idx].noun;
+                    if (rcname) {
+                        strncpy(race_name_buf, rcname, 63);
+                    }
+                }
+
+                /* プレイヤー名 */
+                if (svp.plname[0]) {
+                    strncpy(plname_buf, svp.plname, 63);
+                }
             }
             return 0;
         }

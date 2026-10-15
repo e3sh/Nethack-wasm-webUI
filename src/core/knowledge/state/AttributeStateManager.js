@@ -9,6 +9,14 @@
 import { OBJECT_KNOWLEDGE_MAP } from "../data/OBJECT_KNOWLEDGE_FULL.js";
 import { calculateInnateResistances, parseAttributesLine, RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP } from "../data/CHARACTER_KNOWLEDGE_BASE.js";
 import { INTRINSIC_MESSAGE_MAP, METADATA_INTRINSIC_NORMALIZE } from "../data/INTRINSIC_MESSAGE_MAP.js";
+import {
+    PLAYER_ROLES,
+    PLAYER_RACES,
+    ALIGNMENT_TYPES,
+    ALIGNMENT_NAMES_JA,
+    ALIGNMENT_NAMES_EN,
+    GENDER_TYPES
+} from "../services/binding/BindingConstants.js";
 
 export const ATTRIBUTE_KEYS = [
     // 1. 基本元素耐性 (5種)
@@ -142,12 +150,13 @@ export const PROP_INDEX_TO_ATTRIBUTE_KEY = {
 
 export class AttributeStateManager {
     constructor(options = {}) {
-        this.characterInfo = { race: 'human', role: 'archeologist', level: 1 };
+        this.characterInfo = { race: 'human', role: 'archeologist', level: 1, gender: 'male', alignment: 'neutral', playerName: '' };
         this.innate = this._createEmptyMap();
         this.acquiredIntrinsics = this._createEmptyMap();
         this.intrinsics = this._createEmptyMap();
         this.extrinsics = this._createEmptyMap();
         this.isSynced = false;
+        this.isProfileDirectBound = false;
         this.wasmDirectBindingService = options.wasmDirectBindingService || null;
     }
 
@@ -160,7 +169,7 @@ export class AttributeStateManager {
     }
 
     /**
-     * WasmDirectBindingService からプレイヤーの真の属性・耐性（u.uprops）を直接同期
+     * WasmDirectBindingService からプレイヤーの真の属性・耐性（u.uprops）およびプロファイルを直接同期
      * @param {Object} [wasmDirectBindingService]
      * @returns {boolean} 状態が更新されたかどうか
      */
@@ -168,8 +177,19 @@ export class AttributeStateManager {
         const service = wasmDirectBindingService || this.wasmDirectBindingService;
         if (!service) return false;
 
+        // Stage 8.5: プレイヤー真値プロファイルの自動同期
+        let profileChanged = false;
+        if (typeof service.getPlayerProfile === 'function') {
+            const profile = service.getPlayerProfile();
+            if (profile) {
+                profileChanged = this.syncPlayerProfileFromDirectBinding(profile);
+            }
+        }
+
         const rawProps = typeof service.getPlayerProps === 'function' ? service.getPlayerProps() : null;
-        if (!rawProps || !Array.isArray(rawProps) || rawProps.length === 0) return false;
+        if (!rawProps || !Array.isArray(rawProps) || rawProps.length === 0) {
+            return profileChanged;
+        }
 
         const wasSynced = this.isSynced;
         const newIntrinsics = this._createEmptyMap();
@@ -241,12 +261,73 @@ export class AttributeStateManager {
      * キャッシュのリセット
      */
     reset() {
-        this.characterInfo = { race: 'human', role: 'archeologist', level: 1, gender: 'male' };
+        this.characterInfo = { race: 'human', role: 'archeologist', level: 1, gender: 'male', alignment: 'neutral', playerName: '' };
         this.innate = this._createEmptyMap();
         this.acquiredIntrinsics = this._createEmptyMap();
         this.intrinsics = this._createEmptyMap();
         this.extrinsics = this._createEmptyMap();
         this.isSynced = false;
+        this.isProfileDirectBound = false;
+    }
+
+    /**
+     * Wasm Cコア Direct Binding から取得したプレイヤー真値プロファイルを注入 (Stage 8.5 SSOT)
+     * 種族・職業・属性・性別・レベル・プレイヤー名を最高優先度で確定
+     * @param {Object} profile
+     * @returns {boolean} 変更があったかどうか
+     */
+    syncPlayerProfileFromDirectBinding(profile) {
+        if (!profile || typeof profile !== 'object') return false;
+
+        const roleKey = profile.role || (typeof profile.roleIndex === 'number' && profile.roleIndex >= 0 ? PLAYER_ROLES[profile.roleIndex] : null);
+        const raceKey = profile.race || (typeof profile.raceIndex === 'number' && profile.raceIndex >= 0 ? PLAYER_RACES[profile.raceIndex] : null);
+        const genderKey = profile.gender || (typeof profile.genderIndex === 'number' ? (profile.genderIndex === 1 ? 'female' : 'male') : null);
+        const alignKey = profile.alignment || (typeof profile.alignType === 'number' ? ALIGNMENT_TYPES[profile.alignType] : null);
+        const levelVal = typeof profile.level === 'number' && profile.level > 0 ? profile.level : null;
+        const nameVal = profile.playerName || null;
+
+        let changed = false;
+
+        if (roleKey && this.characterInfo.role !== roleKey.toLowerCase()) {
+            this.characterInfo.role = roleKey.toLowerCase();
+            changed = true;
+        }
+        if (raceKey && this.characterInfo.race !== raceKey.toLowerCase()) {
+            this.characterInfo.race = raceKey.toLowerCase();
+            changed = true;
+        }
+        if (genderKey && this.characterInfo.gender !== genderKey.toLowerCase()) {
+            this.characterInfo.gender = genderKey.toLowerCase();
+            changed = true;
+        }
+        if (alignKey && this.characterInfo.alignment !== alignKey.toLowerCase()) {
+            this.characterInfo.alignment = alignKey.toLowerCase();
+            changed = true;
+        }
+        if (levelVal && this.characterInfo.level !== levelVal) {
+            this.characterInfo.level = levelVal;
+            changed = true;
+        }
+        if (nameVal && this.characterInfo.playerName !== nameVal) {
+            this.characterInfo.playerName = nameVal;
+            changed = true;
+        }
+
+        this.isProfileDirectBound = true;
+        this.isSynced = true;
+
+        const newInnateMap = calculateInnateResistances(this.characterInfo);
+        const newInnate = this._createEmptyMap();
+        for (const [k, v] of Object.entries(newInnateMap)) {
+            if (newInnate[k] !== undefined) {
+                newInnate[k] = Boolean(v);
+            }
+        }
+
+        this.innate = newInnate;
+        this._recalculateIntrinsics();
+
+        return changed;
     }
 
     /**
@@ -257,15 +338,36 @@ export class AttributeStateManager {
      * @param {string} [charInfo.role] 
      * @param {number} [charInfo.level] 
      * @param {string} [charInfo.gender]
+     * @param {string} [charInfo.alignment]
+     * @param {boolean} [charInfo.fromDirectBinding]
      * @returns {boolean} 
      */
     updateCharacter(charInfo = {}) {
         if (!charInfo || typeof charInfo !== 'object') return false;
 
+        // Stage 8.5: Direct Binding の真値が確定している場合、レガシー推測による上書きをブロック
+        if (this.isProfileDirectBound && !charInfo.fromDirectBinding) {
+            if (charInfo.level !== undefined && typeof charInfo.level === 'number' && charInfo.level > 0) {
+                this.characterInfo.level = charInfo.level;
+                const newInnateMap = calculateInnateResistances(this.characterInfo);
+                const newInnate = this._createEmptyMap();
+                for (const [k, v] of Object.entries(newInnateMap)) {
+                    if (newInnate[k] !== undefined) {
+                        newInnate[k] = Boolean(v);
+                    }
+                }
+                this.innate = newInnate;
+                this._recalculateIntrinsics();
+            }
+            return false;
+        }
+
         if (charInfo.race !== undefined) this.characterInfo.race = charInfo.race;
         if (charInfo.role !== undefined) this.characterInfo.role = charInfo.role;
         if (charInfo.level !== undefined) this.characterInfo.level = charInfo.level;
         if (charInfo.gender !== undefined) this.characterInfo.gender = charInfo.gender;
+        if (charInfo.alignment !== undefined) this.characterInfo.alignment = charInfo.alignment;
+        if (charInfo.playerName !== undefined) this.characterInfo.playerName = charInfo.playerName;
 
         const newInnateMap = calculateInnateResistances(this.characterInfo);
         const newInnate = this._createEmptyMap();
@@ -281,6 +383,48 @@ export class AttributeStateManager {
             this.isSynced = true;
         }
         return true;
+    }
+
+    /**
+     * NetHack のステータスオブジェクトからキャラクター情報（役職・属性・性別・名前・レベル等）を更新
+     * Direct Binding による確定真値 (Tier 1) が存在する場合は保護しつつ、不足情報を補完
+     * @param {Object} status 
+     * @returns {boolean} 状態が更新されたか
+     */
+    updateFromStatus(status) {
+        if (!status || typeof status !== 'object') return false;
+
+        const updates = {};
+
+        // 1. レベル更新
+        if (status.level !== undefined && status.level > 0) {
+            updates.level = status.level;
+        } else if (status.xp !== undefined && status.xp > 0) {
+            updates.level = status.xp;
+        }
+
+        // 2. 属性更新 (Lawful, Neutral, Chaotic)
+        if (status.align) {
+            const alignStr = String(status.align).toLowerCase().trim();
+            if (alignStr.includes('law')) updates.alignment = 'lawful';
+            else if (alignStr.includes('neu')) updates.alignment = 'neutral';
+            else if (alignStr.includes('chao')) updates.alignment = 'chaotic';
+        }
+
+        // 3. タイトル行からプレイヤー名のみ安全に抽出 (称号からの職業・種族推測は全廃)
+        if (status.title && status.title !== '--') {
+            const trimmed = String(status.title).trim();
+            const m = trimmed.match(/^(.*?)\s+the\s+/i);
+            const playerName = m ? m[1].trim() : trimmed;
+            if (playerName) {
+                updates.playerName = playerName;
+            }
+        }
+
+        if (Object.keys(updates).length > 0) {
+            return this.updateCharacter(updates);
+        }
+        return false;
     }
 
     /**
@@ -341,6 +485,8 @@ export class AttributeStateManager {
         const race = charInfo.race || '';
         const role = charInfo.role || '';
         const gender = charInfo.gender || 'male';
+        const alignment = charInfo.alignment || 'neutral';
+        const playerName = charInfo.playerName || '';
         const isFemale = (gender === 'female');
         const level = typeof charInfo.level === 'number' ? charInfo.level : 1;
 
@@ -353,8 +499,12 @@ export class AttributeStateManager {
         const roleNameJa = (isFemale && roleData?.nameFemaleJa) || roleData?.nameJa || role || '不明';
         const roleNameEn = (isFemale && roleData?.nameFemale) || roleData?.name || role || 'Unknown';
 
+        const alignNameJa = ALIGNMENT_NAMES_JA[alignment.toLowerCase()] || alignment;
+        const alignNameEn = ALIGNMENT_NAMES_EN[alignment.toLowerCase()] || alignment;
+
         const raceName = isEn ? raceNameEn : raceNameJa;
         const roleName = isEn ? roleNameEn : roleNameJa;
+        const alignName = isEn ? alignNameEn : alignNameJa;
         const lvlStr = level ? ` Lv.${level}` : '';
 
         const displayTagJa = `👤 ${raceNameJa} / ${roleNameJa}${lvlStr}`;
@@ -365,9 +515,14 @@ export class AttributeStateManager {
             race,
             role,
             gender,
+            alignment,
+            playerName,
             level,
             raceName,
             roleName,
+            alignName,
+            alignNameJa,
+            alignNameEn,
             raceNameJa,
             raceNameEn,
             roleNameJa,

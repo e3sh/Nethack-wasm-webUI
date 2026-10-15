@@ -97,7 +97,7 @@ WASM Cコアをバックグラウンド Web Worker で駆動し、Phase 8 単一
 | **[driver_core_spec.md](./1_driver/driver_core_spec.md)** | `🟢 implemented` | `src/driver/NetHackWasmDriver.js` | NetHack WASM Driver コア仕様書（Phase 8 `shim_bridge.c` / ターン静止調停含む） |
 | **[driver_api_reference.md](./1_driver/driver_api_reference.md)** | `🟢 implemented` | `src/driver/` | Web Worker 通信プロトコル・Direct Binding RPC (`callShim`)・API リファレンス |
 | **[driver_quickstart_guide.md](./1_driver/driver_quickstart_guide.md)** | `🟢 implemented` | `src/driver/` | ドライバ クイックスタートガイド |
-| **[nethack_version_upgrade_guide.ja.md](./1_driver/nethack_version_upgrade_guide.ja.md)** | `🟢 implemented` | `scripts/build_wasm_50.ps1`<br>`src/driver/shim/shim_bridge.c` | NetHack バージョン更新・WASM 再ビルド引継ぎガイド |
+| **[nethack_version_upgrade_guide.ja.md](./1_driver/nethack_version_upgrade_guide.ja.md)** | `🟢 implemented` | `scripts/build_wasm_50_wsl.ps1`<br>`scripts/build_wasm_50.ps1`<br>`src/driver/shim/shim_bridge.c` | NetHack バージョン更新・WASM 再ビルド引継ぎガイド (WSL2 Linux ネイティブビルド対応) |
 | **[📦 archive/ サブフォルダ](./1_driver/archive/)** | `📦 archived` | - | 公式Shim能力解析書、Stage 8.2-B 検証環境計画書、旧ロードマップ・C層Shim調査メモ等（5ファイル退避済） |
 
 ---

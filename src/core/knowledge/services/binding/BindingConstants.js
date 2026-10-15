@@ -30,6 +30,7 @@ export const SHIM_CMD = {
     GET_PLAYER_SUMMARY: 0x30,
     GET_PLAYER_PTR: 0x31,
     GET_PLAYER_PROPS: 0x32,
+    GET_PLAYER_PROFILE: 0x33,
 
     GET_INVENT_PTR: 0x40,
     GET_EQUIPMENT_PTRS: 0x41,
@@ -414,4 +415,164 @@ export function parseSpellBookBuffer(raw, countLimit = null) {
         });
     }
     return spells;
+}
+
+/**
+ * NetHack 5.0 公式ロール一覧 (roles[] のインデックス 0〜12)
+ */
+export const PLAYER_ROLES = [
+    'archeologist',
+    'barbarian',
+    'caveman',
+    'healer',
+    'knight',
+    'monk',
+    'priest',
+    'rogue',
+    'ranger',
+    'samurai',
+    'tourist',
+    'valkyrie',
+    'wizard'
+];
+
+/**
+ * NetHack 5.0 公式種族一覧 (races[] のインデックス 0〜4)
+ */
+export const PLAYER_RACES = [
+    'human',
+    'elf',
+    'dwarf',
+    'gnome',
+    'orc'
+];
+
+/**
+ * NetHack 属性 (u.ualign.type) マッピング
+ */
+export const ALIGNMENT_TYPES = {
+    [-1]: 'chaotic',
+    [0]: 'neutral',
+    [1]: 'lawful'
+};
+
+export const ALIGNMENT_NAMES_JA = {
+    chaotic: '混沌',
+    neutral: '中立',
+    lawful: '秩序'
+};
+
+export const ALIGNMENT_NAMES_EN = {
+    chaotic: 'Chaotic',
+    neutral: 'Neutral',
+    lawful: 'Lawful'
+};
+
+/**
+ * NetHack 性別 (flags.female) マッピング
+ */
+export const GENDER_TYPES = {
+    [0]: 'male',
+    [1]: 'female'
+};
+
+/**
+ * Int32Array バッファ中の単語列から NULL 終端 ASCII 文字列を復元する
+ * @param {Array<number>|Int32Array} raw 
+ * @param {number} startWordIndex 
+ * @param {number} [maxWords=16] 
+ * @returns {string}
+ */
+export function decodeStringFromInt32Array(raw, startWordIndex, maxWords = 16) {
+    if (!raw || raw.length <= startWordIndex) return '';
+    const bytes = [];
+    for (let i = 0; i < maxWords; i++) {
+        const wIdx = startWordIndex + i;
+        if (wIdx >= raw.length) break;
+        const word = raw[wIdx];
+        const b0 = word & 0xFF;
+        const b1 = (word >> 8) & 0xFF;
+        const b2 = (word >> 16) & 0xFF;
+        const b3 = (word >> 24) & 0xFF;
+        if (b0 === 0) break;
+        bytes.push(b0);
+        if (b1 === 0) break;
+        bytes.push(b1);
+        if (b2 === 0) break;
+        bytes.push(b2);
+        if (b3 === 0) break;
+        bytes.push(b3);
+    }
+    if (bytes.length === 0) return '';
+    try {
+        if (typeof TextDecoder !== 'undefined') {
+            return new TextDecoder().decode(new Uint8Array(bytes)).trim();
+        }
+    } catch (_) {}
+    return String.fromCharCode(...bytes).trim();
+}
+
+/**
+ * SHIM_CMD_GET_PLAYER_PROFILE (0x33) バッファからプレイヤー真値プロファイルをデコード (純粋関数)
+ * @param {Array<number>|Int32Array} raw - 最低 8 要素の int32 配列
+ * @param {string|null} [roleNameStr=null] - Live Memory 等から直接読んだロール文字列 (任意)
+ * @param {string|null} [raceNameStr=null] - Live Memory 等から直接読んだ種族文字列 (任意)
+ * @param {string|null} [playerNameStr=null] - Live Memory 等から直接読んだ名前文字列 (任意)
+ * @returns {Object|null}
+ */
+export function parsePlayerProfileBuffer(raw, roleNameStr = null, raceNameStr = null, playerNameStr = null) {
+    if (!raw || (!Array.isArray(raw) && !(raw instanceof Int32Array)) || raw.length < 8) {
+        return null;
+    }
+
+    const roleIndex = raw[0];
+    const raceIndex = raw[1];
+    const genderIndex = raw[2];
+    const alignType = raw[3];
+    const roleMnum = raw[4];
+    const raceMnum = raw[5];
+    const level = raw[6] > 0 ? raw[6] : 1;
+    const initGend = raw[7];
+    const alignRecord = raw.length > 8 ? raw[8] : 0;
+
+    // バッファ後半 (offset 64=word 16, offset 128=word 32, offset 192=word 48) から文字列を抽出 (引数未指定時)
+    const roleName = (roleNameStr && roleNameStr.length > 0)
+        ? roleNameStr
+        : (raw.length >= 32 ? decodeStringFromInt32Array(raw, 16, 16) : '');
+    const raceName = (raceNameStr && raceNameStr.length > 0)
+        ? raceNameStr
+        : (raw.length >= 48 ? decodeStringFromInt32Array(raw, 32, 16) : '');
+    const playerName = (playerNameStr && playerNameStr.length > 0)
+        ? playerNameStr
+        : (raw.length >= 64 ? decodeStringFromInt32Array(raw, 48, 16) : '');
+
+    const roleKey = (roleIndex >= 0 && roleIndex < PLAYER_ROLES.length)
+        ? PLAYER_ROLES[roleIndex]
+        : (roleName ? roleName.toLowerCase() : 'unknown');
+
+    const raceKey = (raceIndex >= 0 && raceIndex < PLAYER_RACES.length)
+        ? PLAYER_RACES[raceIndex]
+        : (raceName ? raceName.toLowerCase() : 'unknown');
+
+    const gender = GENDER_TYPES[genderIndex] || (genderIndex === 1 ? 'female' : 'male');
+    const alignment = ALIGNMENT_TYPES[alignType] || (alignType === 1 ? 'lawful' : (alignType === -1 ? 'chaotic' : 'neutral'));
+
+    return {
+        roleIndex,
+        raceIndex,
+        genderIndex,
+        alignType,
+        roleMnum,
+        raceMnum,
+        level,
+        initGend,
+        alignRecord,
+        role: roleKey,
+        race: raceKey,
+        gender,
+        alignment,
+        roleName: roleName || roleKey,
+        raceName: raceName || raceKey,
+        playerName: playerName || ''
+    };
 }

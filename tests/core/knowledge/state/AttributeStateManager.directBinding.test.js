@@ -96,4 +96,130 @@ describe('AttributeStateManager - Direct Binding (Wasm Memory Integration)', () 
         expect(res).toBe(false);
         expect(manager.isSynced).toBe(false);
     });
+
+    it('syncs player profile from direct binding and protects against legacy overrides (Stage 8.5)', () => {
+        const mockProfile = {
+            roleIndex: 11, // Valkyrie
+            raceIndex: 2,  // Dwarf
+            genderIndex: 1, // female
+            alignType: 1,  // lawful
+            level: 1,
+            role: 'valkyrie',
+            race: 'dwarf',
+            gender: 'female',
+            alignment: 'lawful',
+            roleName: 'Valkyrie',
+            raceName: 'Dwarf',
+            playerName: 'Brunhilde'
+        };
+
+        const changed = manager.syncPlayerProfileFromDirectBinding(mockProfile);
+        expect(changed).toBe(true);
+        expect(manager.isSynced).toBe(true);
+        expect(manager.isProfileDirectBound).toBe(true);
+
+        // キャラクタサマリーの日本語・英語検証
+        const summaryJa = manager.getCharacterSummary('ja');
+        expect(summaryJa.role).toBe('valkyrie');
+        expect(summaryJa.race).toBe('dwarf');
+        expect(summaryJa.roleNameJa).toBe('ワルキューレ');
+        expect(summaryJa.raceNameJa).toBe('ドワーフ');
+        expect(summaryJa.alignNameJa).toBe('秩序');
+        expect(summaryJa.playerName).toBe('Brunhilde');
+        expect(summaryJa.displayTagJa).toBe('👤 ドワーフ / ワルキューレ Lv.1');
+
+        const summaryEn = manager.getCharacterSummary('en');
+        expect(summaryEn.roleNameEn).toBe('Valkyrie');
+        expect(summaryEn.raceNameEn).toBe('Dwarf');
+        expect(summaryEn.alignNameEn).toBe('Lawful');
+        expect(summaryEn.displayTagEn).toBe('👤 Dwarf / Valkyrie Lv.1');
+
+        // 生来のドワーフ暗視耐性 (infravision) が自動計算されていること
+        expect(manager.innate.infravision).toBe(true);
+        expect(manager.intrinsics.infravision).toBe(true);
+
+        // レガシー推測コード (updateCharacter / 称号 "Shield Maiden" 混同等) による上書きがブロックされること
+        const blocked = manager.updateCharacter({ role: 'archeologist', race: 'human' });
+        expect(blocked).toBe(false);
+        // 真値が維持されていること
+        expect(manager.characterInfo.role).toBe('valkyrie');
+        expect(manager.characterInfo.race).toBe('dwarf');
+
+        // ただしレベルアップなどの動的数値変化は許可されること
+        manager.updateCharacter({ level: 5 });
+        expect(manager.characterInfo.level).toBe(5);
+        expect(manager.characterInfo.role).toBe('valkyrie');
+    });
+
+    it('automatically syncs profile via syncFromDirectBinding when service provides getPlayerProfile', () => {
+        const mockService = {
+            getPlayerProps: () => new Array(69).fill(0),
+            getPlayerProfile: () => ({
+                role: 'wizard',
+                race: 'elf',
+                gender: 'male',
+                alignment: 'chaotic',
+                level: 3,
+                playerName: 'Gandalf'
+            })
+        };
+
+        manager.syncFromDirectBinding(mockService);
+
+        expect(manager.isProfileDirectBound).toBe(true);
+        const summary = manager.getCharacterSummary('ja');
+        expect(summary.roleNameJa).toBe('魔法使い');
+        expect(summary.raceNameJa).toBe('エルフ');
+        expect(summary.alignNameJa).toBe('混沌');
+        expect(summary.playerName).toBe('Gandalf');
+        expect(summary.level).toBe(3);
+    });
+
+    describe('updateFromStatus (Safe attribute and player name sync)', () => {
+        it('syncs playerName, alignment, and level from status without guessing role or race', () => {
+            const status = {
+                title: 'Brunhilde the Stripling',
+                align: 'Lawful',
+                level: 1
+            };
+
+            const changed = manager.updateFromStatus(status);
+            expect(changed).toBe(true);
+            expect(manager.characterInfo.playerName).toBe('Brunhilde');
+            expect(manager.characterInfo.alignment).toBe('lawful');
+            expect(manager.characterInfo.level).toBe(1);
+
+            // 称号からの職業・種族推測は行われないため初期値のまま
+            expect(manager.characterInfo.role).toBe('archeologist');
+            expect(manager.characterInfo.race).toBe('human');
+        });
+
+        it('does not overwrite direct bound profile when updateFromStatus is called', () => {
+            // 先に Direct Binding で確定（Dwarf Valkyrie）
+            manager.syncPlayerProfileFromDirectBinding({
+                role: 'valkyrie',
+                race: 'dwarf',
+                gender: 'female',
+                alignment: 'lawful',
+                playerName: 'Brunhilde'
+            });
+
+            expect(manager.characterInfo.race).toBe('dwarf');
+            expect(manager.characterInfo.role).toBe('valkyrie');
+
+            // ステータス更新が届く
+            manager.updateFromStatus({
+                title: 'Brunhilde the Stripling',
+                align: 'Lawful',
+                level: 2
+            });
+
+            // レベルは 2 に更新され、種族とロールは Direct Binding の真値のまま保護される
+            expect(manager.characterInfo.level).toBe(2);
+            expect(manager.characterInfo.race).toBe('dwarf');
+            expect(manager.characterInfo.role).toBe('valkyrie');
+            expect(manager.characterInfo.playerName).toBe('Brunhilde');
+        });
+    });
 });
+

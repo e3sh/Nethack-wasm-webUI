@@ -139,6 +139,7 @@ export class GKLEventRouter {
                             playerY: py >= 0 ? py : undefined,
                             syncInventory: true,
                             syncPlayerProps: isInitialSync,
+                            syncProfile: isInitialSync || !p.attributeStateManager?.isProfileDirectBound,
                             syncDiscoveries: isInitialSync,
                             syncSkills: isInitialSync,
                             syncSpells: isInitialSync || !p.spellStateManager?.isSynced,
@@ -530,6 +531,19 @@ export class GKLEventRouter {
                         }
                         if (p.interactionContext && typeof p.interactionContext.advanceTurn === 'function') {
                             p.interactionContext.advanceTurn(parsedTurn);
+                        }
+                    }
+                }
+
+                // タイトル (BL_TITLE = 0) または属性 (BL_ALIGN = 7) によるプロファイル同期
+                if (data.field === 0 || data.field === 'title' || data.field === 7 || data.field === 'align') {
+                    if (p.attributeStateManager && typeof p.attributeStateManager.updateFromStatus === 'function') {
+                        const st = p.statusAccessor && typeof p.statusAccessor.getStatus === 'function'
+                            ? p.statusAccessor.getStatus()
+                            : (data.status || { [data.field]: data.value });
+                        const changed = p.attributeStateManager.updateFromStatus(st);
+                        if (changed && p.core && typeof p.core.emit === 'function') {
+                            p.core.emit('attributesStateUpdated', p.attributeStateManager);
                         }
                     }
                 }

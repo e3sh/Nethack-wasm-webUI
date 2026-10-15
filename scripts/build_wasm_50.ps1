@@ -2,7 +2,7 @@
 # Official 100% Unmodified C-Core Build
 
 param(
-    [string]$NH_ROOT = "C:\Users\e3-sh\Desktop\works\NetHack-NetHack-5.0_org\NetHack-NetHack-5.0.1_Oct7_2026",
+    [string]$NH_ROOT = "C:\Users\e3-sh\Desktop\works\NetHack-NetHack-5.0_org\NetHack-NetHack-5.0.1_Oct16_2026",
     [string]$EMSDK_PATH = "C:\Users\e3-sh\Documents\GitHub\emsdk",
     [string]$VCVARS_PATH = "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat",
     [string]$LUA_SOURCE_FALLBACK = "C:\Users\e3-sh\Documents\Antigravity\NetHack\lib\lua-5.4.8"
@@ -105,13 +105,15 @@ LUA_API int (lua_error) (lua_State *L) NORETURN;
         "src/alloc.c"
     )
     cl /O2 /Iinclude /I$LUA_SRC_DIR /DCROSSCOMPILE $tilemap_src /link /out:util/tilemap.exe
-    if ($LASTEXITCODE -eq 0) {
+    if (Test-Path "src/tile.c") {
+        Write-Host "src/tile.c already exists. Skipping tilemap.exe execution."
+    } elseif ($LASTEXITCODE -eq 0) {
         Write-Host "Running tilemap.exe to generate tile.c and tilemappings.lst..."
         try {
             Push-Location util
             & ".\tilemap.exe"
         } catch {
-            Write-Warning "tilemap.exe execution failed or was blocked by policy. Using existing tile artifacts."
+            Write-Warning "tilemap.exe execution failed or was blocked by policy."
             if (Test-Path "$NH_ROOT/src/tile.c") {
                 Write-Host "Existing src/tile.c confirmed."
             } else {
@@ -224,6 +226,7 @@ LUA_API int (lua_error) (lua_State *L) NORETURN;
         "-DNO_SIGNAL",
         "-sASYNCIFY=1",
         "-sASYNCIFY_IMPORTS=['local_callback']",
+        "-sDYNCALLS=1",
         "-sEXPORTED_FUNCTIONS=['_main','_shim_graphics_set_callback','_malloc','_free','_shim_bridge_call']",
         "-sEXPORTED_RUNTIME_METHODS=['cwrap','ccall','addFunction','UTF8ToString','stringToUTF8','getValue','setValue','FS','IDBFS']",
         "-lidbfs.js",
@@ -237,10 +240,15 @@ LUA_API int (lua_error) (lua_State *L) NORETURN;
     Write-Host "--- Step 6: Linking and Packaging ---"
     emcc "@nethack_files.rsp" "liblua.a" "@nethack_flags.rsp" -o nethack.js --embed-file dat@/
 
-    # Step 7: Copy build outputs to WebUI root
+    # Step 7: Copy build outputs to WebUI root and client dirs
     Write-Host "--- Step 7: Deploying build outputs ---"
     Copy-Item "nethack.js" "$DEPLOY_ROOT/nethack.js" -Force
     Copy-Item "nethack.wasm" "$DEPLOY_ROOT/nethack.wasm" -Force
+    $svelte_dist = Join-Path $DEPLOY_ROOT "examples/svelte-client/dist"
+    if (Test-Path $svelte_dist) {
+        Copy-Item "nethack.js" "$svelte_dist/nethack.js" -Force
+        Copy-Item "nethack.wasm" "$svelte_dist/nethack.wasm" -Force
+    }
     if (Test-Path "util/tilemappings.lst") {
         Copy-Item "util/tilemappings.lst" "$DEPLOY_ROOT/docs/5_gamedata/tilemappings.lst" -Force
     }

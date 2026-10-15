@@ -158,6 +158,7 @@ npm install
 npm test                 # Vitest
 npm run dev:vue          # 各サンプルクライアントの開発サーバー (react / solid / svelte も同様)
 npm run build:all        # テスト + 全サンプルのビルド
+npm run build:wasm       # NetHack 5.0 WASM コアの再ビルド (WSL2 Linux ネイティブ環境経由)
 ```
 
 ### 開発・検証ツール

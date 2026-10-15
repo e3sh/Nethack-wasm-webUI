@@ -1,8 +1,10 @@
 ---
 title: nethack_version_upgrade_guide
 status: active
-last_updated: 2026-10-11
+last_updated: 2026-10-15
 related_code:
+  - scripts/build_wasm_50_wsl.ps1
+  - scripts/build_wasm_50_wsl.sh
   - scripts/build_wasm_50.ps1
   - src/driver/shim/shim_bridge.c
 ---
@@ -78,32 +80,58 @@ NetHack 5.0 のビルドには Lua 5.4.8 のソースコードが必要です。
 
 ## 3. ビルド手順とスクリプトの注意点
 
-ビルドスクリプトは [`scripts/build_wasm_50.ps1`](file:///C:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/scripts/build_wasm_50.ps1) を使用します。環境のフォルダ構成に合わせて都度パス設定を確認してください。
+### ⚠️ 最重要：Windows スマート アプリ コントロール（Smart App Control）と推奨環境
+Windows 11 の「スマート アプリ コントロール (Smart App Control)」やアプリケーション制御ポリシーが有効な環境では、Emscripten のリンク後処理ツール **`wasm-emscripten-finalize.exe`（Binaryen）がブロック (`[WinError 4551]`)** され、Emscripten が関数テーブル（`dynCall_vii` 等）の出力をスキップして不完全な JS/WASM を出力してしまう問題が発生します。  
+その結果、ブラウザ実行時に **`ReferenceError: dynCall_vii is not defined`** が発生してエンジンが起動不能になります。
 
-### 3-1. スクリプト内の主要設定項目
-```powershell
-$BASE_ROOT = $PWD
-$NH_ROOT = "<NetHackソースツリーのルートパス>"
-$EMSDK_PATH = "C:\Users\e3-sh\Documents\GitHub\emsdk"
-$VCVARS_PATH = "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat"
+そのため、現在の標準・最推奨ビルド方式は **【方式 A: WSL2 (Ubuntu) Linux ネイティブビルド】** です。
+
+---
+
+### 3-1. 方式 A: WSL2 (Ubuntu) Linux ネイティブビルド（最推奨・標準）
+Linux ELF バイナリとして動作するため、Windows の Smart App Control の干渉を 100% 回避し、Binaryen の finalize を含めて完全にクリーンな WASM / JS を生成します。
+
+#### 事前準備 (初回のみ)
+WSL2 の Ubuntu ターミナルで Emscripten SDK をセットアップします：
+```bash
+if [ ! -d ~/emsdk ]; then
+    git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
+fi
+cd ~/emsdk
+./emsdk install 4.0.22
+./emsdk activate 4.0.22
 ```
 
-### 3-2. ビルド各ステップの流れ
-1. **環境セットアップ**: Emscripten SDK（`emsdk_env.ps1`）および MSVC（`vcvarsall.bat x64`）をアクティベート。
-2. **Step 1: ホスト用 makedefs のビルド**: MSVC で `util/makedefs.exe` をコンパイル。
-3. **Step 1-b: ホスト用 tilemap のビルドと実行**:
-   - ⚠️ **超重要**: `tilemap.exe` は必ず **`util` ディレクトリ内で実行（`Push-Location util; .\tilemap.exe; Pop-Location`）** すること。
-   - `tilemap.c` のソース出力先が相対パス `../src/tile.c` に固定されているため、カレントが `util` でないと `tile.c` の生成に失敗します。
-4. **Step 2: ゲームデータ生成**: `makedefs.exe` を使用して `data`, `rumors`, `help` などのデータファイルを生成。
-5. **Step 3: `winshim.c` の確認と `shim_bridge.c` の自動同期**: 公式原本（無改変）の `win/shim/winshim.c` を確認し、WebUI リポジトリの `src/driver/shim/shim_bridge.c` を `win/shim/shim_bridge.c` へ自動コピー。
-6. **Step 4: Lua (WASM) のビルド**: `emcc` で Lua ソースをコンパイルし、`liblua.a` をアーカイブ。
-7. **Step 5: NetHack C ソース (WASM) のビルド**:
-   - フラグ: `-sASYNCIFY=1`, `-sEXPORTED_FUNCTIONS=['_main','_shim_graphics_set_callback','_malloc','_free','_shim_bridge_call']`, `-sEXPORTED_RUNTIME_METHODS` など。
-8. **Step 6: リンクとファイルパッケージング**:
-   - `emcc ... -o nethack.js --embed-file dat@/` で WASM と JS ローダー、仮想ファイルシステムを生成。
-9. **Step 7: 成果物のデプロイ**:
-   - `nethack.js` および `nethack.wasm` → WebUI ルートへコピー
-   - `util/tilemappings.lst` → `docs/5_gamedata/tilemappings.lst` へコピー
+#### ビルドの実行
+Windows の PowerShell から以下のラッパースクリプトをワンコマンドで実行するだけで、WSL2 を介して自動コンパイル・自動デプロイが完了します：
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build_wasm_50_wsl.ps1
+```
+※ WSL2 内から直接実行する場合は `./scripts/build_wasm_50_wsl.sh` を実行します。
+
+#### スクリプトの動作内容 ([`scripts/build_wasm_50_wsl.sh`](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/scripts/build_wasm_50_wsl.sh))
+1. `~/emsdk/emsdk_env.sh` をアクティベート。
+2. ホストツール（`makedefs`, `tilemap`）を GCC でコンパイルし、`data`, `rumors` 等を生成。
+3. `src/driver/shim/shim_bridge.c` を `win/shim/shim_bridge.c` へ自動同期。
+4. Lua 5.4.8 を `emcc` でビルドして `liblua.a` を生成。
+5. `-sDYNCALLS=1`, `-sASYNCIFY=1` を指定して NetHack 5.0 をリンク。
+6. 成果物（`nethack.js`, `nethack.wasm`）を WebUI ルートおよび `examples/svelte-client/dist/` へ自動配置。
+
+---
+
+### 3-2. 方式 B: Windows ネイティブビルド (`scripts/build_wasm_50.ps1`)
+スマート アプリ コントロールが無効化されている環境や例外ポリシーが適用されている環境用のレガシービルドです。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build_wasm_50.ps1
+```
+
+- **必須コンパイル・リンクフラグ**:
+  - `-sDYNCALLS=1`（UI コールバック `local_callback` テーブル用・必須）
+  - `-sASYNCIFY=1`
+  - `-sASYNCIFY_IMPORTS=['local_callback']`
+  - `-sEXPORTED_FUNCTIONS=['_main','_shim_graphics_set_callback','_malloc','_free','_shim_bridge_call']`
+  - `-sEXPORTED_RUNTIME_METHODS=['cwrap','ccall','addFunction','UTF8ToString','stringToUTF8','getValue','setValue','FS','IDBFS']`
 
 ---
 
@@ -113,11 +141,11 @@ $VCVARS_PATH = "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxilia
 
 | 検証項目 | 確認コマンド／確認場所 | 期待される結果 |
 |---|---|---|
-| **tilemap.exe の実行結果** | コンソールログ | エラーなく正常終了していること |
+| **Binaryen ブロックの有無** | ビルドログ | `wasm-emscripten-finalize blocked` 等の警告が一切出ていないこと |
+| **dynCall の存在確認** | `node -e "const fs = require('fs'); const code = fs.readFileSync('nethack.js', 'utf8'); console.log(code.includes('dynCall_vii'));"` | `true` が出力されること |
 | **tile.c の特殊タイル定義** | `src/tile.c` | `TILE_PETMARK`, `TILE_PILEMARK`, `TILE_DELIMITER` 等が定義されていること |
 | **total_tiles_used の数値** | `src/tile.c` | 調査で判明した期待値（例: 5.0.1 では `2307`）と一致していること |
-| **tilemappings.lst の末尾** | `docs/5_gamedata/tilemappings.lst` | 末尾に新規追加タイル（例: `tile[2304]`〜`tile[2306]`）が追記されていること |
-| **成果物の配置・更新** | WebUI ルート（`nethack.js`, `nethack.wasm`） | 更新日時が直前のビルド時刻になり、ファイルサイズが正常であること |
+| **成果物の配置・更新** | WebUI ルート（`nethack.js`, `nethack.wasm`）および `examples/svelte-client/dist/` | 更新日時が直前のビルド時刻になり、ファイルサイズが正常であること |
 
 ---
 
@@ -137,10 +165,12 @@ WebUI ルートでテストを実行し、全テストスイートがパスす�
 ```powershell
 npm test
 ```
-- 全テストスイート（136ファイル / 1,670件）が PASS すること。
-- 特に `WishService.test.js`, `AllGlyphsVerification.test.js`, `WebUICore.test.js`, `WasmDirectBindingService.test.js` などの整合性を確認。
+- 全テストスイートが 100% PASS すること（リグレッションゼロ）。
 
 ### 5-3. ブラウザ実機確認
-- ブラウザで WebUI を起動（および `tools/direct_binding_verifier.html` で C 構造体オフセット整合性を検証）。
+- ブラウザで WebUI を起動。
+- コンソールエラー（`ReferenceError: dynCall_vii is not defined` 等）が一切発生しないこと。
+- `👤 [種族 / 職業 Lv.X]`（`#status-attr-detail`）に C コアの真値プロファイルが表示されること。
+- `tools/knowledge-inspector.html` の「種族・職業」タブでレベル別公式称号一覧テーブルが正確に表示されること。
 - `v` または `V` コマンドでバージョン表示を確認し、ビルド日時が更新されていることを確認。
-- ウィッシュ入力ダイアログで新エイリアスが補完・認識されるか確認。
+

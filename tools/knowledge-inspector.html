@@ -614,7 +614,7 @@
         import { OBJECT_KNOWLEDGE_BASE } from '../src/core/knowledge/data/OBJECT_KNOWLEDGE_BASE.js';
         import { OBJECT_JP_MAP } from '../src/core/knowledge/data/OBJECT_JP_MAP.js';
         import { MONSTER_TILEMAP_NAMES, OBJECT_TILEMAP_NAMES } from '../src/core/knowledge/data/tilemappings_data.js';
-        import { RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP, ALIGNMENT_KNOWLEDGE_MAP, GENDER_KNOWLEDGE_MAP } from '../src/core/knowledge/data/CHARACTER_KNOWLEDGE_BASE.js';
+        import { RACE_KNOWLEDGE_MAP, ROLE_KNOWLEDGE_MAP, ALIGNMENT_KNOWLEDGE_MAP, GENDER_KNOWLEDGE_MAP, getRoleRankTable } from '../src/core/knowledge/data/CHARACTER_KNOWLEDGE_BASE.js';
         import { TERRAIN_KNOWLEDGE_MAP } from '../src/core/knowledge/data/TERRAIN_KNOWLEDGE_BASE.js';
         import { CHEMISTRY_INTERACTIONS } from '../src/core/knowledge/data/CHEMISTRY_KNOWLEDGE_BASE.js';
         import { ADVICE_DEFINITIONS } from '../src/core/knowledge/data/ADVICE_DEFINITIONS.js';
@@ -2982,6 +2982,37 @@
                         </div>
                     `}
                 </div>
+
+                ${!isRace ? `
+                    <div class="info-block">
+                        <div class="section-title">🎖️ ${currentLang === 'ja' ? 'レベル別公式称号一覧 (Role Titles / Ranks Timeline)' : 'Official Role Titles / Ranks Timeline'}</div>
+                        <div style="color:var(--text-secondary); font-size:0.8rem; margin-bottom:8px;">
+                            ${currentLang === 'ja' ? 'NetHack の role.c 定義に準拠したレベル帯ごとの公式称号 (Rank 0〜8) です。' : 'Official titles corresponding to experience level ranges (Rank 0 to 8) from role.c.'}
+                        </div>
+                        <table class="knowledge-table">
+                            <thead>
+                                <tr>
+                                    <th>${currentLang === 'ja' ? 'ランク (Rank)' : 'Rank'}</th>
+                                    <th>${currentLang === 'ja' ? 'レベル帯 (Levels)' : 'Level Range'}</th>
+                                    <th>${currentLang === 'ja' ? '公式英語称号 (Title)' : 'Official Title (En)'}</th>
+                                    <th>${currentLang === 'ja' ? '女性形 / 別名' : 'Female / Alt Form'}</th>
+                                    <th>${currentLang === 'ja' ? '日本語訳 (Translation)' : 'Japanese Translation'}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${getRoleRankTable(char.id).map(r => `
+                                    <tr>
+                                        <td><span class="tag-badge ${r.rank === 8 ? 'tag-PURPLE' : (r.rank >= 5 ? 'tag-INFO' : 'tag-LOW')}">Rank ${r.rank}</span></td>
+                                        <td><strong>Lv ${r.levelRange}</strong></td>
+                                        <td style="color:#e2e8f0; font-weight:600;">${r.titleEn}</td>
+                                        <td style="color:#f0b232;">${r.titleFemaleEn || '-'}</td>
+                                        <td style="color:var(--accent-color); font-weight:bold;">${currentLang === 'ja' ? r.titleJa : (r.titleJa || '-')}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : ''}
             `;
         }
 

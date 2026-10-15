@@ -15,7 +15,8 @@
     "dev:svelte": "npm --prefix examples/svelte-client run dev",
     "build:svelte": "npm --prefix examples/svelte-client run build",
     "build:all-examples": "npm run build:vue && npm run build:react && npm run build:solid && npm run build:svelte",
-    "build:all": "npm test && npm run build:all-examples"
+    "build:all": "npm test && npm run build:all-examples",
+    "build:wasm": "powershell -ExecutionPolicy Bypass -File scripts/build_wasm_50_wsl.ps1"
   },
   "devDependencies": {
     "vitest": "^1.6.1"

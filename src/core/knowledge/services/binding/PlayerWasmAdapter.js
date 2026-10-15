@@ -5,7 +5,7 @@
  * および習得呪文（spellbook）の C構造体デコードとキャッシュ管理を担当。
  */
 
-import { SHIM_CMD, parseSkillsBuffer, parseSpellBookBuffer } from './BindingConstants.js';
+import { SHIM_CMD, parseSkillsBuffer, parseSpellBookBuffer, parsePlayerProfileBuffer } from './BindingConstants.js';
 
 export class PlayerWasmAdapter {
     constructor() {
@@ -14,6 +14,15 @@ export class PlayerWasmAdapter {
         this._cachedWeaponSlots = 0;
         this._cachedSpells = null;
         this._cachedPlayerSummary = null;
+        this._cachedPlayerProfile = null;
+    }
+
+    get cachedPlayerProfile() {
+        return this._cachedPlayerProfile;
+    }
+
+    set cachedPlayerProfile(val) {
+        this._cachedPlayerProfile = val;
     }
 
     get cachedPlayerProps() {
@@ -209,5 +218,88 @@ export class PlayerWasmAdapter {
         }
 
         return this._cachedPlayerProps || null;
+    }
+
+    /**
+     * プレイヤーの真値プロファイル (種族・職業・属性・性別等) を一括ダンプ同期 (SHIM_CMD_GET_PLAYER_PROFILE)
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {Object|null}
+     */
+    dumpPlayerProfile(memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return this._cachedPlayerProfile || null;
+        if (hasLiveMemory && memory) {
+            const bufSize = 256;
+            const bufPtr = memory.allocateBuffer(bufSize);
+            if (bufPtr) {
+                try {
+                    const res = memory.bridgeCall(SHIM_CMD.GET_PLAYER_PROFILE, 0, 0, bufPtr, bufSize);
+                    if (res >= 0) {
+                        const raw = memory.readInt32Array(bufPtr, 16);
+                        const roleName = memory.readString(bufPtr + 64, 64);
+                        const raceName = memory.readString(bufPtr + 128, 64);
+                        const plname = memory.readString(bufPtr + 192, 64);
+                        const profile = parsePlayerProfileBuffer(raw, roleName, raceName, plname);
+                        if (profile) {
+                            this._cachedPlayerProfile = profile;
+                            return profile;
+                        }
+                    }
+                } finally {
+                    memory.freeBuffer(bufPtr);
+                }
+            }
+        }
+        return this._cachedPlayerProfile || null;
+    }
+
+    /**
+     * 最新のプレイヤー真値プロファイルを取得
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {Object|null}
+     */
+    getPlayerProfile(memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return this._cachedPlayerProfile || null;
+        if (hasLiveMemory) {
+            return this.dumpPlayerProfile(memory, isAvailable, hasLiveMemory);
+        }
+        return this._cachedPlayerProfile || null;
+    }
+
+    /**
+     * プレイヤーの真値プロファイルを非同期取得 (Worker 調停対応)
+     * @param {Object} bridge
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {Promise<Object|null>}
+     */
+    async fetchPlayerProfile(bridge, memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return null;
+
+        if (hasLiveMemory) {
+            return this.getPlayerProfile(memory, isAvailable, hasLiveMemory);
+        }
+
+        if (bridge && typeof bridge.callShim === 'function') {
+            try {
+                const bufSize = 256;
+                const res = await bridge.callShim(SHIM_CMD.GET_PLAYER_PROFILE, 0, 0, bufSize, 'int32');
+                if (res && res.result >= 0 && Array.isArray(res.buffer)) {
+                    const profile = parsePlayerProfileBuffer(res.buffer);
+                    if (profile) {
+                        this._cachedPlayerProfile = profile;
+                        return profile;
+                    }
+                }
+            } catch (e) {
+                console.warn('[PlayerWasmAdapter] fetchPlayerProfile error:', e);
+            }
+        }
+
+        return this._cachedPlayerProfile || null;
     }
 }

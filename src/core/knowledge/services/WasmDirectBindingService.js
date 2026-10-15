@@ -69,6 +69,8 @@ export class WasmDirectBindingService {
     set _cachedPlayerProps(v) { this.playerAdapter.cachedPlayerProps = v; }
     get _cachedPlayerSummary() { return this.playerAdapter.cachedPlayerSummary; }
     set _cachedPlayerSummary(v) { this.playerAdapter.cachedPlayerSummary = v; }
+    get _cachedPlayerProfile() { return this.playerAdapter.cachedPlayerProfile; }
+    set _cachedPlayerProfile(v) { this.playerAdapter.cachedPlayerProfile = v; }
 
     get _cachedMonsters() { return this.monsterAdapter.cachedMonsters; }
     set _cachedMonsters(v) { this.monsterAdapter.cachedMonsters = v; }
@@ -624,6 +626,36 @@ export class WasmDirectBindingService {
      */
     async fetchPlayerProps() {
         return this.playerAdapter.fetchPlayerProps(this.bridge, this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
+     * プレイヤーの真値プロファイル (種族・職業・属性・性別等) を取得 (Stage 8.5)
+     * @returns {Object|null}
+     */
+    getPlayerProfile() {
+        return this.playerAdapter.getPlayerProfile(this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
+     * プレイヤーの真値プロファイルを非同期取得 (Worker 調停対応) (Stage 8.5)
+     * @returns {Promise<Object|null>}
+     */
+    async fetchPlayerProfile() {
+        return this.playerAdapter.fetchPlayerProfile(this.bridge, this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
+     * プレイヤープロファイル (SHIM_CMD_GET_PLAYER_PROFILE) のオンデマンド同期 (Stage 8.5)
+     * @returns {Promise<boolean>}
+     */
+    async syncPlayerProfileOnDemand() {
+        return await this.syncCoordinator.syncPlayerProfileOnDemand(
+            this.bridge,
+            this.isAvailable(),
+            this.hasLiveMemory,
+            this.playerAdapter,
+            this.memory
+        );
     }
 }
 

@@ -920,3 +920,163 @@ export function getCharacterBadges(category, keyStr, lang = 'ja') {
 
     return badges;
 }
+
+/**
+ * NetHack 5.0 公式 全13ロール × 全9ランク (Rank 0〜8, Lv 1〜30) の称号マスタ
+ * (NetHack C-Core src/role.c roles[] & src/botl.c rank_of / xlev_to_rank 準拠 SSOT)
+ */
+export const ROLE_RANKS_TABLE = {
+    archeologist: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Digger', titleJa: '発掘人' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Field Worker', titleJa: '現地調査員' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Investigator', titleJa: '調査員' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Exhumer', titleJa: '遺物発掘者' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Excavator', titleJa: '発掘技師' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Spelunker', titleJa: '洞窟探検家' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Speleologist', titleJa: '洞窟学者' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Collector', titleJa: '収集家' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Curator', titleJa: '学芸員' }
+    ],
+    barbarian: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Plunderer', titleFemaleEn: 'Plunderess', titleJa: '略奪者' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Pillager', titleJa: '強奪者' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Bandit', titleJa: '野盗' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Brigand', titleJa: '盗賊' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Raider', titleJa: '急襲者' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Reaver', titleJa: '破壊者' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Slayer', titleJa: '殺戮者' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Chieftain', titleFemaleEn: 'Chieftainess', titleJa: '族長' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Conqueror', titleFemaleEn: 'Conqueress', titleJa: '征服者' }
+    ],
+    caveman: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Troglodyte', titleJa: '穴居人' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Aborigine', titleJa: '原住者' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Wanderer', titleJa: '漂泊者' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Vagrant', titleJa: '流浪者' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Wayfarer', titleJa: '徒歩旅行者' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Roamer', titleJa: '遍歴者' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Nomad', titleJa: '遊牧民' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Rover', titleJa: '放浪者' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Pioneer', titleJa: '開拓者' }
+    ],
+    healer: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Rhizotomist', titleJa: '薬根採取者' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Empiric', titleJa: '民間治療師' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Embalmer', titleJa: '防腐処置師' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Dresser', titleJa: '包帯手当師' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Medicus ossium', titleFemaleEn: 'Medica ossium', titleJa: '接骨医' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Herbalist', titleJa: '本草医' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Magister', titleFemaleEn: 'Magistra', titleJa: '医術師範' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Physician', titleJa: '内科医' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Chirurgeon', titleJa: '外科医' }
+    ],
+    knight: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Gallant', titleJa: '勇士' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Esquire', titleJa: '郷士' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Bachelor', titleJa: '平騎士' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Sergeant', titleJa: '軍曹騎士' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Knight', titleJa: '騎士' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Banneret', titleJa: '旗騎士' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Chevalier', titleFemaleEn: 'Chevaliere', titleJa: '上級騎士' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Seignieur', titleFemaleEn: 'Dame', titleJa: '領主騎士 / 貴婦人' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Paladin', titleJa: '聖騎士' }
+    ],
+    monk: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Candidate', titleJa: '志願僧' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Novice', titleJa: '見習僧' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Initiate', titleJa: '得度僧' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Student of Stones', titleJa: '石の修業者' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Student of Waters', titleJa: '水の修業者' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Student of Metals', titleJa: '金の修業者' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Student of Winds', titleJa: '風の修業者' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Student of Fire', titleJa: '火の修業者' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Master', titleJa: '大師範' }
+    ],
+    priest: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Aspirant', titleJa: '求道者' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Acolyte', titleJa: '侍祭' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Adept', titleJa: '熟達信徒' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Priest', titleFemaleEn: 'Priestess', titleJa: '司祭' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Curate', titleJa: '助任司祭' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Canon', titleFemaleEn: 'Canoness', titleJa: '参事会員' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Lama', titleJa: '高僧' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Patriarch', titleFemaleEn: 'Matriarch', titleJa: '総主教 / 女宰相' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'High Priest', titleFemaleEn: 'High Priestess', titleJa: '最高司祭' }
+    ],
+    rogue: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Footpad', titleJa: '追剥ぎ' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Cutpurse', titleJa: '巾着切り' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Rogue', titleJa: '悪漢' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Pilferer', titleJa: 'コソ泥' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Robber', titleJa: '強盗' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Burglar', titleJa: '忍び込み' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Filcher', titleJa: '掏摸' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Magsman', titleFemaleEn: 'Magswoman', titleJa: 'ペテン師' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Thief', titleJa: '大泥棒' }
+    ],
+    ranger: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Tenderfoot', titleJa: '新米斥候' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Lookout', titleJa: '見張り役' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Trailblazer', titleJa: '先駆者' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Reconnoiterer', titleFemaleEn: 'Reconnoiteress', titleJa: '偵察員' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Scout', titleJa: '斥候' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Arbalester', titleJa: '弩弓兵' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Archer', titleJa: '弓兵' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Sharpshooter', titleJa: '狙撃手' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Marksman', titleFemaleEn: 'Markswoman', titleJa: '名射手' }
+    ],
+    samurai: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Hatamoto', titleJa: '旗本' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Ronin', titleJa: '浪人' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Ninja', titleFemaleEn: 'Kunoichi', titleJa: '忍者 / くのいち' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Joshu', titleJa: '城主' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Ryoshu', titleJa: '領主' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Kokushu', titleJa: '国主' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Daimyo', titleJa: '大名' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Kuge', titleJa: '公家' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Shogun', titleJa: '将軍' }
+    ],
+    tourist: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Rambler', titleJa: '散策者' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Sightseer', titleJa: '観光客' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Excursionist', titleJa: '行楽者' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Peregrinator', titleFemaleEn: 'Peregrinatrix', titleJa: '旅行者' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Traveler', titleJa: '旅人' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Journeyer', titleJa: '行脚者' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Voyager', titleJa: '航海者' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Explorer', titleJa: '探検家' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Adventurer', titleJa: '冒険家' }
+    ],
+    valkyrie: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Stripling', titleJa: '若武者' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Skirmisher', titleJa: '小競り合い役' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Fighter', titleJa: '戦士' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Man-at-arms', titleFemaleEn: 'Woman-at-arms', titleJa: '兵士' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Warrior', titleJa: '勇士' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Swashbuckler', titleJa: '武芸者' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Hero', titleFemaleEn: 'Heroine', titleJa: '英雄 / 女傑' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Champion', titleJa: '覇者' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Lord', titleFemaleEn: 'Lady', titleJa: '主君 / 貴婦人' }
+    ],
+    wizard: [
+        { rank: 0, levelRange: '1-2', minLevel: 1, maxLevel: 2, titleEn: 'Evoker', titleJa: '喚起士' },
+        { rank: 1, levelRange: '3-5', minLevel: 3, maxLevel: 5, titleEn: 'Conjurer', titleJa: '呪術士' },
+        { rank: 2, levelRange: '6-9', minLevel: 6, maxLevel: 9, titleEn: 'Thaumaturge', titleJa: '奇術師' },
+        { rank: 3, levelRange: '10-13', minLevel: 10, maxLevel: 13, titleEn: 'Magician', titleJa: '魔術師' },
+        { rank: 4, levelRange: '14-17', minLevel: 14, maxLevel: 17, titleEn: 'Enchanter', titleFemaleEn: 'Enchantress', titleJa: '付与術士' },
+        { rank: 5, levelRange: '18-21', minLevel: 18, maxLevel: 21, titleEn: 'Sorcerer', titleFemaleEn: 'Sorceress', titleJa: '妖術師' },
+        { rank: 6, levelRange: '22-25', minLevel: 22, maxLevel: 25, titleEn: 'Necromancer', titleJa: '死霊術師' },
+        { rank: 7, levelRange: '26-29', minLevel: 26, maxLevel: 29, titleEn: 'Wizard', titleJa: '魔法使い' },
+        { rank: 8, levelRange: '30', minLevel: 30, maxLevel: 30, titleEn: 'Mage', titleJa: '大魔導士' }
+    ]
+};
+
+/**
+ * 指定された職業（Role）の全9ランク公式称号マスタ配列を取得
+ * @param {string} roleId 
+ * @returns {Array<{ rank: number, levelRange: string, minLevel: number, maxLevel: number, titleEn: string, titleFemaleEn?: string, titleJa: string }>}
+ */
+export function getRoleRankTable(roleId) {
+    if (!roleId || typeof roleId !== 'string') return [];
+    return ROLE_RANKS_TABLE[roleId.toLowerCase()] || [];
+}
