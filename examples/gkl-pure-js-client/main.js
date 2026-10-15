@@ -14,6 +14,7 @@ import { CanvasInteractionController } from './modules/interaction/CanvasInterac
 import { ViewModeController } from './modules/renderers/ViewModeController.js';
 import { UiComponentFactory } from './modules/components/UiComponentFactory.js';
 import { DomEventBinder } from './modules/handlers/DomEventBinder.js';
+import { getTileCandidatePaths } from './modules/config/TileConfig.js';
 
 /**
  * GklPureJSClient - GKL (Game Knowledge Layer) 統合 Pure JS クライアント メインコントローラー
@@ -54,14 +55,8 @@ class GklPureJSClient {
   }
 
   init() {
-    this.virtualScreen.initTileImageWithFallback([
-      '../../pict/nethack_default_32_tr.png',
-      '../../assets/nethack_default_32_tr.png',
-      'pict/nethack_default_32_tr.png',
-      'assets/nethack_default_32_tr.png',
-      '/pict/nethack_default_32_tr.png',
-      '/assets/nethack_default_32_tr.png'
-    ], () => {
+    const tileCandidates = getTileCandidatePaths(this.layoutConfig?.tileImage);
+    this.virtualScreen.initTileImageWithFallback(tileCandidates, () => {
       this.virtualScreen.markAllDirty();
     });
     this.mainViewportRenderer.init();

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { WebGPUHD2DRenderer } from '../../examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js';
+import { WGSL_SHADER } from '../../examples/gkl-pure-js-client/modules/renderers/hd2d/hd2dShaders.js';
 
 describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', () => {
   let mockCanvas;
@@ -165,18 +166,10 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     expect(mockVirtualScreen.dirtyCells.size).toBe(0);
   });
 
-  it('8. WGSL シェーダー内に構文エラー原因となる三項演算子 (?) が含まれていないこと', async () => {
-    // WGSL シェーダー文字列を抽出して検証
-    const fs = await import('fs');
-    const path = await import('path');
-    const rendererCode = fs.readFileSync(path.resolve(__dirname, '../../examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js'), 'utf-8');
-
-    const shaderMatch = rendererCode.match(/const WGSL_SHADER = `([\s\S]*?)`;/);
-    expect(shaderMatch).not.toBeNull();
-    const shaderCode = shaderMatch[1];
-
+  it('8. WGSL シェーダー内に構文エラー原因となる三項演算子 (?) が含まれていないこと', () => {
+    expect(WGSL_SHADER).toBeDefined();
     // WGSL 内に三項演算子 '?' が含まれていないことを確認
-    expect(shaderCode).not.toContain('?');
+    expect(WGSL_SHADER).not.toContain('?');
   });
 
   it('9. addVisualFx によりエフェクトが登録され、エフェクト再生中は wakeUp が呼ばれアイドル化が阻止されること', () => {
@@ -230,23 +223,15 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     expect(renderer.worldToScreen(0, 0, 0)).toBeNull();
   });
 
-  it('12. WGSL シェーダー内に Layer 5 (過渡的エフェクト) と壁高さ 0.45 の定義が含まれていること', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const rendererCode = fs.readFileSync(path.resolve(__dirname, '../../examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js'), 'utf-8');
-
-    expect(rendererCode).toContain('Layer 5: 過渡的エフェクト');
-    expect(rendererCode).toContain('0.45');
+  it('12. WGSL シェーダー内に Layer 5 (過渡的エフェクト) と壁高さ 0.45 の定義が含まれていること', () => {
+    expect(WGSL_SHADER).toContain('Layer 5: 過渡的エフェクト');
+    expect(WGSL_SHADER).toContain('0.45');
   });
 
-  it('13. WGSL シェーダー内にスクリーン正対チルトビルボードの Up ベクトル展開ロジックが含まれていること', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const rendererCode = fs.readFileSync(path.resolve(__dirname, '../../examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js'), 'utf-8');
-
-    expect(rendererCode).toContain('スクリーン正対チルトビルボード');
-    expect(rendererCode).toContain('0.343');
-    expect(rendererCode).toContain('-0.939');
+  it('13. WGSL シェーダー内にスクリーン正対チルトビルボードの Up ベクトル展開ロジックが含まれていること', () => {
+    expect(WGSL_SHADER).toContain('スクリーン正対チルトビルボード');
+    expect(WGSL_SHADER).toContain('0.343');
+    expect(WGSL_SHADER).toContain('-0.939');
   });
 
   it('14. isPlayerDead と deathPosition が設定された際、死亡位置のターゲット追従と墓石描画ロジックが安全に動作すること', () => {
@@ -267,22 +252,14 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     expect(renderer.deathPosition.y).toBe(13);
   });
 
-  it('15. アイテム (Layer 3) の WGSL 定義がバウンス浮遊を廃止した床面水平プレーンであること', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const rendererCode = fs.readFileSync(path.resolve(__dirname, '../../examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js'), 'utf-8');
-
-    expect(rendererCode).toContain('Layer 3: アイテム');
-    expect(rendererCode).toContain('0.12');
+  it('15. アイテム (Layer 3) の WGSL 定義がバウンス浮遊を廃止した床面水平プレーンであること', () => {
+    expect(WGSL_SHADER).toContain('Layer 3: アイテム');
+    expect(WGSL_SHADER).toContain('0.12');
   });
 
-  it('16. キャラクター (Layer 4) の WGSL 定義で animOffset による墓石静止 (bounce = 0.0) 分岐が含まれていること', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const rendererCode = fs.readFileSync(path.resolve(__dirname, '../../examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js'), 'utf-8');
-
-    expect(rendererCode).toContain('input.animOffset >= -0.5');
-    expect(rendererCode).toContain('var bounce = 0.0;');
+  it('16. キャラクター (Layer 4) の WGSL 定義で animOffset による墓石静止 (bounce = 0.0) 分岐が含まれていること', () => {
+    expect(WGSL_SHADER).toContain('input.animOffset >= -0.5');
+    expect(WGSL_SHADER).toContain('var bounce = 0.0;');
   });
 
   it('17. targetCursorX / targetCursorY の保持と _renderCursorFrames によるオーバーレイ描画が正常に行われること', () => {
@@ -326,13 +303,9 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     expect(dummyCtx.stroke).toHaveBeenCalled();
   });
 
-  it('18. キャラクター (Layer 4) の WGSL 定義で (h + bounce) * upVec によるジオラマ・トップビュー両対応バウンス計算が含まれていること', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const rendererCode = fs.readFileSync(path.resolve(__dirname, '../../examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js'), 'utf-8');
-
-    expect(rendererCode).toContain('(h + bounce) * upVec.x');
-    expect(rendererCode).toContain('(h + bounce) * upVec.y');
+  it('18. キャラクター (Layer 4) の WGSL 定義で (h + bounce) * upVec によるジオラマ・トップビュー両対応バウンス計算が含まれていること', () => {
+    expect(WGSL_SHADER).toContain('(h + bounce) * upVec.x');
+    expect(WGSL_SHADER).toContain('(h + bounce) * upVec.y');
   });
 
   it('19. Phase A テーマ 1: WGSL 定義に Layer 3.2 自キャラ足元枠および Layer 3.3 Pet/Ridden 足元サークルが含まれること', async () => {
@@ -340,13 +313,13 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     const path = await import('path');
     const rendererCode = fs.readFileSync(path.resolve(__dirname, '../../examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js'), 'utf-8');
 
-    expect(rendererCode).toContain('input.layerType < 3.25');
-    expect(rendererCode).toContain('input.layerType < 3.45');
+    expect(WGSL_SHADER).toContain('input.layerType < 3.25');
+    expect(WGSL_SHADER).toContain('input.layerType < 3.45');
     expect(rendererCode).toContain('pushInstance(x, 0.0, y, 3.2');
     expect(rendererCode).toContain('pushInstance(x, 0.0, y, 3.3');
     // WGSL uniform control flow 制約回避のため textureSample ではなく textureSampleLevel を使用していること
-    expect(rendererCode).toContain('textureSampleLevel(');
-    expect(rendererCode).not.toContain('textureSample(');
+    expect(WGSL_SHADER).toContain('textureSampleLevel(');
+    expect(WGSL_SHADER).not.toContain('textureSample(');
   });
 
   it('20. Phase A テーマ 1: ターゲットカーソル枠が床面 4 隅の 3D 空間結線 (worldToScreen 結線) により描画されること', () => {

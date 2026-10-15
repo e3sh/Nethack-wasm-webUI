@@ -1,5 +1,9 @@
+import { getTileCandidatePaths } from "../config/TileConfig.js";
+
 /**
- * ZoomRenderer - 自キャラ周辺の 7x7 / 21x9 マス拡大ズームカメラ Canvas 描画 & Visual FX & 画面振動マネージャー
+ * @deprecated
+ * ZoomRenderer - (旧) 自キャラ周辺の 7x7 / 21x9 マス拡大ズームカメラ Canvas 描画 & Visual FX & 画面振動マネージャー
+ * 本機能は MainViewportRenderer のフォーカス機能および MinimapHudRenderer に統合されました。後方互換性テストのために維持されています。
  */
 export class ZoomRenderer {
   constructor({
@@ -12,8 +16,10 @@ export class ZoomRenderer {
     getCore,
     virtualScreen = null,
     tileImg,
-    tileLoaded
+    tileLoaded,
+    tileSource = null
   }) {
+    this.tileSource = tileSource;
     this.zoomCanvas = zoomCanvas;
     this.zoomCtx = zoomCanvas ? zoomCanvas.getContext('2d') : null;
     this.zoomViewportBox = zoomViewportBox;
@@ -58,14 +64,8 @@ export class ZoomRenderer {
       return;
     }
 
-    this.initTileImageWithFallback([
-      '../../pict/nethack_default_32_tr.png',
-      '../../assets/nethack_default_32_tr.png',
-      'pict/nethack_default_32_tr.png',
-      'assets/nethack_default_32_tr.png',
-      '/pict/nethack_default_32_tr.png',
-      '/assets/nethack_default_32_tr.png'
-    ], (p) => {
+    const candidatePaths = getTileCandidatePaths(this.tileSource);
+    this.initTileImageWithFallback(candidatePaths, (p) => {
       this.zoomTileImg.src = p;
       this.loadedZoomTileImagePath = p;
       this.zoomTileLoaded = true;

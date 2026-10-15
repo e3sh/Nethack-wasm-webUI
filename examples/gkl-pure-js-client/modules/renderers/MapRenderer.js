@@ -1,16 +1,18 @@
 import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/AreaStateManager.js";
+import { getTileCandidatePaths } from "../config/TileConfig.js";
 
 /**
  * MapRenderer - メインCanvas (Graphic Canvas) & ASCII Grid の描画マネージャー
  */
 export class MapRenderer {
-  constructor({ canvas, asciiGrid, btnToggleView, getAreaGrid, virtualScreen = null }) {
+  constructor({ canvas, asciiGrid, btnToggleView, getAreaGrid, virtualScreen = null, tileSource = null }) {
     this.canvas = canvas;
     this.ctx = canvas ? canvas.getContext('2d') : null;
     this.asciiGrid = asciiGrid;
     this.btnToggleView = btnToggleView;
     this.getAreaGrid = getAreaGrid || (() => null);
     this.virtualScreen = virtualScreen;
+    this.tileSource = tileSource;
 
     this.isGraphicCanvasMode = true;
     this.currentLanguage = 'ja';
@@ -41,14 +43,8 @@ export class MapRenderer {
       return;
     }
 
-    this.initTileImageWithFallback([
-      '../../pict/nethack_default_32.png',
-      '../../assets/nethack_default_32.png',
-      'pict/nethack_default_32.png',
-      'assets/nethack_default_32.png',
-      '/pict/nethack_default_32.png',
-      '/assets/nethack_default_32.png'
-    ], (p) => {
+    const candidatePaths = getTileCandidatePaths(this.tileSource);
+    this.initTileImageWithFallback(candidatePaths, (p) => {
       this.tileImg.src = p;
       this.loadedTileImagePath = p;
       this.tileLoaded = true;

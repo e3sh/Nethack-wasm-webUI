@@ -25,6 +25,7 @@ import { AdventureLogToast } from './AdventureLogToast.js';
 import { FloatingMessageHud } from './FloatingMessageHud.js';
 import { MessageHistoryDrawer } from './MessageHistoryDrawer.js';
 import { KeyHandler } from '../handlers/KeyHandler.js';
+import { getDefaultTilePath } from '../config/TileConfig.js';
 
 export class UiComponentFactory {
   /**
@@ -96,7 +97,8 @@ export class UiComponentFactory {
       virtualScreen: client.virtualScreen,
       getAreaGrid: () => client.core?.gkl?.getSituation()?.area?.grid,
       getSituation: () => client.core?.gkl?.getSituation(),
-      getCore: () => client.core
+      getCore: () => client.core,
+      tileSource: client.layoutConfig?.tileImage
     });
     client.mapRenderer = client.mainViewportRenderer; // 後方互換
 
@@ -109,6 +111,7 @@ export class UiComponentFactory {
       getCore: () => client.core,
       getTileImg: () => client.mainViewportRenderer.tileImg,
       isTileLoaded: () => client.mainViewportRenderer.tileLoaded,
+      tileSource: client.layoutConfig?.tileImage
     });
 
     // 2. ミニマップ HUD レンダラー
@@ -325,7 +328,7 @@ export class UiComponentFactory {
     // 8.95 Adventure Log Toast
     client.adventureLogToast = new AdventureLogToast({
       container: document.body,
-      tileImage: '../../pict/nethack_default_32_tr.png',
+      tileImage: getDefaultTilePath(),
       getLoadedTileImagePath: () => client.mapRenderer?.loadedTileImagePath,
       language: client.currentLanguage,
       onToastClick: () => {

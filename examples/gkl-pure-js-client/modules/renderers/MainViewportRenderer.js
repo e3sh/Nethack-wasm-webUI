@@ -13,6 +13,7 @@
 
 import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/AreaStateManager.js";
 import { classifyGlyph } from "../../../../src/core/knowledge/engines/glyphClassifier.js";
+import { getTileCandidatePaths } from "../config/TileConfig.js";
 
 export class MainViewportRenderer {
   constructor({
@@ -24,7 +25,8 @@ export class MainViewportRenderer {
     getSituation = null,
     getCore = null,
     tileImg = null,
-    tileLoaded = false
+    tileLoaded = false,
+    tileSource = null
   } = {}) {
     this.canvas = canvas;
     this.ctx = canvas ? canvas.getContext('2d') : null;
@@ -34,6 +36,7 @@ export class MainViewportRenderer {
     this.getAreaGrid = getAreaGrid || (() => null);
     this.getSituation = getSituation || (() => null);
     this.getCore = getCore || (() => null);
+    this.tileSource = tileSource;
 
     this.tileSize = 32; // 原寸 32px
     this.isGraphicCanvasMode = true;
@@ -78,14 +81,8 @@ export class MainViewportRenderer {
       return;
     }
 
-    this.initTileImageWithFallback([
-      '../../pict/nethack_default_32_tr.png',
-      '../../assets/nethack_default_32_tr.png',
-      'pict/nethack_default_32_tr.png',
-      'assets/nethack_default_32_tr.png',
-      '/pict/nethack_default_32_tr.png',
-      '/assets/nethack_default_32_tr.png'
-    ], (p) => {
+    const candidatePaths = getTileCandidatePaths(this.tileSource);
+    this.initTileImageWithFallback(candidatePaths, (p) => {
       this.tileImg.src = p;
       this.loadedTileImagePath = p;
       this.tileLoaded = true;
