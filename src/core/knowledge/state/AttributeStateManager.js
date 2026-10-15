@@ -101,6 +101,45 @@ export const ATTRIBUTE_DEFINITIONS = [
     { key: 'fixedAbil', label: '🔒能力維持', en: 'Sustain Ability' }
 ];
 
+export const PROP_INDEX_TO_ATTRIBUTE_KEY = {
+    1: 'fire',              // FIRE_RES
+    2: 'cold',              // COLD_RES
+    3: 'sleep',             // SLEEP_RES
+    4: 'disint',            // DISINT_RES
+    5: 'shock',             // SHOCK_RES
+    6: 'poison',            // POISON_RES
+    7: 'acid',              // ACID_RES
+    8: 'stoning',           // STONE_RES
+    9: 'drain',             // DRAIN_RES
+    12: 'antimagic',        // ANTIMAGIC
+    24: 'hallu',            // HALLUC_RES
+    29: 'seeInvis',         // SEE_INVIS
+    30: 'telepat',          // TELEPAT
+    31: 'warning',          // WARNING
+    34: 'searching',        // SEARCHING
+    35: 'clairvoyant',      // CLAIRVOYANT
+    36: 'infravision',      // INFRAVISION
+    40: 'invis',            // INVIS
+    41: 'displaced',        // DISPLACED
+    42: 'stealth',          // STEALTH
+    45: 'jumping',          // JUMPING
+    46: 'teleport',         // TELEPORT
+    47: 'teleportControl',  // TELEPORT_CONTROL
+    48: 'levitation',       // LEVITATION
+    50: 'wwalking',         // WWALKING
+    52: 'magicalBreathing', // MAGICAL_BREATHING
+    54: 'slowDigest',       // SLOW_DIGESTION
+    57: 'regen',            // REGENERATION
+    59: 'protection',       // PROTECTION
+    61: 'polymorph',        // POLYMORPH
+    62: 'polymorphControl', // POLYMORPH_CONTROL
+    64: 'fast',             // FAST
+    65: 'reflect',          // REFLECTING
+    66: 'freeAction',       // FREE_ACTION
+    67: 'fixedAbil',        // FIXED_ABIL
+    68: 'lifesaved'         // LIFESAVED
+};
+
 export class AttributeStateManager {
     constructor(options = {}) {
         this.characterInfo = { race: 'human', role: 'archeologist', level: 1 };
@@ -109,6 +148,75 @@ export class AttributeStateManager {
         this.intrinsics = this._createEmptyMap();
         this.extrinsics = this._createEmptyMap();
         this.isSynced = false;
+        this.wasmDirectBindingService = options.wasmDirectBindingService || null;
+    }
+
+    /**
+     * WasmDirectBindingService の設定
+     * @param {Object} service
+     */
+    setWasmDirectBindingService(service) {
+        this.wasmDirectBindingService = service;
+    }
+
+    /**
+     * WasmDirectBindingService からプレイヤーの真の属性・耐性（u.uprops）を直接同期
+     * @param {Object} [wasmDirectBindingService]
+     * @returns {boolean} 状態が更新されたかどうか
+     */
+    syncFromDirectBinding(wasmDirectBindingService = null) {
+        const service = wasmDirectBindingService || this.wasmDirectBindingService;
+        if (!service) return false;
+
+        const rawProps = typeof service.getPlayerProps === 'function' ? service.getPlayerProps() : null;
+        if (!rawProps || !Array.isArray(rawProps) || rawProps.length === 0) return false;
+
+        const wasSynced = this.isSynced;
+        const newIntrinsics = this._createEmptyMap();
+        const newExtrinsics = this._createEmptyMap();
+
+        for (const [propIdxStr, attrKey] of Object.entries(PROP_INDEX_TO_ATTRIBUTE_KEY)) {
+            const propIdx = parseInt(propIdxStr, 10);
+            if (propIdx >= 0 && propIdx < rawProps.length) {
+                const val = rawProps[propIdx];
+                const intrinsic = val & 0xFFFF;
+                const extrinsic = (val >> 16) & 0xFFFF;
+
+                if (intrinsic !== 0) {
+                    newIntrinsics[attrKey] = true;
+                }
+                if (extrinsic !== 0) {
+                    newExtrinsics[attrKey] = true;
+                }
+            }
+        }
+
+        // innate 耐性（種族・職業固有耐性）も intrinsic にマージ
+        for (const k of ATTRIBUTE_KEYS) {
+            if (this.innate[k]) {
+                newIntrinsics[k] = true;
+            }
+        }
+
+        let changed = !wasSynced;
+        for (const k of ATTRIBUTE_KEYS) {
+            if (Boolean(this.intrinsics[k]) !== Boolean(newIntrinsics[k]) ||
+                Boolean(this.extrinsics[k]) !== Boolean(newExtrinsics[k])) {
+                changed = true;
+                break;
+            }
+        }
+
+        this.intrinsics = newIntrinsics;
+        this.extrinsics = newExtrinsics;
+        for (const k of ATTRIBUTE_KEYS) {
+            if (this.intrinsics[k] && !this.innate[k]) {
+                this.acquiredIntrinsics[k] = true;
+            }
+        }
+
+        this.isSynced = true;
+        return changed;
     }
 
     _createEmptyMap() {

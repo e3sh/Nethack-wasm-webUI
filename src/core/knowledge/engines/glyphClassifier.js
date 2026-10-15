@@ -287,9 +287,9 @@ export function getItemInfoFromOnum(onum) {
         category = 'SPELLBOOK';
     } else if (onum === 11 || (onum >= 410 && onum <= 437)) {
         category = 'WAND';
-    } else if (onum === 12 || (onum >= 436 && onum <= 438)) {
+    } else if (onum === 12 || onum === 438) {
         category = 'COIN';
-    } else if (onum === 13 || (onum >= 439 && onum <= 469)) {
+    } else if (onum === 13 || (onum >= 439 && onum <= 480)) {
         category = 'GEM';
     }
 
@@ -355,7 +355,8 @@ export function getCategoryFromOnum(onum) {
     if (onum >= 323 && onum <= 365) return 'SCROLL';    // 巻物 (323〜365)
     if (onum >= 366 && onum <= 409) return 'SPELLBOOK';  // 魔法書 (366〜409)
     if (onum >= 410 && onum <= 437) return 'WAND';      // 杖 (410〜437)
-    if (onum >= 439 && onum <= 475) return 'GEM';       // 宝石/硝子/石 (439〜475)
+    if (onum === 438) return 'COIN';
+    if (onum >= 439 && onum <= 480) return 'GEM';       // 宝石/硝子/石 (439〜475)
     return 'TOOL';
 }
 

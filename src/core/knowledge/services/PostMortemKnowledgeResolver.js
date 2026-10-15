@@ -19,6 +19,20 @@ import { MONSTER_KNOWLEDGE_MAP } from '../data/MONSTER_KNOWLEDGE_FULL.js';
 
 export class PostMortemKnowledgeResolver {
     /**
+     * 死因文字列（英文）を日本語に翻訳した文字列を返却する
+     *
+     * @param {string} deathStr - 死因英文
+     * @returns {string} 日本語翻訳された死因文字列
+     */
+    static translateDeathReason(deathStr) {
+        if (!deathStr || typeof deathStr !== 'string' || deathStr.trim() === '') {
+            return '';
+        }
+        const report = this.resolve(deathStr);
+        return (report && (report.translatedDeathJa || report.translatedDeath)) || deathStr || '';
+    }
+
+    /**
      * 死因文字列（英文）を解析し、構造化された事後ナレッジレポートを生成する
      *
      * @param {string} deathStr - 死因英文 (例: "killed by a cockatrice", "died of starvation")
@@ -34,6 +48,7 @@ export class PostMortemKnowledgeResolver {
             return {
                 death: rawDeath,
                 translatedDeath: '世界の主として昇天した！',
+                translatedDeathJa: '世界の主として昇天した！',
                 category: 'ASCENDED',
                 isVictory: true,
                 entity: null,
@@ -49,6 +64,7 @@ export class PostMortemKnowledgeResolver {
             return {
                 death: rawDeath,
                 translatedDeath: '冒険を途中で断念した',
+                translatedDeathJa: '冒険を途中で断念した',
                 category: 'QUIT',
                 isVictory: false,
                 entity: null,
@@ -61,9 +77,11 @@ export class PostMortemKnowledgeResolver {
 
         if (lower.includes('escaped the dungeon')) {
             const hasAmulet = lower.includes('with the amulet');
+            const escapeJa = hasAmulet ? '魔除けを手にダンジョンから生還した' : 'ダンジョンから脱出・生還した';
             return {
                 death: rawDeath,
-                translatedDeath: hasAmulet ? '魔除けを手にダンジョンから生還した' : 'ダンジョンから脱出・生還した',
+                translatedDeath: escapeJa,
+                translatedDeathJa: escapeJa,
                 category: 'ESCAPED',
                 isVictory: hasAmulet,
                 entity: null,
@@ -80,6 +98,7 @@ export class PostMortemKnowledgeResolver {
             return {
                 death: rawDeath,
                 translatedDeath: '飢えにより力尽きた',
+                translatedDeathJa: '飢えにより力尽きた',
                 category: 'STARVATION',
                 isVictory: false,
                 entity: { type: 'condition', id: 'starvation', nameJa: '飢餓', nameEn: 'Starvation' },
@@ -101,6 +120,7 @@ export class PostMortemKnowledgeResolver {
             return {
                 death: rawDeath,
                 translatedDeath: `${causeNameJa}により石化した`,
+                translatedDeathJa: `${causeNameJa}により石化した`,
                 category: 'PETRIFICATION',
                 isVictory: false,
                 entity: { type: 'hazard', id: 'petrification', nameJa: causeNameJa, nameEn: 'Petrification' },
@@ -119,6 +139,7 @@ export class PostMortemKnowledgeResolver {
             return {
                 death: rawDeath,
                 translatedDeath: `${itemJa}を喉に詰まらせて窒息死した`,
+                translatedDeathJa: `${itemJa}を喉に詰まらせて窒息死した`,
                 category: 'CHOKING',
                 isVictory: false,
                 entity: { type: 'item', nameJa: itemJa, nameEn: itemRaw },
@@ -134,6 +155,7 @@ export class PostMortemKnowledgeResolver {
             return {
                 death: rawDeath,
                 translatedDeath: '水底に沈んで溺死した',
+                translatedDeathJa: '水底に沈んで溺死した',
                 category: 'DROWNING',
                 isVictory: false,
                 entity: { type: 'hazard', id: 'water', nameJa: '水流・堀', nameEn: 'Water' },
@@ -183,6 +205,7 @@ export class PostMortemKnowledgeResolver {
             return {
                 death: rawDeath,
                 translatedDeath: `${monsterNameJa}に倒された`,
+                translatedDeathJa: `${monsterNameJa}に倒された`,
                 category: 'THREAT_MONSTER',
                 isVictory: false,
                 entity: {
@@ -207,6 +230,7 @@ export class PostMortemKnowledgeResolver {
         return {
             death: rawDeath,
             translatedDeath: rawDeath,
+            translatedDeathJa: rawDeath,
             category: 'UNKNOWN',
             isVictory: false,
             entity: null,

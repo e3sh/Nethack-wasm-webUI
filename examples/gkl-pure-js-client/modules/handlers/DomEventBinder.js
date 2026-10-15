@@ -103,6 +103,15 @@ export class DomEventBinder {
         }
 
         elStatusBar.classList.toggle('is-expanded');
+        const isExpanded = elStatusBar.classList.contains('is-expanded');
+        if (isExpanded && client.core?.gkl) {
+          if (typeof client.core.gkl.syncAttributesOnDemand === 'function') {
+            client.core.gkl.syncAttributesOnDemand();
+          }
+          if (typeof client.core.gkl.syncSkillsOnDemand === 'function') {
+            client.core.gkl.syncSkillsOnDemand();
+          }
+        }
       });
     }
 

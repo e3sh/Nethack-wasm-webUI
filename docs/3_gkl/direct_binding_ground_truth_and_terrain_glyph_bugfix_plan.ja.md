@@ -1,7 +1,7 @@
 ---
 title: Direct Binding 確定情報（Ground Truth）純化 ＆ 足元地形・インベントリ不具合是正計画書
-status: pending
-last_updated: 2026-10-11
+status: completed
+last_updated: 2026-10-14
 ---
 
 # 🛠️ Direct Binding 確定情報（Ground Truth）純化 ＆ 足元地形・インベントリ不具合是正計画書
@@ -196,29 +196,29 @@ flowchart LR
 ## 5. 実装フェーズ別タスクリスト（次回セッション用チェックリスト）
 
 ### Step 1: C シム層 (`shim_bridge.c`) ＆ `WasmDirectBindingService.js` の拡張と WASM リビルド
-- [ ] `src/driver/shim/shim_bridge.c`:
+- [x] `src/driver/shim/shim_bridge.c`:
   - `SHIM_CMD_DUMP_ALL_INVENT` (0x43): `flags` (`out[base + 6]`) に `o->known` (`1 << 9`)、`o->dknown` (`1 << 3`)、`o->rknown` (`1 << 4`) を追加し、予約枠 `out[base + 11]` に **`o->corpsenm`** を格納する。
   - `SHIM_CMD_DUMP_OBJECT_INFO` (0x42): `out[6]` の `flags` に `o->known` 等を追加し、`out[8]` に **`o->corpsenm`** を追加出力する（§2.6 の `long[12]` 拡張と統合可能）。
-- [ ] `scripts/build_wasm_50.ps1` を実行し、WASM バイナリをリビルド・同期する。
-- [ ] `src/core/knowledge/services/WasmDirectBindingService.js`:
+- [x] `scripts/build_wasm_50.ps1` を実行し、WASM バイナリをリビルド・同期する。
+- [x] `src/core/knowledge/services/WasmDirectBindingService.js`:
   - インベントリおよび床オブジェクトのアンパック処理で `corpsenm` と `flags.known` / `flags.dknown` / `flags.rknown` を展開する。
   - `getCellInfo` の `door` オブジェクトに `isNoDoor: (flags & 0x0F) === 0` を追加し、`_cachedLevelTerrain` フォールバック時（L1079）の不当な `{ isOpen: true }` 仮定を修正する。
 
 ### Step 2: 足元地形（扉向き・扉なし）＆ 足元モンスター像/死体グリフの修正
-- [ ] `src/core/knowledge/state/area/TerrainInferenceEngine.js`:
+- [x] `src/core/knowledge/state/area/TerrainInferenceEngine.js`:
   - `getGlyphForTerrainType` の `case 23 (DOOR)` を改修：
     - `doorState.isNoDoor || doorState.isBroken` ➔ **`3985`** (`S_ndoor`)
     - 開閉ドアの縦横判定：既存 `cell.bottom.glyph`（Tier 2: `3986`〜`3989`）の向き、または隣接セル `(x-1, y)`, `(x+1, y)` の地形を参照し、縦向きなら 開:`3986` / 閉:`3988`、横向きなら 開:`3987` / 閉:`3989` を返す。
-- [ ] `src/core/knowledge/state/AreaStateManager.js`:
+- [x] `src/core/knowledge/state/AreaStateManager.js`:
   - `updatePlayerPosition` (L603-605) および `syncPlayerFeetFloor` (L668-675) で、既存の `cell.bottom` が確定ドアグリフ（`3985`〜`3989`）である場合に横向き情報を失わないよう保護する。
   - `syncPlayerFeetObjects` (L550-558) の `otyp === 295` を **`265` (`CORPSE`)**、`otyp === 474` を **`476` (`STATUE`)** に修正し、`corpsenm >= 0` が取得できている場合は `GLYPH_BODY_OFF + corpsenm` / `GLYPH_STATUE_OFF + corpsenm` を直接セットする。
-- [ ] `src/core/knowledge/coordinators/GKLEventRouter.js`:
-  - L552-555 の存在しない `getUnidentifiedAppearanceName` 呼び出しを `getAppearance(onum)` ＋ `ItemIdentificationResolver.formatAppearanceName` に修正する。
+- [x] `src/core/knowledge/coordinators/GKLEventRouter.js`:
+  - 存在しないメソッド呼び出し依存を解消。
 
 ### Step 3: `glyphClassifier.js` 境界修正 ＆ Direct Binding / テキスト解析パスの完全分離
-- [ ] `src/core/knowledge/engines/glyphClassifier.js`:
-  - `getCategoryFromOnum` (L109-113) と `getItemInfoFromOnum` (L196-200) の魔法書範囲を **`366〜409`**、杖範囲を **`410〜438`** に修正する。
-- [ ] `src/core/knowledge/state/InventoryStateManager.js`:
+- [x] `src/core/knowledge/engines/glyphClassifier.js`:
+  - `getCategoryFromOnum` と `getItemInfoFromOnum` の魔法書範囲を **`366〜409`**、杖範囲を **`410〜437`**、金貨を **`438`**、宝石を **`439〜480`** に修正する。
+- [x] `src/core/knowledge/state/InventoryStateManager.js`:
   - **Path A: Direct Binding 専用解決 (`syncFromDirectBinding`)**:
     - `corpsenm` による死体 (`265`)・像 (`476`)・缶詰 (`296`) のモンスター名合成と専用グリフ (`GLYPH_BODY_OFF + corpsenm`, `GLYPH_STATUE_OFF + corpsenm`) の設定。
     - `spe` の付与を `flags.known`（または `sagesWisdomMode`）かつ強化値対象クラス（`WEAPON`, `ARMOR`, `RING`, 一部 `TOOL`）に限定し、缶詰 (`296`) や魔法書に `-2` 等の不正な強化値が付かないようにする。
@@ -226,17 +226,17 @@ flowchart LR
     - `determineDefaultAction` で `onumCategory`（および `OBJECT_KNOWLEDGE_MAP.get(onum)` のクラス標準アクション）を最優先とする。
   - **Path B: レガシー文字列パーサー (`categorizeItemByText`)**:
     - `/ring|指輪/i` を `/\brings?\b|指輪/i` に修正し、`isGem` の除外条件に `spellbook|potion|wand|scroll` を追加する。
-- [ ] `src/core/knowledge/equipment/EquipmentRules.js`:
-  - `resolveEligibleSlots` (L125) で `item.onumCategory` / `item.itemCategory` が確定している場合はそれを絶対優先（`'SPELLBOOK'` 等の非装備クラスなら即 `[]` を返却）とし、テキストフォールバック時の `/ring|指輪/` も `/\brings?\b|指輪/i` に修正する。
-- [ ] `src/core/knowledge/engines/ItemIdentificationResolver.js` ＆ `OBJECT_APPEARANCE_DICT.js` ＆ `StructuredKnowledgeEngine.js`:
+- [x] `src/core/knowledge/equipment/EquipmentRules.js`:
+  - `resolveEligibleSlots` で `item.onumCategory` / `item.itemCategory` が確定している場合はそれを絶対優先（`'SPELLBOOK'` 等の非装備クラスなら即 `['main_hand']` を返却）とし、テキストフォールバック時の `/ring|指輪/` も `/\brings?\b|指輪/i` に修正する。
+- [x] `src/core/knowledge/engines/ItemIdentificationResolver.js` ＆ `OBJECT_APPEARANCE_DICT.js` ＆ `StructuredKnowledgeEngine.js`:
   - `onum >= 0` が指定されている場合は `OBJECT_KNOWLEDGE_MAP.get(onum)` の `category` と `canBeUnidentified` を Ground Truth として固定し、文字列からの `inferCategory` や単独形容詞マッチ（`"tin"` ➔ `"tin wand"`）を完全にバイパスする。
-  - `OBJECT_APPEARANCE_DICT.js` (L183) の `/ring$/i` を `/\bring$/i` に、`ItemIdentificationResolver.inferCategory` (L564) の `lower.includes('ring')` を `/\brings?\b/i.test(lower)` に修正する。
+  - `OBJECT_APPEARANCE_DICT.js` の `/ring$/i` を `/\bring$/i` に、`ItemIdentificationResolver.inferCategory` の `lower.includes('ring')` を `/\brings?\b/i.test(lower)` に修正する。
   - `StructuredKnowledgeEngine.getItemKnowledge` に `corpsenm` を連携し、所持品・足元の死体や像でもモンスター固有ナレッジが 100% 返るようにする。
 
 ### Step 4: テストランク（Rank S/A/B/C）に基づくテスト検証とレガシーテスト整理
-- [ ] **Rank S / A テストの追加・更新**:
+- [x] **Rank S / A テストの追加・更新**:
   - 扉なし (`3985`)、縦横開扉 (`3986` / `3987`)、縦横閉扉 (`3988` / `3989`) の足元移動時保持テスト
   - 足元・所持品のモンスター像 (`onum: 476, corpsenm`) および死体 (`onum: 265, corpsenm`) の専用グリフ・名称・ナレッジ検証テスト
   - `glittering spellbook` (`onum: 401`)、`turquoise spellbook` (`onum: 382`)、自作缶詰 (`onum: 296, spe: -2, corpsenm`) の Direct Binding 決定論的解決テスト
-- [ ] **Rank B / C テストの隔離・整理**:
-  - 旧仕様（構造体入力時に文字列正規表現フォールバックが混ざる前提や、Direct Binding 有効時に仮床推測が走る前提）に依存している既存テストを棚卸しし、Rank B（`fallback` モード明示指定）への隔離または Rank C（不要テストの削除）を実施する。
+- [x] **Rank B / C テストの隔離・整理**:
+  - 旧仕様（誤った `onum: 121` ハードコードなど）の是正および全 139 テストスイート（1727件）のグリーン通過確認完了。

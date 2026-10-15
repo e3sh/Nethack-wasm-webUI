@@ -152,15 +152,17 @@ export class ItemIdentificationResolver {
         const { enchantment, charges, textWithoutStats } = this.extractEnchantmentAndCharges(textWithoutNamed);
         const coreName = this.extractCoreItemName(textWithoutStats);
 
-        // 未識別外見かどうかの判定
-        const appearanceMatch = this.detectAppearance(coreName, textWithoutStats);
-        let isUnidentified = Boolean(appearanceMatch.isAppearance);
-        let category = appearanceMatch.category || this.inferCategory(coreName);
-        let appearanceName = appearanceMatch.appearanceName || null;
-
         const master = (onum >= 0 && OBJECT_KNOWLEDGE_MAP) ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
         const canBeUnidentified = master ? (master.canBeUnidentified !== false) : true;
         const isRandomCategory = master ? ['POTION', 'SCROLL', 'WAND', 'RING', 'AMULET', 'SPELLBOOK'].includes(master.category) : false;
+
+        // 未識別外見かどうかの判定 (master があり canBeUnidentified === false の場合は外見マッチをスキップ)
+        const appearanceMatch = (master && !canBeUnidentified)
+            ? { isAppearance: false, category: master.category, appearanceName: null }
+            : this.detectAppearance(coreName, textWithoutStats);
+        let isUnidentified = (master && !canBeUnidentified) ? false : Boolean(appearanceMatch.isAppearance);
+        let category = (master && master.category) ? master.category : (appearanceMatch.category || this.inferCategory(coreName));
+        let appearanceName = (master && !canBeUnidentified) ? null : (appearanceMatch.appearanceName || null);
 
         // 真名がテキストに含まれているかの包括的検査
         let isTrueNamePresent = false;
@@ -561,7 +563,7 @@ export class ItemIdentificationResolver {
         if (lower.includes('wand') || lower.includes('杖')) return 'WAND';
         if (lower.includes('mail') || lower.includes('armor') || lower.includes('helmet') || lower.includes('shield') || lower.includes('cloak') || lower.includes('boots') || lower.includes('gloves') ||
             lower.includes('鎧') || lower.includes('甲冑') || lower.includes('兜') || lower.includes('盾') || lower.includes('マント') || lower.includes('ブーツ') || lower.includes('靴') || lower.includes('手袋')) return 'ARMOR';
-        if ((lower.includes('ring') || lower.includes('指輪')) && !lower.includes('ring mail') && !lower.includes('ringmail') && !lower.includes('リングメイル')) return 'RING';
+        if ((/\brings?\b/i.test(lower) || lower.includes('指輪')) && !lower.includes('ring mail') && !lower.includes('ringmail') && !lower.includes('リングメイル')) return 'RING';
         if (lower.includes('amulet') || lower.includes('魔除け') || lower.includes('アミュレット')) return 'AMULET';
         if (lower.includes('spellbook') || lower.includes('book') || lower.includes('呪文書') || lower.includes('魔道書')) return 'SPELLBOOK';
         if (lower.includes('sword') || lower.includes('dagger') || lower.includes('axe') || lower.includes('spear') || lower.includes('bow') || lower.includes('arrow') ||

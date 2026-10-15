@@ -184,6 +184,14 @@ export class PaperdollModal {
       this.elPaperdollModal.classList.remove('hidden');
     }
     this.render();
+
+    // 🛡️ 開くときトリガー: 最新の属性・耐性をオンデマンド同期
+    const core = this.getCore();
+    if (core?.gkl && typeof core.gkl.syncAttributesOnDemand === 'function') {
+      core.gkl.syncAttributesOnDemand().then(() => {
+        if (this.isVisible) this.render();
+      });
+    }
   }
 
   hide() {

@@ -690,7 +690,11 @@ export class StructuredKnowledgeEngine {
             usageAdvice: [],
             usageAdviceEn: [],
             canBeUnidentified: true,
-            identification: idRes
+            identification: idRes,
+            defaultVerb: (catUpper === 'POTION' ? 'q' : (catUpper === 'SCROLL' || catUpper === 'SPELLBOOK' ? 'r' : (catUpper === 'WAND' ? 'z' : (catUpper === 'RING' || catUpper === 'AMULET' ? 'P' : (catUpper === 'FOOD' ? 'e' : null))))),
+            verb: (catUpper === 'POTION' ? 'q' : (catUpper === 'SCROLL' || catUpper === 'SPELLBOOK' ? 'r' : (catUpper === 'WAND' ? 'z' : (catUpper === 'RING' || catUpper === 'AMULET' ? 'P' : (catUpper === 'FOOD' ? 'e' : null))))),
+            defaultActionLabel: (catUpper === 'POTION' ? 'Quaff' : (catUpper === 'SCROLL' ? 'Read' : (catUpper === 'SPELLBOOK' ? 'Read' : (catUpper === 'WAND' ? 'Zap' : (catUpper === 'RING' || catUpper === 'AMULET' ? 'Put on' : (catUpper === 'FOOD' ? 'Eat' : 'Select')))))),
+            defaultActionLabelJa: (catUpper === 'POTION' ? '飲む' : (catUpper === 'SCROLL' ? '読む' : (catUpper === 'SPELLBOOK' ? '勉強する' : (catUpper === 'WAND' ? '振る' : (catUpper === 'RING' || catUpper === 'AMULET' ? '身につける' : (catUpper === 'FOOD' ? '食べる' : '選択'))))))
         };
 
         const finalResult = shouldTranslate ? this.localizeKnowledge(rawObj, options) : rawObj;
@@ -1198,7 +1202,9 @@ export class StructuredKnowledgeEngine {
         }
 
         if (typeof identifier === 'object' && identifier !== null) {
-            if (typeof identifier.subType === 'number' && identifier.subType >= 0) {
+            if (typeof identifier.corpsenm === 'number' && identifier.corpsenm >= 0) {
+                monOffset = identifier.corpsenm % 383;
+            } else if (typeof identifier.subType === 'number' && identifier.subType >= 0) {
                 monOffset = identifier.subType % 383;
             }
         }
@@ -1221,14 +1227,17 @@ export class StructuredKnowledgeEngine {
             }
         }
 
+        const baseNameEn = monKnowledge ? (monKnowledge.nameEn || monKnowledge.name) : (monOffset >= 0 ? `Monster ${monOffset}` : '');
+        const baseNameJa = monKnowledge ? (monKnowledge.nameJa || monKnowledge.name) : (monOffset >= 0 ? `モンスター ${monOffset}` : '');
         const isEn = (options.language || this.language) === 'en';
-        const baseName = monKnowledge ? (isEn ? (monKnowledge.nameEn || monKnowledge.name) : monKnowledge.name) : (monOffset >= 0 ? `Monster ${monOffset}` : '');
-        const corpseName = isEn ? (baseName ? `${baseName} corpse` : 'corpse') : (baseName ? `${baseName} の死体 (corpse)` : '死体 (corpse)');
+        const baseName = isEn ? baseNameEn : baseNameJa;
+        const corpseName = isEn ? (baseNameEn ? `${baseNameEn} corpse` : 'corpse') : (baseNameJa ? `${baseNameJa} の死体 (corpse)` : '死体 (corpse)');
 
         const corpseObj = {
             id: `corpse_${monOffset >= 0 ? monOffset : 'unknown'}`,
             name: corpseName,
-            nameEn: baseName ? `${baseName} corpse` : 'corpse',
+            nameEn: baseNameEn ? `${baseNameEn} corpse` : 'corpse',
+            nameJa: baseNameJa ? `${baseNameJa} の死体 (corpse)` : '死体 (corpse)',
             category: 'CORPSE',
             canBeUnidentified: false,
             ...(isPile ? { isPile: true } : {}),
@@ -1265,8 +1274,10 @@ export class StructuredKnowledgeEngine {
                       (typeof identifier.glyphInfo?.glyph === 'number' ? identifier.glyphInfo.glyph : -1));
             rawName = identifier.name || identifier.str || identifier.rawText || identifier.label || '';
 
-            // subType が 476 (アイテム番号) 以外の 0〜382 (モンスター番号) の場合のみ monOffset とする
-            if (typeof identifier.subType === 'number' && identifier.subType >= 0 && identifier.subType < 383) {
+            // corpsenm または subType (0〜382) を monOffset とする
+            if (typeof identifier.corpsenm === 'number' && identifier.corpsenm >= 0 && identifier.corpsenm < 383) {
+                monOffset = identifier.corpsenm;
+            } else if (typeof identifier.subType === 'number' && identifier.subType >= 0 && identifier.subType < 383) {
                 monOffset = identifier.subType;
             }
         } else if (typeof identifier === 'number') {
@@ -1293,14 +1304,17 @@ export class StructuredKnowledgeEngine {
             }
         }
 
+        const baseNameEn = monKnowledge ? (monKnowledge.nameEn || monKnowledge.name) : (monOffset >= 0 ? `Monster ${monOffset}` : '');
+        const baseNameJa = monKnowledge ? (monKnowledge.nameJa || monKnowledge.name) : (monOffset >= 0 ? `モンスター ${monOffset}` : '');
         const isEn = (options.language || this.language) === 'en';
-        const baseName = monKnowledge ? (isEn ? (monKnowledge.nameEn || monKnowledge.name) : monKnowledge.name) : (monOffset >= 0 ? `Monster ${monOffset}` : '');
-        const statueName = isEn ? (baseName ? `statue of ${baseName}` : 'statue') : (baseName ? `${baseName} の像 (statue)` : '石像 (statue)');
+        const baseName = isEn ? baseNameEn : baseNameJa;
+        const statueName = isEn ? (baseNameEn ? `statue of ${baseNameEn}` : 'statue') : (baseNameJa ? `${baseNameJa} の像 (statue)` : '石像 (statue)');
 
         const statueObj = {
             id: `statue_${monOffset >= 0 ? monOffset : 'unknown'}`,
             name: statueName,
-            nameEn: baseName ? `statue of ${baseName}` : 'statue',
+            nameEn: baseNameEn ? `statue of ${baseNameEn}` : 'statue',
+            nameJa: baseNameJa ? `${baseNameJa} の像 (statue)` : '石像 (statue)',
             category: 'STATUE',
             canBeUnidentified: false,
             ...(isPile ? { isPile: true } : {}),

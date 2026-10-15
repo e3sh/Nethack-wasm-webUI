@@ -295,12 +295,15 @@ export function formatAppearanceNameStatic(descr, category, lang = 'ja') {
     const clean = descr.trim();
     const lower = clean.toLowerCase();
 
-    if (lower.includes('potion') || lower.includes('薬') ||
-        lower.includes('wand') || lower.includes('杖') ||
-        lower.includes('ring') || lower.includes('指輪') ||
-        lower.includes('scroll') || lower.includes('巻物') ||
-        lower.includes('amulet') || lower.includes('魔除け') ||
-        lower.includes('spellbook') || lower.includes('魔法書')) {
+    const hasNoun = (
+        /\bpotions?\b/i.test(lower) || lower.includes('薬') ||
+        /\bwands?\b/i.test(lower) || lower.includes('杖') ||
+        /\brings?\b/i.test(lower) || lower.includes('指輪') ||
+        /\bscrolls?\b/i.test(lower) || lower.includes('巻物') ||
+        /\bamulets?\b/i.test(lower) || lower.includes('魔除け') ||
+        /\b(spellbooks?|books?)\b/i.test(lower) || lower.includes('魔法書')
+    );
+    if (hasNoun) {
         if (!isEn && APPEARANCE_NOUN_JA[lower]) {
             return APPEARANCE_NOUN_JA[lower];
         }

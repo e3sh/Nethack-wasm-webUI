@@ -22,6 +22,8 @@ export class StartupFlowController {
     this.startupStep = step;
     this.client.startupStep = step;
 
+    if (typeof document === 'undefined') return;
+
     const modalManager = this.client.modalManager;
     const card = modalManager?.elSelectorCard;
     const cardButtons = document.getElementById('start-card-buttons');
@@ -248,6 +250,9 @@ export class StartupFlowController {
     if (this.client.characterCreationModal) {
       this.client.characterCreationModal.isCompleted = true;
     }
+    if (this.client.modalManager) {
+      this.client.modalManager.clearAllModals();
+    }
     this.setStartupView('READY');
 
     const isEn = this.client.currentLanguage === 'en';
@@ -285,17 +290,32 @@ export class StartupFlowController {
     this.client.isStartingUp = false;
     this.setStartupView('PLAYING');
 
-    setTimeout(() => {
-      window.focus();
+    const executeTrigger = () => {
+      if (typeof window !== 'undefined' && typeof window.focus === 'function') {
+        window.focus();
+      }
 
-      if (this.isSaveResuming) {
-        // curses 初回画面フラッシュを促すため、Space/Enterによる突入時は Ctrl-R (Redraw) を送信してマップを描画
-        if (!triggerCodeOrKey || triggerCodeOrKey === ' ' || triggerCodeOrKey === 'Space' || triggerCodeOrKey === 'Enter') {
-          if (this.client.core) {
-            this.client.core.sendKey('r', false, true, false, 'r', true);
-          }
-          return;
+      // セーブ復帰完了時のステータス・インベントリ強制確定反映
+      if (this.client.statusView && this.client.core?.statusAccessor) {
+        const currentStatus = this.client.core.statusAccessor.getStatus();
+        if (currentStatus) {
+          this.client.statusView.updateStatus(currentStatus);
         }
+      }
+      if (typeof this.client.renderGklUi === 'function') {
+        this.client.renderGklUi();
+      }
+
+      // レンダラーの確定フラッシュ (Cコアへ余計な再描画キー Ctrl-R を送る代わり直接キック)
+      if (this.client.mainViewportRenderer && typeof this.client.mainViewportRenderer.flushCommittedArea === 'function') {
+        this.client.mainViewportRenderer.flushCommittedArea();
+      }
+
+      // 突入完了に伴いセーブ復帰ステートをリセット
+      this.isSaveResuming = false;
+      this.client.isSaveResuming = false;
+      if (this.client.core) {
+        this.client.core.isResumingSave = false;
       }
 
       if (triggerCodeOrKey && this.client.core) {
@@ -303,7 +323,16 @@ export class StartupFlowController {
           this.client.core.sendKey(triggerCodeOrKey);
         }
       }
-    }, 200);
+    };
+
+    const dbs = this.client.core?.gkl?.wasmDirectBindingService;
+    if (dbs && dbs._isSyncing && dbs._currentSyncPromise) {
+      dbs._currentSyncPromise.finally(() => {
+        setTimeout(executeTrigger, 30);
+      });
+    } else {
+      setTimeout(executeTrigger, 50);
+    }
   }
 
   /**

@@ -474,8 +474,8 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             asm.updateGlyph(20, 5, 3999);
             // 3. 祭壇 - 中立 (4008)
             asm.updateGlyph(30, 5, 4008);
-            // 4. 祭壇 - 秩序 (4007)
-            asm.updateGlyph(35, 5, 4007);
+            // 4. 祭壇 - 秩序 (4009)
+            asm.updateGlyph(35, 5, 4009);
             // 5. 流し台 (4013)
             asm.updateGlyph(40, 5, 4013);
             // 6. 噴水 (4014)
@@ -1076,6 +1076,84 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
                 // 階段が生成されていないこと (bottom は階段ではない)
                 expect(testAsm.grid[10][20].bottom?.cmapFlags?.isStairUp).toBeFalsy();
                 expect(testAsm.grid[10][20].bottom?.glyph).not.toBe(4000);
+            });
+        });
+
+        describe('Universal Confirmed Terrain Glyph Protection (Altar, Door, Stairs)', () => {
+            it('should preserve altar glyph (4009 lawful / 4007 chaotic) and merge metadata when player steps on it', () => {
+                const mockDirectService = {
+                    isAvailable: vi.fn(() => true),
+                    getCellInfo: vi.fn((x, y) => {
+                        return {
+                            x,
+                            y,
+                            typ: 32, // ALTAR
+                            flags: 0x04, // AM_LAWFUL
+                            lit: true,
+                            roomno: 1,
+                            door: null,
+                            altar: { alignment: 'lawful', alignmentJa: '秩序', isSanctum: false, isShrine: false, glyph: 4009 }
+                        };
+                    }),
+                    getRoomType: vi.fn(() => ({ roomno: 1, rtype: 10, isShop: false, name: 'Temple', nameJa: '寺院' })),
+                    getTrapAt: vi.fn(() => null),
+                    getEngravingAt: vi.fn(() => null),
+                    getFullMonsterAt: vi.fn(() => null)
+                };
+
+                const testAsm = new AreaStateManager(80, 24, null, mockDirectService);
+                testAsm.setCurrentFloor('Dlvl:5');
+
+                // 1. print_glyph で秩序の祭壇 (4009) を観測
+                testAsm.updateGlyph(25, 10, 4009);
+                expect(testAsm.grid[10][25].bottom.glyph).toBe(4009);
+                expect(testAsm.grid[10][25].bottom.cmapFlags.isAltar).toBe(true);
+
+                // 2. プレイヤーが祭壇マス (25, 10) に移動
+                testAsm.updatePlayerPosition(25, 10);
+
+                // 🎯 祭壇グリフ 4009 が中立 (4008) に上書きされず、100% 維持されること！
+                expect(testAsm.grid[10][25].bottom.glyph).toBe(4009);
+                expect(testAsm.grid[10][25].bottom.isGenuine).toBe(true);
+                expect(testAsm.grid[10][25].bottom.altar?.alignment).toBe('lawful');
+                expect(testAsm.grid[10][25].bottom.room?.nameJa).toBe('寺院');
+
+                // 3. syncPlayerFeetFloor の実行でもグリフ 4009 が保持されること
+                testAsm.syncPlayerFeetFloor();
+                expect(testAsm.grid[10][25].bottom.glyph).toBe(4009);
+            });
+
+            it('should resolve correct altar glyph from cellInfo.flags when bottom is unconfirmed', () => {
+                const mockDirectService = {
+                    isAvailable: vi.fn(() => true),
+                    getCellInfo: vi.fn((x, y) => {
+                        return {
+                            x,
+                            y,
+                            typ: 32, // ALTAR
+                            flags: 0x01, // AM_CHAOTIC (混沌)
+                            lit: true,
+                            roomno: 0,
+                            door: null,
+                            altar: { alignment: 'chaotic', alignmentJa: '混沌', isSanctum: false, isShrine: false, glyph: 4007 }
+                        };
+                    }),
+                    getRoomType: vi.fn(() => null),
+                    getTrapAt: vi.fn(() => null),
+                    getEngravingAt: vi.fn(() => null),
+                    getFullMonsterAt: vi.fn(() => null)
+                };
+
+                const testAsm = new AreaStateManager(80, 24, null, mockDirectService);
+                testAsm.setCurrentFloor('Dlvl:7');
+
+                // print_glyph 未受信マスで getGenuineFloor を取得
+                const floor = testAsm.getGenuineFloor(15, 8);
+                expect(floor).not.toBeNull();
+                expect(floor.typ).toBe(32);
+                // 🎯 cellInfo.altar のアライメントから 4007 (混沌) が解決されること
+                expect(floor.glyph).toBe(4007);
+                expect(floor.altar.alignment).toBe('chaotic');
             });
         });
     });

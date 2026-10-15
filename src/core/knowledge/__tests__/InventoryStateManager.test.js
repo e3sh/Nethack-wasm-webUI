@@ -513,7 +513,7 @@ describe('InventoryStateManager', () => {
         const manager = new InventoryStateManager();
         const menuItems = [
             { letter: 'a', text: 'a ruby potion', glyph: 3748, onum: 300 },
-            { letter: 'b', text: 'a blessed conical hat called brilliance?', glyph: 3569, onum: 121 },
+            { letter: 'b', text: 'a blessed conical hat called brilliance?', glyph: 3569, onum: 93 },
             { letter: 'c', text: 'an uncursed +1 dagger', glyph: 3482, onum: 34 }
         ];
 

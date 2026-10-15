@@ -189,6 +189,19 @@ export class SilentSyncCoordinator {
      */
     hasPendingSync() {
         const p = this.plugin;
+        const mode = p.directBindingMode || this.directBindingMode || 'auto';
+        const isDirect = Boolean(
+            mode !== 'fallback' &&
+            p.wasmDirectBindingService &&
+            p.wasmDirectBindingService.isAvailable()
+        );
+
+        if (isDirect) {
+            // Direct Binding 利用時はマクロ送信ではなく DirectBinding (オンデマンド / Sync Barrier) で同期されるため
+            // マクロ同期要求を保留させない
+            return false;
+        }
+
         return Boolean(
             (p.inventoryStateManager && !p.inventoryStateManager.isSynced) ||
             (p.attributeStateManager && !p.attributeStateManager.isSynced) ||
@@ -209,17 +222,18 @@ export class SilentSyncCoordinator {
         this._isSyncing = true;
         try {
             const mode = p.directBindingMode || this.directBindingMode || 'auto';
-            const isWorkerDirect = Boolean(
+            const isDirect = Boolean(
                 mode !== 'fallback' &&
                 p.wasmDirectBindingService &&
-                p.wasmDirectBindingService.bridge &&
-                !p.wasmDirectBindingService.hasLiveMemory &&
                 p.wasmDirectBindingService.isAvailable()
             );
 
-            // Worker Bridge 利用時は GKLEventRouter の inputRequired (Sync Barrier) で
-            // 所持品・識別状態も一括同期されるため、ここでの重複 CALL_SHIM 送出を回避する
-            if (p.inventoryStateManager && !p.inventoryStateManager.isSynced && !isWorkerDirect) {
+            // Direct Binding 利用時はマクロキー送出による Sync Barrier 破損やコマンド衝突を回避するため完全遮断
+            if (isDirect) {
+                return false;
+            }
+
+            if (p.inventoryStateManager && !p.inventoryStateManager.isSynced) {
                 await p.syncInventorySilent(options);
             }
             if (p.attributeStateManager && !p.attributeStateManager.isSynced) {
@@ -334,9 +348,10 @@ export class SilentSyncCoordinator {
             return true;
         }
 
-        // strict モード時はフォールバック（キー送信マクロ）を完全遮断！ (Stage 8.2-B)
-        if (mode === 'strict') {
-            console.warn('[GKLPlugin] syncInventorySilent: Shim binding unavailable under strict mode. Fallback macro blocked.');
+        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！ (Stage 8.2-B)
+        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
+        if (mode === 'strict' || isDirect) {
+            console.warn('[GKLPlugin] syncInventorySilent: Shim binding unavailable or fallback blocked under direct mode.');
             return false;
         }
 
@@ -379,11 +394,37 @@ export class SilentSyncCoordinator {
         }
 
         const startTime = Date.now();
+        const mode = p.directBindingMode || this.directBindingMode || 'auto';
+        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
+
+        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス
+        if (isDirect && p.spellStateManager) {
+            if (p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
+                if (!p.wasmDirectBindingService._isSyncing) {
+                    const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({ syncSpells: true });
+                    if (!syncOk) return false;
+                }
+            }
+            const changed = p.spellStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
+            const durationMs = Date.now() - startTime;
+            p._recordSilentSync('spells', changed, durationMs, 'SHIM_DIRECT');
+            if (changed || force) {
+                p.core.emit('spellsStateUpdated', p.spellStateManager);
+            }
+            return true;
+        }
+
+        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！
+        if (mode === 'strict' || isDirect) {
+            console.warn('[GKLPlugin] syncSpellsSilent: Shim binding unavailable or fallback blocked under direct mode.');
+            return false;
+        }
+
         const buffer = await p.core.querySequenceSilent(['+', ' ', '\x1b'], { syncType: 'spells', ...options });
         if (p.spellStateManager && typeof p.spellStateManager.updateFromSequenceBuffer === 'function') {
             const changed = p.spellStateManager.updateFromSequenceBuffer(buffer, true);
             const durationMs = Date.now() - startTime;
-            p._recordSilentSync('spells', changed !== false, durationMs);
+            p._recordSilentSync('spells', changed !== false, durationMs, 'MACRO');
             p.core.emit('spellsStateUpdated', p.spellStateManager);
             return true;
         }
@@ -407,8 +448,39 @@ export class SilentSyncCoordinator {
             return false;
         }
 
-        // '\x18' is Ctrl+X (^X)
         const startTime = Date.now();
+        const mode = p.directBindingMode || this.directBindingMode || 'auto';
+        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
+
+        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス
+        if (isDirect && p.attributeStateManager) {
+            if (p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
+                if (!p.wasmDirectBindingService._isSyncing) {
+                    const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({ syncPlayerProps: true });
+                    if (!syncOk) return false;
+                }
+            }
+            const changed = typeof p.attributeStateManager.syncFromDirectBinding === 'function'
+                ? p.attributeStateManager.syncFromDirectBinding(p.wasmDirectBindingService)
+                : false;
+            if (p.inventoryStateManager && typeof p.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
+                p.attributeStateManager.updateExtrinsicsFromInventory(p.inventoryStateManager.items);
+            }
+            const durationMs = Date.now() - startTime;
+            p._recordSilentSync('attributes', changed, durationMs, 'SHIM_DIRECT');
+            if (changed || force) {
+                p.core.emit('attributesStateUpdated', p.attributeStateManager);
+            }
+            return true;
+        }
+
+        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！
+        if (mode === 'strict' || isDirect) {
+            console.warn('[GKLPlugin] syncAttributesSilent: Shim binding unavailable or fallback blocked under direct mode.');
+            return false;
+        }
+
+        // '\x18' is Ctrl+X (^X)
         const buffer = await p.core.querySequenceSilent(['\x18', ' ', '\x1b'], { syncType: 'attributes', ...options });
         if (p.attributeStateManager) {
             if (typeof p.attributeStateManager.updateFromSequenceBuffer === 'function') {
@@ -418,13 +490,18 @@ export class SilentSyncCoordinator {
                 p.attributeStateManager.updateExtrinsicsFromInventory(p.inventoryStateManager.items);
             }
             const durationMs = Date.now() - startTime;
-            p._recordSilentSync('attributes', true, durationMs);
+            p._recordSilentSync('attributes', true, durationMs, 'MACRO');
             p.core.emit('attributesStateUpdated', p.attributeStateManager);
             return true;
         }
         return false;
     }
 
+    /**
+     * バックグラウンドで安全に `#enhance` シーケンスを実行し、スキル熟練度データを同期獲得
+     * @param {Object} [options={}]
+     * @returns {Promise<boolean>} 同期成功の有無
+     */
     /**
      * バックグラウンドで安全に `#enhance` シーケンスを実行し、スキル熟練度データを同期獲得
      * @param {Object} [options={}]
@@ -442,11 +519,37 @@ export class SilentSyncCoordinator {
         }
 
         const startTime = Date.now();
+        const mode = p.directBindingMode || this.directBindingMode || 'auto';
+        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
+
+        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス
+        if (isDirect && p.skillStateManager) {
+            if (p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
+                if (!p.wasmDirectBindingService._isSyncing) {
+                    const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({ syncSkills: true });
+                    if (!syncOk) return false;
+                }
+            }
+            const changed = p.skillStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
+            const durationMs = Date.now() - startTime;
+            p._recordSilentSync('skills', changed, durationMs, 'SHIM_DIRECT');
+            if (changed || force) {
+                p.core.emit('skillsStateUpdated', p.skillStateManager);
+            }
+            return true;
+        }
+
+        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！
+        if (mode === 'strict' || isDirect) {
+            console.warn('[GKLPlugin] syncSkillsSilent: Shim binding unavailable or fallback blocked under direct mode.');
+            return false;
+        }
+
         const buffer = await p.core.querySequenceSilent(['#', 'enhance', ' ', '\x1b'], { syncType: 'skills', ...options });
         if (p.skillStateManager && typeof p.skillStateManager.updateFromSequenceBuffer === 'function') {
             const changed = p.skillStateManager.updateFromSequenceBuffer(buffer, true);
             const durationMs = Date.now() - startTime;
-            p._recordSilentSync('skills', changed !== false, durationMs);
+            p._recordSilentSync('skills', changed !== false, durationMs, 'MACRO');
             p.core.emit('skillsStateUpdated', p.skillStateManager);
             return true;
         }
@@ -459,6 +562,48 @@ export class SilentSyncCoordinator {
      */
     async syncAllSilent(options = {}) {
         const p = this.plugin;
+        const mode = p.directBindingMode || this.directBindingMode || 'auto';
+        const isWorkerDirect = Boolean(
+            mode !== 'fallback' &&
+            p.wasmDirectBindingService &&
+            p.wasmDirectBindingService.bridge &&
+            !p.wasmDirectBindingService.hasLiveMemory &&
+            p.wasmDirectBindingService.isAvailable()
+        );
+
+        if (isWorkerDirect) {
+            if (!p.wasmDirectBindingService._isSyncing) {
+                await p.wasmDirectBindingService.syncFromWorkerBridge({
+                    syncInventory: true,
+                    syncPlayerProps: true,
+                    syncDiscoveries: true,
+                    syncSkills: true,
+                    syncSpells: true
+                });
+            }
+            if (p.inventoryStateManager && p.inventoryStateManager.isDirectBindingAvailable) {
+                p.inventoryStateManager.syncFromDirectBinding();
+                p.core.emit('inventoryStateUpdated', p.inventoryStateManager);
+            }
+            if (p.attributeStateManager && typeof p.attributeStateManager.syncFromDirectBinding === 'function') {
+                p.attributeStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
+                p.core.emit('attributesStateUpdated', p.attributeStateManager);
+            }
+            if (p.discoveryStateManager && typeof p.discoveryStateManager.syncWithLiveMemory === 'function') {
+                p.discoveryStateManager.syncWithLiveMemory(p.wasmDirectBindingService);
+                p.core.emit('discoveriesStateUpdated', p.discoveryStateManager);
+            }
+            if (p.skillStateManager && typeof p.skillStateManager.syncFromDirectBinding === 'function') {
+                p.skillStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
+                p.core.emit('skillsStateUpdated', p.skillStateManager);
+            }
+            if (p.spellStateManager && typeof p.spellStateManager.syncFromDirectBinding === 'function') {
+                p.spellStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
+                p.core.emit('spellsStateUpdated', p.spellStateManager);
+            }
+            return;
+        }
+
         await p.syncInventorySilent(options);
 
         if (p.attributeStateManager && !p.attributeStateManager.isSynced) {
@@ -484,6 +629,37 @@ export class SilentSyncCoordinator {
         this._isSyncingDiscoveries = true;
 
         const startTime = Date.now();
+        const mode = p.directBindingMode || this.directBindingMode || 'auto';
+        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
+
+        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス
+        if (isDirect && p.discoveryStateManager) {
+            try {
+                if (p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
+                    if (!p.wasmDirectBindingService._isSyncing) {
+                        const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({ syncDiscoveries: true });
+                        if (!syncOk) return false;
+                    }
+                }
+                const changed = p.discoveryStateManager.syncWithLiveMemory(p.wasmDirectBindingService);
+                const durationMs = Date.now() - startTime;
+                p._recordSilentSync('discoveries', changed, durationMs, 'SHIM_DIRECT');
+                if (changed) {
+                    p.core.emit('discoveriesStateUpdated', p.discoveryStateManager);
+                }
+                return true;
+            } finally {
+                this._isSyncingDiscoveries = false;
+            }
+        }
+
+        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！
+        if (mode === 'strict' || isDirect) {
+            this._isSyncingDiscoveries = false;
+            console.warn('[GKLPlugin] syncDiscoveriesSilent: Shim binding unavailable or fallback blocked under direct mode.');
+            return false;
+        }
+
         try {
             let buffer = null;
             if (typeof p.core.querySequenceSilent === 'function') {
@@ -506,7 +682,7 @@ export class SilentSyncCoordinator {
 
             if (buffer && p.discoveryStateManager) {
                 p.discoveryStateManager.updateFromDiscoveriesText(buffer);
-                p._recordSilentSync('discoveries', true, Date.now() - startTime);
+                p._recordSilentSync('discoveries', true, Date.now() - startTime, 'MACRO');
                 p.core.emit('discoveriesStateUpdated', p.discoveryStateManager);
                 return true;
             }

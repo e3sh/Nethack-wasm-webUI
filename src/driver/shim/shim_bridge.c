@@ -219,9 +219,13 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
                 ((o->dknown ? 1 : 0) << 3) |
                 ((o->rknown ? 1 : 0) << 4) |
                 ((o->oeroded & 3) << 5) |
-                ((o->oeroded2 & 3) << 7)
+                ((o->oeroded2 & 3) << 7) |
+                ((o->known ? 1 : 0) << 9)
             );
-            out[7] = (long) weight(o); /* 鞄の軽減・4倍補正込み真の重量 */
+            out[7] = (long) ((o->quan >= 1) ? weight(o) : o->owt); /* 鞄の軽減・4倍補正込み真の重量 (quan < 1 時の impossible 回避) */
+            if (len >= (sizeof(long) * 9)) {
+                out[8] = (long) o->corpsenm;
+            }
             return 0;
         }
         case SHIM_CMD_DUMP_ALL_INVENT: {
@@ -245,13 +249,14 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
                     ((o->dknown ? 1 : 0) << 3) |
                     ((o->rknown ? 1 : 0) << 4) |
                     ((o->oeroded & 3) << 5) |
-                    ((o->oeroded2 & 3) << 7)
+                    ((o->oeroded2 & 3) << 7) |
+                    ((o->known ? 1 : 0) << 9)
                 );
-                out[base + 7] = (long) weight(o); /* 鞄の軽減・4倍補正込み真の重量 */
+                out[base + 7] = (long) ((o->quan >= 1) ? weight(o) : o->owt); /* 鞄の軽減・4倍補正込み真の重量 (quan < 1 時の impossible 回避) */
                 out[base + 8] = (long) o;         /* 構造体ポインタ (装備スロット照合用) */
                 out[base + 9] = (long) o->o_id;   /* NetHack 固有ID */
                 out[base + 10] = (long) o->cobj;  /* コンテナ内包ポインタ */
-                out[base + 11] = 0;               /* 予約 */
+                out[base + 11] = (long) o->corpsenm;
                 count++;
                 o = o->nobj;
             }
@@ -261,13 +266,16 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
         /* 5. 呪文・スキル */
         case SHIM_CMD_DUMP_SPELL_BOOK: {
             if (!buf || len < (sizeof(int) * (MAXSPELL + 1) * 3)) return -1;
+            memset(buf, 0, len);
             int *out = (int*) buf;
-            for (int i = 0; i <= MAXSPELL; i++) {
-                out[i * 3 + 0] = (int) svs.spl_book[i].sp_id;
-                out[i * 3 + 1] = (int) svs.spl_book[i].sp_lev;
-                out[i * 3 + 2] = (int) svs.spl_book[i].sp_know;
+            int count = 0;
+            for (int i = 0; i < MAXSPELL && svs.spl_book[i].sp_id != NO_SPELL; i++) {
+                out[count * 3 + 0] = (int) svs.spl_book[i].sp_id;
+                out[count * 3 + 1] = (int) svs.spl_book[i].sp_lev;
+                out[count * 3 + 2] = (int) svs.spl_book[i].sp_know;
+                count++;
             }
-            return 0;
+            return (long) count;
         }
         case SHIM_CMD_DUMP_SKILLS: {
             if (!buf || len < (sizeof(int) * P_NUM_SKILLS * 2)) return -1;

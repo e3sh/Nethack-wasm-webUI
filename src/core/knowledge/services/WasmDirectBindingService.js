@@ -13,6 +13,7 @@
 
 // NetHackMemory.js は UMD / Worker (importScripts) との互換性維持のため副作用インポート
 import '../../../driver/NetHackMemory.js';
+import { SKILL_RANKS } from '../state/SkillStateManager.js';
 
 const getGlobalMemoryClass = () => {
     if (typeof globalThis !== 'undefined' && globalThis.NetHackMemory) return globalThis.NetHackMemory;
@@ -100,6 +101,61 @@ export const DOOR_STATE = {
     D_LOCKED: 0x08,
     D_TRAPPED: 0x10
 };
+
+export const ALTAR_MASK = {
+    AM_NONE: 0x00,
+    AM_CHAOTIC: 0x01,
+    AM_NEUTRAL: 0x02,
+    AM_LAWFUL: 0x04,
+    AM_MASK: 0x07,
+    AM_SHRINE: 0x08,
+    AM_SANCTUM: 0x10
+};
+
+/**
+ * struct rm の flags (altarmask) から祭壇の属性・グリフを解析
+ * @param {number} flags 
+ * @returns {Object}
+ */
+export function parseAltarFlags(flags) {
+    const isSanctum = Boolean(flags & ALTAR_MASK.AM_SANCTUM);
+    const isShrine = Boolean(flags & ALTAR_MASK.AM_SHRINE);
+    const alignBits = flags & ALTAR_MASK.AM_MASK;
+
+    let alignment = 'neutral';
+    let alignmentJa = '中立';
+    let glyph = 4008;
+
+    if (isSanctum) {
+        alignment = 'other';
+        alignmentJa = '聖域';
+        glyph = 4010;
+    } else if (alignBits === ALTAR_MASK.AM_LAWFUL) {
+        alignment = 'lawful';
+        alignmentJa = '秩序';
+        glyph = 4009;
+    } else if (alignBits === ALTAR_MASK.AM_CHAOTIC) {
+        alignment = 'chaotic';
+        alignmentJa = '混沌';
+        glyph = 4007;
+    } else if (alignBits === ALTAR_MASK.AM_NEUTRAL) {
+        alignment = 'neutral';
+        alignmentJa = '中立';
+        glyph = 4008;
+    } else if (alignBits === ALTAR_MASK.AM_NONE) {
+        alignment = 'unaligned';
+        alignmentJa = '無属性';
+        glyph = 4006;
+    }
+
+    return {
+        alignment,
+        alignmentJa,
+        isSanctum,
+        isShrine,
+        glyph
+    };
+}
 
 export const ROOM_TYPE = {
     OROOM: 0,
@@ -252,6 +308,121 @@ export const EQUIPMENT_FIELD_KEYS = [
     'uarms', 'uarmg', 'uarmf', 'uarmu', 'uamul', 'uleft', 'uright', 'ublindf'
 ];
 
+export const SKILL_DEFINITIONS = [
+    null, // 0: P_NONE
+    { id: 1, name: 'dagger', nameJa: '短剣' },
+    { id: 2, name: 'knife', nameJa: 'ナイフ' },
+    { id: 3, name: 'axe', nameJa: '斧' },
+    { id: 4, name: 'pick-axe', nameJa: 'つるはし' },
+    { id: 5, name: 'short sword', nameJa: 'ショートソード' },
+    { id: 6, name: 'broadsword', nameJa: 'ブロードソード' },
+    { id: 7, name: 'long sword', nameJa: 'ロングソード' },
+    { id: 8, name: 'two-handed sword', nameJa: '両手剣' },
+    { id: 9, name: 'scimitar', nameJa: '三日月刀' },
+    { id: 10, name: 'club', nameJa: 'こん棒' },
+    { id: 11, name: 'mace', nameJa: 'メイス' },
+    { id: 12, name: 'morning star', nameJa: 'モーニングスター' },
+    { id: 13, name: 'flail', nameJa: 'フレイル' },
+    { id: 14, name: 'hammer', nameJa: 'ハンマー' },
+    { id: 15, name: 'quarterstaff', nameJa: '六尺棒' },
+    { id: 16, name: 'polearms', nameJa: '長柄武器' },
+    { id: 17, name: 'spear', nameJa: '槍' },
+    { id: 18, name: 'trident', nameJa: '三叉槍' },
+    { id: 19, name: 'lance', nameJa: 'ランス' },
+    { id: 20, name: 'bow', nameJa: '弓' },
+    { id: 21, name: 'sling', nameJa: 'スリング' },
+    { id: 22, name: 'crossbow', nameJa: 'クロスボウ' },
+    { id: 23, name: 'dart', nameJa: 'ダーツ' },
+    { id: 24, name: 'shuriken', nameJa: '手裏剣' },
+    { id: 25, name: 'boomerang', nameJa: 'ブーメラン' },
+    { id: 26, name: 'whip', nameJa: '鞭' },
+    { id: 27, name: 'unicorn horn', nameJa: 'ユニコーンの角' },
+    { id: 28, name: 'attack spell', nameJa: '攻撃魔法' },
+    { id: 29, name: 'healing spell', nameJa: '回復魔法' },
+    { id: 30, name: 'divination spell', nameJa: '予見魔法' },
+    { id: 31, name: 'enchantment spell', nameJa: '付与魔法' },
+    { id: 32, name: 'cleric spell', nameJa: '僧侶魔法' },
+    { id: 33, name: 'escape spell', nameJa: '脱出魔法' },
+    { id: 34, name: 'matter spell', nameJa: '物質魔法' },
+    { id: 35, name: 'bare-handed combat', nameJa: '素手格闘' },
+    { id: 36, name: 'two-weapon combat', nameJa: '二刀流' },
+    { id: 37, name: 'riding', nameJa: '乗馬' }
+];
+
+export const SKILL_LEVEL_RANKS = [
+    SKILL_RANKS.RESTRICTED,   // 0: P_ISRESTRICTED
+    SKILL_RANKS.UNSKILLED,    // 1: P_UNSKILLED
+    SKILL_RANKS.BASIC,        // 2: P_BASIC
+    SKILL_RANKS.SKILLED,      // 3: P_SKILLED
+    SKILL_RANKS.EXPERT,       // 4: P_EXPERT
+    SKILL_RANKS.MASTER,       // 5: P_MASTER
+    SKILL_RANKS.GRAND_MASTER  // 6: P_GRAND_MASTER
+];
+
+export function parseSkillsBuffer(raw, weaponSlots = 0) {
+    if (!raw || raw.length < 38 * 2) return [];
+    const skills = [];
+    for (let i = 1; i < 38; i++) {
+        const def = SKILL_DEFINITIONS[i];
+        if (!def) continue;
+        const skillLev = raw[i * 2 + 0];
+        const maxSkillLev = raw[i * 2 + 1];
+
+        const rank = SKILL_LEVEL_RANKS[skillLev] || SKILL_RANKS.RESTRICTED;
+        const maxRank = SKILL_LEVEL_RANKS[maxSkillLev] || SKILL_RANKS.RESTRICTED;
+        const isRestricted = (skillLev === 0 && maxSkillLev === 0);
+        // Direct Binding では練習経験値 (P_ADVANCE) が未取得のため、未練習スキルを誤って向上可能とみなさないよう安全に false とする
+        const canEnhance = false;
+
+        skills.push({
+            id: i,
+            name: def.name,
+            nameJa: def.nameJa,
+            nameRaw: def.name,
+            skillLevel: skillLev,
+            maxSkillLevel: maxSkillLev,
+            rank,
+            maxRank,
+            isRestricted,
+            canEnhance,
+            weaponSlots
+        });
+    }
+    return skills;
+}
+
+export function parseSpellBookBuffer(raw, countLimit = null) {
+    if (!raw || (!Array.isArray(raw) && !(raw instanceof Int32Array))) return [];
+    const spells = [];
+    // NetHack 5.0 の MAXSPELL は最大 52 エントリ。それ以上のインデックスはバッファの未初期化領域または範囲外
+    const MAX_SPELL_ENTRIES = 52;
+    // countLimit が正の数の場合のみ件数上限として扱い、0 や null（Cコアの戻り値 0: 成功）の場合は MAX_SPELL_ENTRIES まで走査
+    const maxEntries = (typeof countLimit === 'number' && countLimit > 0)
+        ? Math.min(countLimit, MAX_SPELL_ENTRIES)
+        : MAX_SPELL_ENTRIES;
+
+    for (let i = 0; i < maxEntries; i++) {
+        const base = i * 3;
+        const sp_id = raw[base + 0];
+        const sp_lev = raw[base + 1];
+        const sp_know = raw[base + 2];
+        // NetHack 仕様: spl_book[] は先頭から連続して格納され、最初の NO_SPELL (0) で配列が終端する
+        if (!sp_id || sp_id <= 0) break;
+
+        const letter = (i < 26) ? String.fromCharCode(97 + i) : String.fromCharCode(65 + i - 26);
+        spells.push({
+            index: i,
+            letter,
+            id: sp_id,
+            onum: sp_id,
+            level: sp_lev,
+            retention: sp_know,
+            isForgotten: sp_know <= 0
+        });
+    }
+    return spells;
+}
+
 export class WasmDirectBindingService {
     /**
      * @param {Object} [options={}]
@@ -293,10 +464,15 @@ export class WasmDirectBindingService {
         this._cachedMonsters = new Map();
         this._cachedDiscoveries = null;
         this._cachedDescrIndexes = null;
+        this._cachedPlayerProps = null;
+        this._cachedSkills = null;
+        this._cachedWeaponSlots = 0;
+        this._cachedSpells = null;
 
         // Sync Barrier / 世代管理 (Stage 8.3-B / §2.5)
         this._syncGeneration = 0;
         this._isSyncing = false;
+        this._currentSyncPromise = null;
         this._lastCompletedSyncGeneration = -1;
     }
 
@@ -308,6 +484,7 @@ export class WasmDirectBindingService {
     notifyActionSent() {
         this._syncGeneration += 1;
         this._isSyncing = false;
+        this._currentSyncPromise = null;
         this._hasFloorObjectsCache = false;
         return this._syncGeneration;
     }
@@ -439,7 +616,7 @@ export class WasmDirectBindingService {
      * @param {number} [o_id=0] 
      * @returns {Object|null}
      */
-    unpackObjectBuffer(rawValues, ptr = 0, cobjPtr = 0, o_id = 0) {
+    unpackObjectBuffer(rawValues, ptr = 0, cobjPtr = 0, o_id = 0, corpsenm = -1) {
         if (!rawValues || rawValues.length < 8) return null;
         const otyp = rawValues[0];
         const owt = rawValues[1];
@@ -450,6 +627,9 @@ export class WasmDirectBindingService {
         const invlet = (invletCode > 0 && invletCode < 128) ? String.fromCharCode(invletCode) : '';
         const flagsRaw = rawValues[6];
         const weight = rawValues[7];
+        const resolvedCorpsenm = (typeof corpsenm === 'number' && corpsenm >= 0)
+            ? corpsenm
+            : (rawValues.length >= 9 && rawValues[8] >= 0 && rawValues[8] < 400 ? rawValues[8] : -1);
 
         const flags = {
             blessed: Boolean(flagsRaw & 0x01),
@@ -459,6 +639,7 @@ export class WasmDirectBindingService {
             rknown: Boolean(flagsRaw & 0x10),
             oeroded: (flagsRaw >> 5) & 0x03,
             oeroded2: (flagsRaw >> 7) & 0x03,
+            known: Boolean(flagsRaw & 0x200),
         };
 
         return {
@@ -474,7 +655,8 @@ export class WasmDirectBindingService {
             flags,
             weight,
             cobjPtr,
-            o_id
+            o_id,
+            corpsenm: resolvedCorpsenm
         };
     }
 
@@ -502,7 +684,8 @@ export class WasmDirectBindingService {
                             const ptr = raw[base + 8] || 0;
                             const o_id = raw[base + 9] || 0;
                             const cobjPtr = raw[base + 10] || 0;
-                            const item = this.unpackObjectBuffer(raw8, ptr, cobjPtr, o_id);
+                            const corpsenm = raw[base + 11] ?? -1;
+                            const item = this.unpackObjectBuffer(raw8, ptr, cobjPtr, o_id, corpsenm);
                             if (item) items.push(item);
                         }
                         this._cachedInventory = items;
@@ -520,7 +703,7 @@ export class WasmDirectBindingService {
             const items = [];
             const visited = new Set();
             const MAX_ITEMS = 100; // 安全上限（52文字+予備）
-            const singleBufSize = 32;
+            const singleBufSize = 36;
             const singleBufPtr = this.memory.allocateBuffer(singleBufSize);
             if (!singleBufPtr) return [];
 
@@ -531,7 +714,7 @@ export class WasmDirectBindingService {
 
                     const res = this.memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, singleBufPtr, singleBufSize);
                     if (res === 0) {
-                        const rawValues = this.memory.readInt32Array(singleBufPtr, 8);
+                        const rawValues = this.memory.readInt32Array(singleBufPtr, 9);
                         const cobjPtr = this.memory.getValue(currPtr + 8, 'i32');
                         const o_id = this.memory.getValue(currPtr + 12, 'i32');
                         const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id);
@@ -778,228 +961,465 @@ export class WasmDirectBindingService {
         if (this._mode === 'fallback') return false;
         if (!this.bridge || typeof this.bridge.callShim !== 'function') return false;
 
+        // 同一世代で同期処理が進行中の場合、重複呼び出しによる相互キャンセルを防止して既存Promiseを再利用
+        if (this._isSyncing && this._currentSyncPromise) {
+            return await this._currentSyncPromise;
+        }
+
         const syncGen = ++this._syncGeneration;
         this._isSyncing = true;
-        const isStale = () => syncGen !== this._syncGeneration;
+        const isStale = () => {
+            if (options.protected) return false;
+            return syncGen !== this._syncGeneration;
+        };
 
         const x = options.playerX ?? this._cachedCellX;
         const y = options.playerY ?? this._cachedCellY;
 
-        try {
-            if (x >= 0 && y >= 0) {
-                // 1. 足元セル情報
-                const cellRes = await this.bridge.callShim(SHIM_CMD.GET_CELL_INFO, x, y);
-                if (isStale()) return false;
+        const runSync = async () => {
+            try {
+                if (x >= 0 && y >= 0) {
+                    // 1. 足元セル情報
+                    const cellRes = await this.bridge.callShim(SHIM_CMD.GET_CELL_INFO, x, y);
+                    if (isStale()) return false;
 
-                if (cellRes && typeof cellRes.result === 'number' && cellRes.result >= 0) {
-                    const res = cellRes.result;
-                    const typ = res & 0xFF;
-                    const flags = (res >> 8) & 0xFF;
-                    const lit = Boolean((res >> 16) & 0x01);
-                    const roomno = (res >> 17) & 0x7F;
+                    if (cellRes && typeof cellRes.result === 'number' && cellRes.result >= 0) {
+                        const res = cellRes.result;
+                        const typ = res & 0xFF;
+                        const flags = (res >> 8) & 0xFF;
+                        const lit = Boolean((res >> 16) & 0x01);
+                        const roomno = (res >> 17) & 0x7F;
 
-                    const isDoor = (typ === LEVL_TYP.DOOR || typ === LEVL_TYP.SDOOR);
-                    const door = isDoor ? {
-                        isClosed: Boolean(flags & DOOR_STATE.D_CLOSED),
-                        isLocked: Boolean(flags & DOOR_STATE.D_LOCKED),
-                        isOpen: Boolean(flags & DOOR_STATE.D_ISOPEN),
-                        isBroken: Boolean(flags & DOOR_STATE.D_BROKEN),
-                        isTrapped: Boolean(flags & DOOR_STATE.D_TRAPPED),
-                        isSecret: (typ === LEVL_TYP.SDOOR)
-                    } : null;
+                        const isDoor = (typ === LEVL_TYP.DOOR || typ === LEVL_TYP.SDOOR);
+                        const door = isDoor ? {
+                            isClosed: Boolean(flags & DOOR_STATE.D_CLOSED),
+                            isLocked: Boolean(flags & DOOR_STATE.D_LOCKED),
+                            isOpen: Boolean(flags & DOOR_STATE.D_ISOPEN),
+                            isBroken: Boolean(flags & DOOR_STATE.D_BROKEN),
+                            isTrapped: Boolean(flags & DOOR_STATE.D_TRAPPED),
+                            isSecret: (typ === LEVL_TYP.SDOOR),
+                            isNoDoor: (flags & 0x0F) === 0
+                        } : null;
 
-                    let nextRoom = null;
-                    // 2. 部屋種別
-                    if (roomno > 0) {
-                        const roomRes = await this.bridge.callShim(SHIM_CMD.GET_ROOM_TYPE, roomno);
+                        let nextRoom = null;
+                        // 2. 部屋種別
+                        if (roomno > 0) {
+                            const roomRes = await this.bridge.callShim(SHIM_CMD.GET_ROOM_TYPE, roomno);
+                            if (isStale()) return false;
+                            if (roomRes && typeof roomRes.result === 'number') {
+                                const rtype = roomRes.result;
+                                const info = ROOM_NAMES[rtype] || { name: 'Room', nameJa: '部屋' };
+                                nextRoom = {
+                                    roomno,
+                                    rtype,
+                                    isShop: (rtype >= ROOM_TYPE.SHOPBASE),
+                                    name: info.name,
+                                    nameJa: info.nameJa
+                                };
+                            }
+                        }
+
+                        // 3. 罠
+                        let nextTrap = null;
+                        const trapRes = await this.bridge.callShim(SHIM_CMD.GET_TRAP_AT, x, y);
                         if (isStale()) return false;
-                        if (roomRes && typeof roomRes.result === 'number') {
-                            const rtype = roomRes.result;
-                            const info = ROOM_NAMES[rtype] || { name: 'Room', nameJa: '部屋' };
-                            nextRoom = {
-                                roomno,
-                                rtype,
-                                isShop: (rtype >= ROOM_TYPE.SHOPBASE),
+                        if (trapRes && typeof trapRes.result === 'number' && trapRes.result > 0) {
+                            const tRes = trapRes.result;
+                            const ttyp = tRes & 0xFF;
+                            const tseen = Boolean((tRes >> 8) & 0x01);
+                            const once = Boolean((tRes >> 9) & 0x01);
+                            const info = TRAP_NAMES[ttyp] || { name: 'trap', nameJa: '罠' };
+                            nextTrap = {
+                                x,
+                                y,
+                                ttyp,
+                                tseen,
+                                once,
                                 name: info.name,
                                 nameJa: info.nameJa
                             };
                         }
-                    }
 
-                    // 3. 罠
-                    let nextTrap = null;
-                    const trapRes = await this.bridge.callShim(SHIM_CMD.GET_TRAP_AT, x, y);
-                    if (isStale()) return false;
-                    if (trapRes && typeof trapRes.result === 'number' && trapRes.result > 0) {
-                        const tRes = trapRes.result;
-                        const ttyp = tRes & 0xFF;
-                        const tseen = Boolean((tRes >> 8) & 0x01);
-                        const once = Boolean((tRes >> 9) & 0x01);
-                        const info = TRAP_NAMES[ttyp] || { name: 'trap', nameJa: '罠' };
-                        nextTrap = {
-                            x,
-                            y,
-                            ttyp,
-                            tseen,
-                            once,
-                            name: info.name,
-                            nameJa: info.nameJa
-                        };
-                    }
-
-                    // 4. 刻み文字
-                    let nextEngraving = null;
-                    const engrRes = await this.bridge.callShim(SHIM_CMD.GET_ENGRAVING_AT, x, y, 256, 'string');
-                    if (isStale()) return false;
-                    if (engrRes && typeof engrRes.result === 'number' && engrRes.result > 0) {
-                        const engrType = engrRes.result;
-                        const text = engrRes.buffer || '';
-                        const info = ENGRAVING_NAMES[engrType] || { name: 'engraving', nameJa: '刻み文字' };
-                        nextEngraving = {
-                            x,
-                            y,
-                            text,
-                            engrType,
-                            typeName: info.name,
-                            typeNameJa: info.nameJa,
-                            isElbereth: text.includes('Elbereth')
-                        };
-                    }
-
-                    this._cachedCellX = x;
-                    this._cachedCellY = y;
-                    this._cachedCellInfo = { x, y, typ, flags, lit, roomno, door };
-                    this._cachedRoom = nextRoom;
-                    this._cachedTrap = nextTrap;
-                    this._cachedEngraving = nextEngraving;
-                }
-            }
-
-            // 5. 装備スロットポインタおよび所持品一括ダンプ同期 (Stage 8.2 / DUMP_ALL_INVENT)
-            if (options.syncInventory || options.syncInventory !== false) {
-                const eqRes = await this.bridge.callShim(SHIM_CMD.GET_EQUIPMENT_PTRS, 0, 0, 56, 'int32');
-                if (isStale()) return false;
-                if (eqRes && Array.isArray(eqRes.buffer)) {
-                    const ptrArray = eqRes.buffer;
-                    const rawPtrs = {};
-                    const slotByPtr = new Map();
-                    const ptrBySlot = new Map();
-
-                    for (let i = 0; i < 14; i++) {
-                        const ptr = ptrArray[i] || 0;
-                        const fieldKey = EQUIPMENT_FIELD_KEYS[i];
-                        const slotName = EQUIPMENT_SLOT_NAMES[i];
-                        rawPtrs[fieldKey] = ptr;
-                        if (ptr > 0) {
-                            slotByPtr.set(ptr, slotName);
-                            ptrBySlot.set(slotName, ptr);
+                        // 4. 刻み文字
+                        let nextEngraving = null;
+                        const engrRes = await this.bridge.callShim(SHIM_CMD.GET_ENGRAVING_AT, x, y, 256, 'string');
+                        if (isStale()) return false;
+                        if (engrRes && typeof engrRes.result === 'number' && engrRes.result > 0) {
+                            const engrType = engrRes.result;
+                            const text = engrRes.buffer || '';
+                            const info = ENGRAVING_NAMES[engrType] || { name: 'engraving', nameJa: '刻み文字' };
+                            nextEngraving = {
+                                x,
+                                y,
+                                text,
+                                engrType,
+                                typeName: info.name,
+                                typeNameJa: info.nameJa,
+                                isElbereth: text.includes('Elbereth')
+                            };
                         }
-                    }
 
-                    this._cachedEquipmentPtrs = {
-                        rawPtrs,
-                        slotByPtr,
-                        ptrBySlot
-                    };
+                        this._cachedCellX = x;
+                        this._cachedCellY = y;
+                        this._cachedCellInfo = { x, y, typ, flags, lit, roomno, door };
+                        this._cachedRoom = nextRoom;
+                        this._cachedTrap = nextTrap;
+                        this._cachedEngraving = nextEngraving;
+                    }
                 }
 
-                // 5-b. 全所持品の一括同期 (SHIM_CMD_DUMP_ALL_INVENT: 最大100個 = 4800 bytes)
-                const invRes = await this.bridge.callShim(SHIM_CMD.DUMP_ALL_INVENT, 0, 0, 4800, 'int32');
-                if (isStale()) return false;
-                if (invRes && Array.isArray(invRes.buffer)) {
-                    const count = typeof invRes.result === 'number' ? Math.max(0, invRes.result) : 0;
-                    const raw = invRes.buffer;
-                    const items = [];
-                    const ITEM_FIELDS = 12;
+                // 5. 装備スロットポインタおよび所持品一括ダンプ同期 (Stage 8.2 / DUMP_ALL_INVENT)
+                if (options.syncInventory || options.syncInventory !== false) {
+                    const eqRes = await this.bridge.callShim(SHIM_CMD.GET_EQUIPMENT_PTRS, 0, 0, 56, 'int32');
+                    if (isStale()) return false;
+                    if (eqRes && Array.isArray(eqRes.buffer)) {
+                        const ptrArray = eqRes.buffer;
+                        const rawPtrs = {};
+                        const slotByPtr = new Map();
+                        const ptrBySlot = new Map();
 
-                    for (let i = 0; i < count; i++) {
-                        const base = i * ITEM_FIELDS;
-                        if (base + ITEM_FIELDS <= raw.length) {
-                            const raw8 = raw.slice(base, base + 8);
-                            const ptr = raw[base + 8] || 0;
-                            const o_id = raw[base + 9] || 0;
-                            const cobjPtr = raw[base + 10] || 0;
-                            const item = this.unpackObjectBuffer(raw8, ptr, cobjPtr, o_id);
-                            if (item) {
-                                items.push(item);
+                        for (let i = 0; i < 14; i++) {
+                            const ptr = ptrArray[i] || 0;
+                            const fieldKey = EQUIPMENT_FIELD_KEYS[i];
+                            const slotName = EQUIPMENT_SLOT_NAMES[i];
+                            rawPtrs[fieldKey] = ptr;
+                            if (ptr > 0) {
+                                slotByPtr.set(ptr, slotName);
+                                ptrBySlot.set(slotName, ptr);
                             }
                         }
+
+                        this._cachedEquipmentPtrs = {
+                            rawPtrs,
+                            slotByPtr,
+                            ptrBySlot
+                        };
                     }
-                    this._cachedInventory = items;
-                    this._cachedInventoryWeight = items.reduce((sum, it) => sum + (it.weight || 0), 0);
+
+                    // 5-b. 全所持品の一括同期 (SHIM_CMD_DUMP_ALL_INVENT: 最大100個 = 4800 bytes)
+                    const invRes = await this.bridge.callShim(SHIM_CMD.DUMP_ALL_INVENT, 0, 0, 4800, 'int32');
+                    if (isStale()) return false;
+                    if (invRes && Array.isArray(invRes.buffer)) {
+                        const count = typeof invRes.result === 'number' ? Math.max(0, invRes.result) : 0;
+                        const raw = invRes.buffer;
+                        const items = [];
+                        const ITEM_FIELDS = 12;
+
+                        for (let i = 0; i < count; i++) {
+                            const base = i * ITEM_FIELDS;
+                            if (base + ITEM_FIELDS <= raw.length) {
+                                const raw8 = raw.slice(base, base + 8);
+                                const ptr = raw[base + 8] || 0;
+                                const o_id = raw[base + 9] || 0;
+                                const cobjPtr = raw[base + 10] || 0;
+                                const corpsenm = raw[base + 11] ?? -1;
+                                const item = this.unpackObjectBuffer(raw8, ptr, cobjPtr, o_id, corpsenm);
+                                if (item) {
+                                    items.push(item);
+                                }
+                            }
+                        }
+                        this._cachedInventory = items;
+                        this._cachedInventoryWeight = items.reduce((sum, it) => sum + (it.weight || 0), 0);
+                    }
+
+                    // 5-c. 全アイテム識別状態 (objects[i].oc_name_known) および外見インデックス (objects[i].oc_descr_idx) の一括同期
+                    if (options.syncDiscoveries !== false) {
+                        try {
+                            const discRes = await this.bridge.callShim(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, 600, 'uint8');
+                            if (isStale()) return false;
+                            if (discRes && Array.isArray(discRes.buffer)) {
+                                this._cachedDiscoveries = new Uint8Array(discRes.buffer);
+                            }
+                        } catch (e) {
+                            // ignore shim call errors in fallback/unsupported scenarios
+                        }
+                        try {
+                            const descrRes = await this.bridge.callShim(SHIM_CMD.DUMP_DESCR_INDEXES, 0, 0, 2400, 'int32');
+                            if (isStale()) return false;
+                            if (descrRes && typeof descrRes.result === 'number' && descrRes.result > 0 && Array.isArray(descrRes.buffer)) {
+                                const count = Math.min(descrRes.buffer.length, descrRes.result + 1);
+                                this._cachedDescrIndexes = new Int32Array(descrRes.buffer.slice(0, count));
+                            }
+                        } catch (e) {
+                            // ignore shim call errors in fallback/unsupported scenarios
+                        }
+                    }
                 }
 
-                // 5-c. 全アイテム識別状態 (objects[i].oc_name_known) および外見インデックス (objects[i].oc_descr_idx) の一括同期
-                if (options.syncDiscoveries !== false) {
+                // 6. 足元 (x, y) の床アイテム一覧同期 (Stage 8.2-C / Stage 8.3-B)
+                if (options.syncFloorObjects === true && x >= 0 && y >= 0) {
                     try {
-                        const discRes = await this.bridge.callShim(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, 600, 'uint8');
+                        const floorItems = await this.fetchObjectsAt(x, y);
                         if (isStale()) return false;
-                        if (discRes && Array.isArray(discRes.buffer)) {
-                            this._cachedDiscoveries = new Uint8Array(discRes.buffer);
+                        this._cachedPlayerFloorObjects = floorItems || [];
+                        this._cachedFloorObjectsX = x;
+                        this._cachedFloorObjectsY = y;
+                        this._hasFloorObjectsCache = true;
+                    } catch (e) {
+                        this._cachedPlayerFloorObjects = [];
+                        this._cachedFloorObjectsX = x;
+                        this._cachedFloorObjectsY = y;
+                        this._hasFloorObjectsCache = true;
+                    }
+                }
+
+                // 7. フロア全域の地形一括同期 (Stage 8.3-A / 8.3-B)
+                if (options.syncLevelTerrain === true) {
+                    try {
+                        await this.fetchLevelTerrain();
+                        if (isStale()) return false;
+                    } catch (e) {
+                        // silent fallback
+                    }
+                }
+
+                // 8. 周辺モンスターの真値同期 (Stage 8.3-A)
+                if (Array.isArray(options.surroundingMonsters) && options.surroundingMonsters.length > 0) {
+                    try {
+                        await this.syncSurroundingMonsters(options.surroundingMonsters);
+                        if (isStale()) return false;
+                    } catch (e) {
+                        // silent fallback
+                    }
+                }
+
+                // 9. プレイヤー属性・耐性 (SHIM_CMD_GET_PLAYER_PROPS: 69 * 4 = 276 bytes)
+                if (options.syncPlayerProps !== false) {
+                    try {
+                        const propsRes = await this.bridge.callShim(SHIM_CMD.GET_PLAYER_PROPS, 0, 0, 276, 'int32');
+                        if (isStale()) return false;
+                        if (propsRes && Array.isArray(propsRes.buffer)) {
+                            this._cachedPlayerProps = propsRes.buffer;
                         }
                     } catch (e) {
-                        // ignore shim call errors in fallback/unsupported scenarios
+                        // silent fallback
                     }
+                }
+
+                // 10. プレイヤー武器・魔法スキル熟練度 (SHIM_CMD_DUMP_SKILLS: 38 * 2 * 4 = 304 bytes)
+                if (options.syncSkills !== false) {
                     try {
-                        const descrRes = await this.bridge.callShim(SHIM_CMD.DUMP_DESCR_INDEXES, 0, 0, 2400, 'int32');
+                        const skillsRes = await this.bridge.callShim(SHIM_CMD.DUMP_SKILLS, 0, 0, 304, 'int32');
                         if (isStale()) return false;
-                        if (descrRes && typeof descrRes.result === 'number' && descrRes.result > 0 && Array.isArray(descrRes.buffer)) {
-                            const count = Math.min(descrRes.buffer.length, descrRes.result + 1);
-                            this._cachedDescrIndexes = new Int32Array(descrRes.buffer.slice(0, count));
+                        if (skillsRes && Array.isArray(skillsRes.buffer)) {
+                            const slots = typeof skillsRes.result === 'number' ? skillsRes.result : 0;
+                            this._cachedSkills = parseSkillsBuffer(skillsRes.buffer, slots);
+                            this._cachedWeaponSlots = slots;
                         }
                     } catch (e) {
-                        // ignore shim call errors in fallback/unsupported scenarios
+                        // silent fallback
                     }
                 }
-            }
 
-            // 6. 足元 (x, y) の床アイテム一覧同期 (Stage 8.2-C / Stage 8.3-B)
-            if (options.syncFloorObjects === true && x >= 0 && y >= 0) {
-                try {
-                    const floorItems = await this.fetchObjectsAt(x, y);
-                    if (isStale()) return false;
-                    this._cachedPlayerFloorObjects = floorItems || [];
-                    this._cachedFloorObjectsX = x;
-                    this._cachedFloorObjectsY = y;
-                    this._hasFloorObjectsCache = true;
-                } catch (e) {
-                    this._cachedPlayerFloorObjects = [];
-                    this._cachedFloorObjectsX = x;
-                    this._cachedFloorObjectsY = y;
-                    this._hasFloorObjectsCache = true;
+                // 11. プレイヤー修得魔法 (SHIM_CMD_DUMP_SPELL_BOOK: 1024 bytes)
+                if (options.syncSpells !== false) {
+                    try {
+                        const spellRes = await this.bridge.callShim(SHIM_CMD.DUMP_SPELL_BOOK, 0, 0, 1024, 'int32');
+                        if (isStale()) return false;
+                        if (spellRes && Array.isArray(spellRes.buffer)) {
+                            const count = typeof spellRes.result === 'number' ? spellRes.result : null;
+                            this._cachedSpells = parseSpellBookBuffer(spellRes.buffer, count);
+                        }
+                    } catch (e) {
+                        // silent fallback
+                    }
+                }
+
+                this._lastCompletedSyncGeneration = syncGen;
+                return true;
+            } catch (err) {
+                console.warn('[WasmDirectBindingService] syncFromWorkerBridge error:', err);
+                return false;
+            } finally {
+                if (syncGen === this._syncGeneration) {
+                    this._isSyncing = false;
+                    this._currentSyncPromise = null;
                 }
             }
+        };
 
-            // 7. フロア全域の地形一括同期 (Stage 8.3-A / 8.3-B)
-            if (options.syncLevelTerrain === true) {
-                try {
-                    await this.fetchLevelTerrain();
-                    if (isStale()) return false;
-                } catch (e) {
-                    // silent fallback
+        this._currentSyncPromise = runSync();
+        return await this._currentSyncPromise;
+    }
+
+    /**
+     * 属性・耐性詳細 (GET_PLAYER_PROPS) のオンデマンド同期 (開くときトリガー)
+     * @returns {Promise<boolean>}
+     */
+    async syncAttributesOnDemand() {
+        if (!this.isAvailable()) return false;
+        if (this.hasLiveMemory) return true;
+        if (this.bridge && typeof this.bridge.callShim === 'function') {
+            try {
+                const propsRes = await this.bridge.callShim(SHIM_CMD.GET_PLAYER_PROPS, 0, 0, 276, 'int32');
+                if (propsRes && Array.isArray(propsRes.buffer)) {
+                    this._cachedPlayerProps = propsRes.buffer;
+                    return true;
                 }
-            }
-
-            // 8. 周辺モンスターの真値同期 (Stage 8.3-A)
-            if (Array.isArray(options.surroundingMonsters) && options.surroundingMonsters.length > 0) {
-                try {
-                    await this.syncSurroundingMonsters(options.surroundingMonsters);
-                    if (isStale()) return false;
-                } catch (e) {
-                    // silent fallback
-                }
-            }
-
-            this._lastCompletedSyncGeneration = syncGen;
-            return true;
-        } catch (err) {
-            console.warn('[WasmDirectBindingService] syncFromWorkerBridge error:', err);
-            return false;
-        } finally {
-            if (syncGen === this._syncGeneration) {
-                this._isSyncing = false;
+            } catch (e) {
+                console.warn('[WasmDirectBindingService] syncAttributesOnDemand error:', e);
             }
         }
+        return false;
+    }
+
+    /**
+     * スキル熟練度 (DUMP_SKILLS) のオンデマンド同期 (開くときトリガー)
+     * @returns {Promise<boolean>}
+     */
+    async syncSkillsOnDemand() {
+        if (!this.isAvailable()) return false;
+        if (this.hasLiveMemory) {
+            this.dumpSkills();
+            return true;
+        }
+        if (this.bridge && typeof this.bridge.callShim === 'function') {
+            try {
+                const skillsRes = await this.bridge.callShim(SHIM_CMD.DUMP_SKILLS, 0, 0, 304, 'int32');
+                if (skillsRes && Array.isArray(skillsRes.buffer)) {
+                    const slots = typeof skillsRes.result === 'number' ? skillsRes.result : 0;
+                    this._cachedSkills = parseSkillsBuffer(skillsRes.buffer, slots);
+                    this._cachedWeaponSlots = slots;
+                    return true;
+                }
+            } catch (e) {
+                console.warn('[WasmDirectBindingService] syncSkillsOnDemand error:', e);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 呪文リスト (DUMP_SPELL_BOOK) のオンデマンド同期 (開くときトリガー)
+     * @returns {Promise<boolean>}
+     */
+    async syncSpellBookOnDemand() {
+        if (!this.isAvailable()) return false;
+        if (this.hasLiveMemory) {
+            this.dumpSpellBook();
+            return true;
+        }
+        if (this.bridge && typeof this.bridge.callShim === 'function') {
+            try {
+                const spellRes = await this.bridge.callShim(SHIM_CMD.DUMP_SPELL_BOOK, 0, 0, 1024, 'int32');
+                if (spellRes && Array.isArray(spellRes.buffer)) {
+                    const count = typeof spellRes.result === 'number' ? spellRes.result : null;
+                    this._cachedSpells = parseSpellBookBuffer(spellRes.buffer, count);
+                    return true;
+                }
+            } catch (e) {
+                console.warn('[WasmDirectBindingService] syncSpellBookOnDemand error:', e);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 発見状態 (DUMP_DISCOVERIES / DUMP_DESCR_INDEXES) のオンデマンド同期 (開くときトリガー)
+     * @returns {Promise<boolean>}
+     */
+    async syncDiscoveriesOnDemand() {
+        if (!this.isAvailable()) return false;
+        if (this.hasLiveMemory) {
+            this.getDiscoveries();
+            this.getDescrIndexes();
+            return true;
+        }
+        if (this.bridge && typeof this.bridge.callShim === 'function') {
+            try {
+                const discRes = await this.bridge.callShim(SHIM_CMD.DUMP_DISCOVERIES, 0, 0, 600, 'uint8');
+                if (discRes && Array.isArray(discRes.buffer)) {
+                    this._cachedDiscoveries = new Uint8Array(discRes.buffer);
+                }
+                const descrRes = await this.bridge.callShim(SHIM_CMD.DUMP_DESCR_INDEXES, 0, 0, 2400, 'int32');
+                if (descrRes && typeof descrRes.result === 'number' && descrRes.result > 0 && Array.isArray(descrRes.buffer)) {
+                    const count = Math.min(descrRes.buffer.length, descrRes.result + 1);
+                    this._cachedDescrIndexes = new Int32Array(descrRes.buffer.slice(0, count));
+                }
+                return true;
+            } catch (e) {
+                console.warn('[WasmDirectBindingService] syncDiscoveriesOnDemand error:', e);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 全スキル熟練度の一括ダンプ同期 (DUMP_SKILLS)
+     * @returns {Array<Object>}
+     */
+    dumpSkills() {
+        if (!this.isAvailable()) return this._cachedSkills || [];
+        if (this.hasLiveMemory) {
+            const bufSize = 38 * 2 * 4; // 304 bytes
+            const bufPtr = this.memory.allocateBuffer(bufSize);
+            if (bufPtr) {
+                try {
+                    const slots = this.memory.bridgeCall(SHIM_CMD.DUMP_SKILLS, 0, 0, bufPtr, bufSize);
+                    if (slots >= 0) {
+                        const raw = this.memory.readInt32Array(bufPtr, 38 * 2);
+                        const skills = parseSkillsBuffer(raw, slots);
+                        this._cachedSkills = skills;
+                        this._cachedWeaponSlots = slots;
+                        return skills;
+                    }
+                } finally {
+                    this.memory.freeBuffer(bufPtr);
+                }
+            }
+        }
+        return this._cachedSkills || [];
+    }
+
+    /**
+     * 最新の全スキルリストを取得
+     * @returns {Array<Object>}
+     */
+    getSkills() {
+        if (!this.isAvailable()) return [];
+        if (this.hasLiveMemory) {
+            return this.dumpSkills();
+        }
+        return this._cachedSkills || [];
+    }
+
+    /**
+     * 全呪文リストの一括ダンプ同期 (DUMP_SPELL_BOOK)
+     * @returns {Array<Object>}
+     */
+    dumpSpellBook() {
+        if (!this.isAvailable()) return this._cachedSpells || [];
+        if (this.hasLiveMemory) {
+            const bufSize = 1024;
+            const bufPtr = this.memory.allocateBuffer(bufSize);
+            if (bufPtr) {
+                try {
+                    const res = this.memory.bridgeCall(SHIM_CMD.DUMP_SPELL_BOOK, 0, 0, bufPtr, bufSize);
+                    if (res >= 0) {
+                        const raw = this.memory.readInt32Array(bufPtr, 256);
+                        const spells = parseSpellBookBuffer(raw, res);
+                        this._cachedSpells = spells;
+                        return spells;
+                    }
+                } finally {
+                    this.memory.freeBuffer(bufPtr);
+                }
+            }
+        }
+        return this._cachedSpells || [];
+    }
+
+    /**
+     * 最新の全呪文リストを取得
+     * @returns {Array<Object>}
+     */
+    getSpellBook() {
+        if (!this.isAvailable()) return [];
+        if (this.hasLiveMemory) {
+            return this.dumpSpellBook();
+        }
+        return this._cachedSpells || [];
     }
 
     /**
@@ -1039,14 +1459,17 @@ export class WasmDirectBindingService {
             const roomno = (res >> 17) & 0xFF;
 
             const isDoor = (typ === LEVL_TYP.DOOR || typ === LEVL_TYP.SDOOR);
+            const isAltar = (typ === LEVL_TYP.ALTAR);
             const door = isDoor ? {
                 isClosed: Boolean(flags & DOOR_STATE.D_CLOSED),
                 isLocked: Boolean(flags & DOOR_STATE.D_LOCKED),
                 isOpen: Boolean(flags & DOOR_STATE.D_ISOPEN),
                 isBroken: Boolean(flags & DOOR_STATE.D_BROKEN),
                 isTrapped: Boolean(flags & DOOR_STATE.D_TRAPPED),
-                isSecret: (typ === LEVL_TYP.SDOOR)
+                isSecret: (typ === LEVL_TYP.SDOOR),
+                isNoDoor: (flags & 0x0F) === 0
             } : null;
+            const altar = isAltar ? parseAltarFlags(flags) : null;
 
             return {
                 x,
@@ -1055,7 +1478,8 @@ export class WasmDirectBindingService {
                 flags,
                 lit,
                 roomno,
-                door
+                door,
+                altar
             };
         }
 
@@ -1070,6 +1494,7 @@ export class WasmDirectBindingService {
             if (idx >= 0 && idx < this._cachedLevelTerrain.length) {
                 const typ = this._cachedLevelTerrain[idx];
                 const isDoor = (typ === LEVL_TYP.DOOR || typ === LEVL_TYP.SDOOR);
+                const isAltar = (typ === LEVL_TYP.ALTAR);
                 return {
                     x,
                     y,
@@ -1080,11 +1505,13 @@ export class WasmDirectBindingService {
                     door: isDoor ? {
                         isClosed: false,
                         isLocked: false,
-                        isOpen: true,
+                        isOpen: false,
                         isBroken: false,
                         isTrapped: false,
-                        isSecret: (typ === LEVL_TYP.SDOOR)
-                    } : null
+                        isSecret: (typ === LEVL_TYP.SDOOR),
+                        isNoDoor: true
+                    } : null,
+                    altar: isAltar ? parseAltarFlags(0) : null
                 };
             }
         }
@@ -1559,7 +1986,7 @@ export class WasmDirectBindingService {
             const items = [];
             const visited = new Set();
             const MAX_FLOOR_ITEMS = 50;
-            const bufSize = 32;
+            const bufSize = 36;
             const bufPtr = this.memory.allocateBuffer(bufSize);
 
             if (bufPtr) {
@@ -1569,7 +1996,7 @@ export class WasmDirectBindingService {
                         visited.add(currPtr);
                         const res = this.memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, bufPtr, bufSize);
                         if (res === 0) {
-                            const rawValues = this.memory.readInt32Array(bufPtr, 8);
+                            const rawValues = this.memory.readInt32Array(bufPtr, 9);
                             const cobjPtr = this.memory.getValue(currPtr + 8, 'i32');
                             const o_id = this.memory.getValue(currPtr + 12, 'i32');
                             const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id);
@@ -1618,14 +2045,40 @@ export class WasmDirectBindingService {
                     let currPtr = headPtr;
                     while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_FLOOR_ITEMS) {
                         visited.add(currPtr);
-                        const objRes = await this.bridge.callShim(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, 32, 'int32');
+                        const objRes = await this.bridge.callShim(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, 36, 'int32');
                         if (objRes && Array.isArray(objRes.buffer)) {
-                            const cobjPtr = objRes.buffer[9] || 0;
-                            const o_id = objRes.buffer[10] || 0;
-                            const item = this.unpackObjectBuffer(objRes.buffer, currPtr, cobjPtr, o_id);
+                            let nextPtr = 0;
+                            let cobjPtr = 0;
+                            let o_id = 0;
+                            let corpsenm = -1;
+
+                            if (objRes.buffer.length >= 12) {
+                                // 新仕様 (Worker補完あり): 9 words (0..8, 8=corpsenm) + nexthere(9) + cobj(10) + o_id(11)
+                                corpsenm = objRes.buffer[8] ?? -1;
+                                nextPtr = objRes.buffer[9] || 0;
+                                cobjPtr = objRes.buffer[10] || 0;
+                                o_id = objRes.buffer[11] || 0;
+                            } else if (objRes.buffer.length === 11) {
+                                // 旧仕様 (Worker補完あり): 8 words (0..7) + nexthere(8) + cobj(9) + o_id(10)
+                                nextPtr = objRes.buffer[8] || 0;
+                                cobjPtr = objRes.buffer[9] || 0;
+                                o_id = objRes.buffer[10] || 0;
+                            } else if (objRes.buffer.length === 9) {
+                                // 新仕様 (単体・補完なし): 9 words (0..8, 8=corpsenm)
+                                corpsenm = objRes.buffer[8] ?? -1;
+                                nextPtr = 0;
+                            } else if (objRes.buffer.length >= 8) {
+                                // 旧仕様 (単体・補完なし): 8 words (0..7)
+                                nextPtr = 0;
+                            } else {
+                                break;
+                            }
+
+                            const item = this.unpackObjectBuffer(objRes.buffer, currPtr, cobjPtr, o_id, corpsenm);
                             if (item) items.push(item);
-                            const nextPtr = objRes.buffer[8] || 0;
-                            currPtr = nextPtr > 0 ? nextPtr : 0;
+
+                            // ポインタ不正ガード: 1024未満のアドレスは無効ポインタとして安全終了
+                            currPtr = (nextPtr >= 1024) ? nextPtr : 0;
                         } else {
                             break;
                         }
@@ -1642,6 +2095,65 @@ export class WasmDirectBindingService {
             }
         }
         return [];
+    }
+
+    /**
+     * プレイヤーの真の属性・耐性配列 (u.uprops: 69要素) を取得
+     * 各要素: (intrinsic & 0xFFFF) | ((extrinsic & 0xFFFF) << 16)
+     * @returns {Array<number>|null}
+     */
+    getPlayerProps() {
+        if (!this.isAvailable()) return this._cachedPlayerProps || null;
+
+        if (this.hasLiveMemory) {
+            const LAST_PROP = 68;
+            const count = LAST_PROP + 1;
+            const bufSize = count * 4;
+            const bufPtr = this.memory.allocateBuffer(bufSize);
+            if (!bufPtr) return this._cachedPlayerProps || null;
+
+            try {
+                const res = this.memory.bridgeCall(SHIM_CMD.GET_PLAYER_PROPS, 0, 0, bufPtr, bufSize);
+                if (res > 0) {
+                    const raw = this.memory.readInt32Array(bufPtr, res);
+                    this._cachedPlayerProps = Array.from(raw);
+                    return this._cachedPlayerProps;
+                }
+            } finally {
+                this.memory.freeBuffer(bufPtr);
+            }
+        }
+
+        return this._cachedPlayerProps || null;
+    }
+
+    /**
+     * プレイヤーの属性・耐性配列を非同期取得 (Worker 調停対応)
+     * @returns {Promise<Array<number>|null>}
+     */
+    async fetchPlayerProps() {
+        if (!this.isAvailable()) return null;
+
+        if (this.hasLiveMemory) {
+            return this.getPlayerProps();
+        }
+
+        if (this.bridge && typeof this.bridge.callShim === 'function') {
+            try {
+                const LAST_PROP = 68;
+                const count = LAST_PROP + 1;
+                const bufSize = count * 4;
+                const res = await this.bridge.callShim(SHIM_CMD.GET_PLAYER_PROPS, 0, 0, bufSize, 'int32');
+                if (res && Array.isArray(res.buffer)) {
+                    this._cachedPlayerProps = res.buffer;
+                    return this._cachedPlayerProps;
+                }
+            } catch (e) {
+                console.warn('[WasmDirectBindingService] fetchPlayerProps error:', e);
+            }
+        }
+
+        return this._cachedPlayerProps || null;
     }
 }
 

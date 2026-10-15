@@ -923,9 +923,20 @@
                     return 0;
                 }
 
-                case "shim_destroy_nhwindow":
-                    this.emit("destroy_nhwindow", { windowId: args[0] });
+                case "shim_destroy_nhwindow": {
+                    const winId = args[0];
+                    if (winId > 3) {
+                        this.isTextWindowOpen = false;
+                        if (this.menuBuffer && this.menuBuffer[winId]) {
+                            delete this.menuBuffer[winId];
+                            if (Object.keys(this.menuBuffer).length === 0) {
+                                this.isMenuOpen = false;
+                            }
+                        }
+                    }
+                    this.emit("destroy_nhwindow", { windowId: winId });
                     return 0;
+                }
 
                 case "shim_curs":
                     this.emit("curs", { windowId: args[0], x: args[1], y: args[2] });
@@ -1288,6 +1299,7 @@
                                 context: "getch",
                                 type: "char",
                                 promptCategory,
+                                isTopLevelTurn: this.isTopLevelTurn,
                                 resolver: safeResolver
                             });
                         }
@@ -1316,6 +1328,7 @@
                                 context: "poskey",
                                 type: "poskey",
                                 promptCategory,
+                                isTopLevelTurn: this.isTopLevelTurn,
                                 resolver: safeResolver
                             });
                         }

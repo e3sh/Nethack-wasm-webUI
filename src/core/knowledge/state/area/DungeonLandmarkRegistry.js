@@ -326,9 +326,9 @@ export class DungeonLandmarkRegistry {
             if (cf.isAltar) {
                 const alignMap = {
                     4006: { alignment: 'unaligned', alignmentJa: '無属性', nameJa: '祭壇 (無属性)' },
-                    4007: { alignment: 'lawful', alignmentJa: '秩序', nameJa: '祭壇 (秩序)' },
+                    4007: { alignment: 'chaotic', alignmentJa: '混沌', nameJa: '祭壇 (混沌)' },
                     4008: { alignment: 'neutral', alignmentJa: '中立', nameJa: '祭壇 (中立)' },
-                    4009: { alignment: 'chaotic', alignmentJa: '混沌', nameJa: '祭壇 (混沌)' },
+                    4009: { alignment: 'lawful', alignmentJa: '秩序', nameJa: '祭壇 (秩序)' },
                     4010: { alignment: 'other', alignmentJa: '異教', nameJa: '祭壇 (異教)' }
                 };
                 const aInfo = alignMap[glyphId] || { alignment: 'neutral', alignmentJa: '中立', nameJa: '祭壇' };

@@ -438,7 +438,10 @@ export class ModalManager {
         data.options.forEach(opt => {
           const btn = document.createElement('button');
           btn.textContent = opt.label.includes(`(${opt.key})`) ? opt.label : `${opt.label} (${opt.key})`;
-          btn.onclick = () => core && core.respond(opt.key);
+          btn.onclick = () => {
+            if (this.elPromptBar) this.elPromptBar.classList.add('hidden');
+            if (core) core.respond(opt.key);
+          };
           this.elInputControls.appendChild(btn);
         });
       }
@@ -2111,7 +2114,7 @@ export class ModalManager {
     const isEn = this.currentLanguage === 'en';
     const deathText = isEn
       ? (rawDeath || 'Unknown causes')
-      : (postMortem?.translatedDeathJa || result.translatedDeath || rawDeath || '原因不明');
+      : (postMortem?.translatedDeathJa || postMortem?.translatedDeath || result.translatedDeath || rawDeath || '原因不明');
     const scoreText = result.finalScore !== undefined ? result.finalScore : 0;
     
     let modeNoticeHtml = '';
@@ -2182,7 +2185,11 @@ export class ModalManager {
       </thead>
       <tbody>
         ${scores.map((sc, idx) => {
-          const deathDisplay = isEn ? (sc.death || '') : PostMortemKnowledgeResolver.translateDeathReason(sc.death || '');
+          const deathDisplay = isEn 
+            ? (sc.death || '') 
+            : (typeof PostMortemKnowledgeResolver?.translateDeathReason === 'function'
+                ? PostMortemKnowledgeResolver.translateDeathReason(sc.death || '')
+                : (PostMortemKnowledgeResolver?.resolve?.(sc.death || '')?.translatedDeath || sc.death || ''));
           return `
           <tr style="border-bottom: 1px solid #222;">
             <td style="padding:6px; color:#888;">${idx + 1}</td>

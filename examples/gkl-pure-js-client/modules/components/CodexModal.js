@@ -714,6 +714,17 @@ export class CodexModal {
         this.updateSummaryBar();
         this.renderList();
         this.notifyUnreadCount();
+
+        // 🛡️ 開くときトリガー: 最新のアイテム発見状態をオンデマンド同期
+        const core = typeof this.getCore === 'function' ? this.getCore() : null;
+        if (core?.gkl && typeof core.gkl.syncDiscoveriesOnDemand === 'function') {
+            core.gkl.syncDiscoveriesOnDemand().then(() => {
+                if (this.isVisible) {
+                    this.renderList();
+                    this.updateSummaryBar();
+                }
+            });
+        }
     }
 
     /**

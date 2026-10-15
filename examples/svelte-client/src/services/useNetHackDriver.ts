@@ -211,6 +211,7 @@ export class NetHackDriverController {
     this.core.on('attributesStateUpdated', updateGklSituation);
     this.core.on('spellsStateUpdated', updateGklSituation);
     this.core.on('skillsStateUpdated', updateGklSituation);
+    this.core.on('areaStateCommitted', updateGklSituation);
     this.core.on('landmarksUpdated', (landmarks: any) => {
       floorLandmarksStore.set(landmarks);
     });

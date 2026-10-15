@@ -42,7 +42,18 @@ export class TerrainInferenceEngine {
      * @param {Object} [doorState=null] 
      * @returns {number|null} glyphId
      */
-    getGlyphForTerrainType(typ, x = 0, y = 0, doorState = null) {
+    /**
+     * 地形 typ から適切な地形グリフIDを算出 (Stage 8.3-A / 8.3-B)
+     * - typ === 0 (STONE: 無地の岩盤) や typ === 15 (SCORR: 未発見の隠し通路) は描画対象外として null を返却
+     * - typ === 14 (SDOOR: 未発見の隠し扉) はネタバレ防止のため壁グリフ (3930) を返却
+     * @param {number} typ 
+     * @param {number} [x=0] 
+     * @param {number} [y=0] 
+     * @param {Object} [doorState=null] 
+     * @param {Object} [cellInfo=null]
+     * @returns {number|null} glyphId
+     */
+    getGlyphForTerrainType(typ, x = 0, y = 0, doorState = null, cellInfo = null) {
         const asm = this.areaStateManager;
         switch (typ) {
             case 0: // STONE (無地の岩盤)
@@ -60,8 +71,18 @@ export class TerrainInferenceEngine {
                 return 4017;
             case 22: // IRONBARS
                 return 3990;
-            case 23: // DOOR
-                return (doorState && doorState.isOpen) ? 3986 : 3988;
+            case 23: { // DOOR
+                // 扉の幾何学的向き (縦/横) は struct rm に存在しないため、
+                // print_glyph で確定した既存セルグリフが存在する場合はそれを最優先でそのまま返却する。
+                const existing = asm.grid?.[y]?.[x]?.bottom;
+                if (existing && typeof existing.glyph === 'number' && existing.glyph >= 3985 && existing.glyph <= 3989) {
+                    return existing.glyph;
+                }
+                if (!doorState || doorState.isNoDoor || doorState.isBroken) {
+                    return 3985; // S_ndoor (扉のないドア枠 / 壊れたドア)
+                }
+                return doorState.isOpen ? 3986 : 3988;
+            }
             case 24: // CORR
                 return 3995;
             case 25: // ROOM
@@ -94,8 +115,18 @@ export class TerrainInferenceEngine {
                 return 4013;
             case 31: // GRAVE
                 return 4011;
-            case 32: // ALTAR
-                return 4008;
+            case 32: { // ALTAR
+                // print_glyph で確定した既存の祭壇グリフ (4006〜4010) が存在する場合は最優先で維持
+                const existing = asm.grid?.[y]?.[x]?.bottom;
+                if (existing && typeof existing.glyph === 'number' && existing.glyph >= 4006 && existing.glyph <= 4010) {
+                    return existing.glyph;
+                }
+                // cellInfo.altar からアライメント対応グリフを逆算
+                if (cellInfo && cellInfo.altar && typeof cellInfo.altar.glyph === 'number') {
+                    return cellInfo.altar.glyph;
+                }
+                return 4008; // デフォルト: 中立
+            }
             case 33: // ICE
                 return 4016;
             case 35: // AIR
@@ -146,7 +177,7 @@ export class TerrainInferenceEngine {
                 }
                 const isSecretDoor = (cellInfo.typ === 14);
                 const effectiveDoor = isSecretDoor ? null : cellInfo.door;
-                const glyphId = this.getGlyphForTerrainType(cellInfo.typ, x, y, effectiveDoor);
+                const glyphId = this.getGlyphForTerrainType(cellInfo.typ, x, y, effectiveDoor, cellInfo);
                 if (glyphId === null || glyphId < 0) {
                     return null;
                 }
@@ -161,6 +192,11 @@ export class TerrainInferenceEngine {
                     door: effectiveDoor,
                     cellInfo: isSecretDoor ? { ...cellInfo, door: null } : cellInfo
                 };
+
+                // 祭壇属性付与
+                if (cellInfo.altar) {
+                    genuineEntity.altar = cellInfo.altar;
+                }
 
                 // 部屋番号・店舗情報付与
                 if (cellInfo.roomno > 0 && typeof asm.directBindingService.getRoomType === 'function') {

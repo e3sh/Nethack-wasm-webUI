@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-10-11
+last_updated: 2026-10-14
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -105,6 +105,7 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 | **AreaStateManager 4分割** | 背景グリフ・仮床・大岩押しからの泥臭い空間推論 | `getCellInfo(x,y)` / `dumpLevelTerrain()` による真の床・罠・扉フラグの一括直結 | 空間推論コードの半分が不要化。シンプルな台帳・描画分離へ移行可能 |
 | **ハイブリッド翻訳** | 英語メッセージ全文の正規表現マッチング・名詞抽出 | `struct obj` から ID・数量・祝福フラグを抽出しテンプレート埋め込み | 英語パースの組み合わせ爆発を根絶、辞書を18,000行➔1,500行へ90%削減 |
 | **モダン総合インベントリ & 重量分析** | 画面パース・外部推定不可、文字一覧のみ | `struct obj` から重量・スタック数・BUC・可搬限界直結 | クラス別重量比率・積載限界警告・モダンRPG所持品コックピット実現 |
+| **GKL/装備判定ロジック純化** | UI表示用和名がモデル層へ逆流し過剰防衛的な日本語正規表現が残存 | `onum` / `oclass` / `armorSlot` メタデータおよびASCII英語正規表現へ純化 | 日本語誤判定リスク根絶、生データ汚染解消、コード可読性と保守性向上 |
 
 
 ---
@@ -133,6 +134,12 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 - **設計書**: [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) / [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md)
 - **対象コード**: `src/core/knowledge/state/AreaStateManager.js`, `src/core/knowledge/presenters/ItemSpecPresenter.js`, `src/components/NhKnowledgeCard.js`
 - **概要**: `syncPlayerFeetFloor()` で取得済みの C 構造体 (`struct obj`) 全フィールド（`spe`, `locked`, `broken`, `corpsenm`, `age`, `quan` 等）を欠落なく `AreaStateManager` / `NhKnowledgeCard` へ伝搬し、ネタバレ防止ルール（Known ガード）を維持したまま「覗き見知恵（Peek Wisdom）」を統合表示する（※ `shim_bridge.c` の `corpsenm`・`known` 拡張は Stage 8.3-C と共通基盤）。
+
+### 2.7 GKL/装備判定ロジックからの不要なマルチバイト文字（日本語）判定削除 ＆ ASCII/確定メタデータ純化
+- **ステータス**: `⏸️ pending` (2026-10-14 調査完了・計画策定 / Phase 8 後続タスク)
+- **設計・計画書**: [gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/gkl_multibyte_removal_and_ascii_purification_plan.ja.md)
+- **対象コード**: `src/core/knowledge/engines/ItemIdentificationResolver.js`, `src/core/knowledge/equipment/EquipmentRules.js`, `src/core/knowledge/equipment/EquipmentDependencyAnalyzer.js`, `src/core/knowledge/state/InventoryStateManager.js` 等
+- **概要**: NetHack C-Core (WASM) の出力が 100% 英語（ASCII）であり、Phase 8 の Direct Binding により `onum` / `oclass` / `armorSlot` 等の確定メタデータ（SSOT）が利用可能になったことを受け、モデル層（GKL）に残存する不要なマルチバイト文字（日本語）の正規表現・部分一致判定を安全に削除。`InventoryStateManager.syncFromDirectBinding` での生データ（`rawText`）汚染を解消し、英語 ASCII 正規表現および確定メタデータ判定へ純化する。
 
 ---
 

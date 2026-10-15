@@ -66,4 +66,69 @@ describe('PostMortemKnowledgeResolver - 事後ナレッジ連携＆死因解析�
         expect(result.category).toBe('QUIT');
         expect(result.translatedDeath).toBe('冒険を途中で断念した');
     });
+
+    it('9. resolve() の戻り値に translatedDeathJa が含まれ translatedDeath と同値であること (キー互換性保証)', () => {
+        const patterns = [
+            'ascended to demigod-hood',
+            'quit',
+            'escaped the dungeon',
+            'died of starvation',
+            'petrified by touching a chickatrice corpse',
+            'choked on a meatball',
+            'drowned in a pool of water',
+            'killed by a goblin',
+            'crushed by a falling boulder'
+        ];
+        for (const pattern of patterns) {
+            const report = PostMortemKnowledgeResolver.resolve(pattern);
+            expect(report.translatedDeathJa).toBeDefined();
+            expect(report.translatedDeathJa).toBe(report.translatedDeath);
+        }
+    });
+
+    describe('translateDeathReason 静的メソッドのテスト', () => {
+        it('正常系: 代表的な死因が正しく日本語文字列として返ること', () => {
+            // 昇天
+            expect(PostMortemKnowledgeResolver.translateDeathReason('ascended to demigod-hood'))
+                .toBe('世界の主として昇天した！');
+
+            // 冒険断念
+            expect(PostMortemKnowledgeResolver.translateDeathReason('quit'))
+                .toBe('冒険を途中で断念した');
+
+            // 飢餓死
+            expect(PostMortemKnowledgeResolver.translateDeathReason('died of starvation'))
+                .toBe('飢えにより力尽きた');
+
+            // 石化死
+            expect(PostMortemKnowledgeResolver.translateDeathReason('petrified by a cockatrice'))
+                .toContain('石化した');
+
+            // モンスターによる殺害
+            expect(PostMortemKnowledgeResolver.translateDeathReason('killed by a cockatrice'))
+                .toBe('コカトリスに倒された');
+
+            // 窒息死
+            expect(PostMortemKnowledgeResolver.translateDeathReason('choked on a meatball'))
+                .toContain('窒息死した');
+
+            // 溺死
+            expect(PostMortemKnowledgeResolver.translateDeathReason('drowned in a pool of water'))
+                .toBe('水底に沈んで溺死した');
+        });
+
+        it('異常系・エッジケース: null, undefined, 空文字を与えても例外を投げずに空文字を返却すること', () => {
+            expect(PostMortemKnowledgeResolver.translateDeathReason(null)).toBe('');
+            expect(PostMortemKnowledgeResolver.translateDeathReason(undefined)).toBe('');
+            expect(PostMortemKnowledgeResolver.translateDeathReason('')).toBe('');
+            expect(PostMortemKnowledgeResolver.translateDeathReason('   ')).toBe('');
+            expect(PostMortemKnowledgeResolver.translateDeathReason(12345)).toBe('');
+        });
+
+        it('未知の死因英文が与えられた場合、例外を投げずに原文死因にフォールバックすること', () => {
+            const unknownDeath = 'fell into a cosmic rift';
+            const result = PostMortemKnowledgeResolver.translateDeathReason(unknownDeath);
+            expect(result).toBe(unknownDeath);
+        });
+    });
 });

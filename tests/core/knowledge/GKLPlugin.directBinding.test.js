@@ -39,6 +39,7 @@ describe('GKLPlugin - Wasm Direct Binding Integration (Stage 8.2)', () => {
 
         expect(plugin.wasmDirectBindingService).toBeDefined();
         expect(plugin.inventoryStateManager.isDirectBindingAvailable).toBe(true);
+        expect(plugin.attributeStateManager.wasmDirectBindingService).toBe(plugin.wasmDirectBindingService);
         expect(plugin.encumbranceStateManager.wasmDirectBindingService).toBe(plugin.wasmDirectBindingService);
         expect(plugin.areaStateManager.directBindingService).toBe(plugin.wasmDirectBindingService);
     });
@@ -61,6 +62,7 @@ describe('GKLPlugin - Wasm Direct Binding Integration (Stage 8.2)', () => {
         expect(plugin.wasmDirectBindingService).toBeDefined();
         expect(plugin.wasmDirectBindingService.bridge).toBe(mockWorkerBridgeCore.driver);
         expect(plugin.wasmDirectBindingService.isAvailable()).toBe(true);
+        expect(plugin.attributeStateManager.wasmDirectBindingService).toBe(plugin.wasmDirectBindingService);
         expect(plugin.areaStateManager.directBindingService).toBe(plugin.wasmDirectBindingService);
     });
 
@@ -77,4 +79,77 @@ describe('GKLPlugin - Wasm Direct Binding Integration (Stage 8.2)', () => {
         expect(mockCore.querySequenceSilent).not.toHaveBeenCalled();
         expect(mockCore.emit).toHaveBeenCalledWith('inventoryStateUpdated', plugin.inventoryStateManager);
     });
+
+    it('syncPendingStateSilent completely suppresses key macro transmissions when isWorkerDirect is active', async () => {
+        const mockWorkerBridgeCore = {
+            driver: {
+                callShim: vi.fn(),
+            },
+            querySequenceSilent: vi.fn(),
+            emit: vi.fn(),
+            on: vi.fn(),
+            off: vi.fn(),
+            plugins: []
+        };
+
+        plugin.attach(mockWorkerBridgeCore);
+
+        // 未同期状態を作る
+        plugin.inventoryStateManager.isSynced = false;
+        plugin.attributeStateManager.isSynced = false;
+
+        // isWorkerDirect の場合、hasPendingSync() は false を返し、マクロ送信を要求しないこと
+        expect(plugin.hasPendingSync()).toBe(false);
+
+        // syncPendingStateSilent() を呼び出しても、querySequenceSilent などのマクロキー送信が走らないこと
+        const result = await plugin.syncPendingStateSilent();
+        expect(result).toBe(false);
+        expect(mockWorkerBridgeCore.querySequenceSilent).not.toHaveBeenCalled();
+    });
+
+    it('syncAttributesSilent completely bypasses querySequenceSilent when direct binding is available', async () => {
+        plugin.attach(mockCore);
+        const attrSpy = vi.spyOn(plugin.attributeStateManager, 'syncFromDirectBinding').mockReturnValue(true);
+
+        const res = await plugin.syncAttributesSilent();
+
+        expect(res).toBe(true);
+        expect(attrSpy).toHaveBeenCalled();
+        // querySequenceSilent ('\x18', ' ', '\x1b') が一切呼ばれていないこと (完全バイパス)
+        expect(mockCore.querySequenceSilent).not.toHaveBeenCalled();
+        expect(mockCore.emit).toHaveBeenCalledWith('attributesStateUpdated', plugin.attributeStateManager);
+    });
+
+    it('syncSkillsSilent completely bypasses querySequenceSilent when direct binding is available', async () => {
+        plugin.attach(mockCore);
+        const skillSpy = vi.spyOn(plugin.skillStateManager, 'syncFromDirectBinding').mockReturnValue(true);
+
+        const res = await plugin.syncSkillsSilent();
+
+        expect(res).toBe(true);
+        expect(skillSpy).toHaveBeenCalled();
+        // querySequenceSilent ('#', 'enhance', ' ', '\x1b') が一切呼ばれていないこと (完全バイパス)
+        expect(mockCore.querySequenceSilent).not.toHaveBeenCalled();
+        expect(mockCore.emit).toHaveBeenCalledWith('skillsStateUpdated', plugin.skillStateManager);
+    });
+
+    it('on-demand sync methods (syncAttributesOnDemand, syncSkillsOnDemand, syncDiscoveriesOnDemand) work correctly', async () => {
+        plugin.attach(mockCore);
+        vi.spyOn(plugin.attributeStateManager, 'syncFromDirectBinding').mockReturnValue(true);
+        vi.spyOn(plugin.skillStateManager, 'syncFromDirectBinding').mockReturnValue(true);
+        vi.spyOn(plugin.discoveryStateManager, 'syncWithLiveMemory').mockReturnValue(true);
+
+        const attrOk = await plugin.syncAttributesOnDemand();
+        expect(attrOk).toBe(true);
+        expect(mockCore.emit).toHaveBeenCalledWith('attributesStateUpdated', plugin.attributeStateManager);
+
+        const skillOk = await plugin.syncSkillsOnDemand();
+        expect(skillOk).toBe(true);
+        expect(mockCore.emit).toHaveBeenCalledWith('skillsStateUpdated', plugin.skillStateManager);
+
+        const discOk = await plugin.syncDiscoveriesOnDemand();
+        expect(discOk).toBe(true);
+        expect(mockCore.emit).toHaveBeenCalledWith('discoveriesStateUpdated', plugin.discoveryStateManager);
+    });
 });
+

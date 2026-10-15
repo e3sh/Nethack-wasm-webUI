@@ -116,13 +116,19 @@ export function resolveEligibleSlots(item) {
         if (/boots|shoes|靴|ブーツ/.test(raw)) return ['boots'];
     }
 
+    // 非装備カテゴリ（魔法書、巻物、薬、杖、食料、金貨）は主手（wield）以外不可
+    if (cat === 'SPELLBOOK' || cat === 'SCROLL' || cat === 'POTION' || cat === 'WAND' || cat === 'FOOD' || cat === 'COIN') {
+        return ['main_hand'];
+    }
+
     // 2. 装身具 (RING, AMULET)
     // ※ NetHack において首に装備できるものは AMULET のみ、かつ AMULET は首にしか装備できない (1対1)
     if (cat === 'AMULET' || item.itemCategory === 'AMULET' || item.equipSlot === 'amulet' ||
         /amulet|魔よけ|魔除け|お守り|アミュレット|護符|首飾り/i.test(raw)) {
         return ['amulet'];
     }
-    if (cat === 'RING' || /ring|指輪/.test(raw)) {
+    if (cat === 'RING' || item.itemCategory === 'RING' || item.equipSlot === 'ring_left' || item.equipSlot === 'ring_right' ||
+        /\brings?\b|指輪/i.test(raw)) {
         return ['left_ring', 'right_ring'];
     }
 

@@ -593,5 +593,137 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
             const cellAfterPickup = gkl.areaStateManager.grid[py][px];
             expect(cellAfterPickup.middle).toBeNull();
         });
+
+        it('11. 新仕様（corpsenm 入り 12要素）の床アイテム走査時に corpsenm がポインタと誤認されず正しく山積みが取得できること', async () => {
+            const px = 8;
+            const py = 8;
+            gkl.areaStateManager.updatePlayerPosition(px, py);
+
+            const ptrStatue = 20001;
+            const ptrRock = 20002;
+            const objMap = {
+                // 12要素: [otyp, owt, quan, spe, oclass, invlet, flags, weight, corpsenm, nexthere, cobj, o_id]
+                // 像 (otyp: 476, corpsenm: 45) -> nexthere: ptrRock (20002)
+                [ptrStatue]: [476, 500, 1, 0, 7, 0, 0, 500, 45, ptrRock, 0, 101],
+                // 岩 (otyp: 474, corpsenm: -1) -> nexthere: 0
+                [ptrRock]: [474, 10, 1, 0, 7, 0, 0, 10, -1, 0, 0, 102],
+            };
+
+            mockWorker.postMessage.mockImplementation((msg) => {
+                if (msg.type === 'CALL_SHIM') {
+                    const { callId, payload } = msg;
+                    let result = 0;
+                    let buffer = null;
+
+                    if (payload.cmd === SHIM_CMD.GET_CELL_INFO) {
+                        result = 25 | (0 << 8) | (1 << 16) | (1 << 17);
+                    } else if (payload.cmd === SHIM_CMD.GET_OBJECT_AT) {
+                        result = ptrStatue;
+                    } else if (payload.cmd === SHIM_CMD.DUMP_OBJECT_INFO) {
+                        result = 0;
+                        buffer = objMap[payload.arg1] || null;
+                    } else if (payload.cmd === SHIM_CMD.GET_EQUIPMENT_PTRS) {
+                        buffer = new Array(14).fill(0);
+                    } else if (payload.cmd === SHIM_CMD.DUMP_ALL_INVENT) {
+                        result = 0;
+                        buffer = [];
+                    }
+
+                    Promise.resolve().then(() => {
+                        mockWorker.onmessage({
+                            data: { type: 'SHIM_RESULT', callId, result, buffer }
+                        });
+                    });
+                }
+            });
+
+            const floorItems = await gkl.wasmDirectBindingService.fetchObjectsAt(px, py);
+            expect(floorItems.length).toBe(2);
+            expect(floorItems[0].onum).toBe(476);
+            expect(floorItems[0].corpsenm).toBe(45);
+            expect(floorItems[1].onum).toBe(474);
+            expect(floorItems[1].corpsenm).toBe(-1);
+        });
+
+        it('12. WorkerBridge 隔離環境において DUMP_SKILLS (0x51) が自動同期されマクロ送信なしに SkillStateManager が更新されること', async () => {
+            const rawSkills = new Array(38 * 2).fill(0);
+            // P_LONG_SWORD (id: 7) -> skillLev = 2 (Basic), maxSkillLev = 3 (Skilled)
+            rawSkills[7 * 2 + 0] = 2;
+            rawSkills[7 * 2 + 1] = 3;
+            // P_TWO_WEAPON_COMBAT (id: 36) -> skillLev = 1 (Unskilled), maxSkillLev = 3 (Skilled)
+            rawSkills[36 * 2 + 0] = 1;
+            rawSkills[36 * 2 + 1] = 3;
+
+            const weaponSlots = 2;
+
+            mockWorker.postMessage.mockImplementation((msg) => {
+                if (msg.type === 'CALL_SHIM') {
+                    const { callId, payload } = msg;
+                    let result = 0;
+                    let buffer = null;
+
+                    if (payload.cmd === SHIM_CMD.DUMP_SKILLS) {
+                        result = weaponSlots;
+                        buffer = rawSkills;
+                    } else if (payload.cmd === SHIM_CMD.DUMP_ALL_INVENT) {
+                        result = 0;
+                        buffer = [];
+                    } else if (payload.cmd === SHIM_CMD.GET_EQUIPMENT_PTRS) {
+                        buffer = new Array(14).fill(0);
+                    } else if (payload.cmd === SHIM_CMD.GET_CELL_INFO) {
+                        result = 25 | (0 << 8) | (1 << 16) | (1 << 17);
+                    }
+
+                    Promise.resolve().then(() => {
+                        mockWorker.onmessage({
+                            data: { type: 'SHIM_RESULT', callId, result, buffer }
+                        });
+                    });
+                }
+            });
+
+            let skillsUpdatedEmitted = false;
+            core.on('skillsStateUpdated', () => {
+                skillsUpdatedEmitted = true;
+            });
+
+            // マクロキー送信監視
+            const querySpy = vi.spyOn(core, 'querySequenceSilent');
+
+            // ターン入力待ちイベント (第1ターンを模した poskey)
+            core.emit('inputRequired', {
+                context: 'poskey',
+                type: 'poskey',
+                isTopLevelTurn: true
+            });
+
+            await new Promise(r => setTimeout(r, 40));
+
+            // 1. SkillStateManager が同期され、正しいスキル情報を持つこと
+            expect(gkl.skillStateManager.isSynced).toBe(true);
+            const skills = gkl.skillStateManager.getSkills();
+            expect(skills.length).toBe(37);
+
+            const longSword = skills.find(s => s.id === 7);
+            expect(longSword).toBeDefined();
+            expect(longSword.name).toBe('long sword');
+            expect(longSword.rank.key).toBe('basic');
+            expect(longSword.canEnhance).toBe(false); // Direct Binding 単体では練習値 (P_ADVANCE) 未取得のため安全に false
+
+            const twoWeapon = gkl.skillStateManager.getTwoWeaponSkill();
+            expect(twoWeapon).toBeDefined();
+            expect(twoWeapon.rank.key).toBe('unskilled');
+            expect(gkl.skillStateManager.canTwoWeapon()).toBe(true); // not restricted
+
+            // 2. skillsStateUpdated イベントが発火したこと
+            expect(skillsUpdatedEmitted).toBe(true);
+
+            // 3. マクロキー (#enhance 等) は一切送信されていないこと
+            expect(querySpy).not.toHaveBeenCalled();
+
+            // 4. syncSkillsSilent() を手動でキックしてもマクロがバイパスされること
+            await gkl.syncSkillsSilent();
+            expect(querySpy).not.toHaveBeenCalled();
+        });
     });
 });

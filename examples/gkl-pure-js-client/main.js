@@ -399,6 +399,13 @@ class GklPureJSClient {
 
         // 1. 本編最初の通常ターン（POSKEY）を受信した時点で準備完了へ移行
         if (cat === 'POSKEY') {
+          if (this.modalManager) {
+            this.modalManager.clearAllModals();
+          }
+          if (this.statusView && this.core?.statusAccessor) {
+            const st = this.core.statusAccessor.getStatus();
+            if (st) this.statusView.updateStatus(st);
+          }
           this.transitionToStartupReady();
           return;
         }

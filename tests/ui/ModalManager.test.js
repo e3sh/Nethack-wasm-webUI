@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ModalManager } from '../../examples/gkl-pure-js-client/modules/components/ModalManager.js';
 import { PROMPT_CATEGORY } from '../../src/core/types.js';
 import { WriteService } from "../../src/core/knowledge/services/WriteService.js";
+import { PostMortemKnowledgeResolver } from '../../src/core/knowledge/services/PostMortemKnowledgeResolver.js';
 
 function createMockElement(id = '', tag = 'div') {
   const classListSet = new Set(['hidden']);
@@ -462,6 +463,119 @@ describe('ModalManager - 魔法のマーカー（Write）支援モーダルテ�
 
     const safetyText = mockElements['write-safety-text'];
     expect(safetyText.textContent).toContain('未識別');
+  });
+});
+
+describe('ModalManager - ゲームオーバー＆スコアボードレンダリングテスト', () => {
+  let modalManager;
+  let mockElements;
+  let mockCore;
+
+  const sampleScores = [
+    { points: 5000, name: 'Val', role: 'Valkyrie', death: 'killed by a cockatrice' },
+    { points: 3000, name: 'Wiz', role: 'Wizard', death: 'died of starvation' },
+    { points: 1500, name: 'Rog', role: 'Rogue', death: 'petrified by touching a chickatrice corpse' },
+    { points: 800, name: 'Bar', role: 'Barbarian', death: 'drowned in a pool of water' },
+    { points: 100, name: 'Tou', role: 'Tourist', death: '' },
+  ];
+
+  beforeEach(() => {
+    mockElements = {
+      elGameOverModal: createMockElement('gameover-modal'),
+      elGameOverSummary: createMockElement('gameover-summary'),
+      elScoreboardContainer: createMockElement('gameover-scoreboard'),
+    };
+
+    globalThis.document = {
+      getElementById: (id) => {
+        if (!mockElements[id]) {
+          mockElements[id] = createMockElement(id);
+        }
+        return mockElements[id];
+      },
+      createElement: (tag) => createMockElement('', tag),
+    };
+
+    mockCore = {
+      respond: vi.fn(),
+      sendKey: vi.fn(),
+    };
+
+    modalManager = new ModalManager({
+      ...mockElements,
+      getCore: () => mockCore,
+      getLoadedTileImagePath: () => '',
+      onRestartGame: vi.fn(),
+    });
+  });
+
+  it('renderScoreboard: 複数件のスコアレコード（英語死因混在）を与えて例外なくテーブルが生成されること (日本語モード)', () => {
+    modalManager.currentLanguage = 'ja';
+    expect(() => {
+      modalManager.renderScoreboard(sampleScores);
+    }).not.toThrow();
+
+    expect(mockElements.elScoreboardContainer.children.length).toBe(1);
+    const table = mockElements.elScoreboardContainer.children[0];
+    expect(table.innerHTML).toContain('コカトリスに倒された');
+    expect(table.innerHTML).toContain('飢えにより力尽きた');
+    expect(table.innerHTML).toContain('石化した');
+    expect(table.innerHTML).toContain('水底に沈んで溺死した');
+    expect(table.innerHTML).toContain('5000');
+  });
+
+  it('renderScoreboard: 英語モード時には英語死因がそのまま表示されること', () => {
+    modalManager.currentLanguage = 'en';
+    modalManager.renderScoreboard(sampleScores);
+
+    const table = mockElements.elScoreboardContainer.children[0];
+    expect(table.innerHTML).toContain('killed by a cockatrice');
+    expect(table.innerHTML).toContain('died of starvation');
+  });
+
+  it('renderScoreboard: translateDeathReason が未定義の場合でもフォールバックで例外なく描画されること (防御的呼び出し保証)', () => {
+    modalManager.currentLanguage = 'ja';
+    const originalMethod = PostMortemKnowledgeResolver.translateDeathReason;
+    try {
+      // メソッドを一時的に削除・未定義化して検証
+      PostMortemKnowledgeResolver.translateDeathReason = undefined;
+
+      expect(() => {
+        modalManager.renderScoreboard(sampleScores);
+      }).not.toThrow();
+
+      const table = mockElements.elScoreboardContainer.children[0];
+      // resolve フォールバックにより日本語化されているか確認
+      expect(table.innerHTML).toContain('コカトリスに倒された');
+    } finally {
+      PostMortemKnowledgeResolver.translateDeathReason = originalMethod;
+    }
+  });
+
+  it('handleExited: ゲームオーバー時にスコアボードとサバイバルアドバイスが正常に描画されること', () => {
+    modalManager.currentLanguage = 'ja';
+    const exitResult = {
+      reason: 'death',
+      death: 'killed by a cockatrice',
+      finalScore: 4200,
+      playerName: 'Heroine',
+      scoreboard: sampleScores,
+    };
+
+    expect(() => {
+      modalManager.handleExited(exitResult);
+    }).not.toThrow();
+
+    // モーダルが表示状態になっていること
+    expect(mockElements.elGameOverModal.classList.contains('hidden')).toBe(false);
+
+    // サマリー表示に日本語死因が含まれること
+    expect(mockElements.elGameOverSummary.innerHTML).toContain('コカトリスに倒された');
+    expect(mockElements.elGameOverSummary.innerHTML).toContain('Heroine');
+    expect(mockElements.elGameOverSummary.innerHTML).toContain('4200');
+
+    // スコアボードテーブルが生成されていること
+    expect(mockElements.elScoreboardContainer.children.length).toBe(1);
   });
 });
 

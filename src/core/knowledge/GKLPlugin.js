@@ -349,6 +349,7 @@ export class GKLPlugin {
                 if (driverOrBridge.memory) this.wasmDirectBindingService.setMemory(driverOrBridge.memory);
             }
             this.inventoryStateManager?.setWasmDirectBindingService?.(this.wasmDirectBindingService);
+            this.attributeStateManager?.setWasmDirectBindingService?.(this.wasmDirectBindingService);
             this.encumbranceStateManager?.setWasmDirectBindingService?.(this.wasmDirectBindingService);
             this.areaStateManager?.setDirectBindingService?.(this.wasmDirectBindingService);
         }
@@ -396,6 +397,58 @@ export class GKLPlugin {
     async syncSkillsSilent(options = {}) { return await this.silentSyncCoordinator.syncSkillsSilent(options); }
     async syncAllSilent(options = {}) { return await this.silentSyncCoordinator.syncAllSilent(options); }
     async syncDiscoveriesSilent() { return await this.silentSyncCoordinator.syncDiscoveriesSilent(); }
+
+    // --- オンデマンド同期 (モーダル・詳細画面を開くときトリガー) ---
+    async syncAttributesOnDemand() {
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.syncAttributesOnDemand === 'function') {
+            await this.wasmDirectBindingService.syncAttributesOnDemand();
+        }
+        if (this.attributeStateManager && typeof this.attributeStateManager.syncFromDirectBinding === 'function') {
+            const changed = this.attributeStateManager.syncFromDirectBinding(this.wasmDirectBindingService);
+            if (this.inventoryStateManager && typeof this.attributeStateManager.updateExtrinsicsFromInventory === 'function') {
+                this.attributeStateManager.updateExtrinsicsFromInventory(this.inventoryStateManager.items);
+            }
+            if (this.core) this.core.emit('attributesStateUpdated', this.attributeStateManager);
+            return changed;
+        }
+        return false;
+    }
+
+    async syncSkillsOnDemand() {
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.syncSkillsOnDemand === 'function') {
+            await this.wasmDirectBindingService.syncSkillsOnDemand();
+        }
+        if (this.skillStateManager && typeof this.skillStateManager.syncFromDirectBinding === 'function') {
+            const changed = this.skillStateManager.syncFromDirectBinding(this.wasmDirectBindingService);
+            if (this.core) this.core.emit('skillsStateUpdated', this.skillStateManager);
+            return changed;
+        }
+        return false;
+    }
+
+    async syncSpellsOnDemand() {
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.syncSpellBookOnDemand === 'function') {
+            await this.wasmDirectBindingService.syncSpellBookOnDemand();
+        }
+        if (this.spellStateManager && typeof this.spellStateManager.syncFromDirectBinding === 'function') {
+            const changed = this.spellStateManager.syncFromDirectBinding(this.wasmDirectBindingService);
+            if (this.core) this.core.emit('spellsStateUpdated', this.spellStateManager);
+            return changed;
+        }
+        return false;
+    }
+
+    async syncDiscoveriesOnDemand() {
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.syncDiscoveriesOnDemand === 'function') {
+            await this.wasmDirectBindingService.syncDiscoveriesOnDemand();
+        }
+        if (this.discoveryStateManager && typeof this.discoveryStateManager.syncWithLiveMemory === 'function') {
+            const changed = this.discoveryStateManager.syncWithLiveMemory(this.wasmDirectBindingService);
+            if (this.core) this.core.emit('discoveriesStateUpdated', this.discoveryStateManager);
+            return changed;
+        }
+        return false;
+    }
 
     // --- 状況要約・ゲッター・アドバイザー ---
     getSituation() {

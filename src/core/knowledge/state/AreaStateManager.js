@@ -547,11 +547,11 @@ export class AreaStateManager {
         let glyphId;
         if (typeof topObj.glyph === 'number' && topObj.glyph >= 0 && Boolean(topObj.isPile) === isPile) {
             glyphId = topObj.glyph;
-        } else if (cell.middle && cell.middle.type === ENTITY_TYPES.BODY && otyp === 295) {
-            const monOffset = (typeof topObj.corpsenm === 'number' && topObj.corpsenm >= 0) ? topObj.corpsenm : (cell.middle.subType ?? 0);
+        } else if (otyp === 265 && ((typeof topObj.corpsenm === 'number' && topObj.corpsenm >= 0) || (cell.middle && cell.middle.type === ENTITY_TYPES.BODY))) {
+            const monOffset = (typeof topObj.corpsenm === 'number' && topObj.corpsenm >= 0) ? topObj.corpsenm : (cell.middle?.subType ?? 0);
             glyphId = (isPile ? GLYPH_OFFSETS.GLYPH_BODY_PILETOP_OFF : GLYPH_OFFSETS.GLYPH_BODY_OFF) + monOffset;
-        } else if (cell.middle && cell.middle.type === ENTITY_TYPES.STATUE && otyp === 474) {
-            const monOffset = (typeof topObj.corpsenm === 'number' && topObj.corpsenm >= 0) ? topObj.corpsenm : (cell.middle.subType ?? 0);
+        } else if (otyp === 476 && ((typeof topObj.corpsenm === 'number' && topObj.corpsenm >= 0) || (cell.middle && cell.middle.type === ENTITY_TYPES.STATUE))) {
+            const monOffset = (typeof topObj.corpsenm === 'number' && topObj.corpsenm >= 0) ? topObj.corpsenm : (cell.middle?.subType ?? 0);
             glyphId = (isPile ? GLYPH_OFFSETS.GLYPH_STATUE_PILETOP_OFF : GLYPH_OFFSETS.GLYPH_STATUE_OFF) + monOffset;
         } else {
             glyphId = (isPile ? GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF : GLYPH_OFFSETS.GLYPH_OBJ_OFF) + otyp;
@@ -602,9 +602,23 @@ export class AreaStateManager {
             if (cell) {
                 const genuine = this.getGenuineFloor(x, y);
                 if (genuine && genuine.isGenuine) {
-                    cell.bottom = genuine;
-                    if (genuine.cmapFlags && (genuine.cmapFlags.isStairUp || genuine.cmapFlags.isStairDown)) {
-                        this._registerStairAt(x, y, genuine.glyph, normalizeFloorKey(this.currentFloor));
+                    const isBottomTerrainConfirmed = cell.bottom &&
+                        cell.bottom.type === ENTITY_TYPES.TERRAIN &&
+                        !cell.bottom.inferred;
+
+                    if (isBottomTerrainConfirmed) {
+                        // 確定地形グリフ完全保護: print_glyph で確定した地形のグリフ・形状・属性を 100% 尊重し上書きしない
+                        if (genuine.door) cell.bottom.door = genuine.door;
+                        if (genuine.altar) cell.bottom.altar = genuine.altar;
+                        if (genuine.room) cell.bottom.room = genuine.room;
+                        if (genuine.trap) cell.bottom.trap = genuine.trap;
+                        if (genuine.engraving) cell.bottom.engraving = genuine.engraving;
+                        cell.bottom.isGenuine = true;
+                    } else {
+                        cell.bottom = genuine;
+                        if (genuine.cmapFlags && (genuine.cmapFlags.isStairUp || genuine.cmapFlags.isStairDown)) {
+                            this._registerStairAt(x, y, genuine.glyph, normalizeFloorKey(this.currentFloor));
+                        }
                     }
                     this.markDirty(x, y);
                 } else {
@@ -667,9 +681,23 @@ export class AreaStateManager {
         let updated = false;
         const genuineFloor = this.getGenuineFloor(x, y);
         if (genuineFloor) {
-            cell.bottom = genuineFloor;
-            if (genuineFloor.cmapFlags && (genuineFloor.cmapFlags.isStairUp || genuineFloor.cmapFlags.isStairDown)) {
-                this._registerStairAt(x, y, genuineFloor.glyph, normalizeFloorKey(this.currentFloor));
+            const isBottomTerrainConfirmed = cell.bottom &&
+                cell.bottom.type === ENTITY_TYPES.TERRAIN &&
+                !cell.bottom.inferred;
+
+            if (isBottomTerrainConfirmed) {
+                // 確定地形グリフ完全保護: print_glyph で確定した地形のグリフ・形状・属性を 100% 尊重し上書きしない
+                if (genuineFloor.door) cell.bottom.door = genuineFloor.door;
+                if (genuineFloor.altar) cell.bottom.altar = genuineFloor.altar;
+                if (genuineFloor.room) cell.bottom.room = genuineFloor.room;
+                if (genuineFloor.trap) cell.bottom.trap = genuineFloor.trap;
+                if (genuineFloor.engraving) cell.bottom.engraving = genuineFloor.engraving;
+                cell.bottom.isGenuine = true;
+            } else {
+                cell.bottom = genuineFloor;
+                if (genuineFloor.cmapFlags && (genuineFloor.cmapFlags.isStairUp || genuineFloor.cmapFlags.isStairDown)) {
+                    this._registerStairAt(x, y, genuineFloor.glyph, normalizeFloorKey(this.currentFloor));
+                }
             }
             this.markDirty(x, y);
             updated = true;

@@ -76,8 +76,27 @@ export class GKLEventRouter {
         // 入力要求 (inputRequired) 受信時の即時プロンプト文脈更新と実施シグナル導出
         addCoreListener('inputRequired', async (payload) => {
             // 🎯 Phase 3 (SETTLED & SHIM SYNC) & Phase 4 (COMMIT):
-            // トップレベルターン確定時（--More-- やモーダル待機中を除外）に足元情報・全フロア地形・所持品・発見状態・周辺モンスターを同期 (Stage 8.2-A, 8.3-A, 8.3-B)
-            const isTopLevelSettled = Boolean(payload && payload.isTopLevelTurn && !payload.isMorePrompt && !(core && core.isMorePromptActive));
+            // トップレベルターン確定時（--More-- やモーダル待機中を除外）に足元情報・全フロア地形・所持品・発見状態・周辺モンスター・スキルを同期 (Stage 8.2-A, 8.3-A, 8.3-B)
+            const isPoskeyContext = Boolean(payload && (payload.context === 'poskey' || payload.type === 'poskey' || payload.category === 'POSKEY' || payload.promptCategory === 'POSKEY'));
+            const isSubPrompt = Boolean(
+                payload && (
+                    payload.isDirectionPrompt ||
+                    payload.category === 'DIRECTION' ||
+                    payload.inputType === 'DIRECTION' ||
+                    payload.category === 'YN' ||
+                    payload.category === 'MENU' ||
+                    payload.category === 'TEXT' ||
+                    payload.category === 'LINE'
+                )
+            );
+            const isTopLevelSettled = Boolean(
+                payload &&
+                (payload.isTopLevelTurn || (isPoskeyContext && payload.isTopLevelTurn !== false && !isSubPrompt)) &&
+                !payload.isMorePrompt &&
+                !(core && core.isMorePromptActive) &&
+                !(core && core.isTextWindowOpen) &&
+                !(core && core.isMenuOpen)
+            );
             if (isTopLevelSettled) {
                 const mode = p.directBindingMode || p.wasmDirectBindingService?.mode || 'auto';
                 const isDirectAvailable = Boolean(
@@ -114,14 +133,19 @@ export class GKLEventRouter {
                             }
                         }
 
+                        const isInitialSync = Boolean(!p.inventoryStateManager?.isSynced || core?.isResumingSave || (p.statusAccessor?.turns ?? 0) <= 1);
                         const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({
                             playerX: px >= 0 ? px : undefined,
                             playerY: py >= 0 ? py : undefined,
                             syncInventory: true,
-                            syncDiscoveries: true,
+                            syncPlayerProps: isInitialSync,
+                            syncDiscoveries: isInitialSync,
+                            syncSkills: isInitialSync,
+                            syncSpells: isInitialSync || !p.spellStateManager?.isSynced,
                             syncFloorObjects: true,
                             syncLevelTerrain: needTerrainDump,
-                            surroundingMonsters
+                            surroundingMonsters,
+                            protected: isInitialSync
                         });
 
                         // 待機中に次ターンの入力が送出され世代が無効化された場合はコミットを中断 (Sync Barrier)
@@ -135,7 +159,7 @@ export class GKLEventRouter {
                         p.areaStateManager.dumpLevelTerrain();
                     }
 
-                    // 🎯 発見・識別状態 (objects[i].oc_name_known) の即時同期
+                    // 🎯 発見・識別状態 (objects[i].oc_name_known) の同期
                     if (p.discoveryStateManager && typeof p.discoveryStateManager.syncWithLiveMemory === 'function') {
                         const discChanged = p.discoveryStateManager.syncWithLiveMemory(p.wasmDirectBindingService);
                         if (discChanged) {
@@ -157,6 +181,30 @@ export class GKLEventRouter {
                         const changed = p.inventoryStateManager.syncFromDirectBinding();
                         if (changed) {
                             core.emit('inventoryStateUpdated', p.inventoryStateManager);
+                        }
+                    }
+
+                    // 🎯 プレイヤー真の属性・耐性 (u.uprops) の同期
+                    if (p.attributeStateManager && typeof p.attributeStateManager.syncFromDirectBinding === 'function') {
+                        const attrChanged = p.attributeStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
+                        if (attrChanged) {
+                            core.emit('attributesStateUpdated', p.attributeStateManager);
+                        }
+                    }
+
+                    // 🎯 スキル熟練度 (DUMP_SKILLS) の同期
+                    if (p.skillStateManager && typeof p.skillStateManager.syncFromDirectBinding === 'function') {
+                        const skillChanged = p.skillStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
+                        if (skillChanged) {
+                            core.emit('skillsStateUpdated', p.skillStateManager);
+                        }
+                    }
+
+                    // 🎯 呪文リスト (DUMP_SPELL_BOOK) の同期
+                    if (p.spellStateManager && typeof p.spellStateManager.syncFromDirectBinding === 'function') {
+                        const spellChanged = p.spellStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
+                        if (spellChanged) {
+                            core.emit('spellsStateUpdated', p.spellStateManager);
                         }
                     }
                 }
@@ -359,6 +407,22 @@ export class GKLEventRouter {
 
         // 3.2. ゲーム開始・再開（Restore）時の Discovery バックグラウンド同期 ＆ キャッシュ管理
         const triggerDiscoverySync = () => {
+            const mode = p.directBindingMode || p.wasmDirectBindingService?.mode || 'auto';
+            const isDirect = mode !== 'fallback' && p.wasmDirectBindingService?.isAvailable();
+            if (isDirect) {
+                // Direct Binding の場合は inputRequired または DirectBinding 経由で取得されるため、マクロ送信を抑止
+                if (p.discoveryStateManager && typeof p.discoveryStateManager.syncWithLiveMemory === 'function' && p.wasmDirectBindingService) {
+                    const discChanged = p.discoveryStateManager.syncWithLiveMemory(p.wasmDirectBindingService);
+                    if (discChanged) {
+                        core.emit('discoveriesStateUpdated', p.discoveryStateManager);
+                    }
+                }
+                return;
+            }
+            // Direct Binding モード時はフォールバックマクロ（\）を完全遮断
+            if (mode !== 'fallback') {
+                return;
+            }
             p.syncDiscoveriesSilent();
         };
         addCoreListener('game_ready', triggerDiscoverySync);

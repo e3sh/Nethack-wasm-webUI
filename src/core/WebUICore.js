@@ -1303,6 +1303,8 @@ export class WebUICore {
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
         this.currentPromptChoices = '';
         this.isPendingPrefix = false;
+        this.isResumingSave = false;
+        this.resumeSavePlayerName = "";
         if (this.textWindowManager) {
             this.textWindowManager.resetAll();
         }

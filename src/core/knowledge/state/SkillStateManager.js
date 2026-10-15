@@ -48,6 +48,53 @@ export class SkillStateManager {
     }
 
     /**
+     * Direct Binding サービスからスキル一覧を直接同期 (SHIM_CMD_DUMP_SKILLS = 0x51)
+     * @param {Object} directBindingService - WasmDirectBindingService インスタンス
+     * @returns {boolean} スキル状態が変化したか
+     */
+    syncFromDirectBinding(directBindingService) {
+        if (!directBindingService || typeof directBindingService.getSkills !== 'function') {
+            return false;
+        }
+
+        const directSkills = directBindingService.getSkills();
+        if (!Array.isArray(directSkills) || directSkills.length === 0) {
+            return false;
+        }
+
+        const prevSkillMap = new Map();
+        if (Array.isArray(this.skills)) {
+            for (const s of this.skills) {
+                if (s && s.name) prevSkillMap.set(s.name, s);
+            }
+        }
+
+        const mergedSkills = directSkills.map(s => {
+            const prev = prevSkillMap.get(s.name);
+            const canEnhance = (s.canEnhance !== undefined && s.canEnhance !== false)
+                ? s.canEnhance
+                : (prev ? Boolean(prev.canEnhance) : false);
+            return Object.assign({}, s, { canEnhance });
+        });
+
+        const isChanged = !this.isSynced ||
+            this.skills.length !== mergedSkills.length ||
+            mergedSkills.some((s, idx) => {
+                const prev = this.skills[idx];
+                return !prev ||
+                    prev.name !== s.name ||
+                    prev.rank?.key !== s.rank?.key ||
+                    prev.canEnhance !== s.canEnhance ||
+                    prev.skillLevel !== s.skillLevel ||
+                    prev.weaponSlots !== s.weaponSlots;
+            });
+
+        this.skills = mergedSkills;
+        this.isSynced = true;
+        return isChanged;
+    }
+
+    /**
      * 有効スキル（Basic / 入門以上、または向上可能 * 状態）のみを抽出して取得
      * @returns {Array<Object>}
      */

@@ -7,6 +7,7 @@
 
 import { GLYPH_OFFSETS, classifyGlyph, ENTITY_TYPES, getOnumFromGlyph, getItemInfoFromOnum } from "../engines/glyphClassifier.js";
 import { OBJECT_KNOWLEDGE_MAP } from "../data/OBJECT_KNOWLEDGE_FULL.js";
+import { MONSTER_KNOWLEDGE_MAP } from "../data/MONSTER_KNOWLEDGE_FULL.js";
 import { getSkillProficiencyBadge } from "../presenters/ItemSpecPresenter.js";
 import { ItemIdentificationResolver, IDENTIFICATION_LEVELS } from "../engines/ItemIdentificationResolver.js";
 import { ActionRecipeFactory } from "../../request/ActionRecipeFactory.js";
@@ -460,7 +461,14 @@ export class InventoryStateManager {
             if (!letter || !/^[a-zA-Z]$/.test(letter)) continue;
 
             const onum = rawItem.onum;
-            const glyphId = (typeof onum === 'number' && onum >= 0) ? (GLYPH_OFFSETS.GLYPH_OBJ_OFF + onum) : -1;
+            const corpsenm = typeof rawItem.corpsenm === 'number' ? rawItem.corpsenm : -1;
+            let glyphId = (typeof onum === 'number' && onum >= 0) ? (GLYPH_OFFSETS.GLYPH_OBJ_OFF + onum) : -1;
+            if (onum === 265 && corpsenm >= 0) {
+                glyphId = GLYPH_OFFSETS.GLYPH_BODY_OFF + corpsenm;
+            } else if (onum === 476 && corpsenm >= 0) {
+                glyphId = GLYPH_OFFSETS.GLYPH_STATUE_OFF + corpsenm;
+            }
+
             const objInfo = (onum >= 0 && OBJECT_KNOWLEDGE_MAP) ? OBJECT_KNOWLEDGE_MAP.get(onum) : getItemInfoFromOnum(onum);
 
             // 装備スロット同定 (C側の uwep 等ポインタと照合)
@@ -491,7 +499,31 @@ export class InventoryStateManager {
             const prevItem = this.items.find(it => it.letter === letter || (rawItem.ptr && it.rawObjPtr === rawItem.ptr));
             let baseName = '';
 
-            if (isIdentified || (objInfo && objInfo.canBeUnidentified === false)) {
+            // 💀 死体 (265)・像 (476)・缶詰 (296) の専用名称合成
+            if (onum === 265 && corpsenm >= 0) {
+                const mon = MONSTER_KNOWLEDGE_MAP.get(corpsenm);
+                const monName = (lang === 'ja' && mon?.nameJa) ? mon.nameJa : (mon?.name || 'corpse');
+                baseName = (lang === 'ja') ? `${monName}の死体` : `${mon?.name || monName} corpse`;
+            } else if (onum === 476 && corpsenm >= 0) {
+                const mon = MONSTER_KNOWLEDGE_MAP.get(corpsenm);
+                const monName = (lang === 'ja' && mon?.nameJa) ? mon.nameJa : (mon?.name || 'statue');
+                baseName = (lang === 'ja') ? `${monName}の像` : `statue of a ${mon?.name || monName}`;
+            } else if (onum === 296) {
+                // 缶詰 (spe は強化値ではなくほうれん草/自家製フラグ)
+                if (rawItem.spe === 1) {
+                    baseName = (lang === 'ja') ? 'ほうれん草の缶詰' : 'tin of spinach';
+                } else if (corpsenm < 0) {
+                    baseName = (lang === 'ja') ? '空の缶詰' : 'empty tin';
+                } else {
+                    const mon = MONSTER_KNOWLEDGE_MAP.get(corpsenm);
+                    const monName = (lang === 'ja' && mon?.nameJa) ? mon.nameJa : (mon?.name || 'meat');
+                    if (rawItem.spe < 0) {
+                        baseName = (lang === 'ja') ? `自家製の${monName}の缶詰` : `homemade tin of ${mon?.name || monName} meat`;
+                    } else {
+                        baseName = (lang === 'ja') ? `${monName}の缶詰` : `tin of ${mon?.name || monName} meat`;
+                    }
+                }
+            } else if (isIdentified || (objInfo && objInfo.canBeUnidentified === false)) {
                 baseName = objInfo ? (objInfo.name || `item #${onum}`) : `item #${onum}`;
             } else {
                 // 未鑑定アイテム: 動的シャッフル外見名 (getAppearance) を最優先で参照しフォーマット
@@ -532,12 +564,19 @@ export class InventoryStateManager {
                 else rawText += 'uncursed ';
             }
 
-            // 強化値
-            if (rawItem.spe !== 0) {
+            // 強化値: known かつ WEAPON / ARMOR / RING / 強化値付きTOOL のみ表示 (缶詰や魔法書にspeを付加しない)
+            const isEnchantableCategory = (objInfo && ['WEAPON', 'ARMOR', 'RING'].includes(objInfo.category)) || onum === 253 || onum === 261;
+            const isKnownItem = Boolean(rawItem.flags && rawItem.flags.known) || this.sagesWisdomMode;
+            if (isEnchantableCategory && isKnownItem && rawItem.spe !== 0) {
                 rawText += rawItem.spe > 0 ? `+${rawItem.spe} ` : `${rawItem.spe} `;
             }
 
             rawText += baseName;
+
+            // 杖のチャージ数表示 (known時のみ)
+            if (objInfo && objInfo.category === 'WAND' && isKnownItem) {
+                rawText += ` (${rawItem.spe} charges)`;
+            }
 
             // 装備サフィックス
             if (isWielded) {
@@ -556,7 +595,8 @@ export class InventoryStateManager {
                 rawText += ' (being worn)';
             }
 
-            const categoryFlags = this.categorizeItem(rawText, glyphId, onum);
+            // 🎯 Direct Binding 経路では決定論的テーブル解決のみを行い、文字列正規表現パースは一切呼ばない
+            const categoryFlags = this.categorizeItemFromOnum(onum, rawItem.oclass, equipSlot);
             const identification = ItemIdentificationResolver.resolve({
                 rawText,
                 onum,
@@ -574,6 +614,7 @@ export class InventoryStateManager {
                     type: 'ITEM',
                     rawText,
                     onum,
+                    corpsenm,
                     glyph: glyphId,
                     identification
                 };
@@ -596,9 +637,12 @@ export class InventoryStateManager {
 
             parsedItems.push({
                 letter,
+                name: baseName,
+                baseName,
                 rawText,
                 glyphId,
                 onum,
+                corpsenm: typeof rawItem.corpsenm === 'number' ? rawItem.corpsenm : corpsenm,
                 identifier: rawItem.ptr,
                 rawObjPtr: rawItem.ptr,
                 weight: rawItem.weight,
@@ -859,6 +903,92 @@ export class InventoryStateManager {
     }
 
     /**
+     * 🎯 Direct Binding 専用アイテム分類 (正規表現ゼロ・100%決定論的解決)
+     * @param {number} onum 
+     * @param {number} [oclass=0] 
+     * @param {string|null} [equipSlot=null] 
+     * @returns {Object} カテゴリフラグ構造体
+     */
+    categorizeItemFromOnum(onum, oclass = 0, equipSlot = null) {
+        let onumCategory = 'OTHER';
+        let isPickAxe = false;
+        let isKey = false;
+        let isAxe = false;
+        let isDigWand = false;
+        let isFrostWand = false;
+        let isAmmo = false;
+        let isLauncher = false;
+        let isCanOpener = false;
+        let isTin = false;
+        let isBox = false;
+        let isBag = false;
+        let isTouchstone = false;
+        let isGem = false;
+        let isRock = false;
+
+        if (typeof onum === 'number' && onum >= 0) {
+            const info = getItemInfoFromOnum(onum);
+            onumCategory = info.category;
+            isPickAxe = info.isPickAxe;
+            isKey = info.isKey;
+            isAxe = info.isAxe;
+            isDigWand = info.isDigWand;
+            isFrostWand = info.isFrostWand;
+            isAmmo = info.isAmmo;
+            isLauncher = info.isLauncher;
+            isCanOpener = info.isCanOpener;
+            isTin = info.isTin;
+            isBox = info.isBox;
+            isBag = info.isBag;
+            isTouchstone = info.isTouchstone;
+            isGem = info.isGem;
+            isRock = info.isRock;
+        }
+
+        const verb = isDigWand ? 'z' : 'a';
+        const isWielded = equipSlot === 'weapon';
+        const isOffhand = equipSlot === 'offhand';
+        const isQuivered = equipSlot === 'quiver';
+        const isWorn = Boolean(equipSlot && !isWielded && !isOffhand && !isQuivered);
+        const equipState = {
+            isWielded,
+            isOffhand,
+            isQuivered,
+            isWorn,
+            equipSlot,
+            isEquipped: Boolean(isWielded || isOffhand || isQuivered || isWorn)
+        };
+
+        const defaultAction = this.determineDefaultAction('', {
+            isPickAxe, isDigWand, isKey, isAxe, isFrostWand, isAmmo, isLauncher,
+            isCanOpener, isTin, isBox, isBag, isTouchstone, isGem, isRock, onumCategory, onum
+        }, equipState, '', Array.isArray(this.items) ? this.items : []);
+
+        return {
+            isPickAxe,
+            isDigWand,
+            isDigTool: isPickAxe || isDigWand,
+            verb,
+            isKey,
+            isAxe,
+            isFrostWand,
+            isAmmo,
+            isLauncher,
+            isCanOpener,
+            isTin,
+            isBox,
+            isBag,
+            isTouchstone,
+            isGem,
+            isRock,
+            onum,
+            onumCategory,
+            ...equipState,
+            ...defaultAction
+        };
+    }
+
+    /**
      * 三層識別アルゴリズム (onum -> Glyph ID -> 正規表現) によるアイテム分類
      * @param {string} rawText 
      * @param {number} glyphId 
@@ -928,10 +1058,10 @@ export class InventoryStateManager {
         if (!isTouchstone && (/\b(touchstone|whetstone)\b/i.test(cleanText) || /(タッチストーン|砥石)/.test(cleanText))) {
             isTouchstone = true;
         }
-        if (!isGem && !/ring|amulet|鎧|指輪|魔よけ/i.test(cleanText) && (/\b(gem|gems|ruby|diamond|emerald|sapphire|amethyst|topaz|aquamarine|turquoise|opal|garnet|jacinth|fluorite|agate|jet|obsidian|jade)\b/i.test(cleanText) || /(宝石|ルビー|ダイヤモンド|エメラルド|サファイア)/.test(cleanText))) {
+        if (!isGem && !/ring|amulet|spellbook|potion|wand|scroll|book|鎧|指輪|魔よけ/i.test(cleanText) && (/\b(gem|gems|ruby|diamond|emerald|sapphire|amethyst|topaz|aquamarine|turquoise|opal|garnet|jacinth|fluorite|agate|jet|obsidian|jade)\b/i.test(cleanText) || /(宝石|ルビー|ダイヤモンド|エメラルド|サファイア)/.test(cleanText))) {
             isGem = true;
         }
-        if (onumCategory === 'RING' || onumCategory === 'AMULET' || /ring|amulet|指輪|魔よけ/i.test(cleanText)) {
+        if (onumCategory === 'RING' || onumCategory === 'AMULET' || onumCategory === 'SPELLBOOK' || onumCategory === 'POTION' || onumCategory === 'WAND' || onumCategory === 'SCROLL' || /\brings?\b|amulet|spellbook|potion|wand|scroll|指輪|魔よけ/i.test(cleanText)) {
             isGem = false;
         }
         if (!isRock && (/\b(rock|rocks|flint)\b/i.test(cleanText) || /(岩|石|火打ち石)/.test(cleanText))) {
@@ -1222,13 +1352,26 @@ export class InventoryStateManager {
                     eat: 'e',
                     throw: 't',
                     drop: 'd',
-                    inventory: 'i'
+                    inventory: 'i',
+                    w: 'w',
+                    W: 'W',
+                    q: 'q',
+                    r: 'r',
+                    z: 'z',
+                    a: 'a',
+                    Q: 'Q',
+                    P: 'P',
+                    e: 'e',
+                    t: 't',
+                    d: 'd',
+                    i: 'i'
                 };
-                const verbKey = knowledge.verbKey || verbKeyMap[knowledge.defaultVerb] || 'a';
+                const verbKey = knowledge.verbKey || verbKeyMap[knowledge.defaultVerb] || (typeof knowledge.defaultVerb === 'string' && knowledge.defaultVerb.length === 1 ? knowledge.defaultVerb : 'a');
                 defaultVerb = verbKey;
                 defaultSequence = letter ? [verbKey, letter] : [verbKey];
-                defaultActionLabel = knowledge.defaultActionLabel || 'Action';
-                defaultActionLabelJa = knowledge.actionLabelJa || '選択';
+                const catUpper = (knowledge.category || onumCategory || '').toUpperCase();
+                defaultActionLabel = knowledge.actionLabel || knowledge.defaultActionLabel || (verbKey === 'r' ? 'Read' : (verbKey === 'q' ? 'Quaff' : (verbKey === 'z' ? 'Zap' : (verbKey === 'e' ? 'Eat' : (verbKey === 'P' ? 'Put on' : 'Action')))));
+                defaultActionLabelJa = knowledge.actionLabelJa || knowledge.defaultActionLabelJa || (catUpper === 'SPELLBOOK' ? '勉強する' : (catUpper === 'SCROLL' ? '読む' : (catUpper === 'POTION' ? '飲む' : (catUpper === 'WAND' ? '振る' : (catUpper === 'FOOD' ? '食べる' : '選択')))));
                 itemCategory = knowledge.category || onumCategory;
 
                 const alts = [makeAlt(verbKey, defaultSequence, defaultActionLabelJa, true)];
@@ -1278,7 +1421,9 @@ export class InventoryStateManager {
                 ].filter(Boolean);
             }
             // 6. 宝石・石・鉱石 (Gem / Rock)
-            else if ((categoryFlags.isGem || categoryFlags.isRock || /gem|ruby|diamond|emerald|sapphire|rock|flint|宝石|岩|石/i.test(cleanText)) && !categoryFlags.isAmmo && !categoryFlags.isLauncher) {
+            else if ((categoryFlags.isGem || categoryFlags.isRock || /gem|ruby|diamond|emerald|sapphire|rock|flint|宝石|岩|石/i.test(cleanText)) &&
+                     !categoryFlags.isAmmo && !categoryFlags.isLauncher &&
+                     !['SPELLBOOK', 'POTION', 'SCROLL', 'WAND', 'RING', 'AMULET', 'FOOD', 'ARMOR', 'WEAPON'].includes(onumCategory)) {
                 defaultVerb = 't';
                 defaultSequence = letter ? ['t', letter] : ['t'];
                 defaultActionLabel = 'Throw gem/rock';

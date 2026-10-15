@@ -5,6 +5,8 @@
  * コンテキストアクションやUI描画に必要な呪文一覧、レベル、系統、詠唱失敗率等を提供するマネージャー。
  */
 
+import { OBJECT_KNOWLEDGE_MAP } from '../data/OBJECT_KNOWLEDGE_FULL.js';
+
 export class SpellStateManager {
     constructor(options = {}) {
         // 習得魔法のリスト
@@ -27,6 +29,77 @@ export class SpellStateManager {
      */
     getSpells() {
         return this.spells;
+    }
+
+    /**
+     * WasmDirectBindingService からのダイレクト同期
+     * @param {Object} directBindingService
+     * @returns {boolean} 変更の有無
+     */
+    syncFromDirectBinding(directBindingService) {
+        if (!directBindingService || typeof directBindingService.getSpellBook !== 'function') {
+            return false;
+        }
+        const rawSpells = directBindingService.getSpellBook();
+        if (!Array.isArray(rawSpells)) return false;
+
+        const catalog = SpellStateManager.SPELL_CATALOG;
+        const newSpells = rawSpells
+            .map((raw, idx) => {
+                const onum = raw.onum || raw.id;
+                if (!onum || onum <= 0) return null;
+
+                let name = 'unknown';
+                let nameJa = '';
+                let category = 'unknown';
+                let level = raw.level || 1;
+
+                if (OBJECT_KNOWLEDGE_MAP && OBJECT_KNOWLEDGE_MAP.has(onum)) {
+                    const info = OBJECT_KNOWLEDGE_MAP.get(onum);
+                    // 魔法書 (SPELLBOOK) 以外のアイテム（武器・防具・食料・道具等）、汎用枠 (1〜17)、白紙本 (407) は除外
+                    if (!info || info.category !== 'SPELLBOOK' || onum <= 17 || onum === 407) {
+                        return null;
+                    }
+                    name = (info.name || '').replace(/^spellbook of /i, '').trim();
+                    nameJa = (info.nameJa || '').replace(/の魔法書$/, '').trim();
+                    if (info.stats) {
+                        if (info.stats.spellLevel) level = info.stats.spellLevel;
+                        if (info.stats.spellSkill) category = info.stats.spellSkill;
+                    }
+                } else {
+                    return null;
+                }
+
+                const catEntry = catalog[name.toLowerCase()];
+                if (catEntry) {
+                    if (catEntry.category) category = catEntry.category;
+                    if (catEntry.level) level = catEntry.level;
+                }
+
+                // スロット文字 (NetHack 公式 spellet 準拠: a..z, A..Z)
+                const letter = (idx < 26) ? String.fromCharCode(97 + idx) : String.fromCharCode(65 + idx - 26);
+                const failRate = raw.failRate || '0%';
+                const retention = raw.retention !== undefined ? String(raw.retention) : '';
+                return {
+                    letter,
+                    name: name || 'unknown',
+                    nameJa: nameJa || name,
+                    level,
+                    category: this.normalizeCategory(category),
+                    categoryRaw: category,
+                    failRate,
+                    retention,
+                    rawText: `${letter} - ${name}  ${level}  ${category}  ${failRate}`,
+                    sp_id: onum,
+                    sp_know: raw.retention
+                };
+            })
+            .filter(Boolean);
+
+        const isChanged = JSON.stringify(this.spells) !== JSON.stringify(newSpells);
+        this.spells = newSpells;
+        this.isSynced = true;
+        return isChanged;
     }
 
     /**
@@ -404,7 +477,19 @@ export class SpellStateManager {
             'remove curse': { level: 3, category: 'clerical' },
             '解呪': { level: 3, category: 'clerical' },
             'create familiar': { level: 6, category: 'clerical' },
-            'ペット作成': { level: 6, category: 'clerical' }
+            'ペット作成': { level: 6, category: 'clerical' },
+            'drain life': { level: 2, category: 'attack' },
+            '生命力吸収': { level: 2, category: 'attack' },
+            'haste self': { level: 3, category: 'escape' },
+            '自己加速': { level: 3, category: 'escape' },
+            'magic mapping': { level: 5, category: 'divination' },
+            '魔法の地図': { level: 5, category: 'divination' },
+            'cancellation': { level: 7, category: 'matter' },
+            '無力化': { level: 7, category: 'matter' },
+            'protection': { level: 1, category: 'clerical' },
+            '保護': { level: 1, category: 'clerical' },
+            'chain lightning': { level: 6, category: 'attack' },
+            '連鎖稲妻': { level: 6, category: 'attack' }
         };
     }
 
