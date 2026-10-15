@@ -924,6 +924,22 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
             expect(advice.severity).toBe('CRITICAL');
             expect(advice.messageJa).toContain('石化即死警告');
         });
+
+        it('crossbowとdagger装備中に未識別の巻物や薬、食料を所持していても換装手順アドバイスが出ないこと（非装備品クラス除外）', () => {
+            const invMgr = new InventoryStateManager();
+            invMgr.items = [
+                { letter: 'a', name: 'crossbow', isWielded: true, isTwoHanded: true, rawText: 'a - a crossbow (weapon in hands)' },
+                { letter: 'b', name: 'dagger', isOffhand: true, rawText: 'b - a dagger (alternate weapon)' },
+                { letter: 'k', name: 'scroll labeled ELAM EBOW', category: 'SCROLL', isWorn: false, isWielded: false, rawText: 'k - a scroll labeled ELAM EBOW' },
+                { letter: 'p', name: 'potion of extra healing', category: 'POTION', isWorn: false, isWielded: false, rawText: 'p - a potion of extra healing' },
+                { letter: 'f', name: 'food ration', category: 'FOOD', isWorn: false, isWielded: false, rawText: 'f - a food ration' },
+                { letter: 'w', name: 'wand of digging', category: 'WAND', isWorn: false, isWielded: false, rawText: 'w - a wand of digging' }
+            ];
+
+            const advices = TacticalAdvisor.generateAdvices({ inventoryState: invMgr });
+            const blockAdvices = advices.filter(a => a.id === 'ADVICE_EQUIP_DEPENDENCY_BLOCKER');
+            expect(blockAdvices.length).toBe(0);
+        });
     });
 });
 

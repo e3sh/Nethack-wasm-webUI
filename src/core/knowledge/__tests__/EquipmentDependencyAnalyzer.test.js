@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EquipmentDependencyAnalyzer } from "../equipment/EquipmentDependencyAnalyzer.js";
-import { resolveEligibleSlots, estimateActionTurns, EQUIP_SLOTS } from "../equipment/EquipmentRules.js";
+import { resolveEligibleSlots, estimateActionTurns, EQUIP_SLOTS, isEquippableForAdvice } from "../equipment/EquipmentRules.js";
 
 describe('EquipmentRules', () => {
     it('resolveEligibleSlots: 防具サブタイプから適合スロットを正しく解決できること', () => {
@@ -35,6 +35,27 @@ describe('EquipmentRules', () => {
         expect(estimateActionTurns('take_off', { armorSlot: 'suit', name: 'leather armor', weight: 100 })).toBe(1);
         // 外套: 1ターン
         expect(estimateActionTurns('take_off', { armorSlot: 'cloak', name: 'oilskin cloak' })).toBe(1);
+    });
+
+    it('isEquippableForAdvice: 武器・防具・装身具のみ許可し、巻物・薬・食料・ワンド等を除外すること', () => {
+        // 許可されるべきアイテム
+        expect(isEquippableForAdvice({ category: 'WEAPON', name: 'short sword' })).toBe(true);
+        expect(isEquippableForAdvice({ category: 'ARMOR', name: 'leather armor', armorSlot: 'suit' })).toBe(true);
+        expect(isEquippableForAdvice({ category: 'RING', name: 'ring of conflict' })).toBe(true);
+        expect(isEquippableForAdvice({ category: 'AMULET', name: 'amulet of ESP' })).toBe(true);
+        expect(isEquippableForAdvice({ isBlindfoldOrTowel: true, name: 'blindfold' })).toBe(true);
+        expect(isEquippableForAdvice({ name: 'dagger' })).toBe(true);
+        expect(isEquippableForAdvice({ name: 'short sword' })).toBe(true);
+        expect(isEquippableForAdvice({ isCorpse: true, name: 'cockatrice corpse' })).toBe(true); // コカトリス死体は警告用に許可
+
+        // 除外されるべき非装備アイテム
+        expect(isEquippableForAdvice({ category: 'SCROLL', name: 'scroll of identify' })).toBe(false);
+        expect(isEquippableForAdvice({ name: 'scroll labeled ELAM EBOW' })).toBe(false);
+        expect(isEquippableForAdvice({ category: 'POTION', name: 'potion of healing' })).toBe(false);
+        expect(isEquippableForAdvice({ category: 'FOOD', name: 'food ration' })).toBe(false);
+        expect(isEquippableForAdvice({ category: 'SPELLBOOK', name: 'spellbook of force bolt' })).toBe(false);
+        expect(isEquippableForAdvice({ category: 'WAND', name: 'wand of striking' })).toBe(false);
+        expect(isEquippableForAdvice({ category: 'COIN', name: 'gold pieces' })).toBe(false);
     });
 });
 

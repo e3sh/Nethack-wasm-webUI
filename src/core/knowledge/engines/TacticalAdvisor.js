@@ -12,7 +12,7 @@ import { ITEM_INTERACTION_RULES, evaluateInteractionRule } from "../data/ITEM_IN
 import { isShopkeeperMonster } from './glyphClassifier.js';
 import { createAdvice } from "../data/ADVICE_DEFINITIONS.js";
 import { EquipmentDependencyAnalyzer } from "../equipment/EquipmentDependencyAnalyzer.js";
-import { isCockatriceCorpse } from "../equipment/EquipmentRules.js";
+import { isCockatriceCorpse, isEquippableForAdvice } from "../equipment/EquipmentRules.js";
 
 export class TacticalAdvisor {
 
@@ -960,6 +960,11 @@ export class TacticalAdvisor {
                         hintLetters: [item.letter]
                     }));
                 }
+                continue;
+            }
+
+            // 装備品クラス（武器・防具・装身具など）以外の消耗品・非装備品（巻物、薬等）は換装診断から除外
+            if (!isEquippableForAdvice(item)) {
                 continue;
             }
 

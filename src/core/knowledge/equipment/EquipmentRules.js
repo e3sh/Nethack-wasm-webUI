@@ -237,6 +237,80 @@ export function isTwoWeaponEligible(situation, core = null) {
     return true;
 }
 
+/**
+ * アイテムが装備換装アドバイスの対象（武器・防具・装身具・目隠し等）として妥当か判定
+ * 巻物、薬、魔法書、食料、ワンド、金貨などの非装備品・消耗品を除外する
+ * @param {Object} item
+ * @returns {boolean}
+ */
+export function isEquippableForAdvice(item) {
+    if (!item) return false;
+
+    // コカトリス死体は安全警告（ADVICE_EQUIP_COCKATRICE_DANGER）の対象として許可
+    if (isCockatriceCorpse(item)) return true;
+
+    const raw = (item.rawText || item.name || '').toLowerCase();
+    const cat = item.category || item.itemCategory || item.knowledge?.category || item.onumCategory || '';
+
+    // 明示的に非装備・消耗品カテゴリであるものは除外
+    if (
+        cat === 'SCROLL' || cat === 'POTION' || cat === 'SPELLBOOK' ||
+        cat === 'FOOD' || cat === 'WAND' || cat === 'COIN' || cat === 'GOLD' ||
+        cat === 'GEM' || cat === 'ROCK' || cat === 'BALL' || cat === 'CHAIN'
+    ) {
+        return false;
+    }
+
+    // アイテム名 / rawText に基づく除外（未識別名やラベル含む）
+    if (/\b(?:scroll|potion|spellbook|wand)\b/i.test(raw)) {
+        return false;
+    }
+
+    // 1. equipSlot または armorSlot の指定があれば装備品
+    if (item.armorSlot || item.knowledge?.armorSlot || item.equipSlot) {
+        return true;
+    }
+
+    // 2. 武器・防具・装身具カテゴリ
+    if (
+        cat === 'WEAPON' || cat === 'ARMOR' || cat === 'RING' || cat === 'AMULET' ||
+        item.isWeapon || item.isArmor || item.isRing || item.isAmulet
+    ) {
+        return true;
+    }
+
+    // 3. 目隠し・タオル
+    if (/blindfold|towel/.test(raw) || item.isBlindfoldOrTowel) {
+        return true;
+    }
+
+    // 4. 矢・投擲物（Ammo）
+    if (item.isAmmo || cat === 'AMMO' || /arrow|bolt|dart|shuriken/.test(raw)) {
+        return true;
+    }
+
+    // 5. 一般的な武器・防具・装身具のキーワード判定
+    if (
+        /sword|dagger|knife|axe|mace|spear|club|saber|scimitar|blade|tsurugi|katana|flail|hammer|whip|bow|crossbow|sling|lance|halberd|glaive|poleaxe|polearm|mattock|dart|javelin|boomerang|trident|partisan|spetum|ranseur|bill-guisarme|voulge|fauchard|guisarme|bardiche|bec-de-corbin|lucern|yari|naginata|morning star|war hammer|quarterstaff|broadsword|short sword|long sword|silver saber|two-handed sword|elven dagger|orcish dagger|athame|crysknife|scalpel/.test(raw)
+    ) {
+        return true;
+    }
+
+    if (
+        /shield|cloak|suit|mail|armor|jacket|shirt|helmet|helm|hat|cap|gloves|gauntlets|mittens|boots|shoes|ring|amulet/.test(raw)
+    ) {
+        return true;
+    }
+
+    // 日本語名プロパティ（nameJa, customNameJa）が存在する場合のフォールバック
+    const jaName = item.nameJa || item.customNameJa || '';
+    if (jaName && /剣|短剣|刀|斧|槍|弓|クロスボウ|棍棒|鞭|槌|盾|鎧|兜|帽子|手袋|靴|外套|クローク|指輪|首飾り|アミュレット|目隠し|タオル/.test(jaName)) {
+        return true;
+    }
+
+    return false;
+}
+
 export const EquipmentRules = {
     EQUIP_SLOTS,
     ARMOR_LAYERS,
@@ -247,7 +321,8 @@ export const EquipmentRules = {
     resolveEligibleSlots,
     isTwoHandedWeapon,
     isCockatriceCorpse,
-    isTwoWeaponEligible
+    isTwoWeaponEligible,
+    isEquippableForAdvice
 };
 
 export default EquipmentRules;

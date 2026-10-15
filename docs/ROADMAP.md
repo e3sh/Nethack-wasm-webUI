@@ -34,7 +34,7 @@ last_updated: 2026-10-15
 
 > [!NOTE]
 > **Phase 8（公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結）は全ステージ (8.1〜8.5) 完遂しました！**  
-> 完了した実装仕様および詳細成果は、**[§4 実装完了コア機能 (Living Specs)](#🟢-4-実装完了コア機能現行仕様-living-specs)** および **[最新引き継ぎ総合レポート (handover_20261015_stage8_completion.ja.md)](./6_project_reports/handover_20261015_stage8_completion.ja.md)** を参照してください。過去のマイグレーションステップ詳細はアーカイブ資料へ移管・集約されました。
+> 完了した実装仕様および詳細成果は、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** および **[最新引き継ぎ総合レポート (handover_20261015_stage8_completion.ja.md)](./6_project_reports/handover_20261015_stage8_completion.ja.md)** を参照してください。過去のマイグレーションステップ詳細はアーカイブ資料へ移管・集約されました。
 
 Phase 8 の真値直結基盤の完成に伴い、後続の重要機能がすべて安全・シンプルに実装可能な状態となりました。  
 現在、以下の 3 候補から **次期最優先フォーカス（Active Focus）** を選定し、スロットインする準備を進めています。
@@ -50,7 +50,7 @@ Phase 8 の真値直結基盤の完成に伴い、後続の重要機能がすべ
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
 仕様・設計が完了しており、次期着手スロットを待機しているタスク群です。  
-※なお、**旧2.1, 2.2, 2.5, 2.6 (Peek Wisdom), 2.7 (ASCII純化)** は Phase 8 と共に完遂し、**[§4 実装完了コア機能 (Living Specs)](#🟢-4-実装完了コア機能現行仕様-living-specs)** へ移行・整理済みです。
+※なお、**旧2.1, 2.2, 2.5, 2.6 (Peek Wisdom), 2.7 (ASCII純化)** は Phase 8 と共に完遂し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
 
 ### 2.1 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
 - **ステータス**: `⏸️ pending (Ready)` (Phase 8 完遂により前提条件クリア・着手可能)
@@ -112,14 +112,16 @@ Phase 8 の真値直結基盤の完成に伴い、後続の重要機能がすべ
 
 ---
 
-## 🟢 4. 実装完了コア機能・現行仕様 (Living Specs)
+## 🟢 4. 実装完了コア機能・現行仕様 (Living Specs) <a id="living-specs"></a>
 
 すでに実装が完了し、テストが通過（**全149スイート・1,811テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :---: | :--- |
 | **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、基本憲法、重複整理、未接続パイプラインの公式総合カタログ |
-| **GKL・同期/基盤** | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md)<br>[gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/gkl_multibyte_removal_and_ascii_purification_plan.ja.md) | `StartupFlowController.js`<br>`GameLifecycleState.js`<br>`InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`EquipmentRules.js`<br>`ItemSpecPresenter.js` | `🟢 implemented` | **同期ライフサイクル不可分同期 ＆ ライフサイクル管理 ＆ ASCII純化 ＆ Peek Wisdom 床アイテム完全バインド (Stage 8.5: 2026-10-15)**<br>`completeStartup` の async 化による遅延ハック完全排除、`GameLifecycleManager`（単一ステートマシンSSOT）、`rawText` 汚染解消と和名分離、GKL/装備モデル層からの日本語正規表現完全削除、`ItemSpecPresenter` 個体スペック（`quan`, `spe`, `charges`, `corpsenm`, `bucStatus`）動的生成 |
+| **GKL・不可分同期** | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) | `StartupFlowController.js`<br>`GameLifecycleState.js`<br>`SilentSyncCoordinator.js` | `🟢 implemented` | **不可分同期ライフサイクル ＆ 単一状態マシン管理 (Stage 8.5: 2026-10-15)**<br>`completeStartup` の async 化による遅延ハック完全排除、`GameLifecycleManager`（単一ステートマシンSSOT）による状態遷移一元化、セーブ再開時チラつき根絶 |
+| **GKL・床知恵 (旧2.6)** | [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) | `ItemSpecPresenter.js`<br>`AreaStateManager.js`<br>`NhKnowledgeCard.js` | `🟢 implemented` | **床アイテム Direct Binding 完全化 ＆ 覗き見知恵 (Peek Wisdom / Stage 8.5: 2026-10-15)**<br>`syncPlayerFeetFloor` 直結の `struct obj` からスタック数量 (`quan`)、強化値 (`spe`)、残チャージ (`charges`)、対象生物 (`corpsenm`)、BUC を動的バッジ化 |
+| **GKL・ASCII純化 (旧2.7)** | [gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/gkl_multibyte_removal_and_ascii_purification_plan.ja.md) | `InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`EquipmentRules.js`<br>`EquipmentDependencyAnalyzer.js` | `🟢 implemented` | **GKL/装備判定ロジックからの日本語正規表現完全削除 ＆ ASCII純化 (Stage 8.5: 2026-10-15)**<br>`rawText` への和名合成汚染を解消し 100% 英語 ASCII に純化（和名は `nameJa`/`customNameJa` へ分離）。判定バグリスクを根絶 |
 | **GKL・探索同期** | [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)<br>[nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md) | `PlayerWasmAdapter.js`<br>`BindingConstants.js`<br>`AreaStateManager.js`<br>`AttributeStateManager.js`<br>`GKLEventRouter.js` | `🟢 implemented` | **ブランチ同定・お祈りタイマー・プレイヤー耐性直結 (Stage 8.4: 2026-10-15)**<br>`dnum` による全9ブランチ 100% 確定同定 ＆ `branch:dlvl` キャッシュ分離、新エリア突入バナー演出（`AREA_ENTERED`）、`ublesscnt` / `ugangr`（推測誤差ゼロお祈り判定）、`uprops` 69要素耐性配列 SSOT 直結 |
 | **GKL・確定情報** | [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md) | `src/driver/shim/shim_bridge.c`<br>`glyphClassifier.js`<br>`InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`TerrainInferenceEngine.js` | `🟢 implemented` | **Direct Binding 確定情報純化 ＆ 地形・インベントリ不具合是正 (Stage 8.3-C: 2026-10-15)**<br>Cシム層 `corpsenm`/`known` 拡張、像・死体の専用グリフ（`GLYPH_STATUE_OFF`/`GLYPH_BODY_OFF`）適用、扉なし枠（`3985`）適正化、魔法書・杖・缶詰の境界・誤爆根絶 |
 | **描画・同期** | [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)<br>[direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md) | `GKLEventRouter.js`<br>`WasmDirectBindingService.js`<br>`TerrainInferenceEngine.js`<br>`ViewportTileProjector.js`<br>`VirtualDungeonScreen.js`<br>`MainViewportRenderer.js` | `🟢 implemented` | **Shim-Driven 確定同期レンダリング・パイプライン ＆ Sync Barrier 調停 (Stage 8.3-B & §2.5: 2026-10-11)**<br>4フェーズ Turn Lifecycle（`userActionSent` ➔ Streaming ➔ Sync Barrier ➔ `areaStateCommitted`）、`--More--` 待機ガード (`isMorePromptActive`)、世代管理による遅延同期破棄、Direct Binding 時の投機的仮床（`3992`）完全根絶、未踏領域非表示化 ＆ `curs` 連動の足元 `cell.middle` 確定同期フラッシュ |
