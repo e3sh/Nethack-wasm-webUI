@@ -713,10 +713,18 @@ export class InventoryStateManager {
             this.shimSyncCount++;
 
             this.items = [];
-            this.isSynced = true;
-            this._lastInventorySignature = newSignature;
-            this.hasCompletedInitialSync = true;
-            return hadItems;
+            // 🛡️ 初回同期が一度も完了していない段階で 0 件が返った場合、
+            // セーブ復帰やCコア復元中の過渡期（一時的な空状態）の可能性があるため
+            // isSynced = true と確定させず保留する
+            if (this.hasCompletedInitialSync) {
+                this.isSynced = true;
+                this._lastInventorySignature = newSignature;
+                return hadItems;
+            } else {
+                this.isSynced = false;
+                this._lastInventorySignature = '';
+                return hadItems;
+            }
         }
     }
 

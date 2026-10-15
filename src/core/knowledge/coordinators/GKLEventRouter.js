@@ -91,7 +91,8 @@ export class GKLEventRouter {
             );
             const isTopLevelSettled = Boolean(
                 payload &&
-                (payload.isTopLevelTurn || (isPoskeyContext && payload.isTopLevelTurn !== false && !isSubPrompt)) &&
+                (isPoskeyContext || payload.isTopLevelTurn) &&
+                !isSubPrompt &&
                 !payload.isMorePrompt &&
                 !(core && core.isMorePromptActive) &&
                 !(core && core.isTextWindowOpen) &&
@@ -133,7 +134,11 @@ export class GKLEventRouter {
                             }
                         }
 
-                        const isInitialSync = Boolean(!p.inventoryStateManager?.isSynced || core?.isResumingSave || (p.statusAccessor?.turns ?? 0) <= 1);
+                        const isInitialSync = Boolean(
+                            !p.inventoryStateManager?.isSynced ||
+                            !p.inventoryStateManager?.hasCompletedInitialSync ||
+                            core?.isResumingSave
+                        );
                         const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({
                             playerX: px >= 0 ? px : undefined,
                             playerY: py >= 0 ? py : undefined,

@@ -295,7 +295,15 @@ export class StartupFlowController {
         window.focus();
       }
 
-      // セーブ復帰完了時のステータス・インベントリ強制確定反映
+      // 🎯 セーブ復帰・新規開始共通: ダンジョン突入トリガー発火時のインベントリ・ステータス強制確定同期
+      const gkl = this.client.core?.gkl;
+      if (gkl && gkl.inventoryStateManager && typeof gkl.inventoryStateManager.syncFromDirectBinding === 'function') {
+        const changed = gkl.inventoryStateManager.syncFromDirectBinding();
+        if (changed && this.client.core) {
+          this.client.core.emit('inventoryStateUpdated', gkl.inventoryStateManager);
+        }
+      }
+
       if (this.client.statusView && this.client.core?.statusAccessor) {
         const currentStatus = this.client.core.statusAccessor.getStatus();
         if (currentStatus) {

@@ -1935,10 +1935,9 @@ export class WebUICore {
             );
 
             // 未同期ステート（所持品・魔法等）があれば裏で自動サイレント同期を一元依頼
-            // ※方向指定中やサブプロンプト中・プレフィックス待機中・--More--待機中を除外した「純粋なトップレベル通常ターン待機」時のみ安全に実行
             const isPoskeyContext = (category === PROMPT_CATEGORY.POSKEY || category === 'TURN_INPUT' || category === 'POSKEY' || payload.context === 'poskey' || payload.type === 'poskey');
             const isInteractiveExecuting = Boolean(this.interactiveController && this.interactiveController.isBusy());
-            const driverAllowsTopLevel = payload.isTopLevelTurn !== false && !payload.isMorePrompt && !this.isMorePromptActive && !this.isTextWindowOpen;
+            const driverAllowsTopLevel = (payload.isTopLevelTurn === true || isPoskeyContext || payload.isTopLevelTurn === undefined) && !payload.isMorePrompt && !this.isMorePromptActive && !this.isTextWindowOpen;
             const isTopLevelTurn = Boolean(isPoskeyContext && driverAllowsTopLevel && !isPrefixWaiting && !isDirectionWaiting && !this.currentPromptChoices && !isInteractiveExecuting);
             if (isTopLevelTurn) {
                 this.isManualNamingActive = false;
