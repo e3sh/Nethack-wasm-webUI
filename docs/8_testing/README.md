@@ -2,7 +2,7 @@
 
 NetHack WebUI プロジェクトにおける **WebUICore (Core SDK) ユニットテスト・統合テスト基盤** の構成、実行方法、およびテスト追加ガイドライン。
 
-本プロジェクトではテストランナーとして **Vitest** を採用しており、Wasm Cコアやブラウザ画面に依存しない純粋な計算・パースロジック、ナレッジ整合性監査、およびキー入力プロトコル検証（**全136テストスイート・1,670テスト / 100% PASS**）をミリ秒単位（全件約5秒以内）で全自動検証します。
+本プロジェクトではテストランナーとして **Vitest** を採用しており、Wasm Cコアやブラウザ画面に依存しない純粋な計算・パースロジック、ナレッジ整合性監査、およびキー入力プロトコル検証（**全149テストスイート・1,811テスト（1 skipped） / 100% PASS**）をミリ秒単位（全件約16秒以内）で全自動検証します。
 
 ---
 
@@ -14,7 +14,7 @@ NetHack WebUI プロジェクトにおける **WebUICore (Core SDK) ユニット
 ```bash
 npm test
 ```
-* 全 136 テストスイート（1,670 件のテスト）が一括実行され、ターミナル上に合否結果を出力します。
+* 全 149 テストスイート（1,811 件のテスト）が一括実行され、ターミナル上に合否結果を出力します。
 
 ### ② プロトコル検証テストのみ実行 (高速規約検査)
 ```bash
@@ -38,18 +38,18 @@ npm run test:ui
 
 ## 2. 対象モジュールとテスト一覧 (Test Suites Overview)
 
-現在構築されている主要テストスイート一覧です（※全 136 スイート・1,670 テストから主要カテゴリを抜粋）。
+現在構築されている主要テストスイート一覧です（※全 149 スイート・1,811 テストから主要カテゴリを抜粋）。
 
 | レイヤー / 分類 | 主なテストファイル | 主な検証内容 |
 | :--- | :--- | :--- |
-| **【Layer 1: 純粋単体】入力・基盤・境界** | `PromptPayloadBuilder.test.js`, `TouchCalculator.test.js`, `KeyMapper.test.js`, `GamepadManager.test.js`, `TextWindowManager.test.js`, `StatusAccessor.test.js`, `ArchitectureBoundary.test.js`, `GameOverResolver.test.js` | プロンプト解析、画面アスペクト補正計算、キーマッピング、ウィンドウバッファ管理、UI Decoupling 境界規約 |
-| **【Layer 1: 純粋単体】GKL ナレッジ・状態追跡** | `TacticalAdvisor.test.js`, `AssistSignalSynthesizer.test.js`, `AreaStateManager.test.js`, `InventoryStateManager.test.js`, `MonsterTracker.test.js`, `ChemistryKnowledge.test.js`, `CharacterKnowledge.test.js`, `ItemInteractionRules.test.js`, `SpellStateManager.test.js`, `SkillStateManager.test.js`, `AttributeStateManager.test.js`, `DiscoveryStateManager.test.js` | 種族・職業・確定耐性計算、モンスター追跡、エリア・所持品・耐性状態の追跡、戦術助言、アシストシグナル、ケミストリー・道具相互作用判定 |
+| **【Layer 1: 純粋単体】入力・基盤・ライフサイクル** | `PromptPayloadBuilder.test.js`, `TouchCalculator.test.js`, `KeyMapper.test.js`, `GamepadManager.test.js`, `TextWindowManager.test.js`, `StatusAccessor.test.js`, `ArchitectureBoundary.test.js`, `GameOverResolver.test.js`, `GameLifecycleState.test.js` | プロンプト解析、画面アスペクト補正計算、キーマッピング、ウィンドウバッファ管理、UI Decoupling 境界規約、単一ステートマシンによるライフサイクル遷移管理（SSOT） |
+| **【Layer 1: 純粋単体】GKL ナレッジ・状態追跡** | `TacticalAdvisor.test.js`, `AssistSignalSynthesizer.test.js`, `AreaStateManager.test.js`, `AreaStateManagerModularization.test.js`, `InventoryStateManager.test.js`, `MonsterTracker.test.js`, `ChemistryKnowledge.test.js`, `CharacterKnowledge.test.js`, `ItemInteractionRules.test.js`, `SpellStateManager.test.js`, `SkillStateManager.test.js`, `AttributeStateManager.test.js`, `DiscoveryStateManager.test.js` | 種族・職業・確定耐性計算、モンスター追跡、エリア4分割状態、所持品・耐性状態の追跡、戦術助言、アシストシグナル、ケミストリー・道具相互作用判定 |
 | **【Layer 1: 純粋単体】Phase E (UIController & Web Components)** | `UIController.test.js`, `InputCoordinator.test.js`, `GamepadInputController.test.js`, `NhPaperdoll.test.js`, `NhContainerFiler.test.js`, `NhRadialPaletteHud.test.js`, `NhShirenInventoryDrawer.test.js`, `NhGamepadGuideBar.test.js`, `NhContextHintPill.test.js` | フレームワーク非依存 UIController 制御、入力ルーティング調停、装備ペーパードール、二画面コンテナファイラー、GamePad コンポーネント群 |
 | **【Layer 1: 純粋単体】Phase 6 (Sound & Audio Drivers)** | `SoundCoordinator.test.js`, `SoundArbiter.test.js`, `SoundEventRouter.test.js`, `SoundModeManager.test.js`, `WaveAudioDriver.test.js`, `PsgBeepDriver.test.js`, `ProceduralSynthDriver.test.js`, `SoundEngine.test.js` | マルチドライバ調停、優先度キュー＆クールダウン制御、PSG Beep (LFO/MML)、Web Audio 6大合成モード駆動 |
 | **【Layer 1: 純粋単体】Phase 7 (Knowledge Card, Adventure Log & Post-Mortem)** | `OnDemandLookupService.test.js`, `NhKnowledgeCard.test.js`, `NhDiscoveryCodex.test.js`, `NhCodexGrid.test.js`, `AdventureLogManager.test.js`, `PostMortemKnowledgeResolver.test.js` | 3層ナレッジカード表示、冒険手帳アンロック＆収集率管理、Stage 1〜3 ハイブリッド死因名寄せ・根本原因調停 (RCA) |
-| **【Layer 1: 純粋単体】Phase 8 (Wasm Direct Memory Binding)** | `WasmDirectBindingService.test.js`, `DirectBindingVerificationEnvironment.test.js`, `AreaStateManager.terrainDump.test.js` | Cメモリ直結ダンプ (`0x10`〜`0x62`) のバイナリデコード、所持品・コンテナ・地面スタック・識別テーブル・地形ダンプのゼロテキスト同期検証 |
+| **【Layer 1: 純粋単体】Phase 8 (Wasm Direct Memory Binding)** | `WasmDirectBindingService.test.js`, `NetHackMemory.test.js`, `NetHackWasmWorkerBridge.shim.test.js`, `GKLPlugin.directBinding.test.js`, `InventoryStateManager.directBinding.test.js`, `SpellStateManager.directBinding.test.js`, `EncumbranceStateManager.directBinding.test.js`, `AreaStateManager.terrainDump.test.js`, `FirstTurnFullSync.test.js` | Cメモリ直結ダンプ (`0x10`〜`0x62`) のバイナリデコード、所持品・装備・耐性・お祈り・フロア地形の不可分同期、Sync Barrier 排他制御、Peek Wisdom 床アイテムスペックバインド |
 | **【Layer 1: 静的監査】SSOT 完全性** | `KnowledgeIntegrityAudit.test.js`, `AllGlyphsVerification.test.js`, `ObjectKnowledgeIntegrity.test.js` | 全 384 モンスター / 481 アイテム / 24 助言 / 26 シグナルのスキーマ正規化・防護整合性・Glyph マッピング全数監査 |
-| **【Layer 1: コア拡張・サービス】** | `DebugInspector.test.js`, `ScenarioRecorder.test.js`, `TranslationEngine.test.js`, `WishService.test.js`, `OnDemandLookService.test.js`, `RequestController.test.js`, `GKLPlugin.test.js`, `WebUICore.test.js` | リクエスト・キュー制御と実機同期、インスペクター配信、REC レコーダー制御、翻訳エンジン、願い解決、遅延照会、GKL 統合ライフサイクル |
+| **【Layer 1: コア拡張・サービス】** | `DebugInspector.test.js`, `ScenarioRecorder.test.js`, `TranslationEngine.test.js`, `WishService.test.js`, `OnDemandLookService.test.js`, `RequestController.test.js`, `GKLPlugin.test.js`, `GKLPlugin.modularization.test.js`, `WebUICore.test.js` | リクエスト・キュー制御と実機同期、インスペクター配信、REC レコーダー制御、翻訳エンジン、願い解決、遅延照会、GKL 統合ライフサイクル |
 | **【Layer 2: 上り第1/第2防壁】プロトコル** | `sequenceProtocol.test.js`, `actionExecutionProtocol.test.js`, `SequenceProtocolValidator.test.js` | 静的リンターによる改行・無効コマンド排除、FakeDriver による動的プレースホルダー（`${invlet}` 等）解決後の完走検査 |
 | **【Layer 2: 上り第3防壁】ヘッドレス** | `headlessDriverSimulation.test.js` | 本物の `NetHackWasmDriver` を用いた非同期 Promise 解決、FIFO キュー順次実行、方向コード自動変換の完走検証 |
 | **【Layer 3: 下り統合】シナリオ再生** | `realScenarios.test.js`, `ScenarioDriver.test.js`, `driverRecording.test.js` | 実機キャプチャ JSON（浮遊する目玉、コカトリス、瀕死祈り等）の時系列再生・スナップショット検証 |

@@ -237,15 +237,15 @@ describe('ItemIdentificationResolver', () => {
         expect(potPlural.category).toBe('POTION');
         expect(potPlural.coreName).toBe('potion of extra healing');
 
-        // 日本語名: 4本の超回復のポーション
-        const potJa = ItemIdentificationResolver.resolve('4本の超回復のポーション');
-        expect(potJa.isUnidentified).toBe(false);
-        expect(potJa.category).toBe('POTION');
+        // 複数形英語名: 4 potions of extra healing
+        const potMulti = ItemIdentificationResolver.resolve('4 potions of extra healing');
+        expect(potMulti.isUnidentified).toBe(false);
+        expect(potMulti.category).toBe('POTION');
 
-        // 日本語名: 祝福された回復のポーション
-        const potJaBlessed = ItemIdentificationResolver.resolve('祝福された回復のポーション');
-        expect(potJaBlessed.isUnidentified).toBe(false);
-        expect(potJaBlessed.bucStatus).toBe('BLESSED');
+        // BUC 英語名: blessed potion of healing
+        const potBlessed = ItemIdentificationResolver.resolve('blessed potion of healing');
+        expect(potBlessed.isUnidentified).toBe(false);
+        expect(potBlessed.bucStatus).toBe('BLESSED');
     });
 
     it('14. discoveryStateManager で未識別 (isIdentified === false) の場合、rawText に真名が含まれていても未識別と判定されること', () => {

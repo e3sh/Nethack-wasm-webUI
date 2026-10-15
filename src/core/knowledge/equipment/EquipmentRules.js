@@ -53,13 +53,13 @@ export function estimateActionTurns(action, item) {
     const weight = item.weight || (item.knowledge && item.knowledge.weight) || (item.knowledge?.stats?.weight) || 0;
 
     // 鎧（Suit）の着脱ターン計算（NetHack C-Core do_wear.c 準拠）
-    if (slot === 'suit' || (!slot && (raw.includes('mail') || raw.includes('armor') || raw.includes('suit') || raw.includes('鎧')))) {
+    if (slot === 'suit' || (!slot && (raw.includes('mail') || raw.includes('armor') || raw.includes('suit')))) {
         // 重装プレートメイル等 (重量 > 250、または plate / crystal / bronze)
-        if (weight >= 300 || /plate|crystal|bronze plate|プレート/.test(raw)) {
+        if (weight >= 300 || /plate|crystal|bronze plate/.test(raw)) {
             return 5;
         }
         // 中装 (splint, banded, chain, scale, ring mail等、重量 150〜299)
-        if (weight >= 150 || /splint|banded|chain|scale|ring mail|鎖帷子/.test(raw)) {
+        if (weight >= 150 || /splint|banded|chain|scale|ring mail/.test(raw)) {
             return 3;
         }
         // 軽装 (leather, studded leather, mithril coat, Hawaiian shirt 等)
@@ -105,15 +105,15 @@ export function resolveEligibleSlots(item) {
         }
 
         // armorSlot 未設定時のフォールバック推定
-        if (/cloak|mantle|cape|robe|外套|マント|ローブ/.test(raw)) return ['cloak'];
-        if (/suit|mail|armor|jacket|shirt|鎧|甲冑|胴着|着物/.test(raw)) {
-            if (/shirt|シャツ/.test(raw)) return ['shirt'];
+        if (/cloak|mantle|cape|robe/.test(raw)) return ['cloak'];
+        if (/suit|mail|armor|jacket|shirt/.test(raw)) {
+            if (/shirt/.test(raw)) return ['shirt'];
             return ['suit'];
         }
-        if (/helmet|helm|hat|cap|兜|帽子/.test(raw)) return ['helm'];
-        if (/gloves|gauntlets|mittens|手袋|籠手/.test(raw)) return ['gloves'];
-        if (/shield|盾/.test(raw)) return ['shield'];
-        if (/boots|shoes|靴|ブーツ/.test(raw)) return ['boots'];
+        if (/helmet|helm|hat|cap/.test(raw)) return ['helm'];
+        if (/gloves|gauntlets|mittens/.test(raw)) return ['gloves'];
+        if (/shield/.test(raw)) return ['shield'];
+        if (/boots|shoes/.test(raw)) return ['boots'];
     }
 
     // 非装備カテゴリ（魔法書、巻物、薬、杖、食料、金貨）は主手（wield）以外不可
@@ -124,21 +124,21 @@ export function resolveEligibleSlots(item) {
     // 2. 装身具 (RING, AMULET)
     // ※ NetHack において首に装備できるものは AMULET のみ、かつ AMULET は首にしか装備できない (1対1)
     if (cat === 'AMULET' || item.itemCategory === 'AMULET' || item.equipSlot === 'amulet' ||
-        /amulet|魔よけ|魔除け|お守り|アミュレット|護符|首飾り/i.test(raw)) {
+        /amulet/i.test(raw)) {
         return ['amulet'];
     }
     if (cat === 'RING' || item.itemCategory === 'RING' || item.equipSlot === 'ring_left' || item.equipSlot === 'ring_right' ||
-        /\brings?\b|指輪/i.test(raw)) {
+        /\brings?\b/i.test(raw)) {
         return ['left_ring', 'right_ring'];
     }
 
     // 3. 目隠し・タオル
-    if (/blindfold|towel|目隠し|タオル/.test(raw) || item.isBlindfoldOrTowel) {
+    if (/blindfold|towel/.test(raw) || item.isBlindfoldOrTowel) {
         return ['blindfold'];
     }
 
     // 4. 矢・投擲物 (Quiver適合)
-    if (item.isAmmo || item.isThrowable || cat === 'AMMO' || /arrow|bolt|dart|shuriken|rock|矢|ボルト|ダーツ|手裏剣/.test(raw)) {
+    if (item.isAmmo || item.isThrowable || cat === 'AMMO' || /arrow|bolt|dart|shuriken|rock/.test(raw)) {
         return ['quiver', 'main_hand'];
     }
 
@@ -159,7 +159,7 @@ export function isTwoHandedWeapon(item) {
     if (item.knowledge?.stats?.isTwoHanded !== undefined) return Boolean(item.knowledge.stats.isTwoHanded);
 
     const raw = (item.rawText || item.name || '').toLowerCase();
-    return /two-handed|tsurugi|mattock|halberd|glaive|spetum|poleaxe|polearm|great|bow|crossbow|両手|ツルギ|マトック|長柄/.test(raw);
+    return /two-handed|tsurugi|mattock|halberd|glaive|spetum|poleaxe|polearm|great|bow|crossbow/.test(raw);
 }
 
 /**
@@ -170,25 +170,23 @@ export function isTwoHandedWeapon(item) {
 export function isCockatriceCorpse(item) {
     if (!item) return false;
     const raw = (item.rawText || item.name || '').toLowerCase();
-    const isCorpse = raw.includes('corpse') || raw.includes('死体') || item.isCorpse;
+    const isCorpse = raw.includes('corpse') || item.isCorpse;
     if (!isCorpse) return false;
-    return /cockatrice|chickatrice|コカトリス|チカトリス/.test(raw);
+    return /cockatrice|chickatrice/.test(raw);
 }
 
 /**
  * 二刀流 (Two-Weapon Combat) に適性がある職業リスト (NetHack 5.0 C-Core 準拠)
  */
 export const TWO_WEAPON_ELIGIBLE_ROLES = Object.freeze([
-    'samurai', 'barbarian', 'rogue', 'ranger', 'knight',
-    '侍', 'バーバリアン', 'ローグ', '盗賊', 'レンジャー', '騎士'
+    'samurai', 'barbarian', 'rogue', 'ranger', 'knight'
 ]);
 
 /**
  * 二刀流 (Two-Weapon Combat) が明示的に不可・制限されている職業リスト
  */
 export const TWO_WEAPON_INELIGIBLE_ROLES = Object.freeze([
-    'valkyrie', 'wizard', 'monk', 'tourist', 'archeologist', 'priest', 'healer', 'caveman',
-    'ワルキューレ', '僧侶', '魔術師', '修道士', '観光客', '考古学者', '治療者', '洞窟人'
+    'valkyrie', 'wizard', 'monk', 'tourist', 'archeologist', 'priest', 'healer', 'caveman'
 ]);
 
 /**
@@ -208,7 +206,7 @@ export function isTwoWeaponEligible(situation, core = null) {
     if (Array.isArray(skills) && skills.length > 0) {
         const twoWeaponSkill = skills.find(s => {
             const name = (s.name || s.nameRaw || '').toLowerCase();
-            return name.includes('two-weapon') || name.includes('two weapon') || name.includes('二刀流');
+            return name.includes('two-weapon') || name.includes('two weapon');
         });
         if (twoWeaponSkill) {
             const rankKey = twoWeaponSkill.rank?.key || twoWeaponSkill.rankKey || '';

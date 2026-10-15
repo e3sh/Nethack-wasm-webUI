@@ -39,7 +39,7 @@ export class EquipmentDependencyAnalyzer {
                     item.isCursed ||
                     item.identification?.bucStatus === 'CURSED' ||
                     item.knowledge?.bucStatus === 'CURSED' ||
-                    /\bcursed\b|呪われ/.test(raw)
+                    /\bcursed\b/.test(raw)
                 );
 
                 equipped[slot] = {
@@ -79,31 +79,31 @@ export class EquipmentDependencyAnalyzer {
         }
 
         // 2. フラグおよびテキスト表現による検出
-        if (item.isWielded || /(?:\bweapon in (?:hands?|right hand|left hand)\b|\bwielded\b|[左右両]?手に装備中|[左右両]?手に持っている)/i.test(raw)) {
+        if (item.isWielded || /(?:\bweapon in (?:hands?|right hand|left hand)\b|\bwielded\b)/i.test(raw)) {
             return EQUIP_SLOTS.MAIN_HAND;
         }
-        if (item.isOffhand || /\b(in off hand|in off-hand|off-hand weapon|alternate weapon)\b|副武器|逆の手に持っている/i.test(raw)) {
+        if (item.isOffhand || /\b(in off hand|in off-hand|off-hand weapon|alternate weapon)\b/i.test(raw)) {
             return EQUIP_SLOTS.OFF_HAND;
         }
-        if (item.isQuivered || /\b(in quiver|quivered|at the ready)\b|矢筒|準備完了/i.test(raw)) {
+        if (item.isQuivered || /\b(in quiver|quivered|at the ready)\b/i.test(raw)) {
             return EQUIP_SLOTS.QUIVER;
         }
 
-        if (item.isWorn || /\b(being worn|on left hand|on right hand|around neck|on head|on feet|on hands|embedded in shield)\b|着用|装備中|装着中/i.test(raw)) {
+        if (item.isWorn || /\b(being worn|on left hand|on right hand|around neck|on head|on feet|on hands|embedded in shield)\b/i.test(raw)) {
             // 装身具: AMULET クラスは首スロット以外に装備されない (1対1対応)
-            if (item.category === 'AMULET' || item.itemCategory === 'AMULET' || item.onumCategory === 'AMULET' || item.knowledge?.category === 'AMULET' || /amulet|魔よけ|魔除け|お守り|アミュレット|護符|首飾り/i.test(raw)) {
+            if (item.category === 'AMULET' || item.itemCategory === 'AMULET' || item.onumCategory === 'AMULET' || item.knowledge?.category === 'AMULET' || /amulet/i.test(raw)) {
                 return EQUIP_SLOTS.AMULET;
             }
-            if (/on left hand|on left finger|\(左手\)|\(左手に装着\)|左手/i.test(raw)) return EQUIP_SLOTS.LEFT_RING;
-            if (/on right hand|on right finger|\(右手\)|\(右手に装着\)|右手/i.test(raw)) return EQUIP_SLOTS.RIGHT_RING;
-            if (/shield|盾/i.test(raw) || item.armorSlot === 'shield' || item.knowledge?.armorSlot === 'shield') return EQUIP_SLOTS.SHIELD;
-            if (/cloak|mantle|cape|robe|外套|マント|ローブ/i.test(raw) || item.armorSlot === 'cloak' || item.knowledge?.armorSlot === 'cloak') return EQUIP_SLOTS.CLOAK;
-            if (/suit|mail|armor|jacket|鎧|甲冑|胴着/i.test(raw) || item.armorSlot === 'suit' || item.knowledge?.armorSlot === 'suit') return EQUIP_SLOTS.SUIT;
-            if (/shirt|シャツ/i.test(raw) || item.armorSlot === 'shirt' || item.knowledge?.armorSlot === 'shirt') return EQUIP_SLOTS.SHIRT;
-            if (/helmet|helm|hat|cap|兜|帽子/i.test(raw) || item.armorSlot === 'helm' || item.knowledge?.armorSlot === 'helm') return EQUIP_SLOTS.HELM;
-            if (/gloves|gauntlets|手袋|籠手/i.test(raw) || item.armorSlot === 'gloves' || item.knowledge?.armorSlot === 'gloves') return EQUIP_SLOTS.GLOVES;
-            if (/boots|shoes|靴|ブーツ/i.test(raw) || item.armorSlot === 'boots' || item.knowledge?.armorSlot === 'boots') return EQUIP_SLOTS.BOOTS;
-            if (/blindfold|towel|目隠し|タオル/i.test(raw) || item.isBlindfoldOrTowel) return EQUIP_SLOTS.BLINDFOLD;
+            if (/on left hand|on left finger/i.test(raw)) return EQUIP_SLOTS.LEFT_RING;
+            if (/on right hand|on right finger/i.test(raw)) return EQUIP_SLOTS.RIGHT_RING;
+            if (/shield/i.test(raw) || item.armorSlot === 'shield' || item.knowledge?.armorSlot === 'shield') return EQUIP_SLOTS.SHIELD;
+            if (/cloak|mantle|cape|robe/i.test(raw) || item.armorSlot === 'cloak' || item.knowledge?.armorSlot === 'cloak') return EQUIP_SLOTS.CLOAK;
+            if (/suit|mail|armor|jacket/i.test(raw) || item.armorSlot === 'suit' || item.knowledge?.armorSlot === 'suit') return EQUIP_SLOTS.SUIT;
+            if (/shirt/i.test(raw) || item.armorSlot === 'shirt' || item.knowledge?.armorSlot === 'shirt') return EQUIP_SLOTS.SHIRT;
+            if (/helmet|helm|hat|cap/i.test(raw) || item.armorSlot === 'helm' || item.knowledge?.armorSlot === 'helm') return EQUIP_SLOTS.HELM;
+            if (/gloves|gauntlets/i.test(raw) || item.armorSlot === 'gloves' || item.knowledge?.armorSlot === 'gloves') return EQUIP_SLOTS.GLOVES;
+            if (/boots|shoes/i.test(raw) || item.armorSlot === 'boots' || item.knowledge?.armorSlot === 'boots') return EQUIP_SLOTS.BOOTS;
+            if (/blindfold|towel/i.test(raw) || item.isBlindfoldOrTowel) return EQUIP_SLOTS.BLINDFOLD;
 
             // フォールバック: resolveEligibleSlots が単一部位（main_hand以外）に決定できる場合
             const eligible = resolveEligibleSlots(item);
@@ -330,11 +330,11 @@ export class EquipmentDependencyAnalyzer {
         // 3. 対象アイテム自身の BUC / 呪い判定
         const raw = (targetItem.rawText || targetItem.name || '').toLowerCase();
         let targetBucStatus = 'unknown';
-        if (targetItem.isCursed || targetItem.identification?.bucStatus === 'CURSED' || /\bcursed\b|呪われ/.test(raw)) {
+        if (targetItem.isCursed || targetItem.identification?.bucStatus === 'CURSED' || /\bcursed\b/.test(raw)) {
             targetBucStatus = 'cursed';
             warningsJa.push('このアイテムは呪われています。一度装備すると解呪するまで自力で外せなくなります。');
             warningsEn.push('This item is cursed. Once equipped, it cannot be removed without uncursing.');
-        } else if (targetItem.isBlessed || targetItem.identification?.bucStatus === 'BLESSED' || /\bblessed\b|祝福/.test(raw)) {
+        } else if (targetItem.isBlessed || targetItem.identification?.bucStatus === 'BLESSED' || /\bblessed\b/.test(raw)) {
             targetBucStatus = 'blessed';
         } else if (targetItem.isUncursed || targetItem.identification?.bucStatus === 'UNCURSED' || /\buncursed\b/.test(raw)) {
             targetBucStatus = 'uncursed';

@@ -109,8 +109,10 @@ export class WasmDirectBindingService {
     set _syncGeneration(v) { this.syncCoordinator.syncGeneration = v; }
     get _isSyncing() { return this.syncCoordinator.isSyncing; }
     set _isSyncing(v) { this.syncCoordinator.isSyncing = v; }
+    get isSyncing() { return this.syncCoordinator.isSyncing; }
     get _currentSyncPromise() { return this.syncCoordinator.currentSyncPromise; }
     set _currentSyncPromise(v) { this.syncCoordinator.currentSyncPromise = v; }
+    get currentSyncPromise() { return this.syncCoordinator.currentSyncPromise; }
     get _lastCompletedSyncGeneration() { return this.syncCoordinator.lastCompletedSyncGeneration; }
     set _lastCompletedSyncGeneration(v) { this.syncCoordinator.lastCompletedSyncGeneration = v; }
 

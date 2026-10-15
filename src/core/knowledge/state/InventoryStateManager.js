@@ -498,33 +498,39 @@ export class InventoryStateManager {
             // 既存アイテム情報の引き継ぎ (メニューや前回同期からの外見・テキスト)
             const prevItem = this.items.find(it => it.letter === letter || (rawItem.ptr && it.rawObjPtr === rawItem.ptr));
             let baseName = '';
+            let customNameJa = '';
 
-            // 💀 死体 (265)・像 (476)・缶詰 (296) の専用名称合成
+            // 💀 死体 (265)・像 (476)・缶詰 (296) の専用名称合成 (rawText は 100% 英語 ASCII に純化)
             if (onum === 265 && corpsenm >= 0) {
                 const mon = MONSTER_KNOWLEDGE_MAP.get(corpsenm);
-                const monName = (lang === 'ja' && mon?.nameJa) ? mon.nameJa : (mon?.name || 'corpse');
-                baseName = (lang === 'ja') ? `${monName}の死体` : `${mon?.name || monName} corpse`;
+                baseName = `${mon?.name || 'corpse'} corpse`;
+                if (mon?.nameJa) customNameJa = `${mon.nameJa}の死体`;
             } else if (onum === 476 && corpsenm >= 0) {
                 const mon = MONSTER_KNOWLEDGE_MAP.get(corpsenm);
-                const monName = (lang === 'ja' && mon?.nameJa) ? mon.nameJa : (mon?.name || 'statue');
-                baseName = (lang === 'ja') ? `${monName}の像` : `statue of a ${mon?.name || monName}`;
+                baseName = `statue of a ${mon?.name || 'statue'}`;
+                if (mon?.nameJa) customNameJa = `${mon.nameJa}の像`;
             } else if (onum === 296) {
                 // 缶詰 (spe は強化値ではなくほうれん草/自家製フラグ)
                 if (rawItem.spe === 1) {
-                    baseName = (lang === 'ja') ? 'ほうれん草の缶詰' : 'tin of spinach';
+                    baseName = 'tin of spinach';
+                    customNameJa = 'ほうれん草の缶詰';
                 } else if (corpsenm < 0) {
-                    baseName = (lang === 'ja') ? '空の缶詰' : 'empty tin';
+                    baseName = 'empty tin';
+                    customNameJa = '空の缶詰';
                 } else {
                     const mon = MONSTER_KNOWLEDGE_MAP.get(corpsenm);
-                    const monName = (lang === 'ja' && mon?.nameJa) ? mon.nameJa : (mon?.name || 'meat');
+                    const monName = mon?.name || 'meat';
                     if (rawItem.spe < 0) {
-                        baseName = (lang === 'ja') ? `自家製の${monName}の缶詰` : `homemade tin of ${mon?.name || monName} meat`;
+                        baseName = `homemade tin of ${monName} meat`;
+                        if (mon?.nameJa) customNameJa = `自家製の${mon.nameJa}の缶詰`;
                     } else {
-                        baseName = (lang === 'ja') ? `${monName}の缶詰` : `tin of ${mon?.name || monName} meat`;
+                        baseName = `tin of ${monName} meat`;
+                        if (mon?.nameJa) customNameJa = `${mon.nameJa}の缶詰`;
                     }
                 }
             } else if (isIdentified || (objInfo && objInfo.canBeUnidentified === false)) {
                 baseName = objInfo ? (objInfo.name || `item #${onum}`) : `item #${onum}`;
+                if (objInfo?.nameJa) customNameJa = objInfo.nameJa;
             } else {
                 // 未鑑定アイテム: 動的シャッフル外見名 (getAppearance) を最優先で参照しフォーマット
                 const dynDescr = this.discoveryStateManager ? this.discoveryStateManager.getAppearance(onum) : null;
@@ -542,12 +548,12 @@ export class InventoryStateManager {
                     baseName += ` called ${called}`;
                 }
 
-                // 🧙 賢者の知恵モード時のみ真名を併記
+                // 🧙 賢者の知恵モード時のみ真名を併記 (rawText は英語真名)
                 if (this.sagesWisdomMode && objInfo?.name) {
-                    const revealedName = (lang === 'ja' && (objInfo.nameJa || objInfo.japaneseName))
-                        ? (objInfo.nameJa || objInfo.japaneseName)
-                        : objInfo.name;
-                    baseName += ` [${revealedName}]`;
+                    baseName += ` [${objInfo.name}]`;
+                    if (objInfo.nameJa) {
+                        customNameJa = `${objInfo.nameJa}`;
+                    }
                 }
             }
             let rawText = '';
@@ -639,6 +645,7 @@ export class InventoryStateManager {
                 letter,
                 name: baseName,
                 baseName,
+                nameJa: customNameJa || (objInfo ? (objInfo.nameJa || objInfo.japaneseName) : '') || baseName,
                 rawText,
                 glyphId,
                 onum,

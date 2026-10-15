@@ -155,3 +155,43 @@ NetHack では未識別アイテムやモンスターに名前を付ける（`#n
    - 辞書サイズを 18,000 行からコンパクトな辞書へ圧縮。
 4. **Phase 4: プレイヤー別名・自動呼び名フォロー (`CustomNameStore`) の配備**
    - UI/GKL 層での安全な日本語エイリアス管理の実装。
+
+---
+
+## 7. 非翻訳モードにおけるセマンティックUI＆演出翻訳 (Semantic UI & VFX Engine)
+
+### 7.1 構想のパラダイムシフト：「翻訳」から「意味論的トークン化」へ
+本アーキテクチャの真価は、**「翻訳機能を使用しない（英語原文でプレイする）」場合であっても完全に発揮されます**。
+
+`MessageContextResolver` による構文解析とシグナル同定の本質は、単なる「日本語への変換」ではなく、**「フラットな文字列から客観的な事象（シグナル）と変数（Entity/Item/Condition）を分離・復元する意味論的逆シリアライザ（Semantic Tokenizer）」**です。
+したがって、言語翻訳を OFF にしていても、メッセージ内の名詞（モンスター名、アイテム名、属性）を構造化トークンとして認識し、ゲーム体験を劇的に拡張できます。
+
+```mermaid
+flowchart LR
+    Msg["受信メッセージ (英語)<br>'The rabid rat bites your kitten!'"] 
+    --> Resolver["MessageContextResolver<br>(構文パターン照合)"]
+    
+    Resolver --> Tokenizer["MessageSegmenter<br>(意味論的トークン分割)"]
+    
+    Tokenizer --> Segments["構造化トークン列 (Message AST)<br>[rabid rat] (Monster: Enemy)<br>[your kitten] (Monster: Pet)"]
+    
+    Segments --> UI["モダン インタラクティブ UI<br>・固有名詞の色分け (Syntax Highlight)<br>・クリックで GKL ナレッジ即時表示<br>・ダイレクトアクションパレット"]
+    Segments --> VFX["シグナル演出翻訳 (Signal to VFX/SFX)<br>・噛みつき効果音 / 被弾フラッシュ<br>・毒パルス / 画面マイクロシェイク"]
+```
+
+### 7.2 拡張されるモダンゲーム体験
+1. **固有名詞のセマンティック・ハイライト（色分け表示）**:
+   - モンスター名（敵対＝赤/橙、ペット＝シアン/緑、ボス/ユニーク＝金/紫）やアイテム名（アーティファクト＝紫、未識別＝黄）を構文解析から自動抽出し、視認性を飛躍的に向上。
+2. **クリック・ホバーによる GKL ナレッジ連携**:
+   - メッセージ内の名詞をクリックすると、GKL（Lore Codex / MonsterTracker）が立ち上がり、弱点・耐性・識別ヒントがその場で確認可能。コマンドを打ったり外部 Wiki を開く手間を根絶。
+3. **コンテキスト・アクションのショートカット化**:
+   - 床のアイテム名をクリックして「拾う (`,`)」「調べる」、手持ちのアイテム名をクリックして「使う」「装備する」などのダイレクト操作。
+4. **演出への翻訳（シグナル ➔ VFX / SFX 翻訳）**:
+   - テキストを別言語に訳す代わりに、シグナルを「画面シェイク」「毒の画面ビネット発光」「打撃音」「咆哮」などのリッチ演出へマッピング。
+
+### 7.3 レンダリング複雑化への設計方針
+- **責務分離（DOM HUD レイヤーへの集約）**:
+  - Canvas 上で可変幅リンクやヒットテストを自前実装せず、`FloatingMessageHudController` やメッセージ履歴パネル等の **DOM (HTML/CSS) レイヤー** にて `<span class="nh-token ...">` として描画。
+- **統一仕様書**:
+  - 詳細なトークン構造・セグメンテーションアルゴリズム・DOM描画仕様は [semantic_message_tokenization_and_interactive_rendering_specification.ja.md](./semantic_message_tokenization_and_interactive_rendering_specification.ja.md) を参照。
+

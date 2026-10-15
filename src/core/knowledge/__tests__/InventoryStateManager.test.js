@@ -720,7 +720,8 @@ describe('InventoryStateManager', () => {
         const item = manager.getItemByLetter('a');
         expect(item).toBeDefined();
         expect(item.rawText).toContain('ruby potion');
-        expect(item.rawText).toContain('[回復のポーション]');
+        expect(item.rawText).toContain('[potion of healing]');
+        expect(item.nameJa).toContain('回復のポーション');
         expect(item.identification.isWisdomRevealed).toBe(true);
     });
 

@@ -3,6 +3,8 @@
  * @description GKL Pure JS Client のスタートアップ状態遷移 ＆ セーブデータ管理コントローラー
  */
 
+import { GAME_LIFECYCLE_STATE, GameLifecycleManager } from '../../../../src/core/lifecycle/GameLifecycleState.js';
+
 export class StartupFlowController {
   /**
    * @param {Object} client - GklPureJSClient インスタンス参照
@@ -12,6 +14,7 @@ export class StartupFlowController {
     this.startupStep = 'INITIALIZING';
     this.isStartingUp = true;
     this.isSaveResuming = false;
+    this.lifecycle = new GameLifecycleManager();
   }
 
   /**
@@ -21,6 +24,19 @@ export class StartupFlowController {
   setStartupView(step) {
     this.startupStep = step;
     this.client.startupStep = step;
+
+    // GameLifecycleState との連動
+    const stateMap = {
+      INITIALIZING: GAME_LIFECYCLE_STATE.INITIALIZING,
+      SELECTION: GAME_LIFECYCLE_STATE.BOOTSTRAPPING,
+      PROGRESS: GAME_LIFECYCLE_STATE.CORE_STARTING,
+      READY: GAME_LIFECYCLE_STATE.READY_STANDBY,
+      PLAYING: GAME_LIFECYCLE_STATE.ACTIVE_PLAY
+    };
+    if (stateMap[step]) {
+      this.lifecycle.isSaveResuming = this.isSaveResuming;
+      this.lifecycle.transitionTo(stateMap[step]);
+    }
 
     if (typeof document === 'undefined') return;
 
@@ -284,7 +300,7 @@ export class StartupFlowController {
    * ダンジョン突入完了 (PLAYING への遷移)
    * @param {string|null} triggerCodeOrKey
    */
-  completeStartup(triggerCodeOrKey = null) {
+  async completeStartup(triggerCodeOrKey = null) {
     if (!this.isStartingUp && this.startupStep === 'PLAYING') return;
     this.isStartingUp = false;
     this.client.isStartingUp = false;
@@ -334,13 +350,12 @@ export class StartupFlowController {
     };
 
     const dbs = this.client.core?.gkl?.wasmDirectBindingService;
-    if (dbs && dbs._isSyncing && dbs._currentSyncPromise) {
-      dbs._currentSyncPromise.finally(() => {
-        setTimeout(executeTrigger, 30);
-      });
-    } else {
-      setTimeout(executeTrigger, 50);
+    if (dbs && (dbs.isSyncing || dbs._isSyncing) && (dbs.currentSyncPromise || dbs._currentSyncPromise)) {
+      try {
+        await (dbs.currentSyncPromise || dbs._currentSyncPromise);
+      } catch (_) {}
     }
+    executeTrigger();
   }
 
   /**

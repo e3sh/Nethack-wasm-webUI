@@ -239,4 +239,38 @@ describe('ItemSpecPresenter Adaptive Formatting', () => {
         expect(specs[0].id).toBe('equip_blocked');
         expect(specs[0].value).toContain('呪われていて脱げない');
     });
+
+    it('should generate directObject individual specs for quantity, enchantment, charges, and corpse monster', () => {
+        // 1. スタック数量 & 強化値 (+2 Dagger)
+        const dagger = OBJECT_KNOWLEDGE_MAP.get(27); // dagger
+        const directDagger = { quan: 5, spe: 2, bucStatus: 'BLESSED' };
+        const daggerSpecs = getAdaptiveItemSpecs(dagger, { directObject: directDagger, language: 'ja' });
+
+        const daggerBuc = daggerSpecs.find(s => s.id === 'bucStatus');
+        expect(daggerBuc).toBeDefined();
+        expect(daggerBuc.value).toContain('祝福');
+
+        const daggerQuan = daggerSpecs.find(s => s.id === 'quantity');
+        expect(daggerQuan).toBeDefined();
+        expect(daggerQuan.value).toBe('5個');
+
+        const daggerSpe = daggerSpecs.find(s => s.id === 'enchantment');
+        expect(daggerSpe).toBeDefined();
+        expect(daggerSpe.value).toBe('+2');
+
+        // 2. 杖のチャージ数 (Wand of death with 4 charges)
+        const wand = OBJECT_KNOWLEDGE_BASE.find(b => b.category === 'WAND');
+        const wandFull = OBJECT_KNOWLEDGE_MAP.get(wand.onum);
+        const wandSpecs = getAdaptiveItemSpecs(wandFull, { directObject: { spe: 4 }, language: 'en' });
+        const chargesSpec = wandSpecs.find(s => s.id === 'charges');
+        expect(chargesSpec).toBeDefined();
+        expect(chargesSpec.value).toBe('4 charges');
+
+        // 3. 死体 / 像の対象モンスター
+        const corpseKnowledge = { name: 'corpse', category: 'FOOD', directObject: { corpsenm: 0 } };
+        const corpseSpecs = getAdaptiveItemSpecs(corpseKnowledge, { language: 'ja' });
+        const monSpec = corpseSpecs.find(s => s.id === 'corpse_monster');
+        expect(monSpec).toBeDefined();
+        expect(monSpec.value).toBeTruthy();
+    });
 });

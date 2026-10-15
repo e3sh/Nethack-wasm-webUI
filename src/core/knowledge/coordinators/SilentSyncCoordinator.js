@@ -502,11 +502,6 @@ export class SilentSyncCoordinator {
      * @param {Object} [options={}]
      * @returns {Promise<boolean>} 同期成功の有無
      */
-    /**
-     * バックグラウンドで安全に `#enhance` シーケンスを実行し、スキル熟練度データを同期獲得
-     * @param {Object} [options={}]
-     * @returns {Promise<boolean>} 同期成功の有無
-     */
     async syncSkillsSilent(options = {}) {
         const p = this.plugin;
         if (!p.core) return false;

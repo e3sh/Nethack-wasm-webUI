@@ -9,6 +9,7 @@
  */
 
 import { EquipmentDependencyAnalyzer } from "../equipment/EquipmentDependencyAnalyzer.js";
+import { MONSTER_KNOWLEDGE_MAP } from "../data/MONSTER_KNOWLEDGE_FULL.js";
 
 /**
  * アイテムナレッジおよびプレイヤースキル状態から適応型スペックバッジ配列を生成
@@ -37,6 +38,28 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
     const stats = knowledge.stats || {};
     const identification = options.identification || knowledge.identification || null;
     const isUnidentified = Boolean(knowledge.isUnidentified || (identification && identification.isUnidentified));
+
+    const directObj = options.directObject || options.item?.directObject || knowledge.directObject || null;
+    const item = options.item || null;
+
+    const quan = (directObj && typeof directObj.quan === 'number')
+        ? directObj.quan
+        : ((item && typeof item.quan === 'number') ? item.quan : knowledge.quan);
+
+    const spe = (directObj && typeof directObj.spe === 'number')
+        ? directObj.spe
+        : ((item && typeof item.spe === 'number') ? item.spe : knowledge.spe);
+
+    const corpsenm = (directObj && typeof directObj.corpsenm === 'number')
+        ? directObj.corpsenm
+        : ((item && typeof item.corpsenm === 'number') ? item.corpsenm : knowledge.corpsenm);
+
+    const bucRaw = (directObj && directObj.bucStatus)
+        || (item && item.bucStatus)
+        || (directObj && directObj.blessed ? 'BLESSED' : (directObj && directObj.cursed ? 'CURSED' : null))
+        || (item && item.blessed ? 'BLESSED' : (item && item.cursed ? 'CURSED' : null))
+        || knowledge.bucStatus
+        || (identification && identification.bucStatus);
 
     // 🕵️ 未識別アイテム (UNIDENTIFIED) 専用の適応型バッジ＆マスク表示
     if (isUnidentified) {
@@ -69,15 +92,39 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
             });
         }
 
-        const buc = knowledge.bucStatus || (identification && identification.bucStatus);
-        if (buc && buc !== 'UNKNOWN') {
+        if (bucRaw && bucRaw !== 'UNKNOWN') {
             const bucJaMap = { BLESSED: '祝福 (Blessed)', UNCURSED: '通常 (Uncursed)', CURSED: '呪い (Cursed)' };
             const bucEnMap = { BLESSED: 'Blessed', UNCURSED: 'Uncursed', CURSED: 'Cursed' };
             specs.push({
                 id: 'bucStatus',
                 label: 'BUC',
-                value: isEn ? (bucEnMap[buc] || buc) : (bucJaMap[buc] || buc),
-                type: buc === 'CURSED' ? 'warning' : 'magic',
+                value: isEn ? (bucEnMap[bucRaw] || bucRaw) : (bucJaMap[bucRaw] || bucRaw),
+                type: bucRaw === 'CURSED' ? 'warning' : 'magic',
+                highlight: true
+            });
+        }
+
+        if (typeof quan === 'number' && quan > 1) {
+            specs.push({
+                id: 'quantity',
+                label: isEn ? 'Quantity' : '個数',
+                value: isEn ? `${quan}x` : `${quan}個`,
+                type: 'info',
+                quan: quan
+            });
+        }
+
+        if (typeof corpsenm === 'number' && corpsenm >= 0) {
+            const mon = MONSTER_KNOWLEDGE_MAP.get(corpsenm);
+            const monName = isEn
+                ? (mon?.name || `Monster #${corpsenm}`)
+                : (mon?.nameJa || mon?.name || `モンスター #${corpsenm}`);
+            specs.push({
+                id: 'corpse_monster',
+                label: isEn ? 'Creature' : '対象生物',
+                value: monName,
+                type: 'monster',
+                corpsenm: corpsenm,
                 highlight: true
             });
         }
@@ -118,6 +165,66 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
         }
 
         return specs;
+    }
+
+    // 🌟 識別済みアイテムの個体スペック (BUC, 数量, 対象モンスター, 強化値)
+    if (bucRaw && bucRaw !== 'UNKNOWN') {
+        const bucJaMap = { BLESSED: '祝福 (Blessed)', UNCURSED: '通常 (Uncursed)', CURSED: '呪い (Cursed)' };
+        const bucEnMap = { BLESSED: 'Blessed', UNCURSED: 'Uncursed', CURSED: 'Cursed' };
+        specs.push({
+            id: 'bucStatus',
+            label: 'BUC',
+            value: isEn ? (bucEnMap[bucRaw] || bucRaw) : (bucJaMap[bucRaw] || bucRaw),
+            type: bucRaw === 'CURSED' ? 'warning' : (bucRaw === 'BLESSED' ? 'magic' : 'info'),
+            highlight: bucRaw !== 'UNCURSED'
+        });
+    }
+
+    if (typeof quan === 'number' && quan > 1) {
+        specs.push({
+            id: 'quantity',
+            label: isEn ? 'Quantity' : '個数',
+            value: isEn ? `${quan}x` : `${quan}個`,
+            type: 'info',
+            quan: quan
+        });
+    }
+
+    if (typeof corpsenm === 'number' && corpsenm >= 0) {
+        const mon = MONSTER_KNOWLEDGE_MAP.get(corpsenm);
+        const monName = isEn
+            ? (mon?.name || `Monster #${corpsenm}`)
+            : (mon?.nameJa || mon?.name || `モンスター #${corpsenm}`);
+        specs.push({
+            id: 'corpse_monster',
+            label: isEn ? 'Creature' : '対象生物',
+            value: monName,
+            type: 'monster',
+            corpsenm: corpsenm,
+            highlight: true
+        });
+    }
+
+    if (typeof spe === 'number' && (cat === 'WEAPON' || cat === 'ARMOR' || cat === 'RING')) {
+        const sign = spe > 0 ? `+${spe}` : `${spe}`;
+        specs.push({
+            id: 'enchantment',
+            label: isEn ? 'Enchantment' : '強化値',
+            value: sign,
+            spe: spe,
+            type: spe > 0 ? 'magic' : (spe < 0 ? 'warning' : 'weapon'),
+            highlight: spe !== 0
+        });
+    }
+
+    if (cat === 'WAND' && typeof spe === 'number') {
+        specs.push({
+            id: 'charges',
+            label: isEn ? 'Charges' : '残チャージ',
+            value: isEn ? `${spe} charges` : `${spe}回`,
+            type: 'magic',
+            highlight: true
+        });
     }
 
     // 1. ⚔️ 武器 (WEAPON)

@@ -477,7 +477,7 @@ describe('PaperdollModal - 装備ペーパードールUI', () => {
     // アミュレットアイテムをインベントリに追加
     mockSituation.inventory.items.push(
       { letter: 'p', name: 'amulet of ESP', rawText: 'p - an amulet of ESP' },
-      { letter: 'q', name: '超感覚の魔よけ', rawText: 'q - 超感覚の魔よけ' },
+      { letter: 'q', name: 'amulet of ESP', nameJa: '超感覚の魔よけ', category: 'AMULET', rawText: 'q - an amulet of ESP' },
       { letter: 'u', name: 'circular amulet', rawText: 'u - a circular amulet' }
     );
 

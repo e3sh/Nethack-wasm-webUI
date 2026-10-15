@@ -12,7 +12,7 @@ last_updated: 2026-10-15
 > **🧭 設計・開発・リファクタリング時の最重要必読インベントリ**  
 > システムが現在持っている全機能、APIシグネチャ、WASM通信パイプライン、データ資産（全384体モンスター・481アイテム・787件の噂）、アーキテクチャの基本憲法、および機能重複統廃合・ギャップ分析は、**[システム現有能力カタログ (SYSTEM_CAPABILITIES.md)](./SYSTEM_CAPABILITIES.md)** にて一元集約されています。新機能の検討や改修時は必ずこちらをご一読ください。
 
-直近の総合評価・引き継ぎ資料: **[handover_20261008_status_reevaluation.ja.md](./6_project_reports/handover_20261008_status_reevaluation.ja.md)**
+直近の総合評価・引き継ぎ資料: **[handover_20261015_stage8_completion.ja.md](./6_project_reports/handover_20261015_stage8_completion.ja.md)**
 
 ---
 
@@ -30,147 +30,50 @@ last_updated: 2026-10-15
 
 ---
 
-## 🔥 1. 現在実施中・最優先フォーカス (Active Focus: Phase 8)
+## 🔥 1. 現在実施中・最優先フォーカス (Active Focus: 次期着手スロット)
 
-現在リソースを集中して進行中の**唯一の最優先基盤タスク**です。  
-後続の多くの構想・ペンディング機能が本フェーズの「確定情報・メモリ直結」に依存しています。
+> [!NOTE]
+> **Phase 8（公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結）は全ステージ (8.1〜8.5) 完遂しました！**  
+> 完了した実装仕様および詳細成果は、**[§4 実装完了コア機能 (Living Specs)](#🟢-4-実装完了コア機能現行仕様-living-specs)** および **[最新引き継ぎ総合レポート (handover_20261015_stage8_completion.ja.md)](./6_project_reports/handover_20261015_stage8_completion.ja.md)** を参照してください。過去のマイグレーションステップ詳細はアーカイブ資料へ移管・集約されました。
 
-### 1.1 Phase 8: 公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結 (Native Shim Unified Dispatcher Bridge)
-- **ステータス**: `🚧 in-progress` (最優先フォーカス, 2026-10-08 計画策定 / 2026-10-11 更新)
-- **設計書**: [official_shim_direct_binding_implementation_plan.md](./1_driver/official_shim_direct_binding_implementation_plan.md)
-- **詳細解析書**: [official_shim_interface_capabilities_analysis.md](./1_driver/archive/official_shim_interface_capabilities_analysis.md) (`📦 archived`)
-- **基本原則**:
-  - `win/shim/winshim.c` 等の公式NetHackコードには一切手を加えず、WebUIリポジトリ管理の独立ブリッジファイル **`src/driver/shim/shim_bridge.c`**（ビルド時に `win/shim/shim_bridge.c` へ自動同期）を 1 つリンクする「公式コード完全非侵襲エクステンション方式」を採用。
-  - **単一汎用ディスパッチャー窓口 (`_shim_bridge_call`)**: 個別関数を乱立させず、Unix `ioctl` のように 1 つの窓口関数のみをエクスポート。Driverは透過中継に徹し、GKLが `SHIM_CMD_*` の定義とアンパックを司る。
-  - 1マスずつWASM境界を往復するオーバーヘッドを排除し、単一呼び出しで「真の床 + 施錠フラグ + 明暗」をビットパック一括返却。
-- **マイグレーションステップ**:
-  - [x] **Stage 8.1: 単一窓口ブリッジ配備 ＆ ビルド・Driver汎用ゲートウェイ整備**
-    - `src/driver/shim/shim_bridge.c`（単一エクスポート `_shim_bridge_call`）を新設、`scripts/build_wasm_50_wsl.ps1`（WSL2 Linux ネイティブ）/ `scripts/build_wasm_50.ps1` で自動同期・ビルド
-    - `NetHackMemory.js` に `bridgeCall(cmd, a1, a2, buf, len)` を実装
-    - `WasmDirectBindingService.js` による基本的なドメイン抽出
-  - [x] **Stage 8.2-A: Web Worker 隔離調停プロトコルの配備**
-    - `NetHackWasmWorkerBridge.js` ↔ `nethack.worker.js` 間の非同期調停（`CALL_SHIM`, `GET_INVENTORY`）
-    - ターン確定時（`WAITING_INPUT && isTopLevelTurn`）での 1 往復静止同期モデルの確立
-  - [x] **Stage 8.2-B: inspector_console 連携型 公式Shim直接調停 ＆ フォールバック検証環境の構築**
-    - [direct_binding_verification_environment_plan.md](./1_driver/archive/direct_binding_verification_environment_plan.md) (`📦 archived`)
-    - `inspector_console.html` に「所持品同期方式（🟢SHIM vs 🔵MACRO）」および「足元床状態（🟢SHIM vs 🟡INFERRED 3992）」のランプ・インジケーターを新設
-    - `DIRECT_BINDING_MODE`（`auto` / `strict` / `fallback`）の切替スイッチ（config / BroadcastChannel 送出）を配備
-    - フォールバック完全遮断（`strict` モード）下で、直接調停が 100% 確実に稼働していることを実機・シナリオ・結合テストで検証可能にする (全135スイート・1,655テスト 100% PASS)
-  - [x] **Stage 8.2-C: インベントリ・装備スロット・重量の完全直結 ＆ 床アイテムBUC判定**
-    - `_shim_bridge_call` への一本化により個別C関数直接呼出を完全排除、キー入力待ち静止時 (Sync Barrier) に `EncumbranceStateManager.js` へ真の重量直結（推測誤差ゼロ）
-    - `SHIM_CMD_DUMP_ALL_INVENT` (0x43) および `SHIM_CMD_DUMP_DESCR_INDEXES` (0x62) によるインベントリ・シャッフル外見の一括同期
-    - `SHIM_CMD_GET_OBJECT_AT` (0x20) からの `nexthere` 走査により、地面・祭壇に置かれたアイテムの BUC 判定（`blessed` / `cursed` / `bknown`）をテキストパース不要で 100% 同定 (全135スイート・1,660テスト 100% PASS)
-  - [x] **Stage 8.3-A: 真の地形・扉施錠・罠判定 ＆ モンスター直結**
-    - `AreaStateManager.js`: `dumpLevelTerrain()` によるフロア全域 (80x21) 真の地形・階段一括ダンプおよび `stairCache` 描画依存の適正化・スリム化
-    - `ActionSignalResolver.js` / `ContextActionEngine.js`: 扉の `flags`（`D_LOCKED` / `D_TRAPPED`）から最適な解錠・罠解除アクションを即時導出（罠なし扉への `#untrap` 誤表示を完全根絶）。`mpeaceful` / `mtame` により平和NPC・ペットへの攻撃メニュー抑制および攻撃エフェクト誤爆を完全防止 (全136スイート・1,670テスト 100% PASS)
-  - [x] **【先行着手 1】ROADMAP 2.1: GKL Pure JS Client (main.js) モジュール分割＆オーケストレーター適正化**
-    - [gkl_client_modularization_plan.ja.md](./2_client_ui/archive/gkl_client_modularization_plan.ja.md) (`📦 archived`)
-    - `main.js` (2,364行 ➔ 618行、約74%削減) の神クラス解消。描画・レイアウト・多言語・盤面操作・UIファクトリ・DOMイベントを分離し、Stage 8.3-B 確定描画の受け入れ態勢を完了 (全136スイート・1,670テスト 100% PASS)。
-  - [x] **【先行着手 2】ROADMAP 2.2: GKLPlugin モジュール分割・アーキテクチャ適正化**
-    - [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md) (`🟢 implemented`)
-    - `GKLPlugin.js` (2,613行 ➔ 482行、約81.5%削減) の神クラス解消。`GKLEventRouter`・`SilentSyncCoordinator`・`GKLFxCoordinator`・`InspectionService`・`AutoTravelService` を分離し、Stage 8.3-B の Sync Barrier / ターンライフサイクル調停をクリーンに導入可能な基盤を確立 (全137スイート・1,698テスト PASS)。
-  - [x] **【先行着手 3】AreaStateManager 4モジュール分割・責務整理 (Spatial Grid / Inference / Landmark / Projector 分離)**
-    - [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md) (`🟢 implemented`)
-    - `src/core/knowledge/state/AreaStateManager.js` (1,552行 ➔ 437行、約71.8%削減) の責務分離。`TerrainInferenceEngine.js`（地形・物理推論）、`DungeonLandmarkRegistry.js`（階段・ランドマーク・店舗台帳）、`ViewportTileProjector.js`（戦術視野・カメラ投影）へ分割し、Stage 8.3-B の投機的仮床撤廃・Commit駆動投影をピンポイントかつ安全に導入可能にする基盤を確立 (全138スイート・1,707テスト PASS)。
-  - [x] **【先行着手 4】WasmDirectBindingService モジュール分割・責務適正化 (神クラス解消 ＆ 薄型ファサード再編)**
-    - [wasm_direct_binding_service_modularization_plan.ja.md](./2_client_ui/wasm_direct_binding_service_modularization_plan.ja.md) (`🟢 implemented` / 2026-10-15 完遂)
-    - `src/core/knowledge/services/WasmDirectBindingService.js` (2,160行 ➔ 約350行、約84%削減) の神クラス解消。`WasmSyncCoordinator`（同期バリア・通信調停）、`InventoryWasmAdapter`（所持品・装備・重量）、`PlayerWasmAdapter`（耐性・スキル・呪文・プロファイル）、`SpatialWasmAdapter`（空間・地形・部屋・罠）、`MonsterWasmAdapter`（モンスター真値・状態）、`DiscoveryWasmAdapter`（識別図鑑・外見）へ分離し、Stage 8.5 の不可分同期およびプロファイル拡張をクリーンに導入可能な基盤を確立 (全144テストファイル・1,765テスト 100% PASS)。
-  - [x] **Stage 8.3-B: Shim-Driven 確定同期型レンダリング・パイプラインの刷新 (＆ §2.5 Sync Barrier 調停統合)**
-    - [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md) (`🟢 implemented`) / [direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md) (`🟢 implemented`)
-    - ターン同期ライフサイクル (Sync Barrier: Phase 1 ACTION ➔ Phase 2 STREAMING ➔ Phase 3 SETTLED & SHIM SYNC ➔ Phase 4 COMMIT `areaStateCommitted`) の確立と `--More--` 待機ガード (`isMorePromptActive`)・世代排他制御 (`_syncGeneration`) の統合
-    - `TerrainInferenceEngine` / `ViewportTileProjector` における Direct Binding アクティブ時の投機的仮床推測（`3992`）副作用の完全根絶、および `STONE (0)` / `SDOOR (14)` / `SCORR (15)` の未踏・ネタバレ防止ガード
-    - フロア全域 `dumpLevelTerrain()` の参照用ルックアップテーブル化（未踏領域の非表示化）および `curs` ➔ Sync Barrier 連動の足元 `cell.middle`（床落ちアイテム・山積み）確定更新・Commit 駆動フラッシュ制御 (全138スイート・1,718テスト PASS)
-  - [x] **Stage 8.3-C: Direct Binding 確定情報（Ground Truth）純化 ＆ 足元地形・インベントリ不具合是正** (`🟢 implemented` / 2026-10-15 完遂)
-    - **設計・是正計画書**: [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md) (`🟢 implemented`)
-    - **基本原則（全ドメイン横断・排他ルーティング / 基本憲法6）**: Shim 直結経路 (`SHIM_DIRECT`) とレガシー推測・文字列解析経路 (`FALLBACK_INFERENCE`) を入口で完全分岐。**Tier 1（C 構造体 Ground Truth ＋ `known`/`dknown`/`bknown`/`seenv`） > Tier 2（`print_glyph` 目視確定属性） > Tier 3（`fallback` 時のみの文字列・推論）** の優先順位を厳守し、Direct Binding 稼働時に仮文字列を正規表現で再パースする逆流や仮床推測の上書きを全ドメインで遮断。
-    - **テストランク制度（Rank S/A/B/C）の導入と不要テスト整理**: 過去の旧仕様（文字列推測や仮床混在）を前提としたテストを通すために本番コードを歪める本末転倒を防止。[テストガイド (`docs/8_testing/README.md`)](./8_testing/README.md) に Rank S（絶対死守: SSOT/Direct Binding真値）〜 Rank C（廃止・削除対象: 旧内部実装依存）を定義し、トレードオフ発生時は Rank S/A を優先して Rank B は `fallback` 隔離、Rank C は積極的に削除・スリム化。
-    - **Cシム層拡張 (`shim_bridge.c`)**: `SHIM_CMD_DUMP_ALL_INVENT` および `SHIM_CMD_DUMP_OBJECT_INFO` に `o->corpsenm`（死体・像・缶詰のモンスター種別ID）と `o->known`（強化値・チャージ数既知フラグ）を追加出力完了。
-    - **足元地形・像グリフ是正 (`TerrainInferenceEngine.js` / `AreaStateManager.js`)**:
-      - 扉のないドア (`D_NODOOR` / `D_BROKEN` ➔ `3985`) が閉扉 (`3988`) になる不具合を解消し、開扉移動時も目視確定済みの向きを最優先保持。
-      - 足元・所持品のモンスター像 (`onum: 476`)・死体 (`onum: 265`) に専用グリフ (`GLYPH_STATUE_OFF + corpsenm` / `GLYPH_BODY_OFF + corpsenm`) を適用完了。
-    - **アイコンインベントリ・ナレッジ精度是正 (`glyphClassifier.js` / `InventoryStateManager.js` / `ItemIdentificationResolver.js` / `EquipmentRules.js`)**:
-      - `glyphClassifier.js` の魔法書・杖 `onum` 境界判定（`SPELLBOOK: 366〜409`, `WAND: 410〜437`, `COIN: 438`）を厳密化。
-      - `glittering spellbook` / `turquoise spellbook` のカテゴリ誤爆（指輪・投擲コマンド化）を根絶。
-      - 自作缶詰 (`onum: 296`) の `spe` フラグ誤爆（"tin wand" 化）を完全解消し、モンスター名付き缶詰・死体名称合成を確立 (全146スイート・1,783テスト PASS)。
-  - [x] **Stage 8.4: ブランチ同定・お祈りタイマー・プレイヤー耐性直結** (`🟢 implemented` / 2026-10-15 完遂)
-    - **ブランチ同定 (`SHIM_CMD_GET_PLAYER_SUMMARY` 0x30 -> `u.uz.dnum`)**:
-      - `dnum` から全9ブランチ（メインダンジョン、ゲヘナ、ノームの鉱山、クエスト、倉庫番、フォート・ルディオス、ヴラドの塔、元素界、チュートリアル）を 100% 確定同定し、`branch:dlvl` 形式でフロアキャッシュを完全分離。新エリア突入演出（`areaEntered` / `AREA_ENTERED`）の決定論的発火を確立。
-    - **お祈りタイマー (`u.ublesscnt`)・神の怒り (`u.ugangr`) 直結**:
-      - `u.ublesscnt`（クールダウン残ターン）および `u.ugangr`（神の怒り値）を C コアメモリから直接取得し、`AttributeStateManager` / UI に接続。推測誤差ゼロ、セーブ再開コールドスタートゼロの安全なお祈り判定（`canSafelyPray`）を確立。
-    - **プレイヤー耐性直結 (`SHIM_CMD_GET_PLAYER_PROPS` 0x32 -> `u.uprops`)**:
-      - 69要素の耐性配列から内因性（intrinsic）と外因性（extrinsic）をビット分離し、`AttributeStateManager.syncFromDirectBinding()` を通じて SSOT として完全直結 (全147スイート・1,794テスト 100% PASS)。
-  - [ ] **Stage 8.5: Direct Binding 前提の同期ライフサイクル・画面構成の抜本的再構築 ＆ ネイティブ操作分離 (構想・設計完了)**
-    - **設計書**: [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) (`⏸️ pending` / 2026-10-15 策定)
-    - **背景と課題**: セーブ再開時のインベントリ未取得（Sync Barrier 世代競合による Stale Cancel）、種族・職業（Role/Race）の「考古学者/人間」固定化、および旧メッセージパース時代のライフサイクルフラグ散在の根本的一掃。
-    - **基本原則**:
-      1. **Direct Binding 第一級市民（Ground Truth）原則**: C構造体メモリが唯一の真実（SSOT）。
-      2. **NetHack ネイティブ操作の尊重とUI拡張の直交分離**: 通常プレイ中のゲームキー（`/`, `\`, `^X` 等）は 100% Cコアへ素通し（ネイティブパススルー）。UIモーダル表示中のみキートラップを適用。WebUI拡張機能は画面上の統合ツールバー（Quick Dock）から開く形式へ分離。
-      3. **ステータス表示の On-Demand 化（表示更新タイミング ＝ 開くタイミング）**: ステータスバーの「▽」インライン展開アコーディオンと毎ターンの耐性・スキル・魔法DOM再構築を全廃。専用のキャラクター詳細ダイアログを新設し、開いた瞬間に Cコアメモリから最新データを一括取得して描画。
-    - **マイグレーションフェーズ**:
-      - **Phase 1**: Cコア＆Direct Binding拡張（`SHIM_CMD_GET_PLAYER_PROFILE` 実装による Role, Race, Gender, Align, Name 真値取得と `AttributeStateManager` 結合）
-      - **Phase 2**: アトミック同期パイプライン化（セーブ復帰時インベントリ空化の撲滅、不可分同期保証、`setTimeout` 遅延ハック排除）
-      - **Phase 3**: ステータス画面のOn-Demand化＆ネイティブキー横取り整理（通常時キー透過、モーダル中のみキートラップ、`[👤 キャラクター]` 詳細ダイアログ新設）
-      - **Phase 4**: ライフサイクルステートマシン統合（`GameLifecycleState`）＆レガシー対症療法コード全廃
-  - [x] **【先行完了】WasmDirectBindingService.js の責務分離・モジュール分割 ＆ ファサード化 (Stage 8.5 先行基盤)** (`🟢 implemented` / 2026-10-15 完遂)
-    - **設計書**: [wasm_direct_binding_service_modularization_plan.ja.md](./2_client_ui/wasm_direct_binding_service_modularization_plan.ja.md)
-    - **背景と課題**: Stage 8.1〜8.3-C を通じて肥大化した神クラス `WasmDirectBindingService.js` (2,160行) を、Stage 8.5 の前提基盤としてドメイン別アダプタ群と Sync Barrier コーディネーターへ分割。
-    - **実装実績**:
-      - `BindingConstants.js` (413行): 共有定数・テーブル・純粋デコード関数
-      - `WasmSyncCoordinator.js` (530行): Sync Barrier・Worker 非同期調停・世代管理・一括/オンデマンド同期
-      - `InventoryWasmAdapter.js` (491行): 所持品リンクリスト・装備ポインタ・真の重量・床アイテム
-      - `SpatialWasmAdapter.js` (350行): セル・地形ダンプ・部屋種別・罠・刻み文字
-      - `MonsterWasmAdapter.js` (258行): モンスター真値・状態・周辺モンスター同期
-      - `PlayerWasmAdapter.js` (208行): プレイヤー耐性・スキル・呪文・プロファイル
-      - `DiscoveryWasmAdapter.js` (127行): 識別図鑑・外見インデックス・仮名
-      - `WasmDirectBindingService.js` (631行): 上記を束ねる薄いファサード（**70.8%削減、1,529行削減**）
-    - **検証**: 全144テストファイル（1,765+テスト）100% PASS、ゼロオーバーヘッド・後方互換性完全維持。
+Phase 8 の真値直結基盤の完成に伴い、後続の重要機能がすべて安全・シンプルに実装可能な状態となりました。  
+現在、以下の 3 候補から **次期最優先フォーカス（Active Focus）** を選定し、スロットインする準備を進めています。
 
-#### 🗺️ Phase 8 がもたらす「後続機能・構想への影響・恩恵マップ」
-Phase 8 による C構造体メモリ直結によって、これまで「テキスト画面解析」や「複雑な推定・推論」に頼っていた多くの機能が、**確定情報（Ground Truth）の直接取得**へと劇的に単純化・堅牢化されます。
-
-| 後続タスク / 構想 | これまでのアプローチ (推測・画面パース) | Phase 8 後のアプローチ (メモリ直結) | もたらされる劇的恩恵 |
+| 候補 | 対象タスク | 概要 | 前提状況 |
 | :--- | :--- | :--- | :--- |
-| **Phase 7 Phase 3: 命名アシスト** | `\` 画面出力の文字列パース、店頭価格からの basePrice 逆算推定 | `SHIM_CMD_GET_OBJECT_AT` / `DUMP_ALL_INVENT` から `otyp`・買値・売値を直接取得 | 画面パース不要、誤判定ゼロ、未鑑定アイテムの仮名付与が $O(1)$ 確定 |
-| **GKL ブランチ同定 & エリア演出** | メッセージや階段トポロジーからの推測（ゴースト階段リスク） | `dnum`（ダンジョン番号）直結 | 100% 確定同定。エリア突入バナー演出が完全な信頼性で発火 |
-| **GKL タイムライン予測 (燃料計)** | メッセージ検知からの経過歩数逆算（セーブ再開でリセット） | `ublesscnt`（祈りクールダウン）および内部耐性配列直結 | コールドスタート問題ゼロ、推測誤差ゼロの真値燃料計 |
-| **AreaStateManager 4分割** | 背景グリフ・仮床・大岩押しからの泥臭い空間推論 | `getCellInfo(x,y)` / `dumpLevelTerrain()` による真の床・罠・扉フラグの一括直結 | 空間推論コードの半分が不要化。シンプルな台帳・描画分離へ移行可能 |
-| **ハイブリッド翻訳** | 英語メッセージ全文の正規表現マッチング・名詞抽出 | `struct obj` から ID・数量・祝福フラグを抽出しテンプレート埋め込み | 英語パースの組み合わせ爆発を根絶、辞書を18,000行➔1,500行へ90%削減 |
-| **モダン総合インベントリ & 重量分析** | 画面パース・外部推定不可、文字一覧のみ | `struct obj` から重量・スタック数・BUC・可搬限界直結 | クラス別重量比率・積載限界警告・モダンRPG所持品コックピット実現 |
-| **GKL/装備判定ロジック純化** | UI表示用和名がモデル層へ逆流し過剰防衛的な日本語正規表現が残存 | `onum` / `oclass` / `armorSlot` メタデータおよびASCII英語正規表現へ純化 | 日本語誤判定リスク根絶、生データ汚染解消、コード可読性と保守性向上 |
-
+| **候補 A** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | 未鑑定アイテムの仮名付けサジェストコア（`ItemCandidateResolver`）＋候補選択ダイアログ | **着手可能 (Ready)**<br>Phase 8 メモリ直結で買値・売値・真名が即時取得可能 |
+| **候補 B** | **[§2.3 ネイティブキー透過 ＆ 統合ツールバー (Quick Dock)](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md)** | 通常時キー完全素通し、上部 WebUI クイックドック、オンデマンド取得型キャラクター詳細ダイアログ | **着手可能 (Ready)**<br>不可分同期・ライフサイクル管理完備 |
+| **候補 C** | **[§3.1 シグナル駆動ハイブリッド翻訳 / メッセージトークン化](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)** | 辞書90%削減（18,000行➔1,500行）、非翻訳時でも名詞ハイライト・ナレッジポップアップ・演出連携 | **設計完了**<br>構文シグナルと `struct obj` 埋め込み活用 |
 
 ---
 
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
-仕様・設計が完了していますが、**「Phase 8 の完了待ち」** または **「次期着手スロット待ち」** として意図的にペンディングしているタスク群です。  
-※なお、**2.1、2.2、および 2.5** は Stage 8.3-B（確定同期レンダリング）と共に完遂し、§4 へ移行済みです。
+仕様・設計が完了しており、次期着手スロットを待機しているタスク群です。  
+※なお、**旧2.1, 2.2, 2.5, 2.6 (Peek Wisdom), 2.7 (ASCII純化)** は Phase 8 と共に完遂し、**[§4 実装完了コア機能 (Living Specs)](#🟢-4-実装完了コア機能現行仕様-living-specs)** へ移行・整理済みです。
 
-### 2.3 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
-- **ステータス**: `⏸️ pending` (Phase 8 完了待ち)
+### 2.1 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
+- **ステータス**: `⏸️ pending (Ready)` (Phase 8 完遂により前提条件クリア・着手可能)
 - **設計書**: [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)
-- **保留理由**: 画面テキストパースによる複雑な価格逆引きロジックを組むより、**Phase 8 で Cコアから直接アイテム情報（買値・売値・真名）を取得する方が圧倒的に安全でシンプル**になるため、Phase 8 完了まで意図的に着手を待機。
+- **現状**: Phase 8 完遂により C コアから直接アイテム情報（買値・売値・真名 `otyp`）を取得する基盤が整ったため、画面テキストパース不要でシンプルに実装可能。次期フォーカス最有力候補。
 - **ステップ**:
   - [ ] Step 1: `DiscoveryStateManager.js` への Phase 8 価格・未鑑定直結
   - [ ] Step 2: `ItemCandidateResolver.js` によるワンタップ候補サジェストコア
   - [ ] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`)
 
-### 2.4 事後ナレッジ連携 ＆ 戦術アドバイザー刷新（残存部）
+### 2.2 事後ナレッジ連携 ＆ 戦術アドバイザー刷新（残存部）
 - **ステータス**: `⏸️ pending` (設計完了 / 連動待ち)
 - **設計書**: [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md)
 - **現状**: `tools/scoreboard.html` および `PostMortemKnowledgeResolver.js`（多段構文解析・RCA調停）は実装完了。残る「未接続アドバイス（マインドフレア、グリーンスライム等）の包括バインド」および「50+件の死因検証ベンチマークテスト」が着手待ち。
 
-### 2.6 床アイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵（Peek Wisdom）統合
-- **ステータス**: `⏸️ pending` (2026-10-11 設計策定 / Stage 8.3-C と連動して着手可能)
-- **設計書**: [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) / [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md)
-- **対象コード**: `src/core/knowledge/state/AreaStateManager.js`, `src/core/knowledge/presenters/ItemSpecPresenter.js`, `src/components/NhKnowledgeCard.js`
-- **概要**: `syncPlayerFeetFloor()` で取得済みの C 構造体 (`struct obj`) 全フィールド（`spe`, `locked`, `broken`, `corpsenm`, `age`, `quan` 等）を欠落なく `AreaStateManager` / `NhKnowledgeCard` へ伝搬し、ネタバレ防止ルール（Known ガード）を維持したまま「覗き見知恵（Peek Wisdom）」を統合表示する（※ `shim_bridge.c` の `corpsenm`・`known` 拡張は Stage 8.3-C と共通基盤）。
-
-### 2.7 GKL/装備判定ロジックからの不要なマルチバイト文字（日本語）判定削除 ＆ ASCII/確定メタデータ純化
-- **ステータス**: `⏸️ pending` (2026-10-14 調査完了・計画策定 / Phase 8 後続タスク)
-- **設計・計画書**: [gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/gkl_multibyte_removal_and_ascii_purification_plan.ja.md)
-- **対象コード**: `src/core/knowledge/engines/ItemIdentificationResolver.js`, `src/core/knowledge/equipment/EquipmentRules.js`, `src/core/knowledge/equipment/EquipmentDependencyAnalyzer.js`, `src/core/knowledge/state/InventoryStateManager.js` 等
-- **概要**: NetHack C-Core (WASM) の出力が 100% 英語（ASCII）であり、Phase 8 の Direct Binding により `onum` / `oclass` / `armorSlot` 等の確定メタデータ（SSOT）が利用可能になったことを受け、モデル層（GKL）に残存する不要なマルチバイト文字（日本語）の正規表現・部分一致判定を安全に削除。`InventoryStateManager.syncFromDirectBinding` での生データ（`rawText`）汚染を解消し、英語 ASCII 正規表現および確定メタデータ判定へ純化する。
+### 2.3 NetHack ネイティブキー透過 ＆ WebUI 統合ツールバー (Quick Dock) ＆ キャラクター詳細ダイアログ新設構想
+- **ステータス**: `⏸️ pending (Ready)` (Stage 8.5 から独立構想として分離・策定)
+- **設計書**: [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md)
+- **対象コード**: `examples/gkl-pure-js-client/main.js`, `src/ui-controller/InputCoordinator.js`, `src/components/`, `modals.css`
+- **概要**:
+  - 通常プレイ中のキー入力（`/`, `\`, `^X`, `?` 等）を C コア（WASM）へ 100% 素通し（ネイティブパススルー）し、モーダルダイアログ表示中のみ排他的キートラップを適用。
+  - 画面上部に WebUI 拡張機能（インベントリ、ペーパードール、冒険手帳、キャラクター詳細、設定）を一覧できる統合ツールバー（Quick Dock）を新設。
+  - ステータスバーのインラインアコーディオン（▽）を全廃し、専用のキャラクター詳細ダイアログ（`[👤 キャラクター]`）を新設。ダイアログを開いた瞬間に Direct Binding から Role, Race, Gender, Align, 耐性, スキル, 呪文をオンデマンド一括取得して描画。
 
 ---
 
@@ -182,15 +85,9 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 - **シグナル駆動ハイブリッド翻訳 ＆ 辞書スリム化構想**:
   - 設計書: [signal_driven_hybrid_translation_architecture.ja.md](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)
   - 概要: 18,000行辞書を1,000〜1,500行へ90%削減。Phase 8 の `struct obj` から名詞スロットを直接埋め込む。
-- **GKL ブランチ検出・フロアキャッシュ分離 ＆ エリア突入アナウンス演出構想**:
-  - 設計書: [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)
-  - 概要: Phase 8 の `dnum` 直結により同一度数（Dlvl:3等）のキャッシュ混線を完全解消。新エリア突入バナー（`<nh-area-banner>`）と演出音響。
-- **GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計 (Prayer Tracker & Fuel Gauge)**:
-  - 設計書: [nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md)
-  - 概要: Phase 8 の `ublesscnt` / 耐性直結により、お祈りクールダウンと航続歩数を誤差ゼロで可視化。
-- **GKL 空間幾何学認識エンジン ＆ ダンジョントラッカー (＋ AreaStateManager 4分割整理)**:
-  - 設計書: [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md), [Spatial_Pattern_Engine_Architecture.md](./3_gkl/Spatial_Pattern_Engine_Architecture.md), [Dungeon_Tracker_and_Checkpoint_Architecture.md](./3_gkl/Dungeon_Tracker_and_Checkpoint_Architecture.md)
-  - 概要: Phase 8 の `getCellInfo` / `dumpLevelTerrain` 直結により、真の床推論をバイパス。空間グリッド、ランドマーク台帳、描画プロジェクターを疎結合化。
+- **セマンティック・メッセージトークン化 ＆ インタラクティブUI / 演出連携構想 (非翻訳モード拡張)**:
+  - 設計書: [semantic_message_tokenization_and_interactive_rendering_specification.ja.md](./9_translation/semantic_message_tokenization_and_interactive_rendering_specification.ja.md)
+  - 概要: 翻訳OFF（英語原文）時でも構文シグナルから名詞・変数を構造化トークン（Message AST）として認識。固有名詞の色分け表示、クリックによる GKL（Lore Codex / MonsterTracker）ナレッジポップアップ、アイテム即時操作、およびシグナル演出翻訳（画面シェイク・フラッシュ・音響等の VFX/SFX 連動）を実現。シグナル駆動翻訳への最短の架け橋となる。
 - **啓蒙ダイアログシグナル化による隠れステータス横取り**:
   - 設計書: [enlightenment_dialog_signal_and_state_interception_architecture.ja.md](./7_futures/enlightenment_dialog_signal_and_state_interception_architecture.ja.md)
   - 概要: 魔法の啓蒙（`MAGICENLIGHTENMENT`）ダイアログの専用モーダルUI化と Direct Binding 非稼働時のステータス補正。
@@ -217,11 +114,12 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 
 ## 🟢 4. 実装完了コア機能・現行仕様 (Living Specs)
 
-すでに実装が完了し、テストが通過（**全147スイート・1,794テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全149スイート・1,811テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :---: | :--- |
 | **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、基本憲法、重複整理、未接続パイプラインの公式総合カタログ |
+| **GKL・同期/基盤** | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md)<br>[gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/gkl_multibyte_removal_and_ascii_purification_plan.ja.md) | `StartupFlowController.js`<br>`GameLifecycleState.js`<br>`InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`EquipmentRules.js`<br>`ItemSpecPresenter.js` | `🟢 implemented` | **同期ライフサイクル不可分同期 ＆ ライフサイクル管理 ＆ ASCII純化 ＆ Peek Wisdom 床アイテム完全バインド (Stage 8.5: 2026-10-15)**<br>`completeStartup` の async 化による遅延ハック完全排除、`GameLifecycleManager`（単一ステートマシンSSOT）、`rawText` 汚染解消と和名分離、GKL/装備モデル層からの日本語正規表現完全削除、`ItemSpecPresenter` 個体スペック（`quan`, `spe`, `charges`, `corpsenm`, `bucStatus`）動的生成 |
 | **GKL・探索同期** | [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)<br>[nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md) | `PlayerWasmAdapter.js`<br>`BindingConstants.js`<br>`AreaStateManager.js`<br>`AttributeStateManager.js`<br>`GKLEventRouter.js` | `🟢 implemented` | **ブランチ同定・お祈りタイマー・プレイヤー耐性直結 (Stage 8.4: 2026-10-15)**<br>`dnum` による全9ブランチ 100% 確定同定 ＆ `branch:dlvl` キャッシュ分離、新エリア突入バナー演出（`AREA_ENTERED`）、`ublesscnt` / `ugangr`（推測誤差ゼロお祈り判定）、`uprops` 69要素耐性配列 SSOT 直結 |
 | **GKL・確定情報** | [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md) | `src/driver/shim/shim_bridge.c`<br>`glyphClassifier.js`<br>`InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`TerrainInferenceEngine.js` | `🟢 implemented` | **Direct Binding 確定情報純化 ＆ 地形・インベントリ不具合是正 (Stage 8.3-C: 2026-10-15)**<br>Cシム層 `corpsenm`/`known` 拡張、像・死体の専用グリフ（`GLYPH_STATUE_OFF`/`GLYPH_BODY_OFF`）適用、扉なし枠（`3985`）適正化、魔法書・杖・缶詰の境界・誤爆根絶 |
 | **描画・同期** | [shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)<br>[direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md) | `GKLEventRouter.js`<br>`WasmDirectBindingService.js`<br>`TerrainInferenceEngine.js`<br>`ViewportTileProjector.js`<br>`VirtualDungeonScreen.js`<br>`MainViewportRenderer.js` | `🟢 implemented` | **Shim-Driven 確定同期レンダリング・パイプライン ＆ Sync Barrier 調停 (Stage 8.3-B & §2.5: 2026-10-11)**<br>4フェーズ Turn Lifecycle（`userActionSent` ➔ Streaming ➔ Sync Barrier ➔ `areaStateCommitted`）、`--More--` 待機ガード (`isMorePromptActive`)、世代管理による遅延同期破棄、Direct Binding 時の投機的仮床（`3992`）完全根絶、未踏領域非表示化 ＆ `curs` 連動の足元 `cell.middle` 確定同期フラッシュ |
@@ -269,7 +167,7 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 | **Core / UI** | [Interactive_Request_Controller_Architecture_and_Roadmap.md](./2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md) | `src/core/request/` | `🟢 implemented` | **連続リクエストコントローラ (IRC) ＆ 制御シグナル同定基盤** |
 | **Core / UI** | [WebUICore_Usage_Guide.md](./2_client_ui/WebUICore_Usage_Guide.md) | `src/core/WebUICore.js` | `🟢 implemented` | **WebUICore 利用ガイド** |
 | **Driver** | [driver_core_spec.md](./1_driver/driver_core_spec.md) | `src/driver/NetHackWasmDriver.js` | `🟢 implemented` | **Web Worker WASM コア駆動ドライバ** |
-| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全138スイート・1,718テスト 100% PASS)** |
+| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全149スイート・1,811テスト 100% PASS)** |
 | **Translation** | [DICTIONARY_OPERATION.md](./9_translation/DICTIONARY_OPERATION.md) | `dictionary.csv`, `tools/` | `🟢 implemented` | **翻訳辞書・CSV相互変換運用ガイド** |
 
 ---
@@ -279,11 +177,14 @@ Phase 8 による C構造体メモリ直結によって、これまで「テキ�
 過去の検討経緯や完了済みプロジェクトレポート、旧アーキテクチャ資料です。
 
 - **直近引き継ぎ・状況評価レポート**:
-  - **[handover_20261008_status_reevaluation.ja.md](./6_project_reports/handover_20261008_status_reevaluation.ja.md)** (NetHack 5.0.1 追従、Phase 6 マルチドライバ分離完遂、Phase 7 冒険手帳/ナレッジカード完遂、3大不具合是正)
+  - **[handover_20261015_stage8_completion.ja.md](./6_project_reports/handover_20261015_stage8_completion.ja.md)** (Phase 8 全ステージ 8.1〜8.5 完遂、4大リファクタリング・神クラス解体、全149スイート・1,811テスト 100% PASS)
+  - [handover_20261008_status_reevaluation.ja.md](./6_project_reports/archive/handover_20261008_status_reevaluation.ja.md) (NetHack 5.0.1 追従、Phase 6 マルチドライバ分離完遂、Phase 7 冒険手帳/ナレッジカード完遂、3大不具合是正)
   - [handover_20260929_status_reevaluation.ja.md](./6_project_reports/archive/handover_20260929_status_reevaluation.ja.md) (Phase E / Phase 5 完遂、Web Audio API 動的音程シンセシス、現有能力カタログ、1,300テスト通過)
   - [handover_20260921_status_reevaluation.ja.md](./6_project_reports/archive/handover_20260921_status_reevaluation.ja.md) (レンダラー統合、WebGPU HD-2D、LORE、ペーパードール完成)
   - [handover_20260914_status_reevaluation.ja.md](./6_project_reports/archive/handover_20260914_status_reevaluation.ja.md) (IRC基盤、コンテナUI完成)
-- **アーキテクチャ意思決定**: [ArchitectureDecisionRecord.md](./3_gkl/archive/ArchitectureDecisionRecord.md) (`📦 archived`)
+- **完了済み大型マイルストーン計画書**:
+  - [official_shim_direct_binding_implementation_plan.md](./1_driver/official_shim_direct_binding_implementation_plan.md) (Phase 8 公式Shim構造化バインディング＆メモリ直結 全ステージ 8.1〜8.5 完遂)
+  - [ArchitectureDecisionRecord.md](./3_gkl/archive/ArchitectureDecisionRecord.md) (`📦 archived`)
 - **各カテゴリのアーカイブフォルダ**:
   - `docs/1_driver/archive/`: 公式Shim能力解析書、Stage 8.2-B 検証環境計画書、旧ロードマップ・C層Shim調査メモ
   - `docs/2_client_ui/archive/`: GKLクライアントUI刷新計画(Phase A〜D)、main.jsモジュール分割計画、ダイアログデザイン統一構想、Web Components規約、旧入力仕様等

@@ -16,10 +16,10 @@ describe('EquipmentRules', () => {
     it('resolveEligibleSlots: 装身具・武器・矢筒の適合スロットを解決できること', () => {
         expect(resolveEligibleSlots({ category: 'RING', name: 'ring of regeneration' })).toEqual(['left_ring', 'right_ring']);
         expect(resolveEligibleSlots({ category: 'AMULET', name: 'amulet of ESP' })).toEqual(['amulet']);
-        expect(resolveEligibleSlots({ itemCategory: 'AMULET', name: '超感覚の魔よけ' })).toEqual(['amulet']);
-        expect(resolveEligibleSlots({ name: '円形の魔よけ' })).toEqual(['amulet']);
-        expect(resolveEligibleSlots({ name: 'イェンダーの魔除け' })).toEqual(['amulet']);
-        expect(resolveEligibleSlots({ name: '生命維持のお守り' })).toEqual(['amulet']);
+        expect(resolveEligibleSlots({ itemCategory: 'AMULET', name: 'amulet of ESP' })).toEqual(['amulet']);
+        expect(resolveEligibleSlots({ name: 'circular amulet' })).toEqual(['amulet']);
+        expect(resolveEligibleSlots({ name: 'Amulet of Yendor' })).toEqual(['amulet']);
+        expect(resolveEligibleSlots({ name: 'amulet of life saving' })).toEqual(['amulet']);
         expect(resolveEligibleSlots({ equipSlot: 'amulet', name: 'strange item' })).toEqual(['amulet']);
         expect(resolveEligibleSlots({ isBlindfoldOrTowel: true, name: 'blindfold' })).toEqual(['blindfold']);
         expect(resolveEligibleSlots({ isAmmo: true, name: 'arrows' })).toEqual(['quiver', 'main_hand']);
@@ -294,7 +294,7 @@ describe('EquipmentDependencyAnalyzer', () => {
     it('extractEquippedState: アミュレット (being worn) が EQUIP_SLOTS.AMULET に正しくマッピングされること', () => {
         const inventory = [
             { letter: 'p', name: 'amulet of ESP', isWorn: true, rawText: 'p - an amulet of ESP (being worn)' },
-            { letter: 'q', name: '超感覚のアミュレット', isWorn: true, rawText: 'q - 超感覚のアミュレット (装備中)' },
+            { letter: 'q', name: 'amulet of ESP', nameJa: '超感覚のアミュレット', category: 'AMULET', isWorn: true, rawText: 'q - an amulet of ESP (being worn)' },
             { letter: 'r', name: 'circular amulet', isWorn: true, rawText: 'r - a circular amulet (being worn)' }
         ];
 

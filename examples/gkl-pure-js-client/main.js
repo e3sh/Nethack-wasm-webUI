@@ -615,8 +615,8 @@ class GklPureJSClient {
     this.startupFlow.transitionToStartupReady();
   }
 
-  completeStartup(triggerCodeOrKey = null) {
-    this.startupFlow.completeStartup(triggerCodeOrKey);
+  async completeStartup(triggerCodeOrKey = null) {
+    return await this.startupFlow.completeStartup(triggerCodeOrKey);
   }
 
   // ==========================================

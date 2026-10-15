@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI システム現有能力カタログ
 status: implemented
-last_updated: 2026-10-11
+last_updated: 2026-10-15
 ---
 
 # 🧭 NetHack WASM WebUI システム現有能力カタログ (SYSTEM_CAPABILITIES.md)
@@ -24,6 +24,7 @@ last_updated: 2026-10-11
    - [2.4 装備依存解析 (EquipmentActionPlanner / EquipmentRules)](#24-装備依存解析-equipmentactionplanner--equipmentrules)
    - [2.5 空間状態総合オーケストレーション ＆ 探索知識台帳 (AreaStateManager)](#25-空間状態総合オーケストレーション--探索知識台帳-areastatemanager)
    - [2.6 事後ナレッジ解析 ＆ 冒険手帳メタ進行 (PostMortemKnowledgeResolver / AdventureLogManager)](#26-事後ナレッジ解析--冒険手帳メタ進行-postmortemknowledgeresolver--adventurelogmanager)
+   - [2.7 ゲームライフサイクル状態マシン (GameLifecycleManager)](#27-ゲームライフサイクル状態マシン-gamelifecyclemanager)
 3. [③ データ・伝承資産 (Data & Lore Assets)](#③-データ伝承資産-data--lore-assets)
 4. [④ UI制御・操作調停 (UIController & Web Components)](#④-ui制御操作調停-uicontroller--web-components)
 5. [⑤ アーキテクチャの基本憲法（設計判断ルール）](#⑤-アーキテクチャの基本憲法設計判断ルール)
@@ -34,13 +35,15 @@ last_updated: 2026-10-11
 
 ## ① コア通信・同期パイプライン (Communication & Sync Capabilities)
 
-ブラウザ環境で NetHack C コア (WASM) を安全・高速・非同期に駆動し、画面描画を乱さずに内部データを抽出・同期する中核インフラストラクチャです。Phase 8 により **「Cメモリ構造体直結 (`CALL_SHIM` / `_shim_bridge_call`)」** と **「サイレント・キーシーケンス (`querySequenceSilent`)」** のハイブリッド二刀流パイプラインを保有しています。
+ブラウザ環境で NetHack C コア (WASM) を安全・高速・非同期に駆動し、画面描画を乱さずに内部データを抽出・同期する中核インフラストラクチャです。Phase 8（全ステージ 8.1〜8.5 完遂）により **「Cメモリ構造体直結 (`CALL_SHIM` / `_shim_bridge_call`)」** と **「サイレント・キーシーケンス (`querySequenceSilent`)」** のハイブリッド二刀流パイプラインを保有しています。
 
 ```mermaid
 flowchart TD
     subgraph BrowserUI ["フロントエンド / GKL 層"]
         UI["UI / Web Components (<nh-*>)"]
-        DBS["WasmDirectBindingService (Phase 8 直結)"]
+        DBS["WasmDirectBindingService (薄型ファサード)"]
+        Adapters["WasmAdapters\n(Inventory / Player / Spatial / Monster / Discovery)"]
+        SyncCoord["WasmSyncCoordinator (同期調停)"]
         IRC["InteractiveRequestController (WebUICore)"]
     end
 
@@ -55,8 +58,10 @@ flowchart TD
     end
 
     UI -->|状態同期・盤面照会| DBS
-    DBS -->|"callShim(SHIM_CMD_*, arg0, arg1)"| Bridge
-    Bridge -->|ミリ秒未満 ゼロ副作用直結| ShimBridge
+    DBS --> Adapters
+    DBS --> SyncCoord
+    SyncCoord -->|"callShim(SHIM_CMD_*, arg0, arg1)"| Bridge
+    Bridge -->|0.1ms未満 ゼロ副作用直結| ShimBridge
     ShimBridge <-->|C 構造体読取 (levl/fmon/invent/u)| WASM
 
     UI -->|マルチステップ操作・フォールバック| IRC
@@ -71,14 +76,17 @@ flowchart TD
   - `src/driver/shim/shim_bridge.c` (`_shim_bridge_call`)
   - `src/driver/NetHackMemory.js` (`bridgeCall`, `SHIM_CMD`, `SHIM_SYM`)
   - `src/driver/NetHackWasmWorkerBridge.js` (`callShim`)
-  - `src/core/knowledge/services/WasmDirectBindingService.js`
+  - `src/core/knowledge/services/WasmDirectBindingService.js` (6分割・薄型ファサード)
+  - `src/core/knowledge/adapters/` (`InventoryWasmAdapter`, `PlayerWasmAdapter`, `SpatialWasmAdapter`, `MonsterWasmAdapter`, `DiscoveryWasmAdapter`)
+  - `src/core/knowledge/coordinators/WasmSyncCoordinator.js`
 * **できること**:
   - 公式 NetHack C ソースを 1 行も改変せず、単一の外付けブリッジ (`shim_bridge.c`) 経由で C メモリ構造体（`levl[x][y]`, `fmon`, `fobj`, `invent`, `u` 等）を **0.1ms 未満・キー注入副作用ゼロ** で直接読み出し。
   - **主要コマンド実績**:
     1. **フロア全域地形・階段一括ダンプ (`SHIM_CMD_DUMP_LEVEL_TERRAIN` / 0x15)**: 80×21 全マスの真の地形 (`typ`)・扉状態 (`flags`)・階段接続を 1 往復で取得。
-    2. **セル詳細＆床アイテム走査 (`SHIM_CMD_GET_CELL_INFO` / `GET_OBJECT_AT`)**: 足元や任意座標の地形・罠・部屋種別・床アイテムの BUC (`blessed`/`cursed`/`bknown`)・箱の施錠状態を直接取得。
+    2. **セル詳細＆床アイテム走査 (`SHIM_CMD_GET_CELL_INFO` / `GET_OBJECT_AT`)**: 足元や任意座標の地形・罠・部屋種別・床アイテムの BUC (`blessed`/`cursed`/`bknown`)・箱の施錠状態・死体/像のモンスター種別 (`corpsenm`)・既知フラグ (`known`) を直接取得。
     3. **インベントリ＆装備＆総重量直結 (`SHIM_CMD_DUMP_ALL_INVENT` / `GET_EQUIPMENT_PTRS` / `GET_INV_WEIGHT`)**: 全所持品構造体・14装備スロットポインタ・真の総重量 (`inv_weight()`) を一括取得。
-    4. **モンスター＆プレイヤー状態直結 (`SHIM_CMD_GET_MONSTER_AT` / `GET_PLAYER_SUMMARY` / `GET_PLAYER_PROPS`)**: 平和NPC (`mpeaceful`)・ペット (`mtame`) 判定、ダンジョン番号 (`dnum`)、祈りタイマー (`ublesscnt`)、耐性配列 (`uprops`) を直接取得。
+    4. **モンスター＆プレイヤー状態直結 (`SHIM_CMD_GET_MONSTER_AT` / `GET_PLAYER_SUMMARY` / `GET_PLAYER_PROPS`)**: 平和NPC (`mpeaceful`)・ペット (`mtame`) 判定、ダンジョン番号 (`dnum`) による全9ブランチ 100% 確定同定、お祈りタイマー (`ublesscnt`)・神の怒り (`ugangr`) 直結、耐性配列 (`uprops` 69要素) 内因・外因分離直結。
+    5. **確定同期待ちによる不可分起動 (Stage 8.5)**: `completeStartup` の完全 async 化と Promise 調停により、セーブ再開時のインベントリ空化や初期描画チラつきを完全根絶。
   - **3モード検証切替 (`DIRECT_BINDING_MODE`)**: `auto`（直結優先＋自動フォールバック）、`strict`（フォールバック遮断・直結強制検証）、`fallback`（旧マクロ強制）を実行時切替可能。
 
 ### 1.1 サイレント・キーシーケンス実行 (`querySequenceSilent` / `queueSequence`)
@@ -162,6 +170,8 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
   - `src/core/knowledge/presenters/EncumbrancePresenter.js`
 * **できること**:
   - カテゴリ（武器、防具、指輪、巻物等）ごとに最適なスペックバッジ（重量、材質、AC、攻撃力ダイス、効果）を抽出。
+  - **床落ちアイテム Direct Binding 個体スペック動的反映 (Peek Wisdom / Stage 8.5)**: 足元や床に落ちているアイテムの C 構造体 (`directObject`) から、スタック数量 (`quan`)、強化値 (`spe`)、残チャージ (`charges`)、対象生物種別 (`corpsenm`)、BUC (`bucStatus`) を動的にバッジ化。
+  - **ASCII 英語純化**: `rawText` からの和名逆流を根絶し、ASCII 英語メタデータのみで決定論的にスペックを導出。
   - `SkillStateManager` と動的に突合し、**プレイヤーのスキル熟練度に応じた適性バッジ（得意武器マーク、向上可能マーク `+`）をリアルタイム付与**。
   - モンスターの危険度レベル、移動速度、耐性一覧、特殊攻撃リスク、死体摂食効果（耐性獲得率等）を適応型バッジとして生成。
 
@@ -186,11 +196,13 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
 * **できること**:
   - NetHack 5.0 C コア（`do_wear.c`）の厳密な防具・装身具着脱ルールに基づき、多段換装シミュレーションを実行。
   - 呪詛（Cursed）による脱衣ブロッカー検知、手袋なしでのコカトリス死体接触などの致命的事故を事前遮断。
+  - **ASCII純化**: モデル層から日本語正規表現を全廃し、確定メタデータと純粋な英語判定で完結。
 
 ### 2.5 空間状態総合オーケストレーション ＆ 探索知識台帳 (`AreaStateManager`)
 
 * **主要クラス / 関数**:
-  - `src/core/knowledge/state/AreaStateManager.js`
+  - `src/core/knowledge/state/AreaStateManager.js` (4分割オーケストレーター)
+  - `src/core/knowledge/state/area/` (`TerrainInferenceEngine`, `DungeonLandmarkRegistry`, `ViewportTileProjector`)
   - 詳細仕様書: [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md)
   - `updateGlyph(x, y, glyphId, glyphInfo, bkglyphInfo)`
   - `syncPlayerFeetFloor(x, y)` / `dumpLevelTerrain()`
@@ -199,7 +211,7 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
   - `getAreaState(cx, cy, radius)` / `getFocusCameraTiles(radiusX, radiusY, options)`
 * **できること**:
   - **4層空間モデル＆差分追跡**: 単一グリフから `bottom`（地形）、`middle`（アイテム/岩）、`top`（生物/墓石）、`effect`（演出）を復元管理し、描画差分（`dirtyCells`）のみをレンダラーへ高速供給。
-  - **Phase 8 メモリ直結同期**: `dumpLevelTerrain()` による 80×21 フロア全域の真の地形・階段一括確定、および `syncPlayerFeetFloor()` による足元の真の床・罠・床アイテムBUCのゼロ遅延確定（非対応時は背景グリフ＆9622仮床フォールバック）。
+  - **Phase 8 メモリ直結同期**: `dumpLevelTerrain()` による 80×21 フロア全域の真の地形・階段一括確定、および `syncPlayerFeetFloor()` による足元の真の床・罠・床アイテムBUCのゼロ遅延確定（未踏領域ネタバレ防止ガード付き）。
   - **ランドマーク台帳**: 階段・祭壇・泉・玉座・シンク・店舗（店主同定）を自動抽出・永続化（`landmarkCache`）。
 
 ### 2.6 事後ナレッジ解析 ＆ 冒険手帳メタ進行 (`PostMortemKnowledgeResolver` / `AdventureLogManager`)
@@ -210,6 +222,14 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
 * **できること**:
   - NetHack 5.0 `formatkiller()` の複合死因文字列（Prefix/Core/Suffix）を3段階で分解し、真の脅威エンティティと根本原因対策アドバイス（RCA）を自動導出。
   - セッションを跨いで遭遇モンスター・発見アイテム・噂・神託・墓碑銘の解禁率（知のメタ進行）を集計・永続化。
+
+### 2.7 ゲームライフサイクル状態マシン (`GameLifecycleManager`)
+
+* **主要クラス / 関数**:
+  - `src/core/lifecycle/GameLifecycleState.js` (`GAME_LIFECYCLE_STATE`, `GameLifecycleManager`)
+* **できること**:
+  - `NOT_STARTED` ➔ `INITIALIZING` ➔ `STARTUP_FLOW` ➔ `IN_GAME` ➔ `GAME_OVER` ➔ `RESETTING` の単一ステートマシンによるライフサイクル遷移管理（SSOT）。
+  - 散在していた旧フラグ（`isFirstTurnSyncing`, `isStartingUp` 等）を一元化し、状態遷移リスナーと不正遷移ガードを提供。
 
 ---
 
@@ -350,11 +370,11 @@ Phase 8 の C 構造体メモリ直結（`SHIM_DIRECT`）が有効な場合、�
 
 | ドメイン / 対象箇所 | 過去のレガシー実装（疑うべき処理） | 現在の正規手段（Ground Truth） | 整理・断捨離方針 |
 | :--- | :--- | :--- | :--- |
-| **所持品カテゴリ・装備状態判定**<br>`InventoryStateManager.js`<br>`EquipmentRules.js` | `categorizeItem` の Layer 2 文字列正規表現（色名から宝石判定、`ring` 文字列判定等）、`parseEquipState(rawText)` の括弧文字列パース | `onum` (`0..480`) / `oclass` マスター直引き ＋ `getEquipmentPtrs()` ポインタ照合 | Direct Binding 時は文字列パースを**完全廃止**。`onum` からのテーブル参照のみに純化。 |
-| **アイテム外見・識別深度解析**<br>`ItemIdentificationResolver.js` | `detectAppearance`（形容詞総当たり正規表現）、`inferCategory`、`extractBuc`、`extractEnchantmentAndCharges` | `onum` ＋ `oc_name_known` ＋ `oc_descr_idx` ＋ `o->bknown` / `o->known` / `o->spe` | `onum >= 0` が判明している場合は文字列からの逆推論を**完全廃止**。数値とフラグから直接構築。 |
+| **所持品カテゴリ・装備状態判定**<br>`InventoryStateManager.js`<br>`EquipmentRules.js` | `categorizeItem` の Layer 2 文字列正規表現、`parseEquipState(rawText)` の括弧パース、和名逆流 | `onum` (`0..480`) / `oclass` 直引き ＋ `getEquipmentPtrs()` ＋ ASCII英語純化 | **✅ 整理完了 (Stage 8.5)**: 和名汚染を解消し、モデル層の日本語正規表現を完全撤廃。 |
+| **アイテム外見・識別深度解析**<br>`ItemIdentificationResolver.js` | `detectAppearance`（形容詞総当たり正規表現）、`inferCategory`、`extractBuc`、`extractEnchantmentAndCharges` | `onum` ＋ `oc_name_known` ＋ `oc_descr_idx` ＋ `o->bknown` / `o->known` / `o->spe` | **✅ 整理完了 (Stage 8.5)**: 数値とフラグから直接構築し、日本語正規表現を完全削除。 |
 | **ディスカバリー同期**<br>`DiscoveryStateManager.js` | `\` コマンドのサイレントマクロ実行とテキスト行正規表現パース (`updateFromDiscoveriesText`) | `SHIM_CMD_DUMP_DISCOVERIES` (0x10) ＋ `DUMP_DESCR_INDEXES` (0x62) ＋ `oc_uname` | 実機ではメモリ直結で 100% 完結するため、マクロ実行と行パーサーへの依存を廃止。 |
-| **空間・仮床・扉/罠推論**<br>`AreaStateManager.js`<br>`TerrainInferenceEngine.js` | `9622` 仮床注入、メッセージ文字列からの罠・施錠推測 | `dumpLevelTerrain()` ＋ `getCellInfo()` (`typ`, `door`, `trap`) ＋ `print_glyph` | 仮床推測やメッセージ頼みの地形状態書き換えを廃止。 |
-| **属性・魔法・スキル同期**<br>`Attribute/Spell/SkillStateManager` | `^X` / `+` / `#enhance` のサイレントマクロ画面キャプチャと正規表現パース | Stage 8.4 にて `uprops` / `spl_book` / `P_SKILL` を C メモリから直接ダンプ | Stage 8.4 で順次 C メモリ直結へ移行し、画面キャプチャ用マクロと正規表現パーサーを退役。 |
+| **空間・仮床・扉/罠推論**<br>`AreaStateManager.js`<br>`TerrainInferenceEngine.js` | `9622` 仮床注入、メッセージ文字列からの罠・施錠推測 | `dumpLevelTerrain()` ＋ `getCellInfo()` (`typ`, `door`, `trap`) ＋ `print_glyph` | **✅ 整理完了 (Stage 8.3-B/C)**: Direct Binding 稼働時は仮床推測・メッセージ頼みの地形書き換えを完全排除。 |
+| **属性・耐性・タイマー同期**<br>`AttributeStateManager.js` | `^X` のサイレントマクロ画面キャプチャと正規表現パース、祈り経過歩数カウント | `SHIM_CMD_GET_PLAYER_SUMMARY` (0x30) ＋ `GET_PLAYER_PROPS` (0x32: `uprops`) ＋ `ublesscnt` | **✅ 整理完了 (Stage 8.4)**: C メモリ直接取得に一本化。お祈りタイマーも真値直結へ移行。 |
 
 > **💡 今も本当にテキスト処理が必要な領域（これだけに集中する）**:  
 > ① `putmsg` 動的メッセージストリームのカタログ照合（`MessageContextResolver`）と翻訳（`TranslationEngine`）  
@@ -365,18 +385,19 @@ Phase 8 の C 構造体メモリ直結（`SHIM_DIRECT`）が有効な場合、�
 
 ## ⑦ ギャップ分析と解消状況 (Capability Gaps & Resolution Status)
 
-初期監査で抽出された 4 大ギャップのうち、**ギャップ 1・3・4 は Phase 7 にて実装完了**しており、現在は **ギャップ 2（Phase 8 メモリ直結を活用した命名アシスト）** および **床アイテムの覗き見知恵（Peek Wisdom）統合** が次期ターゲットとなっています。
+初期監査で抽出された 4 大ギャップのうち、**ギャップ 1・3・4 は Phase 7 にて実装完了**、さらに **床アイテムの覗き見知恵（Peek Wisdom）も Stage 8.5 にて完全実装** されました。残る **ギャップ 2（命名アシスト）** も Phase 8 完遂により前提条件がすべて整い、着手可能（Ready）となっています。
 
 | ギャップ項目 | 状態 | 実装・解決内容 |
 | :--- | :---: | :--- |
 | **ギャップ 1: `\` コマンド（ディスカバリー）の図鑑UI連携** | **✅ 実装完了**<br>*(Phase 7-1)* | `<nh-discovery-codex>` により、ゲーム内で発見済みアイテムの「真名 ⇄ 外見」対照表・基本価格・カテゴリ絞り込みを即時閲覧可能。さらに Stage 8.2-C の `SHIM_CMD_DUMP_DESCR_INDEXES` でメモリ直結化も完了。 |
-| **ギャップ 2: アイテム候補逆引きからの命名支援 ＆ GamePad候補選択** | **⏸️ 着手待ち**<br>*(Phase 7-3 / ROADMAP 2.3)* | Phase 8 の `SHIM_CMD_GET_OBJECT_AT` / `DUMP_ALL_INVENT` による価格・オブジェクト情報直結を活用し、`ItemCandidateResolver` ＋ `<nh-call-candidate-dialog>` を実装予定。 |
+| **ギャップ 2: アイテム候補逆引きからの命名支援 ＆ GamePad候補選択** | **⏸️ 着手可能 (Ready)**<br>*(Phase 7-3 / ROADMAP 2.3)* | Phase 8 完遂（`SHIM_CMD_GET_OBJECT_AT` / `DUMP_ALL_INVENT` による価格・オブジェクト情報直結）により、テキストパース不要で `ItemCandidateResolver` ＋ `<nh-call-candidate-dialog>` を実装可能。次期フォーカス候補。 |
 | **ギャップ 3: WASM 動的文学引用（`data.base`）のオンデマンド閲覧 UI** | **✅ 実装完了**<br>*(Phase 7-1)* | `OnDemandLookupService.js` および `<nh-knowledge-card>` の第3層「文学・伝承引用」セクションとして完全接続済み（LRUキャッシュ＋日本語対訳対応）。 |
 | **ギャップ 4: セッション横断の図鑑収集率（知のメタ進行）ダッシュボード** | **✅ 実装完了**<br>*(Phase 7-2)* | `AdventureLogManager.js`、`<nh-codex-grid>`、および独立ツール `tools/adventure_log.html` / `tools/scoreboard.html` として完全実装済み。 |
+| **【追加】床アイテム覗き見知恵 (Peek Wisdom) 統合** | **✅ 実装完了**<br>*(Phase 8 Stage 8.5)* | `SHIM_CMD_GET_OBJECT_AT` から `ItemSpecPresenter` へ接続し、床に置かれたアイテムの数量、強化値、残チャージ、対象生物種別、BUC を動的バッジ化。 |
 
 ---
 
 ## 8. まとめ
 
-NetHack WASM WebUI は、「通信・同期（Phase 8 Direct Binding + IRC）」「状態解析」「データ・伝承」「UI調停（Headless UI + Web Components）」「マルチドライバ音響（Phase 6）」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャ（テスト状況は [ROADMAP](./ROADMAP.md) を参照）を保有しています。  
-今後の開発においても、新規に車輪を再発明することなく、**本カタログに記載された現有能力と Phase 8 メモリ直結基盤を活用して残るパイプラインを結線していくこと** が最短かつ最も堅牢な進化ルートとなります。
+NetHack WASM WebUI は、「通信・同期（Phase 8 Direct Binding + IRC）」「状態解析」「データ・伝承」「UI調停（Headless UI + Web Components）」「マルチドライバ音響（Phase 6）」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャ（全149スイート・1,811テスト 100% PASS）を保有しています。  
+Phase 8 が完遂された現在、新規に車輪を再発明することなく、**本カタログに記載された現有能力と Phase 8 メモリ直結基盤を活用して、命名アシストやセマンティックUI等のモダンなプレイヤー体験を迅速に構築すること** が最短かつ最も堅牢な進化ルートとなります。

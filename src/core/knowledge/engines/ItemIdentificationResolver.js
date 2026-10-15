@@ -298,14 +298,14 @@ export class ItemIdentificationResolver {
     static extractBuc(text) {
         if (!text) return { bucStatus: 'UNKNOWN', textWithoutBuc: '' };
 
-        if (/\bblessed\b/i.test(text) || /祝福された\s*/.test(text)) {
-            return { bucStatus: 'BLESSED', textWithoutBuc: text.replace(/\bblessed\s+/i, '').replace(/祝福された\s*/, '').trim() };
+        if (/\bblessed\b/i.test(text)) {
+            return { bucStatus: 'BLESSED', textWithoutBuc: text.replace(/\bblessed\s+/i, '').trim() };
         }
-        if (/\bcursed\b/i.test(text) || /呪われた\s*/.test(text)) {
-            return { bucStatus: 'CURSED', textWithoutBuc: text.replace(/\bcursed\s+/i, '').replace(/呪われた\s*/, '').trim() };
+        if (/\bcursed\b/i.test(text)) {
+            return { bucStatus: 'CURSED', textWithoutBuc: text.replace(/\bcursed\s+/i, '').trim() };
         }
-        if (/\buncursed\b/i.test(text) || /呪われていない\s*/.test(text)) {
-            return { bucStatus: 'UNCURSED', textWithoutBuc: text.replace(/\buncursed\s+/i, '').replace(/呪われていない\s*/, '').trim() };
+        if (/\buncursed\b/i.test(text)) {
+            return { bucStatus: 'UNCURSED', textWithoutBuc: text.replace(/\buncursed\s+/i, '').trim() };
         }
 
         return { bucStatus: 'UNKNOWN', textWithoutBuc: text };
@@ -558,20 +558,16 @@ export class ItemIdentificationResolver {
      */
     static inferCategory(name) {
         const lower = (name || '').toLowerCase();
-        if (lower.includes('potion') || lower.includes('ポーション') || lower.includes('薬')) return 'POTION';
-        if (lower.includes('scroll') || lower.includes('blank paper') || lower.includes('巻物')) return 'SCROLL';
-        if (lower.includes('wand') || lower.includes('杖')) return 'WAND';
-        if (lower.includes('mail') || lower.includes('armor') || lower.includes('helmet') || lower.includes('shield') || lower.includes('cloak') || lower.includes('boots') || lower.includes('gloves') ||
-            lower.includes('鎧') || lower.includes('甲冑') || lower.includes('兜') || lower.includes('盾') || lower.includes('マント') || lower.includes('ブーツ') || lower.includes('靴') || lower.includes('手袋')) return 'ARMOR';
-        if ((/\brings?\b/i.test(lower) || lower.includes('指輪')) && !lower.includes('ring mail') && !lower.includes('ringmail') && !lower.includes('リングメイル')) return 'RING';
-        if (lower.includes('amulet') || lower.includes('魔除け') || lower.includes('アミュレット')) return 'AMULET';
-        if (lower.includes('spellbook') || lower.includes('book') || lower.includes('呪文書') || lower.includes('魔道書')) return 'SPELLBOOK';
-        if (lower.includes('sword') || lower.includes('dagger') || lower.includes('axe') || lower.includes('spear') || lower.includes('bow') || lower.includes('arrow') ||
-            lower.includes('剣') || lower.includes('刀') || lower.includes('短剣') || lower.includes('斧') || lower.includes('槍') || lower.includes('弓') || lower.includes('矢')) return 'WEAPON';
-        if (lower.includes('food') || lower.includes('ration') || lower.includes('apple') || lower.includes('corpse') ||
-            lower.includes('食料') || lower.includes('食物') || lower.includes('リンゴ') || lower.includes('死体') || lower.includes('死骸')) return 'FOOD';
-        if (lower.includes('gem') || lower.includes('stone') || lower.includes('glass') ||
-            lower.includes('宝石') || lower.includes('石') || lower.includes('ガラス')) return 'GEM_STONE';
+        if (lower.includes('potion')) return 'POTION';
+        if (lower.includes('scroll') || lower.includes('blank paper')) return 'SCROLL';
+        if (lower.includes('wand')) return 'WAND';
+        if (lower.includes('mail') || lower.includes('armor') || lower.includes('helmet') || lower.includes('shield') || lower.includes('cloak') || lower.includes('boots') || lower.includes('gloves')) return 'ARMOR';
+        if (/\brings?\b/i.test(lower) && !lower.includes('ring mail') && !lower.includes('ringmail')) return 'RING';
+        if (lower.includes('amulet')) return 'AMULET';
+        if (lower.includes('spellbook') || lower.includes('book')) return 'SPELLBOOK';
+        if (lower.includes('sword') || lower.includes('dagger') || lower.includes('axe') || lower.includes('spear') || lower.includes('bow') || lower.includes('arrow')) return 'WEAPON';
+        if (lower.includes('food') || lower.includes('ration') || lower.includes('apple') || lower.includes('corpse')) return 'FOOD';
+        if (lower.includes('gem') || lower.includes('stone') || lower.includes('glass')) return 'GEM_STONE';
         return 'TOOL';
     }
 
