@@ -40,6 +40,7 @@ const CODEX_I18N = {
         filterLocked: '❓ 未遭遇',
         filterObjLocked: '❓ 未識別',
         filterNew: '✨ NEW!',
+        filterPeeked: '👁️ 覗き見のみ',
         filterWeapon: '⚔️ 武器',
         filterArmor: '🛡️ 防具',
         filterFood: '🍖 食料',
@@ -61,6 +62,7 @@ const CODEX_I18N = {
         badgeElbereth: '🛡️ 結界',
         badgeMonster: '👾 モンスター',
         badgeObject: '⚔️ アイテム',
+        badgePeek: '👁️ 覗き見',
         truthBadgeTrue: '✅ 真実の噂 (TRUE)',
         truthBadgeFalse: '❌ 偽りの噂 (FALSE)',
         truthBadgeOracle: '🔮 デルフィの大預言 (ORACLE)',
@@ -78,6 +80,7 @@ const CODEX_I18N = {
         lblMetaCategory: '分類',
         statusCollected: '✅ 獲得済み',
         statusUnlocked: '✅ 調査・識別完了',
+        statusPeeked: '👁️ 賢者の知恵で解禁（自力鑑定で正式登録へ昇格）',
         statusLocked: '❓ 未遭遇・未識別',
         srcDelphi: 'デルフィ神託所',
         srcFloor: '床文字',
@@ -137,6 +140,7 @@ const CODEX_I18N = {
         filterLocked: '❓ Undiscovered',
         filterObjLocked: '❓ Unidentified',
         filterNew: '✨ NEW!',
+        filterPeeked: '👁️ Peeked Only',
         filterWeapon: '⚔️ Weapon',
         filterArmor: '🛡️ Armor',
         filterFood: '🍖 Food',
@@ -158,6 +162,7 @@ const CODEX_I18N = {
         badgeElbereth: '🛡️ Ward',
         badgeMonster: '👾 MONSTER',
         badgeObject: '⚔️ ITEM',
+        badgePeek: '👁️ PEEK',
         truthBadgeTrue: '✅ True Rumor (TRUE)',
         truthBadgeFalse: '❌ False Rumor (FALSE)',
         truthBadgeOracle: '🔮 Major Oracle of Delphi',
@@ -175,6 +180,7 @@ const CODEX_I18N = {
         lblMetaCategory: 'Category',
         statusCollected: '✅ Collected',
         statusUnlocked: '✅ Identified & Documented',
+        statusPeeked: '👁️ Peek Wisdom (Documented via Wisdom; will upgrade upon identification)',
         statusLocked: '❓ Undiscovered / Unidentified',
         srcDelphi: 'Oracle of Delphi',
         srcFloor: 'Floor Engraving',
@@ -665,6 +671,7 @@ export class CodexModal {
         bindObjFilter('#codex-filter-obj-unlocked', 'UNLOCKED');
         bindObjFilter('#codex-filter-obj-locked', 'LOCKED');
         bindObjFilter('#codex-filter-obj-new', 'NEW');
+        bindObjFilter('#codex-filter-obj-peek', 'PEEKED');
 
         // 噂話フィルタ
         const filterAll = this.elCodexModal.querySelector('#codex-filter-all');
@@ -804,6 +811,7 @@ export class CodexModal {
         setText('#codex-filter-obj-unlocked', t.filterUnlocked);
         setText('#codex-filter-obj-locked', t.filterObjLocked);
         setText('#codex-filter-obj-new', t.filterNew);
+        setText('#codex-filter-obj-peek', t.filterPeeked);
 
         // 噂フィルタ
         setText('#codex-filter-all', t.filterAll);
@@ -853,7 +861,11 @@ export class CodexModal {
         if (monBar) monBar.style.width = `${progress.monsters.percentage}%`;
 
         // アイテム
-        setText('#codex-sum-object-ratio', `${progress.objects.unlocked} / ${progress.objects.total}`);
+        const objPeek = progress.objects?.peekedCount || 0;
+        const objRatioStr = objPeek > 0
+            ? `${progress.objects.unlocked} / ${progress.objects.total} (👁️${objPeek})`
+            : `${progress.objects.unlocked} / ${progress.objects.total}`;
+        setText('#codex-sum-object-ratio', objRatioStr);
         setText('#codex-sum-object-pct', `(${progress.objects.percentage}%)`);
         const objBar = this.elCodexModal.querySelector('#codex-sum-object-bar');
         if (objBar) objBar.style.width = `${progress.objects.percentage}%`;
@@ -958,7 +970,8 @@ export class CodexModal {
             'TOOL': 'tool',
             'UNLOCKED': 'unlocked',
             'LOCKED': 'locked',
-            'NEW': 'new'
+            'NEW': 'new',
+            'PEEKED': 'peek'
         };
         const chip = this.elCodexModal.querySelector(`#codex-filter-obj-${chipMap[filter]}`);
         if (chip) chip.classList.add('active');
@@ -1031,6 +1044,8 @@ export class CodexModal {
                 items = items.filter(i => !i.isUnlocked);
             } else if (this.currentObjFilter === 'NEW') {
                 items = items.filter(i => i.isNew);
+            } else if (this.currentObjFilter === 'PEEKED') {
+                items = items.filter(i => i.isPeeked);
             } else if (this.currentObjFilter !== 'ALL') {
                 items = items.filter(i => i.itemCategory === this.currentObjFilter);
             }
@@ -1192,6 +1207,7 @@ export class CodexModal {
             }
 
             const newBadgeHtml = unread ? `<span class="codex-item-badge badge-new">${t.badgeNew}</span>` : '';
+            const peekBadgeHtml = item.isPeeked ? `<span class="codex-item-badge badge-peek" title="${isEn ? 'Peek Wisdom (Not yet officially identified)' : '賢者の知恵による解禁（自力未鑑定）'}">👁️${isEn ? ' Peek' : ' 覗き見'}</span>` : '';
 
             // スニペットテキスト
             let mainTitle = '';
@@ -1222,6 +1238,7 @@ export class CodexModal {
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
                             <div style="display:flex; align-items:center; gap:4px;">
                                 ${badgeHtml}
+                                ${peekBadgeHtml}
                                 ${newBadgeHtml}
                             </div>
                             <span class="codex-item-meta">${seen}</span>
@@ -1553,11 +1570,19 @@ export class CodexModal {
                         <div class="codex-entry-name-main">
                             <span>${this.escapeHtml(mainName)}</span>
                             <span class="codex-item-badge badge-object" style="font-size:11px;">[${this.escapeHtml(category)}]</span>
+                            ${item.isPeeked ? `<span class="codex-item-badge badge-peek" style="font-size:11px; margin-left:4px;">👁️${isEn ? ' Peek Wisdom' : ' 賢者の知恵'}</span>` : ''}
                         </div>
                         <div class="codex-entry-name-sub">${this.escapeHtml(subName)}</div>
-                        <div class="codex-entry-id-badge">No.${item.onum} | ${t.statusUnlocked}</div>
+                        <div class="codex-entry-id-badge" style="${item.isPeeked ? 'color:#c084fc;' : ''}">No.${item.onum} | ${item.isPeeked ? t.statusPeeked : t.statusUnlocked}</div>
                     </div>
                 </div>
+
+                ${item.isPeeked ? `
+                    <div style="background:rgba(147, 51, 234, 0.12); border:1px solid rgba(168, 85, 247, 0.3); border-radius:6px; padding:8px 12px; margin-bottom:12px; font-size:12px; color:#e9d5ff; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:16px;">👁️</span>
+                        <span>${isEn ? 'Unlocked via Peek Wisdom. Officially identify this item in the dungeon to upgrade its registration.' : '賢者の知恵によって閲覧解禁されています。ダンジョン内で自力鑑定すると、正式登録へ自動昇格します。'}</span>
+                    </div>
+                ` : ''}
 
                 <!-- スペック表 -->
                 <div class="codex-specs-grid">

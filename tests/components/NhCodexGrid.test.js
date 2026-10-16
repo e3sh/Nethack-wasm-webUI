@@ -193,5 +193,79 @@ describe('NhCodexGrid (<nh-codex-grid>) (Gap 4)', () => {
         expect(html).toContain('すべて');
         expect(html).toContain('👾 モンスター');
     });
+
+    it('覗き見解禁 (isPeeked) アイテムのタイルに peek-badge が表示され、title に注記が付くこと', () => {
+        manager.unlockObject(10, { viaPeek: true });
+
+        const grid = new NhCodexGrid();
+        grid.setManager(manager);
+        grid.setCategory('object');
+        grid.connectedCallback();
+
+        const peekBadge = grid.shadowRoot.querySelector('.peek-badge');
+        expect(peekBadge).not.toBeNull();
+        expect(peekBadge.textContent).toContain('👁️');
+
+        const allTiles = Array.from(grid.shadowRoot.querySelectorAll('.tile-item'));
+        const tile10 = allTiles.find(t => t.getAttribute('data-entry-id') === 'item_onum_10' || t.getAttribute('data-entry-id') === '10');
+        expect(tile10).not.toBeNull();
+        expect(tile10.getAttribute('title')).toContain('賢者の知恵で解禁');
+    });
+
+    it('ステータスフィルタで peeked を選択すると、覗き見解禁アイテムのみが絞り込まれること', () => {
+        manager.unlockObject(10, { viaPeek: true });  // Peek
+        manager.unlockObject(11, { viaPeek: false }); // 正式解禁
+
+        const grid = new NhCodexGrid();
+        grid.setManager(manager);
+        grid.setCategory('object');
+        grid.connectedCallback();
+
+        // 初期状態: 解禁済み2件
+        const unlockedTiles = Array.from(grid.shadowRoot.querySelectorAll('.tile-item')).filter(t => !t.classList.contains('locked'));
+        expect(unlockedTiles.length).toBe(2);
+
+        // peeked フィルタに切り替え
+        grid.statusFilter = 'peeked';
+        grid.render();
+
+        const filteredTiles = Array.from(grid.shadowRoot.querySelectorAll('.tile-item'));
+        expect(filteredTiles.length).toBe(1);
+        expect(filteredTiles[0].getAttribute('data-entry-id')).toBe('item_onum_10');
+    });
+
+    it('アイテムカテゴリ選択時に進捗ヘッダーへ覗き見解禁数の内訳が表示されること', () => {
+        manager.unlockObject(10, { viaPeek: true });
+        manager.unlockObject(11, { viaPeek: false });
+
+        const grid = new NhCodexGrid();
+        grid.setManager(manager);
+        grid.setCategory('object');
+        grid.connectedCallback();
+
+        const progressText = grid.shadowRoot.querySelector('.progress-text');
+        expect(progressText).not.toBeNull();
+        expect(progressText.textContent).toContain('2 / 481');
+        expect(progressText.textContent).toContain('内 👁️1');
+    });
+
+    it('自力鑑定昇格後に peek-badge が消滅し、内訳が更新されること', () => {
+        manager.unlockObject(10, { viaPeek: true });
+
+        const grid = new NhCodexGrid();
+        grid.setManager(manager);
+        grid.setCategory('object');
+        grid.connectedCallback();
+
+        expect(grid.shadowRoot.querySelector('.peek-badge')).not.toBeNull();
+
+        // 自力鑑定で正式解禁に昇格
+        manager.unlockObject(10, { viaPeek: false });
+        grid.render();
+
+        expect(grid.shadowRoot.querySelector('.peek-badge')).toBeNull();
+        const progressText = grid.shadowRoot.querySelector('.progress-text');
+        expect(progressText.textContent).not.toContain('内 👁️');
+    });
 });
 

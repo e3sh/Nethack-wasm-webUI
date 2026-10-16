@@ -363,7 +363,8 @@ describe('CodexModal - 冒険手帳・伝承図鑑コンポーネント', () => 
         'codex-filter-obj-armor': createMockElement('codex-filter-obj-armor', 'button'),
         'codex-filter-obj-unlocked': createMockElement('codex-filter-obj-unlocked', 'button'),
         'codex-filter-obj-locked': createMockElement('codex-filter-obj-locked', 'button'),
-        'codex-filter-obj-new': createMockElement('codex-filter-obj-new', 'button')
+        'codex-filter-obj-new': createMockElement('codex-filter-obj-new', 'button'),
+        'codex-filter-obj-peek': createMockElement('codex-filter-obj-peek', 'button')
       };
 
       fullElements['codex-modal'].querySelector = (sel) => {
@@ -488,6 +489,60 @@ describe('CodexModal - 冒険手帳・伝承図鑑コンポーネント', () => 
       const counts = monsterModal.getUnreadCounts();
       expect(counts.monsters).toBe(0);
       expect(counts.objects).toBe(0);
+    });
+
+    it('覗き見解禁 (isPeeked) アイテムに badge-peek バッジが表示され、詳細に statusPeeked が表示されること', () => {
+      // アイテム 10 を Peek 解禁
+      alm.unlockObject(10, { viaPeek: true });
+      monsterModal.activeTab = 'objects';
+      monsterModal.open();
+
+      const listEl = fullElements['codex-master-list'];
+      expect(listEl.innerHTML).toContain('badge-peek');
+      expect(listEl.innerHTML).toContain('👁️ 覗き見');
+
+      // 詳細の確認
+      const peekedItem = alm.getAllObjectsWithStatus().find(o => o.onum === 10);
+      monsterModal.selectedItem = peekedItem;
+      monsterModal.renderDetail();
+
+      const card = fullElements['codex-detail-card'];
+      expect(card.innerHTML).toContain('賢者の知恵で解禁');
+      expect(card.innerHTML).toContain('自力鑑定で正式登録へ昇格');
+    });
+
+    it('PEEKED フィルタで覗き見解禁アイテムのみが抽出されること', () => {
+      alm.unlockObject(10, { viaPeek: true });  // Peek
+      alm.unlockObject(11, { viaPeek: false }); // 正式解禁
+      monsterModal.activeTab = 'objects';
+      monsterModal.open();
+
+      monsterModal.setObjectFilter('PEEKED');
+      expect(monsterModal._currentItems.length).toBe(1);
+      expect(monsterModal._currentItems[0].onum).toBe(10);
+      expect(monsterModal._currentItems[0].isPeeked).toBe(true);
+    });
+
+    it('自力鑑定による昇格後にバッジが消え、通常解禁ステータスになること', () => {
+      alm.unlockObject(10, { viaPeek: true });
+      monsterModal.activeTab = 'objects';
+      monsterModal.open();
+
+      expect(fullElements['codex-master-list'].innerHTML).toContain('badge-peek');
+
+      // 自力鑑定で昇格
+      alm.unlockObject(10, { viaPeek: false });
+      monsterModal.renderList();
+
+      expect(fullElements['codex-master-list'].innerHTML).not.toContain('badge-peek');
+
+      const promotedItem = alm.getAllObjectsWithStatus().find(o => o.onum === 10);
+      monsterModal.selectedItem = promotedItem;
+      monsterModal.renderDetail();
+
+      const card = fullElements['codex-detail-card'];
+      expect(card.innerHTML).toContain('調査・識別完了');
+      expect(card.innerHTML).not.toContain('賢者の知恵で解禁');
     });
   });
 });

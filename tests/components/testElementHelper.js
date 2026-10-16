@@ -43,20 +43,20 @@ export function createMockNode(tagName = 'div') {
     removeAttribute: (attr) => attributes.delete(attr),
     hasAttribute: (attr) => attributes.has(attr),
 
-    appendChild: vi.fn((child) => {
+    appendChild: (child) => {
       children.push(child);
       child.parentNode = node;
       return child;
-    }),
+    },
 
-    removeChild: vi.fn((child) => {
+    removeChild: (child) => {
       const idx = children.indexOf(child);
       if (idx !== -1) {
         children.splice(idx, 1);
         child.parentNode = null;
       }
       return child;
-    }),
+    },
 
     addEventListener: vi.fn((event, handler) => {
       if (!listeners.has(event)) listeners.set(event, []);
@@ -87,8 +87,8 @@ export function createMockNode(tagName = 'div') {
       return res;
     },
 
-    focus: vi.fn(),
-    blur: vi.fn(),
+    focus: () => {},
+    blur: () => {},
     click: function() {
       const handlers = listeners.get('click') || [];
       for (const h of handlers) {
@@ -109,8 +109,8 @@ export function createMockNode(tagName = 'div') {
 
   Object.defineProperty(node, 'textContent', {
     get: () => {
-      if (children.length === 0) return textContentStr;
-      return children.map(c => c.textContent).join('');
+      const childText = children.map(c => c.textContent).join('');
+      return textContentStr ? (textContentStr + (childText ? ' ' + childText : '')) : childText;
     },
     set: (val) => {
       textContentStr = val;
@@ -185,6 +185,12 @@ function parseSimpleHtml(html, parentNode) {
         const ariaModalMatch = attrsStr.match(/aria-modal=["']([^"']+)["']/);
         if (ariaModalMatch) {
           el.setAttribute('aria-modal', ariaModalMatch[1]);
+        }
+        // title
+        const titleMatch = attrsStr.match(/title=["']([^"']+)["']/);
+        if (titleMatch) {
+          el.title = titleMatch[1];
+          el.setAttribute('title', titleMatch[1]);
         }
       }
 

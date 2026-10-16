@@ -735,7 +735,9 @@ export class AdventureLogManager {
                 unlocked: oUnlocked,
                 total: totalObjects,
                 percentage: totalObjects > 0 ? Number(((oUnlocked / totalObjects) * 100).toFixed(1)) : 0,
-                newCount: this.newObjects.size
+                newCount: this.newObjects.size,
+                peekedCount: this.peekedObjects.size,
+                identifiedCount: Math.max(0, oUnlocked - this.peekedObjects.size)
             },
             rumors: {
                 unlocked: rUnlocked,
@@ -793,6 +795,7 @@ export class AdventureLogManager {
         const list = [];
         for (const [onum, obj] of OBJECT_KNOWLEDGE_MAP.entries()) {
             const isUnlocked = this.unlockedObjects.has(onum);
+            const isPeeked = this.peekedObjects.has(onum);
             list.push({
                 id: obj.id || `obj_${onum}`,
                 category: 'object',
@@ -802,6 +805,7 @@ export class AdventureLogManager {
                 name: isUnlocked ? obj.name : '???',
                 nameJa: isUnlocked ? (obj.nameJa || obj.name) : '???',
                 isUnlocked,
+                isPeeked,
                 isNew: this.newObjects.has(onum),
                 data: isUnlocked ? obj : null
             });

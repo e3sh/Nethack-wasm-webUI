@@ -30,6 +30,7 @@ const I18N = {
     filterUnlocked: '解禁済み',
     filterLocked: '未遭遇・未識別',
     filterNew: 'NEW! のみ',
+    filterPeeked: '👁️ 覗き見解禁のみ',
     emptyMessage: '🔍 該当するエントリが見つかりませんでした',
     rumorTrue: '真の噂 (True)',
     rumorFalse: '偽の噂 (False)',
@@ -46,6 +47,7 @@ const I18N = {
     filterUnlocked: 'Unlocked',
     filterLocked: 'Locked / Undiscovered',
     filterNew: 'NEW! Only',
+    filterPeeked: '👁️ Peeked Only',
     emptyMessage: '🔍 No matching entries found',
     rumorTrue: 'True Rumor',
     rumorFalse: 'False Rumor',
@@ -319,6 +321,21 @@ const CODEX_GRID_CSS = `
   0% { transform: scale(1); }
   50% { transform: scale(1.1); }
   100% { transform: scale(1); }
+}
+
+/* 👁️ 覗き見解禁バッジ（左下に配置し、右上の NEW バッジと競合しない） */
+.peek-badge {
+  position: absolute;
+  bottom: -3px;
+  left: -3px;
+  background: rgba(147, 51, 234, 0.9);
+  color: #ffffff;
+  font-size: 8px;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
 }
 
 /* 噂リスト表示（噂タブ用） */
@@ -599,6 +616,8 @@ export class NhCodexGrid extends NhBaseElement {
             list = list.filter(e => !e.isUnlocked);
         } else if (this.statusFilter === 'new') {
             list = list.filter(e => e.isNew);
+        } else if (this.statusFilter === 'peeked') {
+            list = list.filter(e => e.isPeeked);
         }
 
         // 検索クエリフィルタ
@@ -637,6 +656,13 @@ export class NhCodexGrid extends NhBaseElement {
             (this.currentCategory === 'monster' ? progress.monsters :
                 (this.currentCategory === 'object' ? progress.objects : progress.rumors));
 
+        const peekCount = this.currentCategory === 'object'
+            ? (progress.objects?.peekedCount || 0)
+            : (this.currentCategory === 'all' ? (progress.objects?.peekedCount || 0) : 0);
+        const peekSubHtml = peekCount > 0
+            ? ` <span class="progress-sub" style="font-size:0.75rem; color:#c084fc; font-weight:normal;">(内 👁️${peekCount})</span>`
+            : '';
+
         const entries = this._getFilteredEntries();
 
         this.shadowRoot.innerHTML = `
@@ -649,7 +675,7 @@ export class NhCodexGrid extends NhBaseElement {
                             <h2 class="codex-title">${t.title} ${t.titleSub ? `<span style="font-size:0.8rem; font-weight:normal; color:#94a3b8;">${t.titleSub}</span>` : ''}</h2>
                         </div>
                         <div class="progress-group">
-                            <span class="progress-text">${currentProg.unlocked} / ${currentProg.total} (${currentProg.percentage}%)</span>
+                            <span class="progress-text">${currentProg.unlocked} / ${currentProg.total} (${currentProg.percentage}%)${peekSubHtml}</span>
                             <div class="progress-bar-bg">
                                 <div class="progress-bar-fill" style="width: ${Math.min(100, Math.max(0, currentProg.percentage))}%;"></div>
                             </div>
@@ -679,6 +705,7 @@ export class NhCodexGrid extends NhBaseElement {
                                 <option value="unlocked" ${this.statusFilter === 'unlocked' ? 'selected' : ''}>${t.filterUnlocked}</option>
                                 <option value="locked" ${this.statusFilter === 'locked' ? 'selected' : ''}>${t.filterLocked}</option>
                                 <option value="new" ${this.statusFilter === 'new' ? 'selected' : ''}>${t.filterNew}</option>
+                                <option value="peeked" ${this.statusFilter === 'peeked' ? 'selected' : ''}>${t.filterPeeked}</option>
                             </select>
                         </div>
                     </div>
@@ -735,9 +762,13 @@ export class NhCodexGrid extends NhBaseElement {
     _renderTileItem(entry, isJp) {
         const isLocked = !entry.isUnlocked;
         const isSelected = this.selectedEntryId === entry.id;
-        const title = isLocked
+        let title = isLocked
             ? `No.${entry.monOffset !== undefined ? entry.monOffset : entry.onum} ???`
             : (isJp ? (entry.nameJa || entry.name) : (entry.name || entry.nameJa));
+
+        if (entry.isPeeked) {
+            title += isJp ? ' [👁️ 賢者の知恵で解禁]' : ' [👁️ Peek Wisdom]';
+        }
 
         let iconHtml = '';
         if (entry.glyphId !== undefined) {
@@ -766,6 +797,7 @@ export class NhCodexGrid extends NhBaseElement {
                  title="${this._escapeHtml(title)}">
                  ${iconHtml}
                 ${entry.isNew ? '<span class="new-badge">NEW</span>' : ''}
+                ${entry.isPeeked ? '<span class="peek-badge" title="Peek Wisdom">👁️</span>' : ''}
             </div>
         `;
     }

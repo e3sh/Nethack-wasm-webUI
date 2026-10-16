@@ -279,6 +279,48 @@ describe('ROADMAP §2.2: 床落ちアイテム・コンテナ・死体の Direct
       expect(newAlm.isObjectUnlocked(301)).toBe(true);
       expect(newAlm.peekedObjects.has(301)).toBe(false); // peeked から正式解禁に昇格！
     });
+
+    it('getAllObjectsWithStatus() と getProgress() が isPeeked, peekedCount, identifiedCount を正しく反映すること', () => {
+      // 初期状態
+      const initialProg = alm.getProgress();
+      expect(initialProg.objects.unlocked).toBe(0);
+      expect(initialProg.objects.peekedCount).toBe(0);
+      expect(initialProg.objects.identifiedCount).toBe(0);
+
+      // 1. アイテム 301 を Peek 解禁、アイテム 302 を 自力鑑定解禁
+      alm.unlockObject(301, { viaPeek: true });
+      alm.unlockObject(302, { viaPeek: false });
+
+      const midProg = alm.getProgress();
+      expect(midProg.objects.unlocked).toBe(2);
+      expect(midProg.objects.peekedCount).toBe(1);
+      expect(midProg.objects.identifiedCount).toBe(1);
+
+      const objectsStatus = alm.getAllObjectsWithStatus();
+      const obj301 = objectsStatus.find(o => o.onum === 301);
+      const obj302 = objectsStatus.find(o => o.onum === 302);
+      const obj303 = objectsStatus.find(o => o.onum === 303);
+
+      expect(obj301.isUnlocked).toBe(true);
+      expect(obj301.isPeeked).toBe(true);
+
+      expect(obj302.isUnlocked).toBe(true);
+      expect(obj302.isPeeked).toBe(false);
+
+      expect(obj303.isUnlocked).toBe(false);
+      expect(obj303.isPeeked).toBe(false);
+
+      // 2. アイテム 301 を自力鑑定へ昇格
+      alm.unlockObject(301, { viaPeek: false });
+      const finalProg = alm.getProgress();
+      expect(finalProg.objects.unlocked).toBe(2);
+      expect(finalProg.objects.peekedCount).toBe(0);
+      expect(finalProg.objects.identifiedCount).toBe(2);
+
+      const updatedObj301 = alm.getAllObjectsWithStatus().find(o => o.onum === 301);
+      expect(updatedObj301.isUnlocked).toBe(true);
+      expect(updatedObj301.isPeeked).toBe(false); // 昇格により false になる
+    });
   });
 
   describe('④ PileTop の extraPileCount 算出とバッジ表示', () => {
