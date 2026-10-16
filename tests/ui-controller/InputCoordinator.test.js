@@ -40,6 +40,22 @@ describe('InputCoordinator (Headless Input Routing)', () => {
     expect(resChar.action).toBe(ROUTE_ACTIONS.BLOCK_INPUT);
   });
 
+  it('charStatus モーダルが開いている場合は ESC および q で CLOSE_TOP_MODAL が導出されること', () => {
+    modalStack.registerModal('charStatus', {
+      isOpen: () => true,
+      close: vi.fn(),
+      priority: 30
+    });
+
+    const resEsc = coordinator.evaluateKeyDown({ key: 'Escape', code: 'Escape' });
+    expect(resEsc.action).toBe(ROUTE_ACTIONS.CLOSE_TOP_MODAL);
+    expect(resEsc.payload?.modalId).toBe('charStatus');
+
+    const resQ = coordinator.evaluateKeyDown({ key: 'q', code: 'KeyQ' });
+    expect(resQ.action).toBe(ROUTE_ACTIONS.CLOSE_TOP_MODAL);
+    expect(resQ.payload?.modalId).toBe('charStatus');
+  });
+
   it('モーダル内の入力欄にフォーカスがある場合は passToNative で通すこと', () => {
     modalStack.registerModal('codex', {
       isOpen: () => true,

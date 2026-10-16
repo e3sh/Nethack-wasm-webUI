@@ -17,6 +17,7 @@ import { CharacterCreationModal } from './CharacterCreationModal.js';
 import { CharacterIntroModal } from './CharacterIntroModal.js';
 import { ContainerModal } from './ContainerModal.js';
 import { PaperdollModal } from './PaperdollModal.js';
+import { CharacterStatusModal } from './CharacterStatusModal.js';
 import { CodexModal } from './CodexModal.js';
 import { KnowledgeDetailModal } from './KnowledgeDetailModal.js';
 import { EngravingHud } from './EngravingHud.js';
@@ -281,6 +282,19 @@ export class UiComponentFactory {
       }
     });
 
+    // 8.65 Character Status Modal (On-Demand Direct Binding Sheet)
+    client.characterStatusModal = new CharacterStatusModal({
+      elModal: document.getElementById('character-status-modal'),
+      getCore: () => client.core,
+      language: client.currentLanguage,
+      onCastSpell: (letter) => {
+        if (client.statusView) client.statusView.castSpell(letter);
+      },
+      onEnhanceSkill: (skill) => {
+        if (client.statusView) client.statusView.enhanceSkill(skill);
+      }
+    });
+
     // 8.7 Codex Modal
     client.codexModal = new CodexModal({
       elCodexModal: document.getElementById('codex-modal'),
@@ -344,10 +358,12 @@ export class UiComponentFactory {
       getModalManager: () => client.modalManager,
       getContainerModal: () => client.containerModal,
       getPaperdollModal: () => client.paperdollModal,
+      getCharacterStatusModal: () => client.characterStatusModal,
       getCodexModal: () => client.codexModal,
       getKnowledgeDetailModal: () => client.knowledgeDetailModal,
       getMinimapRenderer: () => client.minimapRenderer,
       getMessageHistoryDrawer: () => client.messageHistoryDrawer,
+      getUIConfigStore: () => client.uiConfigStore,
       toggleSidePanel: (forceState) => client.toggleSidePanel(forceState),
       onOpenKnowledgeInspector: () => client.openKnowledgeInspector(),
       onOpenDiscoveryCodex: () => client.openDiscoveryCodex()

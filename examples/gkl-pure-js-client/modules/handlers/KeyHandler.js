@@ -13,9 +13,11 @@ export class KeyHandler {
     getModalManager,
     getContainerModal,
     getPaperdollModal,
+    getCharacterStatusModal,
     getCodexModal,
     getMinimapRenderer,
     getMessageHistoryDrawer,
+    getUIConfigStore,
     toggleSidePanel,
     getKnowledgeDetailModal,
     onOpenKnowledgeInspector,
@@ -25,10 +27,12 @@ export class KeyHandler {
     this.getModalManager = getModalManager || (() => null);
     this.getContainerModal = getContainerModal || (() => null);
     this.getPaperdollModal = getPaperdollModal || (() => null);
+    this.getCharacterStatusModal = getCharacterStatusModal || (() => null);
     this.getCodexModal = getCodexModal || (() => null);
     this.getKnowledgeDetailModal = getKnowledgeDetailModal || (() => null);
     this.getMinimapRenderer = getMinimapRenderer || (() => null);
     this.getMessageHistoryDrawer = getMessageHistoryDrawer || (() => null);
+    this.getUIConfigStore = getUIConfigStore || (() => null);
     this.toggleSidePanel = toggleSidePanel || (() => null);
     this.onOpenKnowledgeInspector = onOpenKnowledgeInspector || (() => null);
     this.onOpenDiscoveryCodex = onOpenDiscoveryCodex || (() => null);
@@ -83,6 +87,19 @@ export class KeyHandler {
       close: () => {
         const paperdoll = this.getPaperdollModal();
         if (paperdoll) paperdoll.hide();
+      }
+    });
+
+    // キャラクター詳細モーダル
+    this.modalStack.registerModal('charStatus', {
+      priority: 30,
+      isOpen: () => {
+        const charModal = this.getCharacterStatusModal();
+        return Boolean(charModal && charModal.isVisible);
+      },
+      close: () => {
+        const charModal = this.getCharacterStatusModal();
+        if (charModal) charModal.close();
       }
     });
 
@@ -168,6 +185,10 @@ export class KeyHandler {
     const elMenuModal = modal ? modal.elMenuModal : null;
     const isMenuOpen = Boolean(elMenuModal && !elMenuModal.classList.contains('hidden'));
     const isDomInputActive = Boolean(document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA'));
+    const isBypass = Boolean(
+      (this.getUIConfigStore && this.getUIConfigStore()?.get?.()?.bypassEnhancedSignals) ||
+      (core && core.bypassEnhancedSignals)
+    );
 
     const context = {
       isMinimapMaximized: Boolean(minimap && minimap.isMaximized),
@@ -176,7 +197,8 @@ export class KeyHandler {
       isTextWindowMode: Boolean(modal && modal.isTextWindowMode),
       isCharacterCreationOpen: Boolean(modal && modal.characterCreationModal && modal.characterCreationModal.isVisible),
       isSuggestActive,
-      hasActiveCard: Boolean(activeCard)
+      hasActiveCard: Boolean(activeCard),
+      bypassEnhancedSignals: isBypass
     };
 
     // InputCoordinator によるアクション評価 (Headless)

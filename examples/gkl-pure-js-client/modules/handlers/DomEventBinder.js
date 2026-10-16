@@ -83,6 +83,37 @@ export class DomEventBinder {
     const btnGameoverRestart = document.getElementById('btn-gameover-restart');
     if (btnGameoverRestart) btnGameoverRestart.onclick = () => client.restartGame();
 
+    // 👤 キャラクター詳細ステータスモーダル (Quick Dock & ステータスバー連動)
+    const btnOpenCharStatus = document.getElementById('btn-open-char-status');
+    if (btnOpenCharStatus) {
+      btnOpenCharStatus.onclick = () => {
+        client.characterStatusModal?.open();
+      };
+    }
+
+    const btnOpenPaperdollHeader = document.getElementById('btn-open-paperdoll-header');
+    if (btnOpenPaperdollHeader) {
+      btnOpenPaperdollHeader.onclick = () => {
+        client.paperdollModal?.toggle();
+      };
+    }
+
+    const stName = document.getElementById('st-name');
+    if (stName) {
+      stName.onclick = (e) => {
+        e.stopPropagation();
+        client.characterStatusModal?.open();
+      };
+    }
+
+    const btnToggleStatusDetails = document.getElementById('btn-toggle-status-details');
+    if (btnToggleStatusDetails) {
+      btnToggleStatusDetails.onclick = (e) => {
+        e.stopPropagation();
+        client.characterStatusModal?.toggle();
+      };
+    }
+
     const elStatusBar = document.getElementById('status-bar');
     if (elStatusBar) {
       elStatusBar.addEventListener('click', (e) => {
@@ -102,23 +133,19 @@ export class DomEventBinder {
           return;
         }
 
-        elStatusBar.classList.toggle('is-expanded');
-        const isExpanded = elStatusBar.classList.contains('is-expanded');
-        if (isExpanded && client.core?.gkl) {
-          if (typeof client.core.gkl.syncAttributesOnDemand === 'function') {
-            client.core.gkl.syncAttributesOnDemand();
-          }
-          if (typeof client.core.gkl.syncSkillsOnDemand === 'function') {
-            client.core.gkl.syncSkillsOnDemand();
-          }
+        if (e.target.id === 'st-name' || e.target.id === 'btn-toggle-status-details') {
+          return;
         }
+
+        // ステータスバー本体クリックでキャラクター詳細ダイアログを開く
+        client.characterStatusModal?.open();
       });
     }
 
     const btnOpenPaperdoll = document.getElementById('btn-open-paperdoll');
     if (btnOpenPaperdoll) {
       btnOpenPaperdoll.onclick = () => {
-        client.paperdollModal.toggle();
+        client.paperdollModal?.toggle();
       };
     }
 

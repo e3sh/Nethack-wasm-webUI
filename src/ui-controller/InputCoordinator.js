@@ -80,7 +80,7 @@ export class InputCoordinator {
       const isQ = key === 'q' || key === 'Q' || code === 'KeyQ';
 
       // モーダルごとのESC/q閉塞判定
-      if (isEscape || (topModal.id === 'paperdoll' && isQ) || (topModal.id === 'container' && isQ)) {
+      if (isEscape || (topModal.id === 'paperdoll' && isQ) || (topModal.id === 'container' && isQ) || (topModal.id === 'charStatus' && isQ) || (topModal.id === 'characterStatus' && isQ)) {
         return { action: ROUTE_ACTIONS.CLOSE_TOP_MODAL, payload: { modalId: topModal.id } };
       }
 

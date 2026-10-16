@@ -67,7 +67,8 @@ export class StatusView {
     this.currentLanguage = lang;
     if (this.elBtnToggleStatusDetails) {
       const isEn = this.currentLanguage === 'en';
-      this.elBtnToggleStatusDetails.title = isEn ? 'Toggle status details (Click to pin)' : '詳細ステータス切替 (クリックで固定)';
+      this.elBtnToggleStatusDetails.title = isEn ? 'Open character profile & status [👤]' : 'キャラクター詳細ステータスを開く [👤]';
+      this.elBtnToggleStatusDetails.textContent = `👤 ${isEn ? 'Details' : '詳細'}`;
     }
     if (this.lastStatus) {
       this.updateStatus(this.lastStatus);

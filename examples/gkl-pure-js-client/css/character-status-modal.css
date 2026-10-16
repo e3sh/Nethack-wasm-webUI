@@ -1,0 +1,350 @@
+/* ==========================================================================
+   Character Status Modal Styles (On-Demand Direct Binding Sheet)
+   ========================================================================== */
+
+.char-status-modal-card {
+  width: 860px;
+  max-width: 95vw;
+  max-height: 88vh;
+  background: var(--glass-bg, rgba(15, 23, 42, 0.92));
+  backdrop-filter: var(--glass-blur, blur(16px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(16px));
+  border: var(--glass-border, 1px solid rgba(255, 255, 255, 0.15));
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow-lg, 0 20px 40px rgba(0, 0, 0, 0.75));
+  display: flex;
+  flex-direction: column;
+  color: #f1f5f9;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  overflow: hidden;
+  animation: charStatusFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes charStatusFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.char-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(15, 23, 42, 0.88);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.char-status-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.char-status-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.char-status-tag-badge {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.char-status-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.char-status-section {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.char-status-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+/* 1. 基本プロフィール・サマリーグリッド */
+.char-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.char-profile-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.char-profile-item .label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.char-profile-item .value {
+  font-size: 13px;
+  color: #f1f5f9;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  margin-top: 2px;
+}
+
+/* 2. 6大能力値グリッド */
+.char-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .char-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.char-stat-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.char-stat-card .stat-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  text-transform: uppercase;
+}
+
+.char-stat-card .stat-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: #f8fafc;
+  font-family: var(--font-mono, monospace);
+  margin-top: 2px;
+}
+
+/* 3. 獲得耐性・特性バッジ */
+.char-res-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.char-res-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.char-res-badge.source-intrinsic {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+
+.char-res-badge.source-extrinsic {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #7dd3fc;
+}
+
+.char-res-badge.source-both {
+  background: rgba(234, 179, 8, 0.15);
+  border-color: rgba(234, 179, 8, 0.4);
+  color: #fde047;
+}
+
+.char-res-badge .source-icon {
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+/* 4. 修得呪文 */
+.char-spells-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.char-spell-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.char-spell-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.char-spell-letter {
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #ddd6fe;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.char-spell-name {
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.char-spell-meta {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.char-spell-cast-btn {
+  background: rgba(139, 92, 246, 0.25);
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  color: #c4b5fd;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.char-spell-cast-btn:hover {
+  background: rgba(139, 92, 246, 0.4);
+  color: #ffffff;
+}
+
+/* 5. スキル熟練度 */
+.char-skills-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 6px;
+}
+
+.char-skill-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.char-skill-name {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.char-skill-rank-badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+.char-skill-rank-badge.rank-basic {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.char-skill-rank-badge.rank-skilled {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.char-skill-rank-badge.rank-expert {
+  background: rgba(234, 179, 8, 0.15);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.char-skill-rank-badge.rank-master,
+.char-skill-rank-badge.rank-grandmaster {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.char-skill-enhance-btn {
+  background: rgba(234, 179, 8, 0.2);
+  border: 1px solid rgba(234, 179, 8, 0.5);
+  color: #fde047;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  margin-left: 6px;
+}
+
+.char-skill-enhance-btn:hover {
+  background: rgba(234, 179, 8, 0.35);
+  color: #ffffff;
+}
+
+/* 空表示 */
+.char-empty-hint {
+  color: #64748b;
+  font-size: 12px;
+  font-style: italic;
+  padding: 4px 0;
+}

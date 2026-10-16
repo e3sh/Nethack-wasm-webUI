@@ -128,15 +128,13 @@
   font-size: 13px;
 }
 
-/* ホバー時またはトグル固定時の展開状態 (モダン時) */
-.status-bar.layout-modern:hover .status-details,
-.status-bar.layout-modern.is-expanded .status-details {
-  max-height: 450px;
-  overflow-y: auto;
-  opacity: 1;
-  margin-top: 6px;
-  padding-top: 8px;
-  border-top-color: rgba(255, 255, 255, 0.15);
+/* Phase 3: インラインアコーディオン展開を廃止し、On-Demand モーダルへ集約 */
+.status-bar.layout-modern .status-details {
+  display: none !important;
+}
+
+#status-gkl-extra {
+  display: none !important;
 }
 
 /* ⚔️ クラシック (常時2行) レイアウト */

@@ -141,6 +141,7 @@ export class LayoutController {
     const chk2Line = document.getElementById('chk-status-classic-2line');
     const chkGauges = document.getElementById('chk-status-gauges');
     const chkGkl = document.getElementById('chk-status-gkl-extra');
+    const chkBypass = document.getElementById('chk-bypass-enhanced-signals');
 
     if (chkInv) chkInv.checked = Boolean(config.panelInventory);
     if (chkAct) chkAct.checked = Boolean(config.panelActions);
@@ -149,6 +150,10 @@ export class LayoutController {
     if (chk2Line) chk2Line.checked = Boolean(config.statusClassic2Line);
     if (chkGauges) chkGauges.checked = Boolean(config.statusGauges);
     if (chkGkl) chkGkl.checked = Boolean(config.statusGklExtra);
+    if (chkBypass) chkBypass.checked = Boolean(config.bypassEnhancedSignals);
+    if (client.core) {
+      client.core.bypassEnhancedSignals = Boolean(config.bypassEnhancedSignals);
+    }
 
     // 4. プリセットボタンのアクティブ表示同期
     const btnClassic = document.getElementById('btn-preset-classic');
@@ -230,6 +235,7 @@ export class LayoutController {
     bindLayoutCheckbox('chk-status-classic-2line', 'statusClassic2Line');
     bindLayoutCheckbox('chk-status-gauges', 'statusGauges');
     bindLayoutCheckbox('chk-status-gkl-extra', 'statusGklExtra');
+    bindLayoutCheckbox('chk-bypass-enhanced-signals', 'bypassEnhancedSignals');
 
     // Web Components (<nh-ui-config> & <nh-modal>) 連携
     const nhUiConfig = document.getElementById('nh-ui-config-modal-panel');

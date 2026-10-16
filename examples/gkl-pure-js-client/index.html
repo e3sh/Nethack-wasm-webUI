@@ -15,6 +15,12 @@
         <span class="title">Nehww <small>(NetHack-wasm-webUI)</small></span>
       </div>
       <div class="header-actions">
+        <button id="btn-open-char-status" class="btn btn-secondary char-status-header-btn" title="キャラクター詳細ステータスを開く [👤]">
+          <span id="btn-char-status-label">👤 ステータス</span>
+        </button>
+        <button id="btn-open-paperdoll-header" class="btn btn-secondary paperdoll-header-btn" title="装備詳細 ＆ ペーパードールを開く [🎽]">
+          <span id="btn-paperdoll-header-label">🎽 装備</span>
+        </button>
         <button id="btn-open-history" class="btn btn-secondary history-header-btn" title="過去ログ全履歴を開く [Ctrl+P]">
           <span id="btn-history-label">📜 過去ログ</span>
         </button>
@@ -75,6 +81,16 @@
               <label class="settings-checkbox-item">
                 <input type="checkbox" id="chk-status-gkl-extra" checked />
                 <span>🧬 耐性・修得魔法・スキル行</span>
+              </label>
+            </div>
+            <div class="settings-menu-separator"></div>
+
+            <!-- キー入力・操作 -->
+            <div class="settings-menu-group">
+              <span class="settings-menu-title" id="lbl-settings-input-section">キー入力 ＆ 操作</span>
+              <label class="settings-checkbox-item">
+                <input type="checkbox" id="chk-bypass-enhanced-signals" />
+                <span id="lbl-bypass-enhanced-signals">⌨️ キー入力のネイティブ透過 (/,\ の直接送信)</span>
               </label>
             </div>
             <div class="settings-menu-separator"></div>
@@ -199,7 +215,7 @@
         <!-- 横型ステータスバー (StatusBar + HP/MP ゲージバー) -->
         <div id="status-bar" class="status-bar">
           <div class="status-main">
-            <span id="st-name" class="st-item title">Hero</span>
+            <span id="st-name" class="st-item title" style="cursor:pointer;" title="キャラクター詳細ステータスを開く [👤]">Hero</span>
             <span id="st-dlvl" class="st-item dlvl">Dlvl:1</span>
             
             <!-- HP ゲージバー -->
@@ -217,7 +233,7 @@
             <span id="st-ac" class="st-item ac">AC:10</span>
             <span id="st-gold" class="st-item gold">💰 0</span>
 
-            <button id="btn-toggle-status-details" class="btn-status-toggle" title="詳細ステータス切替 (クリックで固定)">▼</button>
+            <button id="btn-toggle-status-details" class="btn-status-toggle" title="キャラクター詳細ステータスを開く [👤]">👤 詳細</button>
           </div>
           <div id="status-badges" class="status-badges">
             <span id="st-cond" class="badge cond-badge hidden">Normal</span>
@@ -680,6 +696,9 @@
 
     <!-- Equipment Paperdoll Modal (UI & Diff Preview) -->
     <div id="paperdoll-modal" class="modal-backdrop hidden"></div>
+
+    <!-- Character Status Modal (On-Demand Direct Binding Sheet) -->
+    <div id="character-status-modal" class="modal-backdrop hidden"></div>
 
     <!-- ⚙️ 環境設定・UIカスタマイズ (UI Config Modal) -->
     <nh-modal id="nh-modal-settings" modal-id="settings" title="⚙️ 環境設定・UIカスタマイズ" priority="15">

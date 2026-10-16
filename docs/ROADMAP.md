@@ -36,19 +36,18 @@ last_updated: 2026-10-16
 > **Phase 8（公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結）完遂後の棚卸し・現実化（Step 1）が完了しました！**  
 > 既存の設計書群を実コードと突き合わせて監査した結果、Phase 8 基盤によって不要となった旧構想4件をアーカイブ退避し、**§2 の着手待ちタスク群はいずれも基盤層の 50%〜75% がすでに実装済み**であることが確認されました。
 
-現在、以下の 2 候補（残作業のみにスリム化済み）から **次期最優先フォーカス（Active Focus）** を選定し、スロットインする準備が整っています。
+現在、**「キャラクター詳細ダイアログ ＆ Quick Dock ＆ キー透過調停 (Phase 1〜4)」が 100% 完結**し、次期最優先フォーカス（Active Focus）は以下のタスクとなります。
 
 | 候補 | 対象タスク | 残作業スコープ（実態監査後） | 進捗・前提状況 |
 | :--- | :--- | :--- | :--- |
-| **候補 A** | **[§2.2 キャラクター詳細ダイアログ ＆ Quick Dock ＆ キー透過調停](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md)** | ステータスバー `▽` 廃止、`[👤 キャラクター詳細]` On-Demand ダイアログ（`0x33` 直結）、上部 Quick Dock、`/`・`\` キー透過切替 | **Cコア・同期層完了 (75%完了)**<br>Phase 1 (`0x33`), Phase 2 (不可分同期), Phase 4 (`GameLifecycleState`) は実装済。残るは Phase 3 (UI層) のみ |
-| **候補 B** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | 未鑑定アイテムの価格帯・知識照合コア（`ItemCandidateResolver.js`）＋候補選択ダイアログ（`<nh-call-candidate-dialog>`） | **Step 1 完了 (50%完了)**<br>`DiscoveryStateManager` の `0x60`/`0x61`/`0x62` 直結は実装済。Step 2 & 3 のみ |
+| **Active Focus** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | 未鑑定アイテムの価格帯・知識照合コア（`ItemCandidateResolver.js`）＋候補選択ダイアログ（`<nh-call-candidate-dialog>`） | **Step 1 完了 (50%完了)**<br>`DiscoveryStateManager` の `0x60`/`0x61`/`0x62` 直結は実装済。Step 2 & 3 のみ |
 
 ---
 
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
 仕様・設計が完了しており、基盤部分の実装も進んでいて残作業が明確化されているタスク群です。  
-※なお、**旧2.1, 2.2, 2.5, 2.6 (Peek Wisdom), 2.7 (ASCII純化), 事後ナレッジ連携 (PostMortemKnowledgeResolver)** は完遂し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
+※なお、**旧2.1 (命名アシスト以外), 2.2 (キャラクター詳細ダイアログ＆Quick Dock), 2.5, 2.6 (Peek Wisdom), 2.7 (ASCII純化), 事後ナレッジ連携 (PostMortemKnowledgeResolver)** は完遂し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
 
 ### 2.1 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
 - **ステータス**: `⏸️ pending (Ready: 50%完了)` (Step 1 実装済み・Step 2〜3 着手可能)
@@ -58,19 +57,6 @@ last_updated: 2026-10-16
   - [x] Step 1: `DiscoveryStateManager.js` への Phase 8 発見状態メモリ直結 (`syncWithLiveMemory` 実装済み)
   - [ ] Step 2: `ItemCandidateResolver.js` によるワンタップ候補サジェストコア（価格帯・識別済み除外フィルタ）
   - [ ] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`) ＆ `CustomNameStore` 連携
-
-### 2.2 ステータス On-Demand ダイアログ ＆ WebUI 統合ツールバー (Quick Dock) ＆ キー透過調停
-- **ステータス**: `⏸️ pending (Ready: 75%完了)` (Phase 1, 2, 4 実装完了・残るは Phase 3 UI層のみ)
-- **設計書**: [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md)
-- **対象コード**: `examples/gkl-pure-js-client/main.js`, `src/ui-controller/InputCoordinator.js`, `src/components/`, `modals.css`
-- **現状**:
-  - [x] **Phase 1 完了**: C コア `SHIM_CMD_GET_PLAYER_PROFILE` (`0x33`) ＆ `PlayerWasmAdapter.getPlayerProfile()` 実装済み
-  - [x] **Phase 2 完了**: `AttributeStateManager` 空配列防護 ＆ `StartupFlowController` 不可分同期実装済み
-  - [x] **Phase 4 完了**: `GameLifecycleState.js` 単一状態マシン (FSM) 実装済み
-  - [ ] **Phase 3 (残作業)**:
-    - ステータスバーのインラインアコーディオン（`▽`）を廃止し、専用キャラクター詳細ダイアログ（`[👤 キャラクター詳細]`）を新設。開いた瞬間に `0x33` Profile・耐性 (`0x32`)・属性 (`0x30`)・スキル (`0x71`)・呪文 (`0x70`) をオンデマンド描画。
-    - 画面上部に WebUI 拡張機能（インベントリ、ペーパードール、冒険手帳、キャラクター詳細、設定）を一覧できる統合ツールバー（Quick Dock）を新設。
-    - `/` や `\` 等のコマンドについて、`WebUICore.bypassEnhancedSignals` と連動したネイティブ C コア透過モード切替を調停。
 
 ---
 
@@ -156,8 +142,9 @@ last_updated: 2026-10-16
 | **GKL** | [GKL_Structured_Knowledge_Usage_Guide.md](./3_gkl/GKL_Structured_Knowledge_Usage_Guide.md) | `src/core/knowledge/data/` | `🟢 implemented` | **構造化知識ベース (384体・481アイテム・アーティファクト)** |
 | **Core / UI** | [Interactive_Request_Controller_Architecture_and_Roadmap.md](./2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md) | `src/core/request/` | `🟢 implemented` | **連続リクエストコントローラ (IRC) ＆ 制御シグナル同定基盤** |
 | **Core / UI** | [WebUICore_Usage_Guide.md](./2_client_ui/WebUICore_Usage_Guide.md) | `src/core/WebUICore.js` | `🟢 implemented` | **WebUICore 利用ガイド** |
+| **UI / Lifecycle** | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) | `examples/gkl-pure-js-client/`<br>`CharacterStatusModal.js`<br>`InputCoordinator.js`<br>`UIConfigStore.js` | `🟢 implemented` | **Direct Binding 同期ライフサイクル ＆ WebUI パイプライン刷新**<br>オンデマンド取得型キャラクター詳細モーダル・Quick Dock・キー透過調停（Phase 1〜4 完全完遂） |
 | **Driver** | [driver_core_spec.md](./1_driver/driver_core_spec.md) | `src/driver/NetHackWasmDriver.js` | `🟢 implemented` | **Web Worker WASM コア駆動ドライバ** |
-| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全151スイート・1,883テスト 100% PASS)** |
+| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全152スイート・1,891テスト 100% PASS)** |
 | **Translation** | [DICTIONARY_OPERATION.md](./9_translation/DICTIONARY_OPERATION.md) | `dictionary.csv`, `tools/` | `🟢 implemented` | **翻訳辞書・CSV相互変換運用ガイド** |
 
 ---

@@ -34,6 +34,7 @@ export class ClientLocalization {
     client.modalManager?.setLanguage(lang);
     client.containerModal?.setLanguage(lang);
     client.paperdollModal?.setLanguage?.(lang);
+    client.characterStatusModal?.setLanguage?.(lang);
     client.codexModal?.setLanguage?.(lang);
     client.characterCreationModal?.setLanguage?.(lang);
     client.characterIntroModal?.setLanguage?.(lang);
@@ -78,6 +79,28 @@ export class ClientLocalization {
       if (peekLabel) {
         peekLabel.textContent = dict.sidePanelPeekLabel;
       }
+    }
+
+    const btnOpenCharStatus = document.getElementById('btn-open-char-status');
+    const lblCharStatus = document.getElementById('btn-char-status-label');
+    if (lblCharStatus) {
+      lblCharStatus.textContent = dict.charStatusLabel;
+    } else if (btnOpenCharStatus) {
+      btnOpenCharStatus.textContent = dict.charStatusLabel;
+    }
+    if (btnOpenCharStatus) {
+      btnOpenCharStatus.title = dict.charStatusTitle;
+    }
+
+    const btnOpenPaperdollHdr = document.getElementById('btn-open-paperdoll-header');
+    const lblPaperdollHdr = document.getElementById('btn-paperdoll-header-label');
+    if (lblPaperdollHdr) {
+      lblPaperdollHdr.textContent = dict.paperdollHeaderLabel;
+    } else if (btnOpenPaperdollHdr) {
+      btnOpenPaperdollHdr.textContent = dict.paperdollHeaderLabel;
+    }
+    if (btnOpenPaperdollHdr) {
+      btnOpenPaperdollHdr.title = dict.paperdollHeaderTitle;
     }
 
     const btnOpenHistory = document.getElementById('btn-open-history');
@@ -159,6 +182,20 @@ export class ClientLocalization {
 
     const chkGklSpan = document.querySelector('#chk-status-gkl-extra ~ span');
     if (chkGklSpan) chkGklSpan.textContent = dict.statusGklExtra;
+
+    // 3.35 キー入力 ＆ 操作
+    const lblInputSec = document.getElementById('lbl-settings-input-section');
+    if (lblInputSec) lblInputSec.textContent = dict.inputSection;
+
+    const lblBypass = document.getElementById('lbl-bypass-enhanced-signals');
+    if (lblBypass) lblBypass.textContent = dict.bypassEnhancedSignals;
+
+    // ステータスバー詳細ボタン
+    const btnToggleStatusDetails = document.getElementById('btn-toggle-status-details');
+    if (btnToggleStatusDetails) {
+      btnToggleStatusDetails.textContent = `👤 ${isEn ? 'Details' : '詳細'}`;
+      btnToggleStatusDetails.title = dict.charStatusTitle;
+    }
 
     // 3.4 表示・カメラ
     const lblViewSec = document.getElementById('lbl-settings-view-section');

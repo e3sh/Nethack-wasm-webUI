@@ -1,24 +1,23 @@
 # Direct Binding 前提の同期ライフサイクル・画面構成の抜本的再構築 計画書
 ## (Direct Binding Native Lifecycle & UI Pipeline Reconstruction Plan)
 
-- **文書ステータス**: `🚧 in-progress (75% implemented: Phase 1, 2, 4 完了 / Phase 3 UI刷新待ち)`
+- **文書ステータス**: `✅ implemented (100% 完了: Phase 1〜4 全フェーズ完結)`
 - **策定日**: 2026-10-15 (最終更新: 2026-10-16)
-- **対象領域**: Wasm Cコア (`shim_bridge.c`)、Direct Binding サービス (`WasmDirectBindingService`)、GKL ライフサイクル (`GKLEventRouter`, `StartupFlowController`, `WebUICore`)、UI画面構成 (`main.js`, `StatusView`, 各種モーダル)
+- **対象領域**: Wasm Cコア (`shim_bridge.c`)、Direct Binding サービス (`WasmDirectBindingService`)、GKL ライフサイクル (`GKLEventRouter`, `StartupFlowController`, `WebUICore`)、UI画面構成 (`main.js`, `StatusView`, `CharacterStatusModal`, Quick Dock, 各種モーダル)
 
 > [!IMPORTANT]
-> **【2026-10-16 実装進捗アップデート（75% 完了）】**  
-> 本計画書の全4フェーズのうち、基盤領域である以下の3フェーズは **Stage 8.5 にて 100% 実装・テスト完了** しています：
+> **【2026-10-16 実装完了アップデート（100% 完結）】**  
+> 本計画書の全4フェーズは **100% 実装・テスト完了** しています：
 > - **✅ Phase 1 完了**: `shim_bridge.c` への `SHIM_CMD_GET_PLAYER_PROFILE (0x33)` 追加、`PlayerWasmAdapter.getPlayerProfile()`、および `AttributeStateManager.syncPlayerProfileFromDirectBinding()` による真値プロファイル同期。
 > - **✅ Phase 2 完了**: `StartupFlowController.completeStartup` の完全 `async` 化（`setTimeout` 遅延ハック全廃）、および `InventoryStateManager` の未同期時空配列上書き防止ガード。
+> - **✅ Phase 3 完了**: ステータスバーのスリム化、オンデマンド取得型「キャラクター詳細モーダル (`CharacterStatusModal.js`)」の新設、上部 WebUI 統合ツールバー（Quick Dock）の整備、および `bypassEnhancedSignals` によるキー透過モード調停。
 > - **✅ Phase 4 完了**: `src/core/lifecycle/GameLifecycleState.js` (`GameLifecycleManager`) の新設と散在フラグの一元化。
-> 
-> **残る実装スコープは Phase 3（UI側：ステータスバー「▽」アコーディオン廃止・オンデマンドのキャラクター詳細ダイアログ新設・上部 Quick Dock 整備・キー透過モード調停）のみ** です。
 
 ---
 
-## 1. 背景と課題（Phase 1, 2, 4 にて基盤解決済み）
+## 1. 背景と課題（Phase 1〜4 にて完全解決済み）
 
-ROADMAP Stage 8.3-B, C 以降、Wasm Direct Binding（`shim_bridge.c` / `WasmDirectBindingService`）の導入により、Cコア構造体メモリの直接同期が進められてきました。当初発生していた以下の 3 大課題のうち、1 と 2 は Stage 8.5 で解消済みであり、現在は 3（UI層の整理）が残存スコープとなっています。
+ROADMAP Stage 8.3-B, C 以降、Wasm Direct Binding（`shim_bridge.c` / `WasmDirectBindingService`）の導入により、Cコア構造体メモリの直接同期が進められてきました。当初発生していた以下の 3 大課題は、すべて解消されました。
 
 ### 当初の具体的病巣と解消状況
 
@@ -28,8 +27,9 @@ ROADMAP Stage 8.3-B, C 以降、Wasm Direct Binding（`shim_bridge.c` / `WasmDir
 2. **【✅ Stage 8.5 解消済】ステータス（種族・職業等）が「考古学者/人間」に固定化**:
    - `SHIM_CMD_GET_PLAYER_PROFILE (0x33)` の新設と `AttributeStateManager` への直結により解決済み。
 
-3. **【⏸️ Phase 3 残存課題】通常時キー横取りとUIステータス表示の整理**:
-   - 通常プレイ中の `/`（What is this?）や `\`（Known objects）の扱いについて、ネイティブ素通し（Vanilla）と拡張ダイアログ（Enhanced）の調停、および常時表示ステータスバーのスリム化（インライン「▽」展開の廃止と専用ダイアログ化）を行う。
+3. **【✅ Phase 3 解消済】通常時キー横取りとUIステータス表示の整理**:
+   - 通常プレイ中の `/`（What is this?）や `\`（Known objects）について、ネイティブ透過モード（`bypassEnhancedSignals`）と WebUI 拡張インターセプトモードのユーザー選択切替・永続化を実装。
+   - 常時表示ステータスバーをスリム化し、オンデマンド取得型「キャラクター詳細モーダル」を新設。上部 Quick Dock からワンクリックで各主要 WebUI 機能へ即座にアクセス可能とした。
 
 ---
 
@@ -116,8 +116,8 @@ WebUI拡張機能は画面上の「統合ツールバー（Quick Dock）」に�
 | :--- | :---: | :--- | :--- | :--- |
 | **Phase 1** | **✅ 完了**<br>*(Stage 8.5)* | **Cコア＆Direct Binding拡張<br/>(プレイヤープロファイル真値取得)** | 1. `shim_bridge.c` に `SHIM_CMD_GET_PLAYER_PROFILE` を実装。<br/>2. `WasmDirectBindingService` / `PlayerWasmAdapter` に `getPlayerProfile()` を追加。<br/>3. `AttributeStateManager` を Cコア真値同期と結合。 | `AttributeStateManager.test.js` 等 PASS |
 | **Phase 2** | **✅ 完了**<br>*(Stage 8.5)* | **アトミック同期パイプライン化<br/>(セーブ復帰時インベントリ空化の撲滅)** | 1. `syncFromWorkerBridge` の初期同期保護を強化。<br/>2. `InventoryStateManager` の空配列確定誤認ガードを実装。<br/>3. `completeStartup` の `setTimeout` 遅延ハックを Promise 確定待ちへ置換。 | `SaveRestoreDirectBindingSync.test.js`, `FirstTurnFullSync.test.js` PASS |
-| **Phase 3** | **⏸️ 未着手**<br>*(残タスク)* | **ステータス画面のOn-Demand化＆<br/>Quick Dock・キー透過調停** | 1. ステータスバーから「▽」インライン展開領域を整理。<br/>2. キャラクター詳細ダイアログを新設し、開いた瞬間に Direct Binding から一括描画する On-Demand 描画パイプラインを実装。<br/>3. 上部 Quick Dock ツールバーの整備と `InputCoordinator.js` のキー透過設定連携。 | `StatusView.test.js` の改修・新設ダイアログテスト追加 |
-| **Phase 4** | **✅ 完了**<br>*(Stage 8.5)* | **ライフサイクルステートマシン統合＆クリーンアップ** | 1. `StartupFlowController` と `WebUICore` の散在フラグを `GameLifecycleState` に統合。<br/>2. 不要な遅延ハックを全廃。<br/>3. 全テスト（149ファイル、1,811テスト）の一括回帰検証。 | `npm test` 全通過済 |
+| **Phase 3** | **✅ 完了**<br>*(Stage 8.5)* | **ステータス画面のOn-Demand化＆<br/>Quick Dock・キー透過調停** | 1. ステータスバーから「▽」インライン展開領域を整理。<br/>2. キャラクター詳細ダイアログを新設し、開いた瞬間に Direct Binding から一括描画する On-Demand 描画パイプラインを実装。<br/>3. 上部 Quick Dock ツールバーの整備と `InputCoordinator.js` のキー透過設定連携。 | `CharacterStatusModal.test.js`, `InputCoordinator.test.js`, `UIConfigStore.test.js` PASS |
+| **Phase 4** | **✅ 完了**<br>*(Stage 8.5)* | **ライフサイクルステートマシン統合＆クリーンアップ** | 1. `StartupFlowController` と `WebUICore` の散在フラグを `GameLifecycleState` に統合。<br/>2. 不要な遅延ハックを全廃。<br/>3. 全テスト（152ファイル、1,891テスト）の一括回帰検証。 | `npm test` 全通過済 |
 
 ---
 

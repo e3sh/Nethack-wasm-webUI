@@ -135,4 +135,16 @@ describe('UIConfigStore (Headless UI Layout Config)', () => {
     configStore.setProperty('panelHistoryDock', false);
     expect(listener).toHaveBeenCalledTimes(1);
   });
+
+  it('bypassEnhancedSignals の更新と永続化が正常に行われること', () => {
+    const configStore = new UIConfigStore({ storage: mockStorage });
+    expect(configStore.get().bypassEnhancedSignals).toBe(false);
+
+    configStore.setProperty('bypassEnhancedSignals', true);
+    expect(configStore.get().bypassEnhancedSignals).toBe(true);
+    expect(mockStorage.setItem).toHaveBeenCalledWith(
+      STORAGE_KEY_DEFAULT,
+      expect.stringContaining('"bypassEnhancedSignals":true')
+    );
+  });
 });
