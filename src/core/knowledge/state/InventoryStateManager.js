@@ -589,7 +589,9 @@ export class InventoryStateManager {
             const identification = ItemIdentificationResolver.resolve({
                 rawText,
                 onum,
-                glyphId
+                glyphId,
+                directObject: rawItem,
+                flags: rawItem.flags
             }, {
                 discoveryStateManager: this.discoveryStateManager,
                 sagesWisdomMode: this.sagesWisdomMode,
@@ -605,14 +607,16 @@ export class InventoryStateManager {
                     onum,
                     corpsenm,
                     glyph: glyphId,
+                    directObject: rawItem,
+                    flags: rawItem.flags,
                     identification
                 };
                 if (typeof this.structuredKnowledgeEngine.getItemKnowledge === 'function') {
-                    knowledge = this.structuredKnowledgeEngine.getItemKnowledge(itemTarget, { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode }) ||
-                                this.structuredKnowledgeEngine.getItemKnowledge((identification.isUnidentified && !this.sagesWisdomMode) ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode });
+                    knowledge = this.structuredKnowledgeEngine.getItemKnowledge(itemTarget, { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode, directObject: rawItem }) ||
+                                this.structuredKnowledgeEngine.getItemKnowledge((identification.isUnidentified && !this.sagesWisdomMode) ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode, directObject: rawItem });
                 } else if (typeof this.structuredKnowledgeEngine.getKnowledge === 'function') {
-                    knowledge = this.structuredKnowledgeEngine.getKnowledge(itemTarget, { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode }) ||
-                                this.structuredKnowledgeEngine.getKnowledge((identification.isUnidentified && !this.sagesWisdomMode) ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode });
+                    knowledge = this.structuredKnowledgeEngine.getKnowledge(itemTarget, { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode, directObject: rawItem }) ||
+                                this.structuredKnowledgeEngine.getKnowledge((identification.isUnidentified && !this.sagesWisdomMode) ? rawText : (onum >= 0 ? onum : rawText), { language: lang, identification, sagesWisdomMode: this.sagesWisdomMode, directObject: rawItem });
                 }
             }
             if (!knowledge && (!identification.isUnidentified || this.sagesWisdomMode) && onum >= 0 && OBJECT_KNOWLEDGE_MAP.has(onum)) {
@@ -623,6 +627,11 @@ export class InventoryStateManager {
             if (knowledge && this.skillStateManager && (!identification.isUnidentified || this.sagesWisdomMode)) {
                 skillBadge = getSkillProficiencyBadge(knowledge, this.skillStateManager, { language: lang });
             }
+
+            // C コア shim_bridge 直接真値による BUC 決定
+            const bucStatus = (rawItem.flags && rawItem.flags.bknown)
+                ? (rawItem.flags.blessed ? 'BLESSED' : (rawItem.flags.cursed ? 'CURSED' : 'UNCURSED'))
+                : (this.sagesWisdomMode ? (rawItem.flags?.blessed ? 'BLESSED' : (rawItem.flags?.cursed ? 'CURSED' : 'UNCURSED')) : 'UNKNOWN');
 
             parsedItems.push({
                 letter,
@@ -643,6 +652,8 @@ export class InventoryStateManager {
                 cobjPtr: rawItem.cobjPtr,
                 o_id: rawItem.o_id,
                 flags: rawItem.flags,
+                directObject: rawItem,
+                bucStatus,
                 identification,
                 knowledge,
                 skillBadge,

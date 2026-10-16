@@ -144,11 +144,9 @@ export function parseItemCount(text) {
 export function detectBucStatus(text) {
     if (!text || typeof text !== 'string') return 0;
     const lower = text.toLowerCase();
-    if (lower.includes('blessed') || text.includes('祝福')) return 1;
-    if (lower.includes('cursed') || text.includes('呪われ')) {
-        if (lower.includes('uncursed') || text.includes('呪われていない')) return 0;
-        return -1;
-    }
+    if (/\bblessed\b/i.test(lower) || text.includes('祝福')) return 1;
+    if (/\buncursed\b/i.test(lower) || text.includes('呪われていない')) return 0;
+    if (/\bcursed\b/i.test(lower) || text.includes('呪われ')) return -1;
     return 0;
 }
 

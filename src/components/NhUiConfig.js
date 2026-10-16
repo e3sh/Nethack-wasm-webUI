@@ -191,7 +191,15 @@ export const UI_CONFIG_I18N = {
     hudFadeFast: '⚡ 1.2s - 早い',
     hudFadeNormal: '⏱️ 2.5s - 標準',
     hudFadeSlow: '⏳ 4.0s - ゆっくり',
-    sectionGameplay: '🎮 難易度調整・探索アシスト',
+    sectionGameplay: '🎮 探索アシスト・知恵支援設定',
+    labelGuideAssistanceMode: '🧭 冒険手帳・知恵透視モード',
+    descGuideAssistanceMode: '床落ち・所持品の覗き見透視 (Peek Wisdom) および神託解禁レベルの設定',
+    modeVeteran: '⚔️ ベテラン (標準: 既知品のみ透視)',
+    modeSageGuide: '🧙 賢者の知恵 (全開示・ネタバレ許可)',
+    modeStoic: '🪨 ストイック (完全自力・透視無効)',
+    descModeVeteran: '一度でも鑑定・手帳登録されたアイテムのみ真名透視可能。未登録の初見アイテムはネタバレ防止ロックされます。神託は自力解禁。',
+    descModeSageGuide: '初見の未知アイテムであっても真名や効果を自由に透視可能。神託も常時全解禁されます。',
+    descModeStoic: '透視機能 (Peek) を完全に無効化。一切のネタバレを遮断し、NetHack本来の自力鑑定プレイを徹底します。',
     oracleGuideAlwaysUnlocked: '🔮 神託公式ガイドモード (常時閲覧・ネタバレ許可)',
     btnResetDefaults: '初期設定に戻す'
   },
@@ -214,7 +222,15 @@ export const UI_CONFIG_I18N = {
     hudFadeFast: '⚡ 1.2s - Fast',
     hudFadeNormal: '⏱️ 2.5s - Standard',
     hudFadeSlow: '⏳ 4.0s - Relaxed',
-    sectionGameplay: '🎮 Difficulty & Gameplay Assist',
+    sectionGameplay: '🎮 Exploration Assist & Lore Settings',
+    labelGuideAssistanceMode: '🧭 Adventure Log & Peek Mode',
+    descGuideAssistanceMode: 'Configure inspection assistance for floor/inventory items and oracle rumors',
+    modeVeteran: '⚔️ Veteran (Default: Known Items Only)',
+    modeSageGuide: '🧙 Sage Guide (Full Reveal / Spoilers Allowed)',
+    modeStoic: '🪨 Stoic (Pure Rogue: Peek Disabled)',
+    descModeVeteran: 'Can only peek items already unlocked in Adventure Log. Unknown items locked against spoilers.',
+    descModeSageGuide: 'Freely peek hidden names and properties even for unknown items. Oracles fully unlocked.',
+    descModeStoic: 'Disables peek wisdom completely. Zero spoilers for true classic dungeon exploration.',
     oracleGuideAlwaysUnlocked: '🔮 Oracle Guide Mode (Always Unlocked / Spoilers Allowed)',
     btnResetDefaults: 'Reset to Defaults'
   }
@@ -390,13 +406,20 @@ export class NhUiConfig extends NhBaseElement {
         <!-- ゲームプレイ難易度設定 / 探索アシスト -->
         <div class="config-section">
           <div class="section-title">${t.sectionGameplay}</div>
-          <div class="toggle-grid">
-            <div class="toggle-row">
-              <span class="toggle-label">${t.oracleGuideAlwaysUnlocked}</span>
-              <label class="toggle-switch">
-                <input type="checkbox" data-config-key="oracleGuideAlwaysUnlocked">
-                <span class="slider"></span>
-              </label>
+          <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 8px; line-height: 1.4;">
+            ${t.descGuideAssistanceMode}
+          </div>
+          <div class="select-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+              <span class="toggle-label" style="font-weight: 600;">${t.labelGuideAssistanceMode}</span>
+              <select class="config-select" data-config-key="guideAssistanceMode" style="min-width: 260px;">
+                <option value="VETERAN">${t.modeVeteran}</option>
+                <option value="SAGE_GUIDE">${t.modeSageGuide}</option>
+                <option value="STOIC">${t.modeStoic}</option>
+              </select>
+            </div>
+            <div id="guide-mode-desc" style="font-size: 0.75rem; color: #cbd5e1; background: rgba(15, 23, 42, 0.6); padding: 8px 10px; border-radius: 4px; border-left: 3px solid #38bdf8; line-height: 1.45;">
+              ${t.descModeVeteran}
             </div>
           </div>
         </div>
@@ -431,8 +454,12 @@ export class NhUiConfig extends NhBaseElement {
     selects.forEach(sel => {
       sel.addEventListener('change', () => {
         const key = sel.dataset.configKey;
-        const val = parseInt(sel.value, 10);
+        const rawVal = sel.value;
+        const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : rawVal;
         this.setConfig(key, val);
+        if (key === 'guideAssistanceMode') {
+          this._updateGuideModeDesc(rawVal);
+        }
       });
     });
 
@@ -443,6 +470,23 @@ export class NhUiConfig extends NhBaseElement {
     }
 
     this._updateFormValues();
+  }
+
+  _updateGuideModeDesc(mode) {
+    if (!this.shadowRoot) return;
+    const descEl = this.shadowRoot.querySelector('#guide-mode-desc');
+    if (!descEl) return;
+    const t = UI_CONFIG_I18N[this.currentLanguage] || UI_CONFIG_I18N.ja;
+    if (mode === 'STOIC') {
+      descEl.textContent = t.descModeStoic;
+      descEl.style.borderLeftColor = '#94a3b8';
+    } else if (mode === 'SAGE_GUIDE') {
+      descEl.textContent = t.descModeSageGuide;
+      descEl.style.borderLeftColor = '#c084fc';
+    } else {
+      descEl.textContent = t.descModeVeteran;
+      descEl.style.borderLeftColor = '#38bdf8';
+    }
   }
 
   _updateFormValues() {
@@ -477,5 +521,7 @@ export class NhUiConfig extends NhBaseElement {
         sel.value = String(config[key]);
       }
     });
+
+    this._updateGuideModeDesc(config.guideAssistanceMode);
   }
 }

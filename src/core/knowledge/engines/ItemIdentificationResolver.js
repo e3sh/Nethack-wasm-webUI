@@ -145,11 +145,49 @@ export class ItemIdentificationResolver {
             glyphId = typeof itemInput.glyphId === 'number' ? itemInput.glyphId : (typeof itemInput.glyph === 'number' ? itemInput.glyph : -1);
         }
 
+        let directObj = (itemInput && typeof itemInput === 'object') ? (itemInput.directObject || (itemInput.flags ? itemInput : null)) : null;
+        const flags = directObj?.flags || (itemInput && typeof itemInput === 'object' ? itemInput.flags : null);
+
         const cleanText = (rawText || '').trim();
-        const { bucStatus, textWithoutBuc } = this.extractBuc(cleanText);
+        let bucStatus = 'UNKNOWN';
+        let textWithoutBuc = cleanText;
+
+        if (flags && typeof flags.bknown === 'boolean') {
+            if (flags.bknown || options.sagesWisdomMode) {
+                bucStatus = flags.blessed ? 'BLESSED' : (flags.cursed ? 'CURSED' : 'UNCURSED');
+            } else {
+                bucStatus = 'UNKNOWN';
+            }
+            textWithoutBuc = cleanText.replace(/\b(blessed|uncursed|cursed)\s+/i, '').trim();
+        } else {
+            const extracted = this.extractBuc(cleanText);
+            bucStatus = extracted.bucStatus;
+            textWithoutBuc = extracted.textWithoutBuc;
+        }
+
         const { calledName, textWithoutCalled } = this.extractCalledName(textWithoutBuc);
         const { namedInstance, textWithoutNamed } = this.extractNamedInstance(textWithoutCalled);
-        const { enchantment, charges, textWithoutStats } = this.extractEnchantmentAndCharges(textWithoutNamed);
+
+        let enchantment = 0;
+        let charges = null;
+        let textWithoutStats = textWithoutNamed;
+
+        if (directObj && typeof directObj.spe === 'number' && (flags?.known || options.sagesWisdomMode)) {
+            // C コアの真値 spe を採用
+            const oclass = directObj.oclass;
+            if (oclass === 9) { // WAND_CLASS = 9
+                charges = directObj.spe;
+            } else {
+                enchantment = directObj.spe;
+            }
+            textWithoutStats = textWithoutNamed.replace(/[+-]\d+\s+/, '').replace(/\(\d+\s+charges?\)/i, '').trim();
+        } else {
+            const extractedStats = this.extractEnchantmentAndCharges(textWithoutNamed);
+            enchantment = extractedStats.enchantment;
+            charges = extractedStats.charges;
+            textWithoutStats = extractedStats.textWithoutStats;
+        }
+
         const coreName = this.extractCoreItemName(textWithoutStats);
 
         const master = (onum >= 0 && OBJECT_KNOWLEDGE_MAP) ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
@@ -301,11 +339,11 @@ export class ItemIdentificationResolver {
         if (/\bblessed\b/i.test(text)) {
             return { bucStatus: 'BLESSED', textWithoutBuc: text.replace(/\bblessed\s+/i, '').trim() };
         }
-        if (/\bcursed\b/i.test(text)) {
-            return { bucStatus: 'CURSED', textWithoutBuc: text.replace(/\bcursed\s+/i, '').trim() };
-        }
         if (/\buncursed\b/i.test(text)) {
             return { bucStatus: 'UNCURSED', textWithoutBuc: text.replace(/\buncursed\s+/i, '').trim() };
+        }
+        if (/\bcursed\b/i.test(text)) {
+            return { bucStatus: 'CURSED', textWithoutBuc: text.replace(/\bcursed\s+/i, '').trim() };
         }
 
         return { bucStatus: 'UNKNOWN', textWithoutBuc: text };

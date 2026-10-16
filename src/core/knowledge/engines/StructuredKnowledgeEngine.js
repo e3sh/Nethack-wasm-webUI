@@ -539,8 +539,14 @@ export class StructuredKnowledgeEngine {
             }
         }
 
-        // 🎯 2. 動的ステート（店主名、Look確定HP/状態、ペット、プレイヤー）のチェック
-        const isPet = Boolean(options.isPet || (typeof identifier === 'object' && (identifier?.type === 'PET' || identifier?.isPet)) || (typeof identifier === 'number' && classifyGlyph(identifier)?.type === ENTITY_TYPES.PET));
+        const isPet = Boolean(
+            options.isPet ||
+            options.isTame ||
+            options.dynamicState?.isTamed ||
+            options.dynamicState?.isTame ||
+            (typeof identifier === 'object' && (identifier?.type === 'PET' || identifier?.isPet || identifier?.isTame || identifier?.directState?.tame || identifier?.dynamicState?.isTamed)) ||
+            (typeof identifier === 'number' && classifyGlyph(identifier)?.type === ENTITY_TYPES.PET)
+        );
         const isPlayer = Boolean(options.isPlayer);
         const dynamicState = options.dynamicState || null;
         const isShopkeeper = (found.monOffset === 271 || found.id === 'shopkeeper' || found.name === 'shopkeeper');

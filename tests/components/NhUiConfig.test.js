@@ -117,4 +117,37 @@ describe('NhUiConfig (<nh-ui-config>)', () => {
     expect(changeSpy).toHaveBeenCalled();
     expect(el.getConfig().hudFadeDelay).toBe(1200);
   });
+
+  it('guideAssistanceMode セレクトボックスを変更すると 3段階モードが更新され、解説文が切り替わること', () => {
+    const el = new NhUiConfig();
+    el.connectedCallback();
+
+    const changeSpy = vi.fn();
+    el.addEventListener('config-change', changeSpy);
+
+    const select = el.shadowRoot.querySelector('select[data-config-key="guideAssistanceMode"]');
+    const descEl = el.shadowRoot.querySelector('#guide-mode-desc');
+    expect(select).not.toBeNull();
+    expect(descEl).not.toBeNull();
+
+    // 初期状態: VETERAN (標準)
+    expect(select.value).toBe('VETERAN');
+    expect(descEl.textContent).toContain('手帳登録されたアイテムのみ');
+
+    // 1. SAGE_GUIDE (賢者の知恵) へ変更
+    select.value = 'SAGE_GUIDE';
+    select.dispatchEvent({ type: 'change' });
+
+    expect(el.getConfig().guideAssistanceMode).toBe('SAGE_GUIDE');
+    expect(el.getConfig().oracleGuideAlwaysUnlocked).toBe(true);
+    expect(descEl.textContent).toContain('初見の未知アイテムであっても真名や効果を自由に透視可能');
+
+    // 2. STOIC (ストイック) へ変更
+    select.value = 'STOIC';
+    select.dispatchEvent({ type: 'change' });
+
+    expect(el.getConfig().guideAssistanceMode).toBe('STOIC');
+    expect(el.getConfig().oracleGuideAlwaysUnlocked).toBe(false);
+    expect(descEl.textContent).toContain('透視機能 (Peek) を完全に無効化');
+  });
 });

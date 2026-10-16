@@ -84,11 +84,27 @@ Now, **「事後ナレッジ連携 (`PostMortemKnowledgeResolver`)」**、**「�
   - 設計書: [external_wiki_knowledge_linking_architecture.ja.md](./7_futures/external_wiki_knowledge_linking_architecture.ja.md)
   - 概要: ナレッジカード（`<nh-knowledge-card>`）や詳細モーダルのヘッダーに `[🌐 NetHackWiki]` ボタンを配置し、英語真名（`entity.name`）で外部 Wiki へワンクリックジャンプ（約50行で独立実装可能）。
 
+### 3.3 レガシーフォールバック一掃 ＆ Direct-Only アーキテクチャ純化構想 (Tech Debt Cleanup)
+- **ステータス**: `💡 proposed (Backlog / RFC)`
+- **背景と課題**:
+  - Direct Binding（WASM メモリ直結）がモンスター・床落ちアイテム・インベントリ・ダンジョン全域にわたって開通した現在、過去のテキスト端末ベースで使われていた「オンデマンド Look（`;` キー送信と画面メッセージ行パース）」や「文字列正規表現 BUC/強化値抽出」などのフォールバック処理は不要化しており、逆に誤判定や不要なキーストローク通信・遅延の原因となっている。
+- **目的**:
+  - レガシーフォールバックコードを計画的に一掃し、NetHack C コア絶対真値（SSOT）のみに基づく軽量・堅牢・ゼロ遅延の Direct-Only アーキテクチャへ純化する。
+- **撤廃対象コンポーネント**:
+  1. **`OnDemandLookService.js`**: `;` キー送信によるメッセージ行パースの完全廃止・ファイル削除（`getFullMonsterAt` への一本化）。
+  2. **`ItemIdentificationResolver.js`**: 文字列からの `extractBuc`, `extractEnchantmentAndCharges` 正規表現パース群の撤廃（C コア構造体データ受取型への純化）。
+  3. **`AreaStateManager.js` / `TerrainInferenceEngine.js`**: 地形推論・捏造コードの完全撤廃（C コア直接真値 `_cachedLevelGlyphs` / `_cachedLevelTerrain` への一本化）。
+  4. **`InventoryStateManager.js`**: TTY メニューテキスト逆算パースコードの撤廃。
+- **3段階移行ロードマップ**:
+  - **Phase 1（実施済）**: Direct Binding 優先化＆フォールバックの完全バイパス（副作用・遅延・誤判定の根絶）。
+  - **Phase 2（次期マイルストーン）**: レガシー関数への `@deprecated` 付与、およびテストスイートの Direct Binding 構造体検証への一本化。
+  - **Phase 3（Stage 9）**: レガシーファイル・関数の物理削除による数千行規模のコードベーススリム化とメンテナンス性向上。
+
 ---
 
 ## 🟢 4. 実装完了コア機能・現行仕様 (Living Specs) <a id="living-specs"></a>
 
-すでに実装が完了し、テストが通過（**全151スイート・1,883テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全153スイート・1,912テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :---: | :--- |

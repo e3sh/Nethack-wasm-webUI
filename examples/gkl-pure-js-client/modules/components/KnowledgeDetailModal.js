@@ -424,7 +424,14 @@ export class KnowledgeDetailModal {
     if (!this.currentTarget) return null;
     const target = this.currentTarget;
     const core = this.getCore();
-    const isPet = target.type === 'PET' || (target.entity && target.entity.type === 'PET');
+    const isPet = Boolean(
+      target.type === 'PET' ||
+      target.isPet ||
+      target.isTame ||
+      target.directState?.tame ||
+      target.dynamicState?.isTamed ||
+      (target.entity && (target.entity.type === 'PET' || target.entity.isPet || target.entity.isTame || target.entity.dynamicState?.isTamed))
+    );
     const isPlayer = target.isPlayer || target.category === 'PLAYER' || target.type === 'PLAYER';
 
     if (isPlayer) {
@@ -1010,7 +1017,11 @@ export class KnowledgeDetailModal {
 
     // 識別・BUCステータス
     const rawLower = (data.rawText || data.name || '').toLowerCase();
-    const bucStatus = id.bucStatus || data.bucStatus || (rawLower.includes('blessed') ? 'BLESSED' : rawLower.includes('cursed') ? 'CURSED' : rawLower.includes('uncursed') ? 'UNCURSED' : 'UNKNOWN');
+    const bucStatus = (id.bucStatus && id.bucStatus !== 'UNKNOWN') ? id.bucStatus :
+      (data.bucStatus && data.bucStatus !== 'UNKNOWN') ? data.bucStatus :
+      (/\bblessed\b/i.test(rawLower) ? 'BLESSED' :
+       /\buncursed\b/i.test(rawLower) ? 'UNCURSED' :
+       /\bcursed\b/i.test(rawLower) ? 'CURSED' : 'UNKNOWN');
 
     const idBadges = [];
     const canUnid = data.canBeUnidentified !== false && data.category !== 'CORPSE' && data.category !== 'GOLD';

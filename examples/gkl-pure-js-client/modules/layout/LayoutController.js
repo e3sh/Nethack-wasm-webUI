@@ -171,11 +171,14 @@ export class LayoutController {
       client.floatingMessageHud.setFadeDelay(config.hudFadeDelay);
     }
 
-    // 7. 神託公式ガイドモード (常時閲覧) の反映
-    const oracleGuide = Boolean(config.oracleGuideAlwaysUnlocked);
+    // 7. 冒険手帳・知恵透視モード (guideAssistanceMode) の反映
     const alm = client.codexModal?.getAdventureLogManager?.() || client.adventureLogManager;
-    if (alm && typeof alm.setOracleGuideAlwaysUnlocked === 'function') {
-      alm.setOracleGuideAlwaysUnlocked(oracleGuide);
+    if (alm) {
+      if (config.guideAssistanceMode && typeof alm.setGuideAssistanceMode === 'function') {
+        alm.setGuideAssistanceMode(config.guideAssistanceMode);
+      } else if (typeof alm.setOracleGuideAlwaysUnlocked === 'function') {
+        alm.setOracleGuideAlwaysUnlocked(Boolean(config.oracleGuideAlwaysUnlocked));
+      }
     }
     if (client.codexModal && typeof client.codexModal.updateSummary === 'function') {
       client.codexModal.updateSummary();

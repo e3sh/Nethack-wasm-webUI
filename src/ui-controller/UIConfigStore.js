@@ -25,7 +25,8 @@ export const DEFAULT_LAYOUT_CONFIG = Object.freeze({
   statusGklExtra: true,
   bypassEnhancedSignals: false,
   hudFadeDelay: 2500,
-  oracleGuideAlwaysUnlocked: false
+  oracleGuideAlwaysUnlocked: false,
+  guideAssistanceMode: 'VETERAN'
 });
 
 export class UIConfigStore {
@@ -224,7 +225,12 @@ export class UIConfigStore {
       hudFadeDelay: typeof raw.hudFadeDelay === 'number' && !Number.isNaN(raw.hudFadeDelay)
         ? raw.hudFadeDelay
         : (parseInt(raw.hudFadeDelay, 10) || 2500),
-      oracleGuideAlwaysUnlocked: Boolean(raw.oracleGuideAlwaysUnlocked)
+      guideAssistanceMode: (['STOIC', 'VETERAN', 'SAGE_GUIDE'].includes(raw.guideAssistanceMode))
+        ? raw.guideAssistanceMode
+        : (Boolean(raw.oracleGuideAlwaysUnlocked) ? 'SAGE_GUIDE' : 'VETERAN'),
+      oracleGuideAlwaysUnlocked: raw.guideAssistanceMode
+        ? (raw.guideAssistanceMode === 'SAGE_GUIDE')
+        : Boolean(raw.oracleGuideAlwaysUnlocked)
     };
   }
 }

@@ -560,6 +560,7 @@ export class AreaStateManager {
                     rawGlyph: glyphId,
                     dynamicState: existingDynamic,
                     ...(directMon ? {
+                        type: directMon.tame ? ENTITY_TYPES.PET : info.type,
                         isPeaceful: directMon.peaceful,
                         isTame: directMon.tame,
                         isShopkeeper: directMon.isShopkeeper || info.isShopkeeper,
@@ -572,6 +573,7 @@ export class AreaStateManager {
                             hp: directMon.hp,
                             hpmax: directMon.hpmax,
                             isPeaceful: directMon.peaceful,
+                            isTamed: directMon.tame,
                             sleeping: directMon.sleeping,
                             fleeing: directMon.fleeing,
                             paralyzed: directMon.paralyzed
@@ -936,6 +938,9 @@ export class AreaStateManager {
                     if (mon) {
                         cell.top.isPeaceful = mon.peaceful;
                         cell.top.isTame = mon.tame;
+                        if (mon.tame) {
+                            cell.top.type = ENTITY_TYPES.PET;
+                        }
                         cell.top.isShopkeeper = mon.isShopkeeper || cell.top.isShopkeeper;
                         cell.top.isPriest = mon.isPriest;
                         cell.top.hp = mon.hp;
@@ -946,6 +951,7 @@ export class AreaStateManager {
                             hp: mon.hp,
                             hpmax: mon.hpmax,
                             isPeaceful: mon.peaceful,
+                            isTamed: mon.tame,
                             sleeping: mon.sleeping,
                             fleeing: mon.fleeing,
                             paralyzed: mon.paralyzed

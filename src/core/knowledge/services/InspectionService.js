@@ -113,13 +113,55 @@ export class InspectionService {
             };
         }
 
-        // 🐉 モンスターが存在する場合: オンデマンド Look (;) を非同期実行して動的状態を確定獲得！
+        // 🐉 モンスターが存在する場合:
+        // 1. C コア Direct Binding (WasmDirectBindingService) から確定状態を直接照会
+        const dbs = p.directBindingService || p.areaStateManager?.directBindingService;
+        let directMon = null;
+        if (dbs && typeof dbs.getFullMonsterAt === 'function' && (typeof dbs.isAvailable !== 'function' || dbs.isAvailable())) {
+            directMon = dbs.getFullMonsterAt(targetPos.x, targetPos.y);
+        }
+
         let dynamicState = cell.top.dynamicState || null;
-        // クリック時 (!options.isHover) は常に最新の動的ステータスを実機照会し、未確定時も再照会
-        if ((!dynamicState || !dynamicState.hasResult || !options.isHover) && p.lookService) {
+
+        if (directMon) {
+            // 🎯 Direct Binding で確定真値が取れた場合: オンデマンド Look (;) は完全にスキップ！
+            dynamicState = {
+                ...(cell.top.dynamicState || {}),
+                hp: directMon.hp,
+                hpmax: directMon.hpmax,
+                isPeaceful: directMon.peaceful,
+                isTamed: directMon.tame,
+                isHostile: !directMon.peaceful && !directMon.tame,
+                sleeping: directMon.sleeping,
+                fleeing: directMon.fleeing,
+                paralyzed: directMon.paralyzed,
+                confused: directMon.confused,
+                stunned: directMon.stunned,
+                isShopkeeper: directMon.isShopkeeper,
+                isPriest: directMon.isPriest,
+                hasResult: true,
+                fromDirectBinding: true
+            };
+            cell.top.directState = directMon;
+            cell.top.dynamicState = dynamicState;
+            cell.top.isTame = directMon.tame;
+            cell.top.isPeaceful = directMon.peaceful;
+            if (directMon.tame) {
+                cell.top.type = 'PET';
+            }
+        } else if ((!dynamicState || !dynamicState.hasResult || !options.isHover) && p.lookService) {
+            // 2. Direct Binding が利用できないフォールバック時のみ、オンデマンド Look (;) を実行
             const freshState = await p.lookService.executeLook({ x: playerX, y: playerY }, targetPos);
             if (freshState && freshState.hasResult) {
-                dynamicState = freshState;
+                const isKnownTame = Boolean(cell.top.isTame || cell.top.directState?.tame || cell.top.dynamicState?.isTamed);
+                const isKnownPeaceful = Boolean(cell.top.isPeaceful || cell.top.directState?.peaceful || cell.top.dynamicState?.isPeaceful);
+                dynamicState = {
+                    ...freshState,
+                    ...(cell.top.dynamicState || {}),
+                    isPeaceful: isKnownPeaceful || freshState.isPeaceful,
+                    isTamed: isKnownTame || freshState.isTamed,
+                    isHostile: (isKnownTame || isKnownPeaceful) ? false : freshState.isHostile
+                };
                 cell.top.dynamicState = dynamicState;
             } else if (!dynamicState) {
                 dynamicState = freshState;
@@ -127,9 +169,17 @@ export class InspectionService {
         }
 
         const identifier = (typeof cell.top.glyph === 'number') ? cell.top.glyph : (cell.top.monOffset ?? cell.top);
+        const isPet = Boolean(
+            cell.top.type === 'PET' ||
+            cell.top.isPet ||
+            cell.top.isTame ||
+            cell.top.directState?.tame ||
+            cell.top.dynamicState?.isTamed ||
+            dynamicState?.isTamed
+        );
         const data = p.structuredKnowledge.getMonsterKnowledge(identifier, {
             dynamicState,
-            isPet: cell.top.type === 'PET',
+            isPet,
             language: p.language
         });
 

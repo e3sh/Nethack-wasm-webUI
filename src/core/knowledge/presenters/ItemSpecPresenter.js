@@ -71,12 +71,11 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
 
     const isPile = Boolean(options.isPile || directObj?.isPile || knowledge.isPile || item?.isPile || extraPileCount > 0);
 
-    let bucRaw = (directObj && directObj.bucStatus)
-        || (item && item.bucStatus)
-        || (directObj && directObj.blessed ? 'BLESSED' : (directObj && directObj.cursed ? 'CURSED' : null))
-        || (item && item.blessed ? 'BLESSED' : (item && item.cursed ? 'CURSED' : null))
-        || knowledge.bucStatus
-        || (identification && identification.bucStatus);
+    let bucRaw = (directObj && directObj.bucStatus && directObj.bucStatus !== 'UNKNOWN') ? directObj.bucStatus :
+        (item && item.bucStatus && item.bucStatus !== 'UNKNOWN') ? item.bucStatus :
+        (flags?.bknown ? (flags.blessed ? 'BLESSED' : (flags.cursed ? 'CURSED' : 'UNCURSED')) : null) ||
+        (knowledge.bucStatus && knowledge.bucStatus !== 'UNKNOWN' ? knowledge.bucStatus : null) ||
+        (identification && identification.bucStatus && identification.bucStatus !== 'UNKNOWN' ? identification.bucStatus : null);
 
     if (isWisdomRevealed && (!bucRaw || bucRaw === 'UNKNOWN') && flags) {
         if (flags.blessed) bucRaw = 'BLESSED';
@@ -115,7 +114,8 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
             });
         }
 
-        if (bucRaw && bucRaw !== 'UNKNOWN' && (flags.bknown || !directObj)) {
+        const canShowBucUnid = Boolean(isWisdomRevealed || flags?.bknown || (directObj && directObj.bucStatus && directObj.bucStatus !== 'UNKNOWN') || (item && item.bucStatus && item.bucStatus !== 'UNKNOWN') || (!directObj && !item?.flags));
+        if (bucRaw && bucRaw !== 'UNKNOWN' && canShowBucUnid) {
             const bucJaMap = { BLESSED: '祝福 (Blessed)', UNCURSED: '通常 (Uncursed)', CURSED: '呪い (Cursed)' };
             const bucEnMap = { BLESSED: 'Blessed', UNCURSED: 'Uncursed', CURSED: 'Cursed' };
             specs.push({
@@ -235,7 +235,7 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
         }
     }
 
-    const canShowBuc = Boolean(isWisdomRevealed || flags.bknown || (directObj && directObj.bucStatus) || !directObj || !directObj.flags);
+    const canShowBuc = Boolean(isWisdomRevealed || flags?.bknown || (directObj && directObj.bucStatus && directObj.bucStatus !== 'UNKNOWN') || (item && item.bucStatus && item.bucStatus !== 'UNKNOWN') || (!directObj && !item?.flags));
     if (bucRaw && bucRaw !== 'UNKNOWN' && canShowBuc) {
         const bucJaMap = { BLESSED: '祝福 (Blessed)', UNCURSED: '通常 (Uncursed)', CURSED: '呪い (Cursed)' };
         const bucEnMap = { BLESSED: 'Blessed', UNCURSED: 'Uncursed', CURSED: 'Cursed' };

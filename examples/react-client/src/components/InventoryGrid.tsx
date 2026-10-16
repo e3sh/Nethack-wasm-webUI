@@ -58,7 +58,10 @@ export const InventoryGrid: React.FC = () => {
     const isWisdom = Boolean(id.isWisdomRevealed || item.isWisdomRevealed);
     const isUnidentified = !!id.isUnidentified && !isWisdom;
     const rawLower = (item.rawText || '').toLowerCase();
-    const bucStatus = id.bucStatus || (rawLower.includes('blessed') ? 'BLESSED' : rawLower.includes('cursed') ? 'CURSED' : rawLower.includes('uncursed') ? 'UNCURSED' : 'UNKNOWN');
+    const bucStatus = (id.bucStatus && id.bucStatus !== 'UNKNOWN') ? id.bucStatus :
+      (/\bblessed\b/i.test(rawLower) ? 'BLESSED' :
+       /\buncursed\b/i.test(rawLower) ? 'UNCURSED' :
+       /\bcursed\b/i.test(rawLower) ? 'CURSED' : 'UNKNOWN');
 
     if (isUnidentified) {
       return { symbol: '?', className: 'badge-buc-unid', title: isEn ? 'Unidentified' : '未識別' };
