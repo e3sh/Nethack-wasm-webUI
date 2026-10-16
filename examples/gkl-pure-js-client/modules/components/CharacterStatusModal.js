@@ -226,6 +226,23 @@ export class CharacterStatusModal {
     const allSkills = skillManager?.getSkills?.() || [];
     const activeSkills = allSkills.filter(s => s && !s.isRestricted && (s.skillLevel > 0 || s.canEnhance || (s.rank && s.rank.key !== 'unskilled')));
 
+    // 6. 祈り・神の怒り・運ステータス (Stage 8.4 Direct Binding 連動)
+    const ublesscnt = typeof attrManager?.ublesscnt === 'number' ? attrManager.ublesscnt : 0;
+    const ugangr = typeof attrManager?.ugangr === 'number' ? attrManager.ugangr : 0;
+    const uluck = typeof attrManager?.uluck === 'number' ? attrManager.uluck : 0;
+
+    let prayerBadgeHtml = '';
+    if (ugangr > 0) {
+      prayerBadgeHtml = `<span class="char-status-tag-badge char-status-badge-danger">⚡ ${isEn ? `Divine Anger (Lv.${ugangr}) - Do Not Pray` : `神の怒り (Lv.${ugangr}) - 祈り厳禁`}</span>`;
+    } else if (ublesscnt > 0) {
+      prayerBadgeHtml = `<span class="char-status-tag-badge char-status-badge-warning">⏳ ${isEn ? `Prayer Cooldown (${ublesscnt}T)` : `祈りクールダウン (残 ${ublesscnt}T)`}</span>`;
+    } else {
+      prayerBadgeHtml = `<span class="char-status-tag-badge char-status-badge-safe">🙏 ${isEn ? 'Prayer: Safe' : '祈り: 安全'}</span>`;
+    }
+
+    const formattedLuck = uluck > 0 ? `+${uluck}` : `${uluck}`;
+    const luckBadgeHtml = `<span class="char-status-tag-badge char-status-badge-luck">🍀 ${isEn ? `Luck: ${formattedLuck}` : `運: ${formattedLuck}`}</span>`;
+
     // HTMLの構築
     this.elModal.innerHTML = `
       <div class="char-status-modal-card">
@@ -237,6 +254,8 @@ export class CharacterStatusModal {
               <span>${isEn ? 'Character Profile & Status' : 'キャラクター詳細 ＆ 属性情報'}</span>
             </h2>
             <span class="char-status-tag-badge">👤 ${raceName} / ${roleName} Lv.${level}</span>
+            ${prayerBadgeHtml}
+            ${luckBadgeHtml}
           </div>
           <button id="btn-char-status-close" class="modal-close-btn" title="${isEn ? 'Close (Esc / q)' : '閉じる (Esc / q)'}">✕</button>
         </div>

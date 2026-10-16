@@ -62,7 +62,7 @@ export class TacticalAdvisor {
         this.evaluateMagicAdvices(inventoryState, spellStateManager, advices);
 
         // 6. サバイバル・ステータス危機アドバイスの評価 (Survival & Status Hazards)
-        this.evaluateSurvivalAdvices(statusAccessor, inventoryState, advices);
+        this.evaluateSurvivalAdvices(statusAccessor, inventoryState, advices, attributeStateManager);
 
         // 7. アイテム・相互作用アドバイスの評価 (Item Interaction & Testing Rules)
         this.evaluateItemInteractionAdvices(areaState, inventoryState, statusAccessor, advices);
@@ -1043,7 +1043,17 @@ export class TacticalAdvisor {
     /**
      * 4. サバイバル・ステータス危機アドバイスの評価
      */
-    static evaluateSurvivalAdvices(statusAccessor, inventoryState, advices) {
+    static evaluateSurvivalAdvices(statusAccessor, inventoryState, advices, attributeStateManager) {
+        // 神の怒り警告 (Stage 8.4 Direct Binding 連動: ugangr > 0: 祈り厳禁 & 解消手順提示)
+        const ugangr = (attributeStateManager && typeof attributeStateManager.ugangr === 'number')
+            ? attributeStateManager.ugangr
+            : (statusAccessor && typeof statusAccessor.ugangr === 'number' ? statusAccessor.ugangr : 0);
+        if (ugangr > 0) {
+            advices.push(createAdvice('ADVICE_SURVIVAL_DIVINE_WRATH', {
+                level: ugangr
+            }));
+        }
+
         if (!statusAccessor) return;
 
         let hp = null;

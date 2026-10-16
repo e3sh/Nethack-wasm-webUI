@@ -144,6 +144,7 @@ export class SituationCache {
                 inventoryStateManager: this.inventoryStateManager,
                 spellStateManager: this.spellStateManager,
                 areaStateManager: this.areaStateManager,
+                attributeStateManager: this.attributeStateManager,
                 tacticalAdvices: advices
             }, { language: this.language, turn: status.turns });
         }

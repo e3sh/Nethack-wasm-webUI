@@ -184,6 +184,23 @@ describe('Stage 8.4: Branch Identification, Prayer Tracker, and Player Resistanc
             expect(manager.ublesscnt).toBe(0);
             expect(manager.ugangr).toBe(0);
             expect(manager.canSafelyPray).toBe(true);
+            expect(manager.isSafeToPray()).toBe(true);
+        });
+
+        it('returns false from isSafeToPray when cooling down or god is angry', () => {
+            manager.syncPlayerSummaryFromDirectBinding({
+                ublesscnt: 100,
+                ugangr: 0,
+                canPray: false
+            });
+            expect(manager.isSafeToPray()).toBe(false);
+
+            manager.syncPlayerSummaryFromDirectBinding({
+                ublesscnt: 0,
+                ugangr: 1,
+                canPray: false
+            });
+            expect(manager.isSafeToPray()).toBe(false);
         });
     });
 

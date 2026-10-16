@@ -381,6 +381,19 @@ export class AttributeStateManager {
     }
 
     /**
+     * 神に安全に祈りを捧げられるか判定 (Stage 8.4 Direct Binding 連動)
+     * クールダウン中 (ublesscnt > 0) または神の怒り中 (ugangr > 0) は false
+     * @returns {boolean}
+     */
+    isSafeToPray() {
+        if (typeof this.canSafelyPray === 'boolean') {
+            return this.canSafelyPray;
+        }
+        return (this.ublesscnt || 0) === 0 && (this.ugangr || 0) === 0;
+    }
+
+
+    /**
      * キャラクター情報（種族・職業・レベル・性別）の確定値から決定論的に内在耐性を即時計算・復元
      * NetHack Cソース attrib.c に基づく SSOT モデル
      * @param {Object} charInfo 

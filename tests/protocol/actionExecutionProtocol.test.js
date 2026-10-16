@@ -272,7 +272,7 @@ describe('Action Execution Protocol Test Suite (第2防壁: 契約検査フェ�
             fakeDriver.assertCompleted();
         });
 
-        it('全 26 種の ASSIST_SIGNAL_DEFINITIONS の defaultKeySequence がプレースホルダー解決後に完走可能であること', () => {
+        it('全 27 種の ASSIST_SIGNAL_DEFINITIONS の defaultKeySequence がプレースホルダー解決後に完走可能であること', () => {
             for (const [id, def] of Object.entries(ASSIST_SIGNAL_DEFINITIONS)) {
                 const sampleParams = { invlet: 'a', targetDir: 'DIR_E' };
                 const signal = createAssistSignal(id, sampleParams);

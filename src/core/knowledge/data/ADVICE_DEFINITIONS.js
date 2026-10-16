@@ -523,10 +523,17 @@ export const ADVICE_DEFINITIONS = {
         id: 'ADVICE_SURVIVAL_DIVINE_WRATH',
         severity: 'CRITICAL',
         topic: 'SURVIVAL',
-        baseScore: 950,
-        defaultCommand: 'p',
-        templateJa: '⚡ 神罰警告: 祈りの間隔が早すぎる、不敬な行動を行うなどで神の怒り(Wrath/Anger)に触れると即死・致命的打撃を受けます。祈りは十分にターンを空けて行いましょう。',
-        templateEn: '⚡ DIVINE WRATH: Praying too frequently or sacrilegious actions incur godly wrath. Wait sufficient turns before praying again.'
+        baseScore: 980,
+        templateJa: '⚡ 神の怒り警告 (Lv.{level}): 祈願(#pray)は神罰で即死するため厳禁！【解消法①】自属性の祭壇で新鮮なモンスターの死体を捧げる(#offer) 【解消法②】寺院の司祭に話しかけて金貨を寄進する(#chat)',
+        templateEn: '⚡ DIVINE ANGER WARNING (Lv.{level}): Do NOT pray (#pray) as it causes instant death! To appease: 1) Offer fresh monster corpses at a co-aligned altar (#offer), 2) Chat with a temple priest to donate gold (#chat).'
+    },
+    'ADVICE_SURVIVAL_GOD_ANGRY': {
+        id: 'ADVICE_SURVIVAL_GOD_ANGRY',
+        severity: 'CRITICAL',
+        topic: 'SURVIVAL',
+        baseScore: 980,
+        templateJa: '⚡ 神の怒り警告 (Lv.{level}): 祈願(#pray)は神罰で即死するため厳禁！【解消法①】自属性の祭壇で新鮮なモンスターの死体を捧げる(#offer) 【解消法②】寺院の司祭に話しかけて金貨を寄進する(#chat)',
+        templateEn: '⚡ DIVINE ANGER WARNING (Lv.{level}): Do NOT pray (#pray) as it causes instant death! To appease: 1) Offer fresh monster corpses at a co-aligned altar (#offer), 2) Chat with a temple priest to donate gold (#chat).'
     }
 };
 
@@ -567,6 +574,10 @@ export function createAdvice(id, params = {}, overrides = {}) {
     }
     if (params.reasonEn) {
         messageEn = messageEn.replace(/\{reason\}/g, params.reasonEn);
+    }
+    if (params.level === undefined) {
+        messageJa = messageJa.replace(/\{level\}/g, '1');
+        messageEn = messageEn.replace(/\{level\}/g, '1');
     }
 
     const hintLetters = overrides.hintLetters !== undefined ? overrides.hintLetters : (params.hintLetters || []);

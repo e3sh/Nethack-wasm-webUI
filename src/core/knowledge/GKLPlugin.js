@@ -569,7 +569,8 @@ export class GKLPlugin {
             statusAccessor: this.statusAccessor,
             inventoryStateManager: this.inventoryStateManager,
             spellStateManager: this.spellStateManager,
-            areaStateManager: this.areaStateManager
+            areaStateManager: this.areaStateManager,
+            attributeStateManager: this.attributeStateManager
         }, { language: this.language });
     }
 

@@ -250,4 +250,85 @@ describe('CharacterStatusModal (On-Demand Direct Binding Sheet)', () => {
 
     expect(elModal.textContent).toContain('15 / 30');
   });
+
+  describe('Stage 8.4: タイトルバー インジケータ (祈り・神の怒り・運)', () => {
+    it('ublesscnt === 0 かつ ugangr === 0: 「🙏 祈り: 安全」バッジがタイトルバーに描画されること', async () => {
+      mockAttrManager.ublesscnt = 0;
+      mockAttrManager.ugangr = 0;
+      mockAttrManager.uluck = 0;
+
+      await modal.open();
+
+      const titleGroup = elModal.querySelector('.char-status-title-group');
+      expect(titleGroup).toBeTruthy();
+      expect(titleGroup.textContent).toContain('🙏 祈り: 安全');
+      expect(titleGroup.textContent).toContain('🍀 運: 0');
+
+      const safeBadge = titleGroup.querySelector('.char-status-badge-safe');
+      expect(safeBadge).toBeTruthy();
+      expect(safeBadge.textContent).toContain('祈り: 安全');
+    });
+
+    it('ublesscnt > 0 かつ ugangr === 0: 「⏳ 祈りクールダウン (残 XXT)」警告バッジがタイトルバーに描画されること', async () => {
+      mockAttrManager.ublesscnt = 42;
+      mockAttrManager.ugangr = 0;
+      mockAttrManager.uluck = 3;
+
+      await modal.open();
+
+      const titleGroup = elModal.querySelector('.char-status-title-group');
+      expect(titleGroup.textContent).toContain('⏳ 祈りクールダウン (残 42T)');
+      expect(titleGroup.textContent).toContain('🍀 運: +3');
+
+      const warnBadge = titleGroup.querySelector('.char-status-badge-warning');
+      expect(warnBadge).toBeTruthy();
+      expect(warnBadge.textContent).toContain('42T');
+
+      const luckBadge = titleGroup.querySelector('.char-status-badge-luck');
+      expect(luckBadge).toBeTruthy();
+      expect(luckBadge.textContent).toContain('+3');
+    });
+
+    it('ugangr > 0: 「⚡ 神の怒り (Lv.X) - 祈り厳禁」危険バッジが最優先でタイトルバーに描画されること', async () => {
+      mockAttrManager.ublesscnt = 50;
+      mockAttrManager.ugangr = 2;
+      mockAttrManager.uluck = -1;
+
+      await modal.open();
+
+      const titleGroup = elModal.querySelector('.char-status-title-group');
+      expect(titleGroup.textContent).toContain('⚡ 神の怒り (Lv.2) - 祈り厳禁');
+      expect(titleGroup.textContent).toContain('🍀 運: -1');
+
+      const dangerBadge = titleGroup.querySelector('.char-status-badge-danger');
+      expect(dangerBadge).toBeTruthy();
+      expect(dangerBadge.textContent).toContain('神の怒り (Lv.2)');
+    });
+
+    it('setLanguage("en") で英語表示のインジケータ（Prayer Safe / Cooldown / Divine Anger / Luck）に切り替わること', async () => {
+      mockAttrManager.ublesscnt = 15;
+      mockAttrManager.ugangr = 0;
+      mockAttrManager.uluck = 5;
+
+      await modal.open();
+      modal.setLanguage('en');
+
+      let titleGroup = elModal.querySelector('.char-status-title-group');
+      expect(titleGroup.textContent).toContain('⏳ Prayer Cooldown (15T)');
+      expect(titleGroup.textContent).toContain('🍀 Luck: +5');
+
+      // 英語の怒り表示検証
+      mockAttrManager.ugangr = 3;
+      modal.render();
+      titleGroup = elModal.querySelector('.char-status-title-group');
+      expect(titleGroup.textContent).toContain('⚡ Divine Anger (Lv.3) - Do Not Pray');
+
+      // 英語の安全表示検証
+      mockAttrManager.ugangr = 0;
+      mockAttrManager.ublesscnt = 0;
+      modal.render();
+      titleGroup = elModal.querySelector('.char-status-title-group');
+      expect(titleGroup.textContent).toContain('🙏 Prayer: Safe');
+    });
+  });
 });

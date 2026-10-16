@@ -68,7 +68,7 @@ export class AssistSignalSynthesizer {
         this.evaluateMagicAndResourceStance(status, inventoryItems, spells, candidateSignals, slotBadges);
 
         // 4. フロア案内＆ランドマーク連動 Stance 評価 (指輪+流し台, 死体+祭壇, 階段退避)
-        this.evaluateLandmarkStance(landmarks, inventoryItems, status, areaState, candidateSignals, slotBadges);
+        this.evaluateLandmarkStance(landmarks, inventoryItems, status, areaState, candidateSignals, slotBadges, context);
 
         // スコア降順にソートして最優先の1件（Level 2 Primary Signal）を選抜
         candidateSignals.sort((a, b) => (b.priority || 0) - (a.priority || 0));
@@ -168,8 +168,8 @@ export class AssistSignalSynthesizer {
             return false;
         });
 
-        // 祈りが安全に可能か（ターン経過・属性等、基本は利用可能と仮定）
-        const canPray = true;
+        // 祈りが安全に可能か（Stage 8.4 Direct Binding 連動: クールダウン中・神の怒り中は false）
+        const canPray = this._resolvePrayerSafety(context);
 
         // --- A. 石化進行 (Petrifying / Stone) ---
         if (hasCondition('stone') || hasCondition('petrifying')) {
@@ -527,7 +527,7 @@ export class AssistSignalSynthesizer {
     /**
      * 4. フロア案内＆ランドマーク連動 Stance 評価
      */
-    static evaluateLandmarkStance(landmarks, inventoryItems, status, areaState, candidateSignals, slotBadges) {
+    static evaluateLandmarkStance(landmarks, inventoryItems, status, areaState, candidateSignals, slotBadges, context = {}) {
         if (!landmarks) return;
 
         // 1. 未識別指輪 ＋ 流し台 (Sink ID)
@@ -557,7 +557,7 @@ export class AssistSignalSynthesizer {
             }));
         }
 
-        // 2. 重い死体 ＋ 自属性祭壇 (Corpse Sacrifice)
+        // 2. 重い死体 ＋ 自属性祭壇 (Corpse Sacrifice & Divine Anger Appeasement)
         const altarInteraction = CHEMISTRY_INTERACTIONS.find(c => c.id === 'CHEMISTRY_ALTAR_OFFER_CORPSE');
 
         const playerAlign = (status && status.align ? String(status.align).toLowerCase() : 'neutral');
@@ -572,14 +572,22 @@ export class AssistSignalSynthesizer {
             return align === playerAlign || align === 'unaligned';
         });
 
+        const divineAnger = this._resolveDivineAnger(context);
         if (hasCorpse && matchingAltar) {
+            const isAngry = divineAnger > 0;
             candidateSignals.push(createAssistSignal('SIGNAL_LANDMARK_ALTAR_SACRIFICE', {
-                detailWhyJa: altarInteraction?.effect?.noteJa,
-                detailWhyEn: altarInteraction?.effect?.noteEn,
+                priority: isAngry ? 85 : 32,
+                category: isAngry ? 'SURVIVAL' : 'UTILITY',
+                shortMessageJa: isAngry ? '神の怒り解消: 祭壇に死体を捧げて神の怒りを鎮める (#offer)' : undefined,
+                shortMessageEn: isAngry ? 'Appease Divine Wrath: Offer corpse at altar (#offer)' : undefined,
+                detailWhyJa: isAngry ? '神の怒り状態です！自属性祭壇で新鮮な死体を捧げることで怒りを解消できます（祈りは即死するため厳禁）。' : altarInteraction?.effect?.noteJa,
+                detailWhyEn: isAngry ? 'Deity is angry! Offering fresh corpses at a co-aligned altar appeases divine wrath (praying is fatal).' : altarInteraction?.effect?.noteEn,
                 actionKeySequence: altarInteraction?.action?.keySequence,
                 actionLabelJa: altarInteraction?.action?.labelJa,
                 actionLabelEn: altarInteraction?.action?.labelEn
             }));
+        } else if (divineAnger > 0) {
+            candidateSignals.push(createAssistSignal('SIGNAL_DIVINE_WRATH_WARNING'));
         }
 
         // 3. 瀕死・危険 ＋ 階段退避 (Stair Escape)
@@ -747,5 +755,99 @@ export class AssistSignalSynthesizer {
             }
         }
         return null;
+    }
+
+    /**
+     * 神に安全に祈りを捧げられる状態か判定 (Stage 8.4 Direct Binding 連動)
+     * u.ublesscnt > 0 (クールダウン) または u.ugangr > 0 (神の怒り) のときは false
+     * @param {Object} context
+     * @returns {boolean}
+     */
+    static _resolvePrayerSafety(context) {
+        if (!context || typeof context !== 'object') return true;
+
+        // 1. 明示的なフラグ指定 (テスト容易性)
+        if (typeof context.canSafelyPray === 'boolean') {
+            return context.canSafelyPray;
+        }
+
+        // 2. AttributeStateManager (Stage 8.4 SSOT)
+        const attrMgr = context.attributeStateManager;
+        if (attrMgr) {
+            if (typeof attrMgr.isSafeToPray === 'function') {
+                return attrMgr.isSafeToPray();
+            }
+            if (typeof attrMgr.canSafelyPray === 'boolean') {
+                return attrMgr.canSafelyPray;
+            }
+            if (typeof attrMgr.ublesscnt === 'number' || typeof attrMgr.ugangr === 'number') {
+                return (attrMgr.ublesscnt || 0) === 0 && (attrMgr.ugangr || 0) === 0;
+            }
+        }
+
+        // 3. directBindingService 直結のフォールバック
+        const directBinding = context.directBindingService || context.wasmDirectBindingService;
+        if (directBinding && typeof directBinding.getPlayerSummary === 'function') {
+            const summary = directBinding.getPlayerSummary();
+            if (summary && typeof summary.canPray === 'boolean') {
+                return summary.canPray;
+            }
+        }
+
+        // 4. playerSummary オブジェクトが直接渡された場合
+        if (context.playerSummary && typeof context.playerSummary.canPray === 'boolean') {
+            return context.playerSummary.canPray;
+        }
+
+        // 5. status オブジェクト上のフラグ
+        const status = this._extractStatus(context);
+        if (status && typeof status.canSafelyPray === 'boolean') {
+            return status.canSafelyPray;
+        }
+
+        // 6. デフォルトフォールバック (コンテキスト未指定時の後方互換性)
+        return true;
+    }
+
+    /**
+     * 神の怒り度 (ugangr) を解決 (Stage 8.4 Direct Binding 連動)
+     * @param {Object} context
+     * @returns {number}
+     */
+    static _resolveDivineAnger(context) {
+        if (!context || typeof context !== 'object') return 0;
+
+        // 1. 明示的な ugangr 指定
+        if (typeof context.ugangr === 'number') {
+            return context.ugangr;
+        }
+
+        // 2. AttributeStateManager (Stage 8.4 SSOT)
+        const attrMgr = context.attributeStateManager;
+        if (attrMgr && typeof attrMgr.ugangr === 'number') {
+            return attrMgr.ugangr;
+        }
+
+        // 3. directBindingService 直結のフォールバック
+        const directBinding = context.directBindingService || context.wasmDirectBindingService;
+        if (directBinding && typeof directBinding.getPlayerSummary === 'function') {
+            const summary = directBinding.getPlayerSummary();
+            if (summary && typeof summary.ugangr === 'number') {
+                return summary.ugangr;
+            }
+        }
+
+        // 4. playerSummary オブジェクトが直接渡された場合
+        if (context.playerSummary && typeof context.playerSummary.ugangr === 'number') {
+            return context.playerSummary.ugangr;
+        }
+
+        // 5. status オブジェクト上のプロパティ
+        const status = this._extractStatus(context);
+        if (status && typeof status.ugangr === 'number') {
+            return status.ugangr;
+        }
+
+        return 0;
     }
 }

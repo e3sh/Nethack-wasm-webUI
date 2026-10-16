@@ -421,6 +421,21 @@ export const ASSIST_SIGNAL_DEFINITIONS = {
         actionLabelJa: '捧げ物をする (#offer)',
         actionLabelEn: 'Offer sacrifice (#offer)'
     },
+    'SIGNAL_DIVINE_WRATH_WARNING': {
+        id: 'SIGNAL_DIVINE_WRATH_WARNING',
+        priority: 75,
+        category: 'SURVIVAL',
+        stance: 'CAUTION',
+        icon: '⚡',
+        shortMessageJa: '神の怒り状態: 祈り(#pray)厳禁！祭壇への死体捧げ物や寄進で怒りを鎮めてください',
+        shortMessageEn: 'Divine Wrath: Do NOT pray! Appease deity via altar sacrifice or donation',
+        detailWhyJa: '神が怒っています(ugangr > 0)。祈願を行うと即死・天罰を受けます。自属性祭壇で死体を捧げるか、寺院の司祭に寄進して解消してください。',
+        detailWhyEn: 'Your deity is angry (ugangr > 0). Praying will result in fatal retribution. Appease your deity by offering corpses at a co-aligned altar or donating gold to a priest.',
+        wikiTopic: 'Gods#Anger',
+        defaultKeySequence: ['#', 'chat'],
+        actionLabelJa: '司祭と話して寄進 (#chat)',
+        actionLabelEn: 'Chat with priest to donate (#chat)'
+    },
     'SIGNAL_LANDMARK_STAIR_ESCAPE': {
         id: 'SIGNAL_LANDMARK_STAIR_ESCAPE',
         priority: 82,
@@ -494,12 +509,12 @@ export function createAssistSignal(signalId, params = {}) {
 
     const signal = {
         id: def.id,
-        priority: def.priority,
-        category: def.category,
-        stance: def.stance,
-        icon: def.icon,
-        shortMessageJa: def.shortMessageJa,
-        shortMessageEn: def.shortMessageEn,
+        priority: typeof params.priority === 'number' ? params.priority : def.priority,
+        category: params.category || def.category,
+        stance: params.stance || def.stance,
+        icon: params.icon || def.icon,
+        shortMessageJa: params.shortMessageJa || def.shortMessageJa,
+        shortMessageEn: params.shortMessageEn || def.shortMessageEn,
         detailWhyJa: finalDetailWhyJa,
         detailWhyEn: finalDetailWhyEn,
         wikiTopic: def.wikiTopic,

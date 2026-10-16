@@ -298,6 +298,47 @@ describe('TacticalAdvisor - 戦術・危険・装備アドバイザーテスト'
             expect(hungerAdvice.hintCommand).toBe('e');
             expect(hungerAdvice.messageJa).toContain('飢餓');
         });
+
+        it('神の怒り (ugangr > 0) の場合、祈り厳禁と具体的な解消手順（祭壇捧げ物・司祭寄進）のアドバイスが出力されること', () => {
+            const attrMgr = new AttributeStateManager();
+            attrMgr.ugangr = 2;
+
+            const advices = TacticalAdvisor.generateAdvices({
+                attributeStateManager: attrMgr
+            });
+
+            const angerAdvice = advices.find(a => a.id === 'ADVICE_SURVIVAL_DIVINE_WRATH');
+            expect(angerAdvice).toBeDefined();
+            expect(angerAdvice.severity).toBe('CRITICAL');
+            expect(angerAdvice.score).toBe(980);
+            expect(angerAdvice.messageJa).toContain('神の怒り警告 (Lv.2)');
+            expect(angerAdvice.messageJa).toContain('祈願(#pray)は神罰で即死するため厳禁');
+            expect(angerAdvice.messageJa).toContain('自属性の祭壇で新鮮なモンスターの死体を捧げる(#offer)');
+            expect(angerAdvice.messageJa).toContain('寺院の司祭に話しかけて金貨を寄進する(#chat)');
+
+            // 英語での出力
+            const advicesEn = TacticalAdvisor.generateAdvices({
+                attributeStateManager: attrMgr
+            }, { language: 'en' });
+            const angerAdviceEn = advicesEn.find(a => a.id === 'ADVICE_SURVIVAL_DIVINE_WRATH');
+            expect(angerAdviceEn).toBeDefined();
+            expect(angerAdviceEn.message).toContain('DIVINE ANGER WARNING (Lv.2)');
+            expect(angerAdviceEn.message).toContain('Do NOT pray (#pray) as it causes instant death');
+            expect(angerAdviceEn.message).toContain('#offer');
+            expect(angerAdviceEn.message).toContain('#chat');
+        });
+
+        it('神の怒りがない (ugangr === 0) の場合、神の怒り警告アドバイスは出力されないこと', () => {
+            const attrMgr = new AttributeStateManager();
+            attrMgr.ugangr = 0;
+
+            const advices = TacticalAdvisor.generateAdvices({
+                attributeStateManager: attrMgr
+            });
+
+            const angerAdvice = advices.find(a => a.id === 'ADVICE_SURVIVAL_DIVINE_WRATH');
+            expect(angerAdvice).toBeUndefined();
+        });
     });
 
     describe('5. 環境・地形ハザード & アイテム爆発 (Terrain Hazards & Bag of Holding Explosion)', () => {

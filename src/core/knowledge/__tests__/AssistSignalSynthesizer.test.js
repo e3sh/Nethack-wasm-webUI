@@ -84,6 +84,80 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             expect(state.primaryAction.keySequence).toEqual(['#', 'pray', 'y']);
         });
 
+        it('瀕死 (HP < 30%): 神の怒り中 (ugangr > 0) は SIGNAL_HP_CRITICAL_PRAY を抑止し罠を防止する', () => {
+            const context = {
+                status: { hp: { current: 5, max: 30, percent: 0.16 } },
+                inventory: [],
+                attributeStateManager: {
+                    ublesscnt: 0,
+                    ugangr: 1,
+                    canSafelyPray: false,
+                    isSafeToPray: () => false
+                }
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            // 神が怒っているときは祈りシグナルが出現しない
+            expect(state.primarySignal).toBeNull();
+            expect(state.slotBadges['hp']).toBeUndefined();
+        });
+
+        it('瀕死 (HP < 30%): お祈りクールダウン中 (ublesscnt > 0) は SIGNAL_HP_CRITICAL_PRAY を抑止する', () => {
+            const context = {
+                status: { hp: { current: 5, max: 30, percent: 0.16 } },
+                inventory: [],
+                attributeStateManager: {
+                    ublesscnt: 150,
+                    ugangr: 0,
+                    canSafelyPray: false
+                }
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeNull();
+            expect(state.slotBadges['hp']).toBeUndefined();
+        });
+
+        it('瀕死 (HP < 30%): 祈り不可 (神の機嫌が悪い) かつ上り階段がある場合は階段退避が最優先に繰り上がる', () => {
+            const context = {
+                status: { hp: { current: 5, max: 30, percent: 0.16 } },
+                inventory: [],
+                canSafelyPray: false,
+                landmarks: {
+                    stairsUp: [{ type: 'STAIR_UP', x: 10, y: 10 }]
+                }
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            expect(state.primarySignal.id).toBe('SIGNAL_LANDMARK_STAIR_ESCAPE');
+            expect(state.primarySignal.stance).toBe('WAIT_SAFE');
+            expect(state.primaryAction.keySequence).toEqual(['<']);
+        });
+
+        it('石化進行中: 特効薬がなく神の機嫌が悪い (canSafelyPray === false) ときは祈りシグナルを抑止する', () => {
+            const context = {
+                status: { conditions: ['Stone'], hp: { current: 20, max: 20, percent: 1.0 } },
+                inventory: [],
+                canSafelyPray: false
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeNull();
+            expect(state.slotBadges['Petrifying']).toBeUndefined();
+        });
+
+        it('病気中: 特効薬がなく神の機嫌が悪い (canSafelyPray === false) ときは祈りシグナルを抑止する', () => {
+            const context = {
+                status: { conditions: ['Sick'], hp: { current: 20, max: 20, percent: 1.0 } },
+                inventory: [],
+                canSafelyPray: false
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeNull();
+        });
+
         it('瀕死 (HP < 30%): インベントリに spellbook of healing のみ所持時は回復薬として誤認識されない', () => {
             const context = {
                 status: { hp: { current: 5, max: 30, percent: 0.16 } },
@@ -348,6 +422,41 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
             expect(state.primarySignal).toBeDefined();
             expect(state.primarySignal.id).toBe('SIGNAL_LANDMARK_ALTAR_SACRIFICE');
             expect(state.primarySignal.priority).toBe(32);
+        });
+
+        it('自属性祭壇＋死体＋神の怒り (ugangr > 0): 捧げ物シグナルの優先度が 85 に引き上げられ怒り解消文言になること', () => {
+            const context = {
+                ugangr: 2,
+                status: { align: 'neutral', hp: { current: 30, max: 30, percent: 1.0 } },
+                inventory: [
+                    createTestItem('jackal corpse', 'c')
+                ],
+                landmarks: {
+                    altars: [{ type: 'ALTAR', details: { alignment: 'neutral' } }]
+                }
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            expect(state.primarySignal.id).toBe('SIGNAL_LANDMARK_ALTAR_SACRIFICE');
+            expect(state.primarySignal.priority).toBe(85);
+            expect(state.primarySignal.shortMessageJa).toContain('神の怒り解消');
+            expect(state.primarySignal.detailWhyJa).toContain('神の怒り');
+        });
+
+        it('神の怒り (ugangr > 0) かつ祭壇がない場合: 神の怒り注意シグナル (SIGNAL_DIVINE_WRATH_WARNING) が生成されること', () => {
+            const context = {
+                ugangr: 1,
+                status: { align: 'neutral', hp: { current: 30, max: 30, percent: 1.0 } },
+                inventory: [],
+                landmarks: {}
+            };
+
+            const state = AssistSignalSynthesizer.synthesize(context);
+            expect(state.primarySignal).toBeDefined();
+            expect(state.primarySignal.id).toBe('SIGNAL_DIVINE_WRATH_WARNING');
+            expect(state.primarySignal.priority).toBe(75);
+            expect(state.primarySignal.shortMessageJa).toContain('祈り(#pray)厳禁');
         });
 
         it('瀕死 (HP < 30%) ＋ 特効なし ＋ 上り階段あり: 階段退避シグナル (SIGNAL_LANDMARK_STAIR_ESCAPE) を最優先', () => {

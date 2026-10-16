@@ -516,6 +516,20 @@ describe('Phase 3.5: ナレッジデータ構造＆スキーマ正規化 静的�
             expect(waterAdvice).toBeDefined();
             expect(waterAdvice.hintLetters).toEqual(['w']);
         });
+
+        it('神の怒り (ugangr > 0) のとき、SSOT 定義に基づき祈り厳禁および具体的解消法（#offer, #chat）を含むアドバイスを出力すること', () => {
+            const attrMgr = new AttributeStateManager();
+            attrMgr.ugangr = 1;
+
+            const advices = TacticalAdvisor.generateAdvices({ attributeStateManager: attrMgr });
+            const angerAdvice = advices.find(a => a.id === 'ADVICE_SURVIVAL_DIVINE_WRATH');
+
+            expect(angerAdvice).toBeDefined();
+            expect(angerAdvice.severity).toBe('CRITICAL');
+            expect(angerAdvice.messageJa).toContain('祈願(#pray)');
+            expect(angerAdvice.messageJa).toContain('#offer');
+            expect(angerAdvice.messageJa).toContain('#chat');
+        });
     });
 
     describe('5. ADVICE_DEFINITIONS アドバイスマスター完全性監査 (SSOT Master Audit)', () => {
@@ -616,9 +630,9 @@ describe('Phase 3.5: ナレッジデータ構造＆スキーマ正規化 静的�
     });
 
     describe('7. ASSIST_SIGNAL_DEFINITIONS アシストシグナルマスター完全性監査 (Signal SSOT Audit)', () => {
-        it('全 26 種類のシグナルが ASSIST_SIGNAL_DEFINITIONS に定義され、必須フィールドを完全保持していること', () => {
+        it('全 27 種類のシグナルが ASSIST_SIGNAL_DEFINITIONS に定義され、必須フィールドを完全保持していること', () => {
             const keys = Object.keys(ASSIST_SIGNAL_DEFINITIONS);
-            expect(keys.length).toBe(26);
+            expect(keys.length).toBe(27);
 
             for (const [id, def] of Object.entries(ASSIST_SIGNAL_DEFINITIONS)) {
                 expect(def.id).toBe(id);
