@@ -43,17 +43,28 @@ describe('Stage 8.3-A: AreaStateManager Terrain Dump, Door Traps/Locks & Monster
             mockTerrain[5 * COLNO + 35] = 28;
 
             directBindingService.setCachedLevelTerrain(mockTerrain);
+
+            const mockGlyphs = new Int32Array(COLNO * ROWNO);
+            mockGlyphs[5 * COLNO + 10] = 3930;
+            mockGlyphs[5 * COLNO + 15] = 4015;
+            mockGlyphs[5 * COLNO + 20] = 4017;
+            mockGlyphs[5 * COLNO + 25] = 3998;
+            mockGlyphs[5 * COLNO + 30] = 4000;
+            mockGlyphs[5 * COLNO + 35] = 4014;
+            directBindingService.setCachedLevelGlyphs(mockGlyphs);
+
             areaStateManager.clearDirtyCells();
 
             const success = areaStateManager.dumpLevelTerrain();
             expect(success).toBe(true);
 
-            // 1. print_glyph 未受信の未踏セルには cell.bottom を書き込まず、Dirty 登録もしないこと
-            expect(areaStateManager.grid[5][10].bottom).toBeNull();
-            expect(areaStateManager.grid[5][15].bottom).toBeNull();
-            expect(areaStateManager.grid[5][20].bottom).toBeNull();
-            expect(areaStateManager.grid[5][25].bottom).toBeNull();
-            expect(areaStateManager.grid[5][30].bottom).toBeNull();
+            // 1. 全域下敷き化により cell.bottom に真床エンティティ (isCachedPreload: true) が安全に展開され、未観測段階では Dirty 登録されないこと
+            expect(areaStateManager.grid[5][10].bottom).not.toBeNull();
+            expect(areaStateManager.grid[5][10].bottom.isCachedPreload).toBe(true);
+            expect(areaStateManager.grid[5][15].bottom.isCachedPreload).toBe(true);
+            expect(areaStateManager.grid[5][20].bottom.isCachedPreload).toBe(true);
+            expect(areaStateManager.grid[5][25].bottom.isCachedPreload).toBe(true);
+            expect(areaStateManager.grid[5][30].bottom.isCachedPreload).toBe(true);
             expect(areaStateManager.getDirtyCells().size).toBe(0);
 
             // 2. 未発見の階段・ハシゴが landmarkCache に早期登録されないこと
@@ -87,21 +98,21 @@ describe('Stage 8.3-A: AreaStateManager Terrain Dump, Door Traps/Locks & Monster
             mockTerrain[5 * COLNO + 5] = 0;  // STONE
             mockTerrain[5 * COLNO + 6] = 14; // SDOOR (隠し扉)
             mockTerrain[5 * COLNO + 7] = 15; // SCORR (隠し通路)
+            const mockGlyphs = new Int32Array(COLNO * ROWNO);
+            mockGlyphs[5 * COLNO + 6] = 3930; // back_to_glyph は隠し扉に対して周囲の壁グリフ (3930) を返す
             directBindingService.setCachedLevelTerrain(mockTerrain);
+            directBindingService.setCachedLevelGlyphs(mockGlyphs);
 
             // STONE (0) は null を返し、床タイル (3992) を生成しない
-            expect(areaStateManager.getGlyphForTerrainType(0, 5, 5)).toBeNull();
             expect(areaStateManager.getGenuineFloor(5, 5)).toBeNull();
 
             // SDOOR (14) は扉グリフ (3988) ではなく壁グリフ (3930) を返し、door 属性を漏洩しない
-            expect(areaStateManager.getGlyphForTerrainType(14, 6, 5)).toBe(3930);
             const sdoorFloor = areaStateManager.getGenuineFloor(6, 5);
             expect(sdoorFloor).not.toBeNull();
             expect(sdoorFloor.glyph).toBe(3930);
             expect(sdoorFloor.door).toBeNull();
 
             // SCORR (15) は通路グリフ (3995) ではなく null を返し、床エンティティを生成しない
-            expect(areaStateManager.getGlyphForTerrainType(15, 7, 5)).toBeNull();
             expect(areaStateManager.getGenuineFloor(7, 5)).toBeNull();
         });
 
@@ -110,6 +121,7 @@ describe('Stage 8.3-A: AreaStateManager Terrain Dump, Door Traps/Locks & Monster
             const ROWNO = 21;
             const mockTerrain = new Uint8Array(COLNO * ROWNO).fill(25); // 全域 ROOM
             directBindingService.setCachedLevelTerrain(mockTerrain);
+            directBindingService.setCachedLevelGlyphs(new Int32Array(COLNO * ROWNO).fill(3992));
 
             areaStateManager.playerX = 10;
             areaStateManager.playerY = 10;

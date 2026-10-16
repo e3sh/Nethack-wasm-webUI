@@ -54,25 +54,7 @@ describe('AreaStateManager 4-Module Architecture & Backward Compatibility', () =
     });
 
     describe('2. TerrainInferenceEngine Unit Tests', () => {
-        it('maps all NetHack terrain typ codes to accurate glyph IDs', () => {
-            const engine = asm.terrainInference;
-            expect(engine.getGlyphForTerrainType(18)).toBe(4015); // WATER
-            expect(engine.getGlyphForTerrainType(20)).toBe(4017); // LAVAPOOL
-            expect(engine.getGlyphForTerrainType(22)).toBe(3990); // IRONBARS
-            expect(engine.getGlyphForTerrainType(23, 0, 0, { isOpen: true })).toBe(3986); // Open DOOR
-            expect(engine.getGlyphForTerrainType(23, 0, 0, { isOpen: false })).toBe(3988); // Closed DOOR
-            expect(engine.getGlyphForTerrainType(24)).toBe(3995); // CORR
-            expect(engine.getGlyphForTerrainType(25)).toBe(3992); // ROOM
-            expect(engine.getGlyphForTerrainType(28)).toBe(4014); // FOUNTAIN
-            expect(engine.getGlyphForTerrainType(29)).toBe(4012); // THRONE
-            expect(engine.getGlyphForTerrainType(30)).toBe(4013); // SINK
-            expect(engine.getGlyphForTerrainType(31)).toBe(4011); // GRAVE
-            expect(engine.getGlyphForTerrainType(32)).toBe(4008); // ALTAR
-            expect(engine.getGlyphForTerrainType(33)).toBe(4016); // ICE
-            expect(engine.getGlyphForTerrainType(35)).toBe(4023); // AIR
-            expect(engine.getGlyphForTerrainType(36)).toBe(4024); // CLOUD
-            expect(engine.getGlyphForTerrainType(5)).toBe(3930);  // WALL (1..12)
-        });
+
 
         it('evaluates bkglyphInfo and guards against GLYPH_UNEXPLORED_OFF (9622)', () => {
             const engine = asm.terrainInference;
@@ -81,10 +63,9 @@ describe('AreaStateManager 4-Module Architecture & Backward Compatibility', () =
             expect(validBg.glyph).toBe(4015);
             expect(validBg.inferred).toBeUndefined();
 
-            // 9622 guard -> falls back to getGenuineFloor (inferred floor 3992 in auto mode without direct binding)
+            // 9622 guard -> DirectBinding Native では勝手に推測仮床 (3992) を捏造せず null を返却
             const guardedBg = engine.resolveBackgroundTerrain(10, 10, { glyph: 9622, ch: ' ', color: 8 });
-            expect(guardedBg.glyph).toBe(DEFAULT_INFERRED_FLOOR_GLYPH);
-            expect(guardedBg.inferred).toBe(true);
+            expect(guardedBg).toBeNull();
         });
 
         it('handles Boulder Push inference for both Case A (move onto boulder) and Case B (delayed boulder glyph)', () => {

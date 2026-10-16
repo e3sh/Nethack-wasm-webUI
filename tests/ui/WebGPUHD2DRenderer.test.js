@@ -457,6 +457,65 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     expect(registeredEvents).toContain('click');
     expect(registeredEvents).toContain('contextmenu');
   });
+
+  it('24. render(): isSupported=true のパイプラインにおいて drawnAny 等の未定義エラーなくインスタンスバッファを生成できること', () => {
+    const grid = [];
+    for (let y = 0; y < 24; y++) {
+      const row = [];
+      for (let x = 0; x < 80; x++) {
+        row.push({
+          x,
+          y,
+          bottom: { type: 'TERRAIN', rawGlyph: 3992, glyph: 3992 },
+          middle: x === 10 && y === 10 ? { type: 'ITEM', rawGlyph: 3458, glyph: 3458 } : null,
+          top: null,
+          effect: null
+        });
+      }
+      grid.push(row);
+    }
+
+    const renderer = new WebGPUHD2DRenderer({
+      canvas: mockCanvas,
+      getSituation: () => ({
+        turn: 1,
+        area: { playerX: 10, playerY: 10, grid }
+      }),
+      getAreaGrid: () => grid
+    });
+
+    renderer.isSupported = true;
+    renderer.pipeline = {};
+    renderer.bindGroup = {};
+    renderer.device = {
+      queue: {
+        writeBuffer: vi.fn(),
+        submit: vi.fn()
+      },
+      createCommandEncoder: vi.fn(() => ({
+        beginRenderPass: vi.fn(() => ({
+          setPipeline: vi.fn(),
+          setBindGroup: vi.fn(),
+          setVertexBuffer: vi.fn(),
+          draw: vi.fn(),
+          end: vi.fn()
+        })),
+        finish: vi.fn()
+      }))
+    };
+    renderer.context = {
+      getCurrentTexture: vi.fn(() => ({
+        createView: vi.fn()
+      }))
+    };
+    renderer.depthTexture = {
+      createView: vi.fn()
+    };
+
+    expect(() => renderer.render(0)).not.toThrow();
+    expect(renderer.instanceCounts.floor).toBeGreaterThan(0);
+    expect(renderer.instanceCounts.item).toBe(2); // アイテムスプライト(Layer 3.0) + 自キャラ足元枠(Layer 3.2)
+  });
 });
 
 

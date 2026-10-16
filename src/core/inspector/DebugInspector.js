@@ -300,14 +300,7 @@ export class DebugInspector {
             }
             this.broadcastLog('INJECT', `Action sent: ${msg.actionName}`);
         } else if (msg.type === 'SET_DIRECT_BINDING_MODE') {
-            const mode = msg.mode;
-            if (this.core && this.core.gkl && typeof this.core.gkl.setDirectBindingMode === 'function') {
-                this.core.gkl.setDirectBindingMode(mode);
-            }
-            if (this.core && this.core.config) {
-                this.core.config.directBindingMode = mode;
-            }
-            this.broadcastLog('CONFIG', `Direct binding mode changed to: ${mode}`);
+            this.broadcastLog('CONFIG', 'Direct binding is Native only (fallback mode has been deprecated and removed).');
             this.broadcastState();
         } else if (msg.type === 'REQUEST_SNAPSHOT') {
             this.broadcastState();

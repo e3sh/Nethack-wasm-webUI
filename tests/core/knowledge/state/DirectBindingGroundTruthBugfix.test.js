@@ -34,12 +34,7 @@ describe('Stage 8.3-C: Direct Binding 確定情報（Ground Truth）純化 ＆ �
             asm.directBindingService = mockDirectBindingService;
         });
 
-        it('(1) 扉のないドア枠 (D_NODOOR: flags=0) に乗った際、閉扉(3988)ではなく扉なし(3985)が返ること', () => {
-            const tie = new TerrainInferenceEngine(asm);
-            const doorState = { isOpen: false, isClosed: false, isBroken: false, isNoDoor: true };
-            const glyph = tie.getGlyphForTerrainType(23, 10, 5, doorState);
-            expect(glyph).toBe(3985); // S_ndoor
-        });
+
 
         it('(2) 目視確定済みの横向き開扉(3987)の上にプレイヤーが移動した際、縦向き(3986)で上書きされず横向きが維持されること', () => {
             // セルに目視で確定した横向き開扉 (3987) をセット

@@ -459,11 +459,7 @@
             </span>
             <span class="indicator-item" id="indicatorBindingMode">
                 <span class="indicator-label">Binding:</span>
-                <div class="mode-btn-group">
-                    <button class="mode-btn active auto" id="btnModeAuto" onclick="setDirectBindingMode('auto')">Auto</button>
-                    <button class="mode-btn" id="btnModeStrict" onclick="setDirectBindingMode('strict')" title="フォールバック完全遮断 (Shim のみ)">Strict</button>
-                    <button class="mode-btn" id="btnModeFallback" onclick="setDirectBindingMode('fallback')" title="Shimバイパス (フォールバックのみ)">Fallback</button>
-                </div>
+                <span class="badge" style="background: rgba(166, 227, 161, 0.2); color: var(--success-color); font-weight: bold; padding: 2px 8px; border-radius: 4px;">DirectBinding Native</span>
             </span>
             <div class="status-badge" id="connectionStatus">Channel Active</div>
         </div>
@@ -637,17 +633,12 @@
             </div>
 
             <div class="injector-panel" style="margin-top: 16px; border-color: var(--accent-color);">
-                <h3 style="color: var(--accent-color); font-size: 14px;">⚡ 公式Shim直接調停 ＆ フォールバック検証コントロール (Stage 8.2-B)</h3>
+                <h3 style="color: var(--accent-color); font-size: 14px;">⚡ 公式Shim直接調停 (DirectBinding Native)</h3>
                 <p style="color: #a6adc8; font-size: 12px; margin-top: 4px;">
-                    C言語コアメモリ直接調停とフォールバック（キーマクロ・推測床3992番）のリアルタイム切替・遮断検証を行います。
+                    C言語コアメモリ直接調停により、フォールバック推測床やキーマクロを完全排除した高精度ネイティブ同期が常時稼働しています。
                 </p>
-                <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="setDirectBindingMode('auto')">🟢 Auto (通常: Shim優先)</button>
-                    <button class="btn" style="border-color: var(--danger-color); color: var(--danger-color);" onclick="setDirectBindingMode('strict')">⛔ Strict (Shim必須・フォールバック完全遮断)</button>
-                    <button class="btn" onclick="setDirectBindingMode('fallback')">🔵 Fallback Only (Shim無効・従来マクロ強制)</button>
-                </div>
                 <div id="directBindingDetails" style="margin-top: 12px; font-family: var(--font-mono); font-size: 11px; color: #cdd6f4; background: #181825; padding: 10px; border-radius: 4px; border: 1px solid var(--border-color); line-height: 1.6;">
-                    モード: <span id="dtMode" style="font-weight: bold; color: var(--accent-color);">AUTO</span><br>
+                    動作モード: <span id="dtMode" style="font-weight: bold; color: var(--accent-color);">DirectBinding Native</span><br>
                     所持品同期: <span id="dtInvSync">--</span><br>
                     足元床同期: <span id="dtFloorSync">--</span><br>
                     同期統計: <span id="dtStats">--</span>

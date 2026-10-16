@@ -32,125 +32,16 @@ export class TerrainInferenceEngine {
         this.areaStateManager = areaStateManager;
     }
 
-    /**
-     * 地形 typ から適切な地形グリフIDを算出 (Stage 8.3-A / 8.3-B)
-     * - typ === 0 (STONE: 無地の岩盤) や typ === 15 (SCORR: 未発見の隠し通路) は描画対象外として null を返却
-     * - typ === 14 (SDOOR: 未発見の隠し扉) はネタバレ防止のため壁グリフ (3930) を返却
-     * @param {number} typ 
-     * @param {number} [x=0] 
-     * @param {number} [y=0] 
-     * @param {Object} [doorState=null] 
-     * @returns {number|null} glyphId
-     */
-    /**
-     * 地形 typ から適切な地形グリフIDを算出 (Stage 8.3-A / 8.3-B)
-     * - typ === 0 (STONE: 無地の岩盤) や typ === 15 (SCORR: 未発見の隠し通路) は描画対象外として null を返却
-     * - typ === 14 (SDOOR: 未発見の隠し扉) はネタバレ防止のため壁グリフ (3930) を返却
-     * @param {number} typ 
-     * @param {number} [x=0] 
-     * @param {number} [y=0] 
-     * @param {Object} [doorState=null] 
-     * @param {Object} [cellInfo=null]
-     * @returns {number|null} glyphId
-     */
-    getGlyphForTerrainType(typ, x = 0, y = 0, doorState = null, cellInfo = null) {
-        const asm = this.areaStateManager;
-        switch (typ) {
-            case 0: // STONE (無地の岩盤)
-            case 15: // SCORR (未発見の隠し通路: ネタバレ防止)
-                return null;
-            case 14: // SDOOR (未発見の隠し扉: 壁として扱いネタバレ防止)
-            case 19: // DRAWBRIDGE_UP
-                return 3930;
-            case 16: // POOL
-            case 17: // MOAT
-            case 18: // WATER
-                return 4015;
-            case 20: // LAVAPOOL
-            case 21: // LAVAWALL
-                return 4017;
-            case 22: // IRONBARS
-                return 3990;
-            case 23: { // DOOR
-                // 扉の幾何学的向き (縦/横) は struct rm に存在しないため、
-                // print_glyph で確定した既存セルグリフが存在する場合はそれを最優先でそのまま返却する。
-                const existing = asm.grid?.[y]?.[x]?.bottom;
-                if (existing && typeof existing.glyph === 'number' && existing.glyph >= 3985 && existing.glyph <= 3989) {
-                    return existing.glyph;
-                }
-                if (!doorState || doorState.isNoDoor || doorState.isBroken) {
-                    return 3985; // S_ndoor (扉のないドア枠 / 壊れたドア)
-                }
-                return doorState.isOpen ? 3986 : 3988;
-            }
-            case 24: // CORR
-                return 3995;
-            case 25: // ROOM
-                return 3992;
-            case 26: { // STAIRS
-                const stairKey = `${normalizeFloorKey(asm.currentFloor)}:${x},${y}`;
-                if (asm.stairCache && asm.stairCache.has(stairKey)) {
-                    return asm.stairCache.get(stairKey).glyph;
-                } else if (asm.prevFloor && parseFloorLevel(asm.prevFloor) > parseFloorLevel(asm.currentFloor)) {
-                    return 3999; // 浅い階に上がってきた場合: 下り階段
-                } else {
-                    return 3998; // 深い階に降りてきた場合: 上り階段
-                }
-            }
-            case 27: { // LADDER
-                const ladderKey = `${normalizeFloorKey(asm.currentFloor)}:${x},${y}`;
-                if (asm.stairCache && asm.stairCache.has(ladderKey)) {
-                    return asm.stairCache.get(ladderKey).glyph;
-                } else if (asm.prevFloor && parseFloorLevel(asm.prevFloor) > parseFloorLevel(asm.currentFloor)) {
-                    return 4001; // 下りハシゴ
-                } else {
-                    return 4000; // 上りハシゴ
-                }
-            }
-            case 28: // FOUNTAIN
-                return 4014;
-            case 29: // THRONE
-                return 4012;
-            case 30: // SINK
-                return 4013;
-            case 31: // GRAVE
-                return 4011;
-            case 32: { // ALTAR
-                // print_glyph で確定した既存の祭壇グリフ (4006〜4010) が存在する場合は最優先で維持
-                const existing = asm.grid?.[y]?.[x]?.bottom;
-                if (existing && typeof existing.glyph === 'number' && existing.glyph >= 4006 && existing.glyph <= 4010) {
-                    return existing.glyph;
-                }
-                // cellInfo.altar からアライメント対応グリフを逆算
-                if (cellInfo && cellInfo.altar && typeof cellInfo.altar.glyph === 'number') {
-                    return cellInfo.altar.glyph;
-                }
-                return 4008; // デフォルト: 中立
-            }
-            case 33: // ICE
-                return 4016;
-            case 35: // AIR
-                return 4023;
-            case 36: // CLOUD
-                return 4024;
-            default:
-                if (typ === undefined || typ === null || typ < 0) return null;
-                return (typ >= 1 && typ <= 12) ? 3930 : DEFAULT_INFERRED_FLOOR_GLYPH;
-        }
-    }
+
 
     /**
-     * Direct Binding (Shim) が現在有効な環境・モードであるかを判定 (Stage 8.3-B)
-     * - 'strict' モード時、または 'auto' モードで directBindingService が利用可能な場合は true
-     * - 'fallback' モード時、または directBindingService が未接続・非対応の場合は false
+     * Direct Binding (Shim) が現在利用可能な環境であるかを判定 (DirectBinding Native)
      * @returns {boolean}
      */
     isDirectBindingActive() {
         const asm = this.areaStateManager;
-        if (!asm) return false;
-        if (asm.directBindingMode === 'strict') return true;
-        if (asm.directBindingMode === 'fallback') return false;
         return Boolean(
+            asm &&
             asm.directBindingService &&
             typeof asm.directBindingService.isAvailable === 'function' &&
             asm.directBindingService.isAvailable()
@@ -158,26 +49,114 @@ export class TerrainInferenceEngine {
     }
 
     /**
-     * Wasm メモリ直結による真の床（地形・部屋・罠・刻み文字）エンティティを生成
+     * Wasm メモリ直結による真の床（地形・部屋・罠・刻み文字）エンティティを生成 (DirectBinding Native)
      * @param {number} x 
      * @param {number} y 
      * @returns {Object|null}
      */
     getGenuineFloor(x, y) {
         const asm = this.areaStateManager;
-        if (asm.directBindingMode !== 'fallback' &&
-            asm.directBindingService &&
+        if (asm && asm.directBindingService &&
             typeof asm.directBindingService.isAvailable === 'function' &&
             asm.directBindingService.isAvailable()) {
             const cellInfo = asm.directBindingService.getCellInfo(x, y);
             if (cellInfo) {
-                // STONE (0) や未発見の隠し通路 SCORR (15) の場合は床エンティティを生成しない (Stage 8.3-B)
+                // STONE (0) や未発見の隠し通路 SCORR (15) の場合は床エンティティを生成しない
                 if (cellInfo.typ === 0 || cellInfo.typ === 15) {
                     return null;
                 }
                 const isSecretDoor = (cellInfo.typ === 14);
                 const effectiveDoor = isSecretDoor ? null : cellInfo.door;
-                const glyphId = this.getGlyphForTerrainType(cellInfo.typ, x, y, effectiveDoor, cellInfo);
+
+                // 🎯 Cコア直接結合（SSOT）＆ 確定地形保護:
+                let glyphId = null;
+                let isDirectGlyph = false;
+
+                const existingBottom = asm.grid?.[y]?.[x]?.bottom;
+
+                // 物理的変化の判定:
+                // 1) typ の物理変化 (掘削・凍結など)
+                const isTypPhysicalChanged = Boolean(
+                    existingBottom &&
+                    existingBottom.typ !== undefined &&
+                    cellInfo.typ !== undefined &&
+                    existingBottom.typ !== cellInfo.typ
+                );
+
+                // 2) ドア状態の物理変化 (開閉・破壊など)
+                const isExistingOpen = Boolean(
+                    existingBottom?.door?.isOpen ||
+                    (existingBottom?.glyph === 3986 || existingBottom?.glyph === 3987)
+                );
+                const isExistingClosed = Boolean(
+                    existingBottom?.door?.isClosed ||
+                    (existingBottom?.glyph === 3988 || existingBottom?.glyph === 3989)
+                );
+                const isExistingBroken = Boolean(
+                    existingBottom?.door?.isBroken ||
+                    existingBottom?.door?.isNoDoor ||
+                    existingBottom?.glyph === 3985
+                );
+
+                const isNewOpen = Boolean(cellInfo?.door?.isOpen);
+                const isNewClosed = Boolean(cellInfo?.door?.isClosed);
+                const isNewBroken = Boolean(cellInfo?.door?.isBroken || cellInfo?.door?.isNoDoor);
+
+                const isDoorStateChanged = Boolean(
+                    cellInfo.typ === 23 &&
+                    cellInfo?.door &&
+                    existingBottom &&
+                    (
+                        isExistingOpen !== isNewOpen ||
+                        isExistingClosed !== isNewClosed ||
+                        isExistingBroken !== isNewBroken
+                    )
+                );
+
+                const hasPhysicalChanged = isTypPhysicalChanged || isDoorStateChanged;
+
+                // 1. C コアネイティブ関数 back_to_glyph(x, y) をリアルタイム直接呼び出し
+                if (glyphId === null && typeof asm.directBindingService.getCellGlyph === 'function') {
+                    const realTimeGlyph = asm.directBindingService.getCellGlyph(x, y);
+                    if (typeof realTimeGlyph === 'number' && realTimeGlyph > 0) {
+                        const directClassified = classifyGlyph(realTimeGlyph);
+                        if (directClassified.type === ENTITY_TYPES.TERRAIN) {
+                            glyphId = realTimeGlyph;
+                            isDirectGlyph = true;
+                            if (asm.directBindingService._cachedLevelGlyphs && x >= 0 && x < 80 && y >= 0 && y < 21) {
+                                asm.directBindingService._cachedLevelGlyphs[y * 80 + x] = realTimeGlyph;
+                            }
+                        }
+                    }
+                }
+
+                // 2. 物理的な変化 (typ変化 または ドア開閉変化) がない場合は、
+                // 画面描画の絶対真値として既存グリフ (向きを持つ開閉扉・角壁等) を最優先維持！
+                if (glyphId === null && existingBottom && existingBottom.type === ENTITY_TYPES.TERRAIN && !existingBottom.inferred && typeof existingBottom.glyph === 'number' && !hasPhysicalChanged) {
+                    glyphId = existingBottom.glyph;
+                    isDirectGlyph = Boolean(existingBottom.isDirectGlyph);
+                }
+
+                // 3. 物理変化があった場合、またはセルが未確定の場合、Cコア直接グリフ (_cachedLevelGlyphs) を採用
+                const cachedGlyphs = asm.directBindingService._cachedLevelGlyphs;
+                if (glyphId === null && cachedGlyphs && x >= 0 && x < 80 && y >= 0 && y < 21) {
+                    const directGlyph = cachedGlyphs[y * 80 + x];
+                    if (typeof directGlyph === 'number' && directGlyph > 0) {
+                        const directClassified = classifyGlyph(directGlyph);
+                        if (directClassified.type === ENTITY_TYPES.TERRAIN) {
+                            glyphId = directGlyph;
+                            isDirectGlyph = true;
+                        }
+                    }
+                }
+
+                // 4. それでも決まらなければ既存グリフを保護
+                if (glyphId === null && existingBottom && existingBottom.type === ENTITY_TYPES.TERRAIN && !existingBottom.inferred && typeof existingBottom.glyph === 'number') {
+                    glyphId = existingBottom.glyph;
+                    isDirectGlyph = Boolean(existingBottom.isDirectGlyph);
+                }
+
+                // Cコア直接グリフおよび既存確定グリフのいずれも存在しない場合は推論捏造せず null を返却
                 if (glyphId === null || glyphId < 0) {
                     return null;
                 }
@@ -186,8 +165,10 @@ export class TerrainInferenceEngine {
                     ...classified,
                     glyph: glyphId,
                     rawGlyph: glyphId,
+                    glyphInfo: { glyph: glyphId, rawGlyph: glyphId, ch: classified.ch || '.' },
                     inferred: false,
                     isGenuine: true,
+                    isDirectGlyph,
                     typ: cellInfo.typ,
                     door: effectiveDoor,
                     cellInfo: isSecretDoor ? { ...cellInfo, door: null } : cellInfo
@@ -232,36 +213,19 @@ export class TerrainInferenceEngine {
         }
 
         // 既に真の床がセルに設定されている場合はそれを維持
-        const existingCell = asm.grid?.[y]?.[x];
+        const existingCell = asm?.grid?.[y]?.[x];
         if (existingCell?.bottom?.isGenuine) {
             return existingCell.bottom;
         }
 
-        const currentNormalized = normalizeFloorKey(asm.currentFloor);
+        const currentNormalized = normalizeFloorKey(asm?.currentFloor);
         const stairKey = `${currentNormalized}:${x},${y}`;
-        if (asm.stairCache && asm.stairCache.has(stairKey)) {
+        if (asm?.stairCache && asm.stairCache.has(stairKey)) {
             return { ...asm.stairCache.get(stairKey) };
         }
 
-        // Direct Binding 有効時 ('strict' または 'auto' で Shim 利用可能時) は、
-        // Worker 同期完了前の未確定セルに対して投機的な仮床 (3992) を生成しない (Stage 8.3-B)
-        if (this.isDirectBindingActive()) {
-            if (asm.directBindingMode === 'strict') {
-                const coordKey = `${asm.currentFloor}:${x},${y}`;
-                if (!asm._warnedStrictCoords || !asm._warnedStrictCoords.has(coordKey)) {
-                    if (!asm._warnedStrictCoords) asm._warnedStrictCoords = new Set();
-                    asm._warnedStrictCoords.add(coordKey);
-                    console.warn(`[AreaStateManager] getGenuineFloor: Inferred floor generation blocked under strict mode at (${x},${y}).`);
-                }
-            }
-            return null;
-        }
-
-        asm.inferredFloorCount++;
-        asm.lastFloorMethod = 'INFERRED_FALLBACK';
-        asm.lastFloorSync = { source: 'INFERRED_FALLBACK', glyph: DEFAULT_INFERRED_FLOOR_GLYPH, typ: -1, isGenuine: false };
-
-        return createInferredFloor();
+        // DirectBinding Native: 未確定マスや未接続マスに対して投機的な仮床 (3992) を捏造せず null を返却
+        return null;
     }
 
     /**

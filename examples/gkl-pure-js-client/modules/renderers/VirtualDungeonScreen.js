@@ -155,11 +155,11 @@ export class VirtualDungeonScreen {
           cell.bottom &&
           cell.bottom.type !== 'UNEXPLORED' &&
           cell.bottom.rawGlyph >= 0 &&
-          cell.bottom.rawGlyph < 9622 &&
-          cell.bottom.glyphInfo?.ch !== ' '
+          cell.bottom.rawGlyph < 9622
         );
+        const isObserved = Boolean(hasNetHackGlyph || cell.middle || cell.top);
         // Layer 1: 地形 (Bottom)
-        if (isExploredBottom && (!cell.bottom.isCachedPreload || hasNetHackGlyph)) {
+        if (isExploredBottom && (!cell.bottom.isCachedPreload || isObserved)) {
           this.drawTile(this.bgCtx, cell.bottom.rawGlyph, dx, dy, ts, ts, 0, () => tileMap);
         } else if (!isExploredBottom && !cell.middle && hasNetHackGlyph) {
           // フォールバック

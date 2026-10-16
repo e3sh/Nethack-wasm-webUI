@@ -962,6 +962,9 @@ export class WebGPUHD2DRenderer {
         for (let x = 0; x < 80; x++) {
           const cell = areaGrid ? areaGrid[y]?.[x] : null;
           let drawnAny = false;
+          const gData = glyphBuffer ? glyphBuffer[y]?.[x] : null;
+          const hasNetHackGlyph = Boolean(gData && gData.glyph >= 0 && gData.glyph < 9622 && gData.ch !== ' ');
+          const isObserved = Boolean(hasNetHackGlyph || cell?.middle || cell?.top);
 
           const isExploredBottom = Boolean(
             cell &&
@@ -969,7 +972,7 @@ export class WebGPUHD2DRenderer {
             cell.bottom.type !== 'UNEXPLORED' &&
             cell.bottom.rawGlyph >= 0 &&
             cell.bottom.rawGlyph < 9622 &&
-            cell.bottom.glyphInfo?.ch !== ' '
+            (!cell.bottom.isCachedPreload || isObserved)
           );
 
           // タイルの基礎環境明度の判定 (明室: 1.0, 暗室: 0.35, 通路: 0.45, 壁: 0.75, その他: 0.85)

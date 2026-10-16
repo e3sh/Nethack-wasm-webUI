@@ -622,5 +622,65 @@ describe('WasmDirectBindingService', () => {
                 expect(bridgeService.getInventoryWeight()).toBe(70);
             });
         });
+
+        describe('Level Glyphs Dump & Fetch (Hybrid Architecture)', () => {
+            it('dumpLevelGlyphs allocates buffer, calls bridge with SHIM_CMD_DUMP_LEVEL_GLYPHS and reads Int32Array', () => {
+                const allocatedPtr = 0xA000;
+                vi.spyOn(memory, 'allocateBuffer').mockReturnValue(allocatedPtr);
+                vi.spyOn(memory, 'freeBuffer');
+
+                const mockGlyphs = new Array(80 * 21).fill(3992);
+                mockGlyphs[0] = 3986; // door
+                vi.spyOn(memory, 'bridgeCall').mockImplementation((cmd, a1, a2, buf, len) => {
+                    if (cmd === NetHackMemory.SHIM_CMD.DUMP_LEVEL_GLYPHS) {
+                        expect(len).toBe(80 * 21 * 4);
+                        return 0;
+                    }
+                    return -1;
+                });
+                vi.spyOn(memory, 'readInt32Array').mockReturnValue(mockGlyphs);
+
+                const glyphs = service.dumpLevelGlyphs();
+                expect(glyphs).toBeInstanceOf(Int32Array);
+                expect(glyphs.length).toBe(80 * 21);
+                expect(glyphs[0]).toBe(3986);
+                expect(memory.freeBuffer).toHaveBeenCalledWith(allocatedPtr);
+                expect(service._cachedLevelGlyphs).toBe(glyphs);
+            });
+
+            it('getCellGlyph calls bridge with SHIM_CMD_GET_CELL_GLYPH and returns glyph number', () => {
+                vi.spyOn(memory, 'bridgeCall').mockImplementation((cmd, a1, a2) => {
+                    if (cmd === NetHackMemory.SHIM_CMD.GET_CELL_GLYPH && a1 === 10 && a2 === 5) {
+                        return 3989; // open door
+                    }
+                    return -1;
+                });
+
+                const glyph = service.getCellGlyph(10, 5);
+                expect(glyph).toBe(3989);
+            });
+
+            it('fetchLevelGlyphs requests glyph buffer via bridge.callShim', async () => {
+                const mockBridge = {
+                    callShim: vi.fn(async (cmd, a1, a2, size, type) => {
+                        if (cmd === NetHackMemory.SHIM_CMD.DUMP_LEVEL_GLYPHS) {
+                            expect(size).toBe(80 * 21 * 4);
+                            expect(type).toBe('int32');
+                            const buf = new Array(80 * 21).fill(3992);
+                            buf[10] = 3988;
+                            return { result: 0, buffer: buf };
+                        }
+                        return { result: -1, buffer: null };
+                    })
+                };
+
+                const bridgeService = new WasmDirectBindingService({ bridge: mockBridge, memory: null });
+                const glyphs = await bridgeService.fetchLevelGlyphs();
+
+                expect(glyphs).toBeInstanceOf(Int32Array);
+                expect(glyphs[10]).toBe(3988);
+                expect(bridgeService._cachedLevelGlyphs).toBe(glyphs);
+            });
+        });
     });
 });

@@ -99,9 +99,7 @@ export class GKLEventRouter {
                 !(core && core.isMenuOpen)
             );
             if (isTopLevelSettled) {
-                const mode = p.directBindingMode || p.wasmDirectBindingService?.mode || 'auto';
                 const isDirectAvailable = Boolean(
-                    mode !== 'fallback' &&
                     p.wasmDirectBindingService &&
                     typeof p.wasmDirectBindingService.isAvailable === 'function' &&
                     p.wasmDirectBindingService.isAvailable()
@@ -160,9 +158,13 @@ export class GKLEventRouter {
                         }
                     }
 
-                    // 🎯 フロア遷移・初回ターン確定時の全フロア地形 (80x21) 自動ロード (Stage 8.3-B)
-                    if (needTerrainDump && p.areaStateManager && typeof p.areaStateManager.dumpLevelTerrain === 'function') {
-                        p.areaStateManager.dumpLevelTerrain();
+                    // 🎯 フロア遷移・初回ターン確定時の全フロア地形・グリフ (80x21) 自動ロード (Stage 8.3-B / Hybrid)
+                    if (needTerrainDump && p.areaStateManager) {
+                        if (typeof p.areaStateManager.dumpLevelMap === 'function') {
+                            p.areaStateManager.dumpLevelMap();
+                        } else if (typeof p.areaStateManager.dumpLevelTerrain === 'function') {
+                            p.areaStateManager.dumpLevelTerrain();
+                        }
                     }
 
                     // 🎯 発見・識別状態 (objects[i].oc_name_known) の同期
@@ -181,6 +183,11 @@ export class GKLEventRouter {
                     // 🎯 足元の真の床を AreaStateManager へ即時反映 (Stage 8.2-B)
                     if (p.areaStateManager && typeof p.areaStateManager.syncPlayerFeetFloor === 'function') {
                         p.areaStateManager.syncPlayerFeetFloor();
+                    }
+
+                    // 🎯 モンスター足元の床アイテム同期 (Hybrid二重管理)
+                    if (p.areaStateManager && typeof p.areaStateManager.syncMonstersFeetObjects === 'function') {
+                        p.areaStateManager.syncMonstersFeetObjects();
                     }
 
                     if (p.inventoryStateManager && p.inventoryStateManager.isDirectBindingAvailable) {
@@ -436,10 +443,9 @@ export class GKLEventRouter {
             }
         });
 
-        // 3.2. ゲーム開始・再開（Restore）時の Discovery バックグラウンド同期 ＆ キャッシュ管理
+        // 3.2. ゲーム開始・再開（Restore）時の Discovery バックグラウンド同期 ＆ キャッシュ管理 (DirectBinding Native)
         const triggerDiscoverySync = () => {
-            const mode = p.directBindingMode || p.wasmDirectBindingService?.mode || 'auto';
-            const isDirect = mode !== 'fallback' && p.wasmDirectBindingService?.isAvailable();
+            const isDirect = Boolean(p.wasmDirectBindingService?.isAvailable());
             if (isDirect) {
                 // Direct Binding の場合は inputRequired または DirectBinding 経由で取得されるため、マクロ送信を抑止
                 if (p.discoveryStateManager && typeof p.discoveryStateManager.syncWithLiveMemory === 'function' && p.wasmDirectBindingService) {
@@ -448,10 +454,6 @@ export class GKLEventRouter {
                         core.emit('discoveriesStateUpdated', p.discoveryStateManager);
                     }
                 }
-                return;
-            }
-            // Direct Binding モード時はフォールバックマクロ（\）を完全遮断
-            if (mode !== 'fallback') {
                 return;
             }
             p.syncDiscoveriesSilent();

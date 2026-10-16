@@ -13,7 +13,7 @@ export class SilentSyncCoordinator {
      */
     constructor(plugin, options = {}) {
         this.plugin = plugin;
-        this.directBindingMode = options.directBindingMode || 'auto';
+        this.directBindingMode = 'native';
         this._isSyncing = false;
         this._isSyncingDiscoveries = false;
 
@@ -33,15 +33,11 @@ export class SilentSyncCoordinator {
     }
 
     /**
-     * 動作モード ('auto' | 'strict' | 'fallback') の設定
-     * @param {'auto'|'strict'|'fallback'} mode
+     * 動作モードの設定 (DirectBinding Native 化に伴い no-op 後方互換プロキシ)
+     * @param {string} mode
      */
     setDirectBindingMode(mode) {
-        if (mode === 'strict' || mode === 'fallback' || mode === 'auto') {
-            this.directBindingMode = mode;
-        } else {
-            this.directBindingMode = 'auto';
-        }
+        this.directBindingMode = 'native';
     }
 
     /**
@@ -189,9 +185,7 @@ export class SilentSyncCoordinator {
      */
     hasPendingSync() {
         const p = this.plugin;
-        const mode = p.directBindingMode || this.directBindingMode || 'auto';
         const isDirect = Boolean(
-            mode !== 'fallback' &&
             p.wasmDirectBindingService &&
             p.wasmDirectBindingService.isAvailable()
         );
@@ -221,9 +215,7 @@ export class SilentSyncCoordinator {
         if (p.core.isPendingPrefix || p.core.isMorePromptActive || p.core.isTextWindowOpen) return false;
         this._isSyncing = true;
         try {
-            const mode = p.directBindingMode || this.directBindingMode || 'auto';
             const isDirect = Boolean(
-                mode !== 'fallback' &&
                 p.wasmDirectBindingService &&
                 p.wasmDirectBindingService.isAvailable()
             );
@@ -323,10 +315,9 @@ export class SilentSyncCoordinator {
         }
 
         const startTime = Date.now();
-        const mode = p.directBindingMode || this.directBindingMode || 'auto';
 
-        // 🎯 Direct Memory Binding: Wasm メモリ直結が利用可能な場合はキー送信マクロをバイパス (Stage 8.2)
-        if (mode !== 'fallback' && p.inventoryStateManager && p.inventoryStateManager.isDirectBindingAvailable) {
+        // 🎯 Direct Memory Binding: Wasm メモリ直結が利用可能な場合はキー送信マクロをバイパス (DirectBinding Native)
+        if (p.inventoryStateManager && p.inventoryStateManager.isDirectBindingAvailable) {
             if (p.wasmDirectBindingService && p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
                 if (!p.wasmDirectBindingService._isSyncing) {
                     const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true, syncDiscoveries: true });
@@ -348,10 +339,9 @@ export class SilentSyncCoordinator {
             return true;
         }
 
-        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！ (Stage 8.2-B)
-        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
-        if (mode === 'strict' || isDirect) {
-            console.warn('[GKLPlugin] syncInventorySilent: Shim binding unavailable or fallback blocked under direct mode.');
+        // Direct Binding 利用時はフォールバック（キー送信マクロ）を完全遮断
+        const isDirect = Boolean(p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable());
+        if (isDirect) {
             return false;
         }
 
@@ -394,10 +384,9 @@ export class SilentSyncCoordinator {
         }
 
         const startTime = Date.now();
-        const mode = p.directBindingMode || this.directBindingMode || 'auto';
-        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
+        const isDirect = Boolean(p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable());
 
-        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス
+        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス (DirectBinding Native)
         if (isDirect && p.spellStateManager) {
             if (p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
                 if (!p.wasmDirectBindingService._isSyncing) {
@@ -414,9 +403,8 @@ export class SilentSyncCoordinator {
             return true;
         }
 
-        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！
-        if (mode === 'strict' || isDirect) {
-            console.warn('[GKLPlugin] syncSpellsSilent: Shim binding unavailable or fallback blocked under direct mode.');
+        // Direct Binding が利用可能な時はフォールバック（キー送信マクロ）を完全遮断
+        if (isDirect) {
             return false;
         }
 
@@ -449,10 +437,9 @@ export class SilentSyncCoordinator {
         }
 
         const startTime = Date.now();
-        const mode = p.directBindingMode || this.directBindingMode || 'auto';
-        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
+        const isDirect = Boolean(p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable());
 
-        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス
+        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス (DirectBinding Native)
         if (isDirect && p.attributeStateManager) {
             if (p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
                 if (!p.wasmDirectBindingService._isSyncing) {
@@ -474,9 +461,8 @@ export class SilentSyncCoordinator {
             return true;
         }
 
-        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！
-        if (mode === 'strict' || isDirect) {
-            console.warn('[GKLPlugin] syncAttributesSilent: Shim binding unavailable or fallback blocked under direct mode.');
+        // Direct Binding 利用時はフォールバック（キー送信マクロ）を完全遮断
+        if (isDirect) {
             return false;
         }
 
@@ -514,10 +500,9 @@ export class SilentSyncCoordinator {
         }
 
         const startTime = Date.now();
-        const mode = p.directBindingMode || this.directBindingMode || 'auto';
-        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
+        const isDirect = Boolean(p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable());
 
-        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス
+        // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス (DirectBinding Native)
         if (isDirect && p.skillStateManager) {
             if (p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
                 if (!p.wasmDirectBindingService._isSyncing) {
@@ -534,9 +519,8 @@ export class SilentSyncCoordinator {
             return true;
         }
 
-        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！
-        if (mode === 'strict' || isDirect) {
-            console.warn('[GKLPlugin] syncSkillsSilent: Shim binding unavailable or fallback blocked under direct mode.');
+        // Direct Binding 利用時はフォールバック（キー送信マクロ）を完全遮断
+        if (isDirect) {
             return false;
         }
 
@@ -557,9 +541,7 @@ export class SilentSyncCoordinator {
      */
     async syncAllSilent(options = {}) {
         const p = this.plugin;
-        const mode = p.directBindingMode || this.directBindingMode || 'auto';
         const isWorkerDirect = Boolean(
-            mode !== 'fallback' &&
             p.wasmDirectBindingService &&
             p.wasmDirectBindingService.bridge &&
             !p.wasmDirectBindingService.hasLiveMemory &&
@@ -615,7 +597,7 @@ export class SilentSyncCoordinator {
     }
 
     /**
-     * 発見済みアイテムリスト (Discoveries `\`) のバックグラウンド自動同期・リハイドレーション
+     * 発見済みアイテムリスト (Discoveries `\`) のバックグラウンド自動同期・リハイドレーション (DirectBinding Native)
      * @returns {Promise<boolean>}
      */
     async syncDiscoveriesSilent() {
@@ -624,8 +606,7 @@ export class SilentSyncCoordinator {
         this._isSyncingDiscoveries = true;
 
         const startTime = Date.now();
-        const mode = p.directBindingMode || this.directBindingMode || 'auto';
-        const isDirect = mode !== 'fallback' && p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable();
+        const isDirect = Boolean(p.wasmDirectBindingService && p.wasmDirectBindingService.isAvailable());
 
         // 🎯 Direct Binding: Wasm Direct Binding が利用可能な場合はキー送信マクロをバイパス
         if (isDirect && p.discoveryStateManager) {
@@ -648,10 +629,9 @@ export class SilentSyncCoordinator {
             }
         }
 
-        // Direct Binding が有効（または strict モード）の時はフォールバック（キー送信マクロ）を完全遮断！
-        if (mode === 'strict' || isDirect) {
+        // Direct Binding 利用時はフォールバック（キー送信マクロ）を完全遮断
+        if (isDirect) {
             this._isSyncingDiscoveries = false;
-            console.warn('[GKLPlugin] syncDiscoveriesSilent: Shim binding unavailable or fallback blocked under direct mode.');
             return false;
         }
 

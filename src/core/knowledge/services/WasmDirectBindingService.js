@@ -41,8 +41,8 @@ export class WasmDirectBindingService {
             this.memory = null;
         }
 
-        // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
-        this._mode = options.mode || options.directBindingMode || 'auto';
+        // 動作モード: DirectBinding Native (フォールバック撤廃・純化)
+        this._mode = 'native';
 
         // サブモジュール・アダプタ群の初期化
         this.discoveryAdapter = new DiscoveryWasmAdapter();
@@ -89,6 +89,8 @@ export class WasmDirectBindingService {
     set _cachedEngraving(v) { this.spatialAdapter.cachedEngraving = v; }
     get _cachedLevelTerrain() { return this.spatialAdapter.cachedLevelTerrain; }
     set _cachedLevelTerrain(v) { this.spatialAdapter.cachedLevelTerrain = v; }
+    get _cachedLevelGlyphs() { return this.spatialAdapter.cachedLevelGlyphs; }
+    set _cachedLevelGlyphs(v) { this.spatialAdapter.cachedLevelGlyphs = v; }
 
     get _cachedInventory() { return this.inventoryAdapter.cachedInventory; }
     set _cachedInventory(v) { this.inventoryAdapter.cachedInventory = v; }
@@ -161,42 +163,38 @@ export class WasmDirectBindingService {
     }
 
     /**
-     * 動作モード ('auto' | 'strict' | 'fallback') の取得
-     * @returns {'auto'|'strict'|'fallback'}
+     * 動作モード ('native') の取得
+     * @returns {'native'}
      */
     get mode() {
-        return this._mode;
+        return 'native';
     }
 
     /**
-     * 動作モードの設定
-     * @param {'auto'|'strict'|'fallback'} val
+     * 動作モードの設定 (DirectBinding Native 化に伴い no-op 後方互換プロキシ)
+     * @param {string} val
      */
     set mode(val) {
-        if (val === 'strict' || val === 'fallback' || val === 'auto') {
-            this._mode = val;
-        } else {
-            this._mode = 'auto';
-        }
+        this._mode = 'native';
     }
 
     /**
-     * 動作モード ('auto' | 'strict' | 'fallback') のエイリアス
+     * 動作モードのエイリアス
      */
     get directBindingMode() {
-        return this._mode;
+        return 'native';
     }
 
     set directBindingMode(val) {
-        this.mode = val;
+        this._mode = 'native';
     }
 
     /**
-     * 動作モードの設定 (APIメソッド)
-     * @param {'auto'|'strict'|'fallback'} val
+     * 動作モードの設定 (APIメソッド: 後方互換 no-op)
+     * @param {string} val
      */
     setMode(val) {
-        this.mode = val;
+        this._mode = 'native';
     }
 
     /**
@@ -237,12 +235,10 @@ export class WasmDirectBindingService {
     }
 
     /**
-     * 直接メモリバインディング（_shim_bridge_call または WorkerBridge.callShim）が利用可能かどうかを判定
-     * - 'fallback' モード時はバイパス検証のため常に false を返却
+     * 直接メモリバインディング（_shim_bridge_call または WorkerBridge.callShim）が利用可能かどうかを判定 (DirectBinding Native)
      * @returns {boolean}
      */
     isAvailable() {
-        if (this._mode === 'fallback') return false;
         if (this.bridge && typeof this.bridge.callShim === 'function') return true;
         if (this.hasLiveMemory) return true;
         if (this._cachedCellInfo || this._cachedLevelTerrain || (this._cachedInventory && this._cachedInventory.length > 0) || (this._cachedMonsters && this._cachedMonsters.size > 0)) {
@@ -497,6 +493,40 @@ export class WasmDirectBindingService {
      */
     setCachedLevelTerrain(terrain) {
         this.spatialAdapter.setCachedLevelTerrain(terrain);
+    }
+
+    /**
+     * 現在のフロア全体 (80x21) の完成形グリフ (levl.glyph) を一括ダンプ
+     * @returns {Int32Array|null}
+     */
+    dumpLevelGlyphs() {
+        return this.spatialAdapter.dumpLevelGlyphs(this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
+     * 指定セルの純粋な真の地形グリフ (back_to_glyph) をリアルタイム取得
+     * @param {number} x
+     * @param {number} y
+     * @returns {number|null}
+     */
+    getCellGlyph(x, y) {
+        return this.spatialAdapter.getCellGlyph(this.memory, this.isAvailable(), this.hasLiveMemory, x, y);
+    }
+
+    /**
+     * 現在のフロア全体 (80x21) の完成形グリフを一括非同期取得 (Worker 調停対応)
+     * @returns {Promise<Int32Array|null>}
+     */
+    async fetchLevelGlyphs() {
+        return this.spatialAdapter.fetchLevelGlyphs(this.bridge, this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
+     * テスト用 / Worker 受信用 グリフキャッシュ設定
+     * @param {Int32Array|Array<number>} glyphs
+     */
+    setCachedLevelGlyphs(glyphs) {
+        this.spatialAdapter.setCachedLevelGlyphs(glyphs);
     }
 
     /**

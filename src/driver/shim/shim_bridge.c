@@ -16,6 +16,8 @@ enum ShimBridgeCmd {
     SHIM_CMD_GET_TRAP_AT        = 0x12, /* a1=x, a2=y -> ttyp(8) | tseen(1) | once(1) (不在時 0) */
     SHIM_CMD_GET_ENGRAVING_AT   = 0x13, /* a1=x, a2=y, buf=char*, len=max -> 文字列コピー (返値: type) */
     SHIM_CMD_GET_ROOM_TYPE      = 0x14, /* a1=roomno -> rtype (SHOP, TEMPLE, ZOO, VAULT等) */
+    SHIM_CMD_DUMP_LEVEL_GLYPHS  = 0x15, /* buf=int[80*21], len=80*21*sizeof(int) -> 全フロアglyph一括コピー */
+    SHIM_CMD_GET_CELL_GLYPH     = 0x16, /* a1=x, a2=y -> back_to_glyph(x, y) (リアルタイム純粋地形グリフ) */
 
     /* 2. マップ上のエンティティ系 (0x20〜0x2F) */
     SHIM_CMD_GET_OBJECT_AT      = 0x20, /* a1=x, a2=y -> 先頭 struct obj* */
@@ -82,6 +84,21 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
                 }
             }
             return 0;
+        }
+        case SHIM_CMD_DUMP_LEVEL_GLYPHS: {
+            if (!buf || len < (int)(COLNO * ROWNO * sizeof(int))) return -1;
+            int *out = (int*) buf;
+            for (int y = 0; y < ROWNO; y++) {
+                for (int x = 0; x < COLNO; x++) {
+                    out[y * COLNO + x] = back_to_glyph(x, y);
+                }
+            }
+            return 0;
+        }
+        case SHIM_CMD_GET_CELL_GLYPH: {
+            int x = (int) arg1, y = (int) arg2;
+            if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return -1;
+            return (long) back_to_glyph(x, y);
         }
         case SHIM_CMD_GET_TRAP_AT: {
             int x = (int) arg1, y = (int) arg2;

@@ -29,11 +29,11 @@ export class InventoryStateManager {
         this.language = options.language || (this.structuredKnowledgeEngine && this.structuredKnowledgeEngine.language) || 'ja';
         this.sagesWisdomMode = Boolean(options.sagesWisdomMode);
 
-        // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
-        this.directBindingMode = options.directBindingMode || 'auto';
+        // 動作モード: DirectBinding Native (フォールバック撤廃・純化)
+        this.directBindingMode = 'native';
 
-        // 同期テレメトリ (Stage 8.2-B)
-        this.lastSyncMethod = 'NONE'; // 'NONE' | 'SHIM' | 'MACRO'
+        // 同期テレメトリ
+        this.lastSyncMethod = 'SHIM';
         this.shimSyncCount = 0;
         this.macroSyncCount = 0;
     }
@@ -51,29 +51,18 @@ export class InventoryStateManager {
     }
 
     /**
-     * 動作モード ('auto' | 'strict' | 'fallback') の設定
-     * @param {'auto'|'strict'|'fallback'} mode
+     * 動作モードの設定 (DirectBinding Native 化に伴い no-op 後方互換プロキシ)
+     * @param {string} mode
      */
     setDirectBindingMode(mode) {
-        if (mode === 'strict' || mode === 'fallback' || mode === 'auto') {
-            this.directBindingMode = mode;
-        } else {
-            this.directBindingMode = 'auto';
-        }
-        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.setMode === 'function') {
-            this.wasmDirectBindingService.setMode(this.directBindingMode);
-        }
+        this.directBindingMode = 'native';
     }
 
     setWasmDirectBindingService(service) {
         this.wasmDirectBindingService = service;
-        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.setMode === 'function') {
-            this.wasmDirectBindingService.setMode(this.directBindingMode);
-        }
     }
 
     get isDirectBindingAvailable() {
-        if (this.directBindingMode === 'fallback') return false;
         return Boolean(this.wasmDirectBindingService && this.wasmDirectBindingService.isAvailable());
     }
 
@@ -158,13 +147,7 @@ export class InventoryStateManager {
         }
 
         // strict モード時はマクロフォールバック（rawObjPtr を持たない純粋テキスト行）を完全遮断 (Stage 8.2-B)
-        // ただし、公式 C コアの shim_add_menu から送出された rawObjPtr を持つ正当なメニュー項目は許可する
         const hasDirectRawObjPtr = menuItems.some(mi => mi && ((mi.rawObjPtr && mi.rawObjPtr > 0) || (typeof mi.identifier === 'number' && mi.identifier > 0)));
-        if (this.directBindingMode === 'strict' && !hasDirectRawObjPtr) {
-            console.warn('[InventoryStateManager] updateFromMenuItems blocked under strict directBindingMode.');
-            return false;
-        }
-
         if (hasDirectRawObjPtr) {
             this.lastSyncMethod = 'SHIM';
             this.shimSyncCount++;
@@ -754,12 +737,6 @@ export class InventoryStateManager {
     updateFromSequenceBuffer(sequenceBuffer) {
         if (!Array.isArray(sequenceBuffer) || sequenceBuffer.length === 0) {
             // バッファが空の場合は同期失敗またはキャンセルとみなし、既存のアイテム状態を安全に保持
-            return false;
-        }
-
-        // strict モード時はマクロフォールバックを完全遮断 (Stage 8.2-B)
-        if (this.directBindingMode === 'strict') {
-            console.warn('[InventoryStateManager] updateFromSequenceBuffer blocked under strict directBindingMode.');
             return false;
         }
 

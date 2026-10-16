@@ -29,8 +29,14 @@ describe('AreaStateManager - Wasm Direct Binding (Stage 8.3)', () => {
             getTrapAt: vi.fn((x, y) => null),
             getEngravingAt: vi.fn((x, y) => null),
             getFullMonsterAt: vi.fn((x, y) => null),
-            dumpLevelTerrain: vi.fn(() => new Uint8Array(80 * 21))
+            dumpLevelTerrain: vi.fn(() => new Uint8Array(80 * 21)),
+            dumpLevelGlyphs: vi.fn(() => new Int32Array(80 * 21).fill(3992)),
+            _cachedLevelGlyphs: new Int32Array(80 * 21).fill(3992)
         };
+        mockService._cachedLevelGlyphs[10 * 80 + 12] = 3988; // (12, 10): closed door
+        mockService._cachedLevelGlyphs[8 * 80 + 15] = 3992;  // (15, 8): floor
+        mockService._cachedLevelGlyphs[7 * 80 + 14] = 3992;  // (14, 7): floor
+        mockService._cachedLevelGlyphs[20 * 80 + 10] = 4014; // (10, 20): fountain
 
         asm = new AreaStateManager(80, 24, null, mockService);
     });

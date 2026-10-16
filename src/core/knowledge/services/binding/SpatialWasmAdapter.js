@@ -26,6 +26,7 @@ export class SpatialWasmAdapter {
         this._cachedTrap = null;
         this._cachedEngraving = null;
         this._cachedLevelTerrain = null;
+        this._cachedLevelGlyphs = null;
     }
 
     get cachedCellInfo() { return this._cachedCellInfo; }
@@ -48,6 +49,9 @@ export class SpatialWasmAdapter {
 
     get cachedLevelTerrain() { return this._cachedLevelTerrain; }
     set cachedLevelTerrain(v) { this.setCachedLevelTerrain(v); }
+
+    get cachedLevelGlyphs() { return this._cachedLevelGlyphs; }
+    set cachedLevelGlyphs(v) { this.setCachedLevelGlyphs(v); }
 
     /**
      * 指定座標のセル詳細情報 (typ, flags, lit, roomno, door, altar) を取得
@@ -214,6 +218,118 @@ export class SpatialWasmAdapter {
     }
 
     /**
+     * 現在のフロア全体 (80x21) の完成形グリフ (levl.glyph) を一括ダンプ
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {Int32Array|null}
+     */
+    dumpLevelGlyphs(memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return null;
+
+        if (hasLiveMemory && memory) {
+            const COLNO = 80;
+            const ROWNO = 21;
+            const count = COLNO * ROWNO;
+            const size = count * 4; // sizeof(int) = 4
+
+            const bufPtr = memory.allocateBuffer(size);
+            if (!bufPtr) return null;
+
+            try {
+                const res = memory.bridgeCall(SHIM_CMD.DUMP_LEVEL_GLYPHS, 0, 0, bufPtr, size);
+                if (res !== 0) return null;
+
+                const rawArr = memory.readInt32Array(bufPtr, count);
+                this._cachedLevelGlyphs = new Int32Array(rawArr);
+                return this._cachedLevelGlyphs;
+            } finally {
+                memory.freeBuffer(bufPtr);
+            }
+        }
+
+        return this._cachedLevelGlyphs || null;
+    }
+
+    /**
+     * 指定セルの純粋な真の地形グリフ (back_to_glyph) をリアルタイム取得
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @param {number} x
+     * @param {number} y
+     * @returns {number|null}
+     */
+    getCellGlyph(memory, isAvailable, hasLiveMemory, x, y) {
+        if (!isAvailable || !hasLiveMemory || !memory) {
+            if (this._cachedLevelGlyphs && x >= 0 && x < 80 && y >= 0 && y < 21) {
+                const g = this._cachedLevelGlyphs[y * 80 + x];
+                return (typeof g === 'number' && g > 0) ? g : null;
+            }
+            return null;
+        }
+
+        const res = memory.bridgeCall(SHIM_CMD.GET_CELL_GLYPH, x, y, 0, 0);
+        if (typeof res === 'number' && res >= 0) {
+            // キャッシュも同期更新
+            if (this._cachedLevelGlyphs && x >= 0 && x < 80 && y >= 0 && y < 21) {
+                this._cachedLevelGlyphs[y * 80 + x] = res;
+            }
+            return res;
+        }
+        return null;
+    }
+
+    /**
+     * 現在のフロア全体 (80x21) の完成形グリフを一括非同期取得 (Worker 調停対応)
+     * @param {Object} bridge
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {Promise<Int32Array|null>}
+     */
+    async fetchLevelGlyphs(bridge, memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return null;
+
+        if (hasLiveMemory) {
+            return this.dumpLevelGlyphs(memory, isAvailable, hasLiveMemory);
+        }
+
+        if (bridge && typeof bridge.callShim === 'function') {
+            try {
+                const COLNO = 80;
+                const ROWNO = 21;
+                const count = COLNO * ROWNO;
+                const size = count * 4;
+                const res = await bridge.callShim(SHIM_CMD.DUMP_LEVEL_GLYPHS, 0, 0, size, 'int32');
+                if (res && res.result === 0 && Array.isArray(res.buffer)) {
+                    this._cachedLevelGlyphs = new Int32Array(res.buffer);
+                    return this._cachedLevelGlyphs;
+                }
+            } catch (err) {
+                console.warn('[SpatialWasmAdapter] fetchLevelGlyphs error:', err);
+                return null;
+            }
+        }
+
+        return this._cachedLevelGlyphs || null;
+    }
+
+    /**
+     * テスト用 / Worker 受信用 グリフキャッシュ設定
+     * @param {Int32Array|Array<number>|null} glyphs
+     */
+    setCachedLevelGlyphs(glyphs) {
+        if (!glyphs) {
+            this._cachedLevelGlyphs = null;
+        } else if (glyphs instanceof Int32Array) {
+            this._cachedLevelGlyphs = glyphs;
+        } else if (Array.isArray(glyphs)) {
+            this._cachedLevelGlyphs = new Int32Array(glyphs);
+        }
+    }
+
+    /**
      * 指定座標の罠情報を取得 (存在しない場合は null)
      * @param {number} x
      * @param {number} y
@@ -346,6 +462,7 @@ export class SpatialWasmAdapter {
      */
     clearFloorCaches() {
         this._cachedLevelTerrain = null;
+        this._cachedLevelGlyphs = null;
         this._cachedCellInfo = null;
         this._cachedCellX = -1;
         this._cachedCellY = -1;

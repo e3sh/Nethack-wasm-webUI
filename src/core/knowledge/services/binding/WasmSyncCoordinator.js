@@ -315,13 +315,22 @@ export class WasmSyncCoordinator {
                     }
                 }
 
-                // 7. フロア全域の地形一括同期 (Stage 8.3-A / 8.3-B)
-                if (options.syncLevelTerrain === true && spatial) {
+                // 7. フロア全域の地形＆グリフ一括同期 (Stage 8.3-A / 8.3-B / Hybrid)
+                if ((options.syncLevelTerrain === true || options.syncLevelGlyphs === true) && spatial) {
                     try {
-                        if (facade && typeof facade.fetchLevelTerrain === 'function') {
-                            await facade.fetchLevelTerrain();
-                        } else {
-                            await spatial.fetchLevelTerrain(bridge, null, true, false);
+                        if (options.syncLevelTerrain === true) {
+                            if (facade && typeof facade.fetchLevelTerrain === 'function') {
+                                await facade.fetchLevelTerrain();
+                            } else {
+                                await spatial.fetchLevelTerrain(bridge, null, true, false);
+                            }
+                        }
+                        if (options.syncLevelGlyphs === true || options.syncLevelTerrain === true) {
+                            if (facade && typeof facade.fetchLevelGlyphs === 'function') {
+                                await facade.fetchLevelGlyphs();
+                            } else {
+                                await spatial.fetchLevelGlyphs(bridge, null, true, false);
+                            }
                         }
                         if (isStale()) return false;
                     } catch (e) {

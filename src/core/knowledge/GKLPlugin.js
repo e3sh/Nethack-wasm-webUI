@@ -151,11 +151,11 @@ export class GKLPlugin {
         this.lookService = new OnDemandLookService();
         this.lookupService = options.lookupService || new OnDemandLookupService();
 
-        // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
-        this.directBindingMode = 'auto';
+        // 動作モード: DirectBinding Native (フォールバック撤廃・純化)
+        this.directBindingMode = 'native';
 
         // コーディネーター & 新設サービスの初期化 (ROADMAP 2.2)
-        this.silentSyncCoordinator = new SilentSyncCoordinator(this, { directBindingMode: this.directBindingMode });
+        this.silentSyncCoordinator = new SilentSyncCoordinator(this, { directBindingMode: 'native' });
         this.fxCoordinator = new GKLFxCoordinator(this);
         this.eventRouter = new GKLEventRouter(this);
         this.inspectionService = new InspectionService(this);
@@ -182,15 +182,15 @@ export class GKLPlugin {
     set _lastReceivedMessage(val) { this.eventRouter.lastReceivedMessage = val; }
 
     /**
-     * 動作モード ('auto' | 'strict' | 'fallback') の設定
-     * @param {'auto'|'strict'|'fallback'} mode
+     * 動作モードの設定 (DirectBinding Native 化に伴い no-op 後方互換プロキシ)
+     * @param {string} mode
      */
     setDirectBindingMode(mode) {
-        this.directBindingMode = (mode === 'strict' || mode === 'fallback' || mode === 'auto') ? mode : 'auto';
-        this.silentSyncCoordinator.setDirectBindingMode(this.directBindingMode);
-        this.wasmDirectBindingService?.setMode?.(this.directBindingMode);
-        this.inventoryStateManager?.setDirectBindingMode?.(this.directBindingMode);
-        this.areaStateManager?.setDirectBindingMode?.(this.directBindingMode);
+        this.directBindingMode = 'native';
+        this.silentSyncCoordinator?.setDirectBindingMode?.('native');
+        this.wasmDirectBindingService?.setMode?.('native');
+        this.inventoryStateManager?.setDirectBindingMode?.('native');
+        this.areaStateManager?.setDirectBindingMode?.('native');
     }
 
     _recordSilentSync(type, changed = false, durationMs = 0, method = 'MACRO') {

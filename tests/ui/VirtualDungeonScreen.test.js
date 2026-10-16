@@ -202,6 +202,7 @@ describe('VirtualDungeonScreen - 仮想スクリーン統合レンダラー Phas
       getTrapAt: () => null,
       getEngravingAt: () => null,
       hasFloorObjectsCacheAt: () => true,
+      _cachedLevelGlyphs: new Int32Array(80 * 24).fill(3992),
       getObjectsAt: vi.fn()
         .mockReturnValueOnce([{ otyp: 10, quan: 1, glyph: 1938 }, { otyp: 11, quan: 1, glyph: 1939 }])
         .mockReturnValueOnce([])

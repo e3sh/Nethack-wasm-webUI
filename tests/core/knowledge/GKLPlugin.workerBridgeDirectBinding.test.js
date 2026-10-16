@@ -46,6 +46,7 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
         const playerY = 6;
 
         // 自キャラ座標を設定
+        gkl.wasmDirectBindingService.setCachedLevelGlyphs(new Int32Array(80 * 21).fill(3992));
         gkl.areaStateManager.updatePlayerPosition(playerX, playerY);
 
         // Worker 側の CALL_SHIM 応答を模擬 (C コアの shim_bridge_call 相当)
@@ -411,6 +412,12 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
                     } else if (payload.cmd === SHIM_CMD.DUMP_LEVEL_TERRAIN) {
                         result = 0;
                         buffer = mockTerrain;
+                    } else if (payload.cmd === SHIM_CMD.DUMP_LEVEL_GLYPHS) {
+                        const mockGlyphs = new Array(1680).fill(0);
+                        mockGlyphs[5 * 80 + 10] = 3998; // STAIRS
+                        mockGlyphs[5 * 80 + 11] = 3995; // CORR
+                        result = 0;
+                        buffer = mockGlyphs;
                     } else if (payload.cmd === SHIM_CMD.GET_EQUIPMENT_PTRS) {
                         buffer = new Array(14).fill(0);
                     } else if (payload.cmd === SHIM_CMD.DUMP_ALL_INVENT) {
@@ -440,12 +447,13 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
             expect(gkl.areaStateManager._needsFullTerrainDump).toBe(false);
             expect(gkl.areaStateManager.inferredFloorCount).toBe(0);
 
-            // 自キャラ足元 (10, 5) は確定同期されるが、print_glyph 未受信の未踏セル (11, 5) には cell.bottom を書き込まないこと
+            // 自キャラ足元 (10, 5) は確定同期され、未踏セル (11, 5) にも全域下敷き真床 (isCachedPreload: true) が安全に展開されていること
             expect(gkl.areaStateManager.grid[5][10].bottom).not.toBeNull();
             expect(gkl.areaStateManager.grid[5][10].bottom.isGenuine).toBe(true);
-            expect(gkl.areaStateManager.grid[5][11].bottom).toBeNull();
+            expect(gkl.areaStateManager.grid[5][11].bottom).not.toBeNull();
+            expect(gkl.areaStateManager.grid[5][11].bottom.isCachedPreload).toBe(true);
 
-            // その後 (11, 5) にモンスターが観測された時点で、保持された _cachedLevelTerrain から通路 (3995) が真の床として補完されること
+            // その後 (11, 5) にモンスターが観測された時点で、isCachedPreload が解除され通路 (3995) が確定維持されること
             core.emit('print_glyph', {
                 x: 11,
                 y: 5,
@@ -455,6 +463,7 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
             expect(gkl.areaStateManager.grid[5][11].bottom).not.toBeNull();
             expect(gkl.areaStateManager.grid[5][11].bottom.isGenuine).toBe(true);
             expect(gkl.areaStateManager.grid[5][11].bottom.glyph).toBe(3995);
+            expect(gkl.areaStateManager.grid[5][11].bottom.isCachedPreload).toBeUndefined();
         });
 
         it('8. --More-- 待機中 (display_nhwindow WIN_MESSAGE blocking / isMorePrompt: true) は Sync Barrier を通過せず CALL_SHIM や areaStateCommitted が発火しないこと', async () => {

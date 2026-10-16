@@ -5,7 +5,7 @@
  */
 
 import { ENTITY_TYPES, GLYPH_OFFSETS } from "../../engines/glyphClassifier.js";
-import { DEFAULT_INFERRED_FLOOR_GLYPH, DEFAULT_TOMBSTONE_GLYPH } from "./TerrainInferenceEngine.js";
+import { DEFAULT_TOMBSTONE_GLYPH } from "./TerrainInferenceEngine.js";
 
 export class ViewportTileProjector {
     /**
@@ -155,9 +155,6 @@ export class ViewportTileProjector {
         const isEn = (language === 'en');
 
         const isDead = Boolean(options.isDead);
-        const isDirectActive = asm.terrainInference && typeof asm.terrainInference.isDirectBindingActive === 'function'
-            ? asm.terrainInference.isDirectBindingActive()
-            : (asm.directBindingMode === 'strict');
         const tiles = [];
 
         for (let dy = -radiusY; dy <= radiusY; dy++) {
@@ -203,24 +200,13 @@ export class ViewportTileProjector {
                         // Bottom (地形)
                         if (isExploredBottom && (!cell.bottom.isCachedPreload || isPlayer)) {
                             bottomGlyph = cell.bottom.rawGlyph;
-                        } else if (isPlayer) {
-                            // プレイヤー足元は最優先で真の床を取得・反映
+                        } else if (isPlayer || cell.middle || cell.top) {
+                            // プレイヤー足元またはエンティティ足元は真の床を取得・反映 (DirectBinding Native)
                             const genuine = asm.getGenuineFloor(tx, ty);
                             if (genuine && genuine.rawGlyph >= 0) {
                                 bottomGlyph = genuine.rawGlyph;
-                            } else if (isDirectActive) {
-                                bottomGlyph = -1;
                             } else {
-                                bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH;
-                            }
-                        } else if (cell.middle || cell.top) {
-                            const genuine = asm.getGenuineFloor(tx, ty);
-                            if (genuine && genuine.rawGlyph >= 0) {
-                                bottomGlyph = genuine.rawGlyph;
-                            } else if (isDirectActive) {
                                 bottomGlyph = -1;
-                            } else {
-                                bottomGlyph = DEFAULT_INFERRED_FLOOR_GLYPH; // 3992
                             }
                         } else if (hasNetHackGlyph) {
                             bottomGlyph = gData.glyph;

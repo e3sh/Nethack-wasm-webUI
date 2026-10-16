@@ -23,20 +23,18 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
     });
 
     describe('Player Position Terrain Inference', () => {
-        it('should safely infer floor in getAreaState feet while preserving grid cell bottom null', () => {
+        it('should preserve grid cell bottom null and not invent speculative floor without DirectBinding', () => {
             expect(asm.grid[10][10].bottom).toBeNull();
 
             asm.updatePlayerPosition(10, 10);
 
-            // 未探索マスを勝手に床で汚染しないこと
+            // 未探索マスを勝手に推測床 (3992) で汚染しないこと (DirectBinding Native)
             const cell = asm.grid[10][10];
             expect(cell.bottom).toBeNull();
 
-            // 状況取得時には安全に床として取得できること
+            // DirectBinding 接続がない場合は勝手に捏造せず null
             const areaState = asm.getAreaState();
-            expect(areaState.feet.bottom).not.toBeNull();
-            expect(areaState.feet.bottom.inferred).toBe(true);
-            expect(areaState.feet.bottom.cmapFlags.isFloor).toBe(true);
+            expect(areaState.feet.bottom).toBeNull();
         });
 
         it('should NOT overwrite existing terrain at player position with inferred floor', () => {
@@ -56,7 +54,7 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
     });
 
     describe('Monster and Pet Appearance Terrain Inference', () => {
-        it('should infer floor when monster glyph arrives at an unmapped cell', () => {
+        it('should preserve bottom as null without DirectBinding or bkglyphInfo when monster glyph arrives', () => {
             const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 10; // 特定モンスター
             expect(asm.grid[12][15].bottom).toBeNull();
 
@@ -65,12 +63,11 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             const cell = asm.grid[12][15];
             expect(cell.top).not.toBeNull();
             expect(cell.top.type).toBe(ENTITY_TYPES.MONSTER);
-            expect(cell.bottom).not.toBeNull();
-            expect(cell.bottom.inferred).toBe(true);
-            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+            // DirectBinding Native: 未確定マスに勝手に推測仮床 (3992) を作らない
+            expect(cell.bottom).toBeNull();
         });
 
-        it('should infer floor when pet glyph arrives at an unmapped cell', () => {
+        it('should preserve bottom as null without DirectBinding or bkglyphInfo when pet glyph arrives', () => {
             const petGlyph = GLYPH_OFFSETS.GLYPH_PET_OFF + 5; // ペット
             expect(asm.grid[8][8].bottom).toBeNull();
 
@@ -79,9 +76,7 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             const cell = asm.grid[8][8];
             expect(cell.top).not.toBeNull();
             expect(cell.top.type).toBe(ENTITY_TYPES.PET);
-            expect(cell.bottom).not.toBeNull();
-            expect(cell.bottom.inferred).toBe(true);
-            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+            expect(cell.bottom).toBeNull();
         });
 
         it('should preserve existing terrain (e.g. lava) when monster appears on it', () => {
@@ -101,7 +96,7 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
     });
 
     describe('Item and Entity Appearance Terrain Inference', () => {
-        it('should infer floor when item glyph arrives at an unmapped cell', () => {
+        it('should preserve bottom as null without DirectBinding or bkglyphInfo when item glyph arrives', () => {
             const itemGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 10;
             expect(asm.grid[7][7].bottom).toBeNull();
 
@@ -110,41 +105,36 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             const cell = asm.grid[7][7];
             expect(cell.middle).not.toBeNull();
             expect(cell.middle.type).toBe(ENTITY_TYPES.ITEM);
-            expect(cell.bottom).not.toBeNull();
-            expect(cell.bottom.inferred).toBe(true);
-            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+            expect(cell.bottom).toBeNull();
         });
 
-        it('should infer floor when corpse / body arrives at an unmapped cell', () => {
+        it('should preserve bottom as null without DirectBinding or bkglyphInfo when body arrives', () => {
             const bodyGlyph = GLYPH_OFFSETS.GLYPH_BODY_OFF + 2;
             asm.updateGlyph(6, 6, bodyGlyph);
 
             const cell = asm.grid[6][6];
             expect(cell.middle).not.toBeNull();
             expect(cell.middle.type).toBe(ENTITY_TYPES.BODY);
-            expect(cell.bottom).not.toBeNull();
-            expect(cell.bottom.inferred).toBe(true);
+            expect(cell.bottom).toBeNull();
         });
 
-        it('should infer floor when item arrives at a cell previously marked as UNEXPLORED', () => {
+        it('should preserve UNEXPLORED bottom when item arrives without DirectBinding or bkglyphInfo', () => {
             const unexploredGlyph = GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF; // 9622
             asm.updateGlyph(12, 12, unexploredGlyph);
 
             expect(asm.grid[12][12].bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
 
-            // アイテムグリフが届く（投てき等で視界に入った場合）
+            // アイテムグリフが届く
             const itemGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 25;
             asm.updateGlyph(12, 12, itemGlyph);
 
             const cell = asm.grid[12][12];
             expect(cell.middle).not.toBeNull();
             expect(cell.middle.type).toBe(ENTITY_TYPES.ITEM);
-            expect(cell.bottom).not.toBeNull();
-            expect(cell.bottom.inferred).toBe(true);
-            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+            expect(cell.bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
         });
 
-        it('should infer floor when monster arrives at a cell previously marked as UNEXPLORED', () => {
+        it('should preserve UNEXPLORED bottom when monster arrives without DirectBinding or bkglyphInfo', () => {
             const unexploredGlyph = GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF;
             asm.updateGlyph(13, 13, unexploredGlyph);
 
@@ -156,9 +146,7 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             const cell = asm.grid[13][13];
             expect(cell.top).not.toBeNull();
             expect(cell.top.type).toBe(ENTITY_TYPES.MONSTER);
-            expect(cell.bottom).not.toBeNull();
-            expect(cell.bottom.inferred).toBe(true);
-            expect(cell.bottom.cmapFlags.isFloor).toBe(true);
+            expect(cell.bottom.type).toBe(ENTITY_TYPES.UNEXPLORED);
         });
     });
 
@@ -249,62 +237,60 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(cell.bottom.glyphInfo).toEqual(bkglyphInfo);
         });
 
-        it('should fallback to createInferredFloor when bkglyphInfo is missing or invalid or GLYPH_UNEXPLORED (9622)', () => {
+        it('should keep bottom as null without DirectBinding when bkglyphInfo is missing or invalid or GLYPH_UNEXPLORED (9622)', () => {
             const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 2;
             asm.updateGlyph(19, 19, monsterGlyph, null, null);
 
             const monsterCell = asm.grid[19][19];
-            expect(monsterCell.bottom).not.toBeNull();
-            expect(monsterCell.bottom.inferred).toBe(true);
+            expect(monsterCell.bottom).toBeNull();
 
             const itemGlyph = GLYPH_OFFSETS.GLYPH_OBJ_OFF + 2;
             asm.updateGlyph(20, 20, itemGlyph, null, { glyph: -1 });
 
             const itemCell = asm.grid[20][20];
-            expect(itemCell.bottom).not.toBeNull();
-            expect(itemCell.bottom.inferred).toBe(true);
+            expect(itemCell.bottom).toBeNull();
 
             // NetHack 5.0 C コアがデフォルトで送信する 9622 (GLYPH_UNEXPLORED) の場合
             const unexploredBkglyph = { glyph: 9622, ch: ' ', color: 8 };
             asm.updateGlyph(21, 21, monsterGlyph, null, unexploredBkglyph);
 
             const unexpCell = asm.grid[21][21];
-            expect(unexpCell.bottom).not.toBeNull();
-            expect(unexpCell.bottom.inferred).toBe(true);
-            expect(unexpCell.bottom.glyph).toBe(DEFAULT_INFERRED_FLOOR_GLYPH);
-            expect(unexpCell.bottom.type).toBe(ENTITY_TYPES.TERRAIN);
+            expect(unexpCell.bottom).toBeNull();
         });
     });
 
-    describe('Self-Healing / Overwrite by Genuine Terrain', () => {
-        it('should replace inferred floor with genuine terrain when terrain glyph arrives', () => {
-            // 1. モンスターが出現して仮床が推測される
+    describe('Terrain Updates and Overwrite by Genuine Terrain', () => {
+        it('should set genuine terrain when terrain glyph arrives', () => {
+            // 1. モンスターが出現
             const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 10;
             asm.updateGlyph(14, 14, monsterGlyph);
 
             const cell = asm.grid[14][14];
-            expect(cell.bottom.inferred).toBe(true);
+            expect(cell.top).not.toBeNull();
+            expect(cell.bottom).toBeNull();
 
-            // 2. モンスターが移動し、NetHack から正規の床グリフを受信
+            // 2. NetHack から正規の床グリフを受信
             const genuineFloorGlyph = 3992;
             asm.updateGlyph(14, 14, genuineFloorGlyph);
 
+            expect(cell.bottom).not.toBeNull();
             expect(cell.bottom.inferred).toBeUndefined();
             expect(cell.bottom.glyph).toBe(genuineFloorGlyph);
             expect(cell.top).toBeNull();
         });
 
-        it('should replace inferred floor with wall or door when genuine terrain arrives', () => {
-            // モンスター出現で仮床セット
+        it('should update cell bottom when wall arrives', () => {
+            // モンスター出現
             const monsterGlyph = GLYPH_OFFSETS.GLYPH_MON_OFF + 5;
             asm.updateGlyph(3, 3, monsterGlyph);
-            expect(asm.grid[3][3].bottom.inferred).toBe(true);
+            expect(asm.grid[3][3].top).not.toBeNull();
 
             // 壁グリフを受信
             const wallGlyph = 3929;
             asm.updateGlyph(3, 3, wallGlyph);
 
             const cell = asm.grid[3][3];
+            expect(cell.bottom).not.toBeNull();
             expect(cell.bottom.inferred).toBeUndefined();
             expect(cell.bottom.cmapFlags.isWall).toBe(true);
         });
@@ -345,7 +331,7 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(feetCell.bottom.inferred).toBeUndefined(); // 確定情報として復元
         });
 
-        it('should fallback to inferred floor if player arrives at non-staircase position (e.g. pit / teleport)', () => {
+        it('should preserve null if player arrives at non-staircase position (e.g. pit / teleport) without DirectBinding', () => {
             asm.setCurrentFloor('Dlvl:1');
             const stairDownGlyph = 3999;
             asm.updateGlyph(18, 12, stairDownGlyph);
@@ -358,11 +344,9 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             const feetCell = asm.grid[5][5];
             expect(feetCell.bottom).toBeNull();
 
-            // 状況取得時には安全に床として取得できること
+            // DirectBinding 接続がない場合は勝手に推測床を作らず null
             const areaState = asm.getAreaState();
-            expect(areaState.feet.bottom).not.toBeNull();
-            expect(areaState.feet.bottom.inferred).toBe(true);
-            expect(areaState.feet.bottom.cmapFlags.isFloor).toBe(true);
+            expect(areaState.feet.bottom).toBeNull();
         });
 
         it('should preload all cached stairs of the floor into grid on setCurrentFloor', () => {
@@ -727,10 +711,10 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
             expect(monsterTile.isPlayer).toBe(false);
             expect(monsterTile.glyphId).toBe(1);
             expect(monsterTile.isUnexplored).toBe(false);
-            // モンスターの下には仮床 (3992) が自動配置され、renderGlyphs に含まれること
-            expect(monsterTile.bottomGlyph).toBe(3992);
+            // DirectBinding Native: 真の床が未解決の場合は -1 となり、renderGlyphs にはモンスターのみ含まれる
+            expect(monsterTile.bottomGlyph).toBe(-1);
             expect(monsterTile.topGlyph).toBe(1);
-            expect(monsterTile.renderGlyphs).toEqual([3992, 1]);
+            expect(monsterTile.renderGlyphs).toEqual([1]);
 
             const farTile = tiles.find(t => t.dx === -2 && t.dy === -2);
             expect(farTile).toBeDefined();
@@ -856,8 +840,12 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
                         };
                     }
                     return null;
-                })
+                }),
+                _cachedLevelGlyphs: new Int32Array(80 * 24).fill(3992)
             };
+            mockBindingService._cachedLevelGlyphs[10 * 80 + 12] = 4016; // (12, 10): ICE
+            mockBindingService._cachedLevelGlyphs[10 * 80 + 14] = 3988; // (14, 10): 施錠扉
+            mockBindingService._cachedLevelGlyphs[10 * 80 + 15] = 3992; // (15, 10): 武器屋床
 
             asm = new AreaStateManager(80, 24, null, mockBindingService);
         });
@@ -947,7 +935,7 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
                 const key = 'Dlvl:2:18,12';
                 expect(testAsm.stairCache.has(key)).toBe(true);
                 const stair = testAsm.stairCache.get(key);
-                expect(stair.glyph).toBe(4000); // 上り階段 (STAIR_UP)
+                expect(stair.glyph).toBe(3998); // 上り階段 (STAIR_UP: 3998)
                 expect(stair.cmapFlags.isStairUp).toBe(true);
 
                 // ランドマーク台帳にも登録されていること
@@ -957,10 +945,10 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
                 // 足元セルにも即時反映されていること
                 const cell = testAsm.grid[12][18];
                 expect(cell.bottom).not.toBeNull();
-                expect(cell.bottom.glyph).toBe(4000);
+                expect(cell.bottom.glyph).toBe(3998);
             });
 
-            it('seeds STAIR_DOWN (4001) when player ascends to a shallower floor (Dlvl:2 -> Dlvl:1)', () => {
+            it('seeds STAIR_DOWN (3999) when player ascends to a shallower floor (Dlvl:2 -> Dlvl:1)', () => {
                 const stairMockService = {
                     isAvailable: vi.fn(() => true),
                     getCellInfo: vi.fn((x, y) => {
@@ -984,14 +972,14 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
                 const key = 'Dlvl:1:10,8';
                 expect(testAsm.stairCache.has(key)).toBe(true);
                 const stair = testAsm.stairCache.get(key);
-                expect(stair.glyph).toBe(4001); // 下り階段 (STAIR_DOWN)
+                expect(stair.glyph).toBe(3999); // 下り階段 (STAIR_DOWN: 3999)
                 expect(stair.cmapFlags.isStairDown).toBe(true);
 
                 const lmKey = 'Dlvl:1:10,8:STAIR_DOWN';
                 expect(testAsm.landmarkCache.has(lmKey)).toBe(true);
             });
 
-            it('seeds LADDER (4004/4005) properly according to ascend/descend progression', () => {
+            it('seeds LADDER (4000/4001) properly according to ascend/descend progression', () => {
                 const ladderMockService = {
                     isAvailable: vi.fn(() => true),
                     getCellInfo: vi.fn((x, y) => {
@@ -1008,15 +996,15 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
                 testAsm.setCurrentFloor('Dlvl:3'); // 深層へ移動
                 testAsm.updatePlayerPosition(5, 5);
 
-                expect(testAsm.stairCache.get('Dlvl:3:5,5').glyph).toBe(4004); // 上りハシゴ
+                expect(testAsm.stairCache.get('Dlvl:3:5,5').glyph).toBe(4000); // 上りハシゴ: 4000
 
                 // 上層へ移動
                 testAsm.setCurrentFloor('Dlvl:2');
                 testAsm.updatePlayerPosition(6, 6);
-                expect(testAsm.stairCache.get('Dlvl:2:6,6').glyph).toBe(4005); // 下りハシゴ
+                expect(testAsm.stairCache.get('Dlvl:2:6,6').glyph).toBe(4001); // 下りハシゴ: 4001
             });
 
-            it('seeds STAIR_UP (4000) on floor descent (Dlvl:1 -> Dlvl:2) via directBindingService getCellInfo (typ === 26)', () => {
+            it('seeds STAIR_UP (3998) on floor descent (Dlvl:1 -> Dlvl:2) via directBindingService getCellInfo (typ === 26)', () => {
                 const stairMockService = {
                     isAvailable: vi.fn(() => true),
                     getCellInfo: vi.fn((x, y) => {
@@ -1039,15 +1027,15 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
                 const key = 'Dlvl:2:14,11';
                 expect(testAsm.stairCache.has(key)).toBe(true);
                 const stair = testAsm.stairCache.get(key);
-                expect(stair.glyph).toBe(4000); // 上り階段 (STAIR_UP)
+                expect(stair.glyph).toBe(3998); // 上り階段 (STAIR_UP: 3998)
                 expect(stair.cmapFlags.isStairUp).toBe(true);
 
                 // セル底面にも階段が反映されていること
-                expect(testAsm.grid[11][14].bottom.glyph).toBe(4000);
+                expect(testAsm.grid[11][14].bottom.glyph).toBe(3998);
 
                 // その後、ペットがそのマスに乗った場合 (updateGlyph) でも階段が維持されること
                 testAsm.updateGlyph(14, 11, 766); // ペット (イヌ)
-                expect(testAsm.grid[11][14].bottom.glyph).toBe(4000); // 階段維持！
+                expect(testAsm.grid[11][14].bottom.glyph).toBe(3998); // 階段維持！
                 expect(testAsm.grid[11][14].top.rawGlyph).toBe(766);   // ペットが Top
             });
 
@@ -1141,8 +1129,10 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
                     getRoomType: vi.fn(() => null),
                     getTrapAt: vi.fn(() => null),
                     getEngravingAt: vi.fn(() => null),
-                    getFullMonsterAt: vi.fn(() => null)
+                    getFullMonsterAt: vi.fn(() => null),
+                    _cachedLevelGlyphs: new Int32Array(80 * 24).fill(3992)
                 };
+                mockDirectService._cachedLevelGlyphs[8 * 80 + 15] = 4007; // (15, 8): 混沌の祭壇 (ALTAR)
 
                 const testAsm = new AreaStateManager(80, 24, null, mockDirectService);
                 testAsm.setCurrentFloor('Dlvl:7');
@@ -1155,6 +1145,55 @@ describe('AreaStateManager - Terrain Inference and Dynamic State', () => {
                 expect(floor.glyph).toBe(4007);
                 expect(floor.altar.alignment).toBe('chaotic');
             });
+        });
+    });
+
+    describe('Sync Barrier Rendering Gating (pendingDirtyCells)', () => {
+        it('gates dirty cells during turn transition and flushes them on commitTurnState', () => {
+            const asm = new AreaStateManager(80, 24);
+            asm.clearDirtyCells();
+            expect(asm.getDirtyCells().size).toBe(0);
+
+            // Phase 1 (ACTION): ターン遷移開始
+            asm.beginTurnTransition();
+            expect(asm.isTurnTransitioning).toBe(true);
+
+            // ストリーミング中に print_glyph 更新が発生
+            asm.updateGlyph(10, 10, 3992);
+            asm.updateGlyph(11, 10, 381);
+            asm.markDirty(12, 10);
+
+            // 🎯 レンダリング非遮断: isTurnTransitioning のブロックを撤廃し、ターン遷移中も即時差分セルを取得可能
+            expect(asm.getDirtyCells().size).toBe(3);
+            expect(asm.getDirtyCells().has('10,10')).toBe(true);
+            expect(asm.getDirtyCells().has('11,10')).toBe(true);
+            expect(asm.getDirtyCells().has('12,10')).toBe(true);
+            expect(asm.pendingDirtyCells.has('10,10')).toBe(true);
+            expect(asm.pendingDirtyCells.has('11,10')).toBe(true);
+            expect(asm.pendingDirtyCells.has('12,10')).toBe(true);
+
+            // Phase 4 (COMMIT): 全DirectBinding同期完了後の状態確定コミット
+            asm.commitTurnState();
+            expect(asm.isTurnTransitioning).toBe(false);
+
+            // コミット後も dirtyCells に全座標が保持されている
+            const dirty = asm.getDirtyCells();
+            expect(dirty.size).toBe(3);
+            expect(dirty.has('10,10')).toBe(true);
+            expect(dirty.has('11,10')).toBe(true);
+            expect(dirty.has('12,10')).toBe(true);
+            expect(asm.pendingDirtyCells.size).toBe(0);
+        });
+
+        it('adds directly to dirtyCells when not transitioning', () => {
+            const asm = new AreaStateManager(80, 24);
+            asm.clearDirtyCells();
+
+            expect(asm.isTurnTransitioning).toBe(false);
+            asm.markDirty(5, 5);
+
+            expect(asm.getDirtyCells().has('5,5')).toBe(true);
+            expect(asm.pendingDirtyCells.size).toBe(0);
         });
     });
 });

@@ -50,16 +50,16 @@ export class AreaStateManager {
         this.viewportProjector = new ViewportTileProjector(this);
 
         this.engravingCache = new Map(); // 現在フロアの床文字同定キャッシュ ("x,y" => EngravingData)
-        this.dirtyCells = new Set();     // 変更があったセルの座標キャッシュ ("x,y")
+        this.dirtyCells = new Set();        // 確定した変更セルの座標キャッシュ ("x,y")
+        this.pendingDirtyCells = new Set(); // ターン遷移中（同期前）の保留差分セル ("x,y")
         this.grid = [];
         this.resetGrid();
 
-        // 動作モード ('auto' | 'strict' | 'fallback') (Stage 8.2-B)
-        this.directBindingMode = 'auto';
-        this._warnedStrictCoords = new Set();
+        // 動作モード: DirectBinding Native (フォールバック撤廃・純化)
+        this.directBindingMode = 'native';
 
-        // 同期テレメトリ (Stage 8.2-B)
-        this.lastFloorMethod = 'NONE'; // 'NONE' | 'SHIM_DIRECT' | 'INFERRED_FALLBACK'
+        // 同期テレメトリ
+        this.lastFloorMethod = 'SHIM_DIRECT';
         this.inferredFloorCount = 0;
         this.genuineFloorCount = 0;
         this.lastFloorSync = { source: 'NONE', glyph: -1, typ: -1, isGenuine: false };
@@ -85,12 +85,20 @@ export class AreaStateManager {
     }
 
     /**
-     * Phase 4 (COMMIT): Shim 同期完了後の状態確定コミット
+     * Phase 4 (COMMIT): Shim 同期完了後の状態確定コミット (Sync Barrier ゲート解除)
+     * - ターン進行中に保留されていた差分セル (pendingDirtyCells) を dirtyCells へ一括フラッシュ
      */
     commitTurnState() {
         this.isTurnTransitioning = false;
         this.isFloorTransitioning = false;
         this.committedTurnCount += 1;
+
+        if (this.pendingDirtyCells && this.pendingDirtyCells.size > 0) {
+            for (const coord of this.pendingDirtyCells) {
+                this.dirtyCells.add(coord);
+            }
+            this.pendingDirtyCells.clear();
+        }
     }
 
     // --- 後方互換性のための状態プロキシ (DungeonLandmarkRegistry への透過アクセサ) ---
@@ -114,21 +122,12 @@ export class AreaStateManager {
     set pendingLandmarks(val) { this.landmarkRegistry.pendingLandmarks = val; }
 
     /**
-     * 動作モード ('auto' | 'strict' | 'fallback') の設定
-     * @param {'auto'|'strict'|'fallback'} mode
+     * 動作モード設定 (DirectBinding Native 化に伴い no-op 後方互換プロキシ)
+     * @param {string} mode
      */
     setDirectBindingMode(mode) {
-        if (mode === 'strict' || mode === 'fallback' || mode === 'auto') {
-            this.directBindingMode = mode;
-        } else {
-            this.directBindingMode = 'auto';
-        }
-        if (this._warnedStrictCoords) {
-            this._warnedStrictCoords.clear();
-        }
-        if (this.directBindingService && typeof this.directBindingService.setMode === 'function') {
-            this.directBindingService.setMode(this.directBindingMode);
-        }
+        // DirectBinding Native 固定のためモード切替は行わない
+        this.directBindingMode = 'native';
     }
 
     /**
@@ -137,9 +136,6 @@ export class AreaStateManager {
      */
     setDirectBindingService(service) {
         this.directBindingService = service;
-        if (this.directBindingService && typeof this.directBindingService.setMode === 'function') {
-            this.directBindingService.setMode(this.directBindingMode);
-        }
     }
 
     /**
@@ -160,7 +156,7 @@ export class AreaStateManager {
         }
     }
 
-    // --- 差分更新追跡 (Dirty Cells) & グリッド管理 ---
+    // --- 差分更新追跡 (Dirty Cells & Sync Barrier Gating) & グリッド管理 ---
 
     /**
      * 指定セルの差分更新フラグを付与
@@ -169,7 +165,11 @@ export class AreaStateManager {
      */
     markDirty(x, y) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-            this.dirtyCells.add(`${x},${y}`);
+            const key = `${x},${y}`;
+            this.dirtyCells.add(key);
+            if (this.isTurnTransitioning) {
+                this.pendingDirtyCells.add(key);
+            }
         }
     }
 
@@ -179,13 +179,18 @@ export class AreaStateManager {
     markAllDirty() {
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
-                this.dirtyCells.add(`${x},${y}`);
+                const key = `${x},${y}`;
+                this.dirtyCells.add(key);
+                if (this.isTurnTransitioning) {
+                    this.pendingDirtyCells.add(key);
+                }
             }
         }
     }
 
     /**
      * 差分セル一覧を取得
+     * - isTurnTransitioning のゲーティングを撤廃し、アイテム取得やセル変更時の差分通知が即時レンダラーへ伝達されるようにする
      * @returns {Set<string>}
      */
     getDirtyCells() {
@@ -211,6 +216,12 @@ export class AreaStateManager {
         this._needsFullTerrainDump = true;
         if (this.engravingCache) {
             this.engravingCache.clear();
+        }
+        if (this.dirtyCells) {
+            this.dirtyCells.clear();
+        }
+        if (this.pendingDirtyCells) {
+            this.pendingDirtyCells.clear();
         }
         this.grid = [];
         for (let y = 0; y < this.height; y++) {
@@ -263,9 +274,7 @@ export class AreaStateManager {
 
     // --- TerrainInferenceEngine 委譲メソッド ---
 
-    getGlyphForTerrainType(typ, x = 0, y = 0, doorState = null) {
-        return this.terrainInference.getGlyphForTerrainType(typ, x, y, doorState);
-    }
+
 
     getGenuineFloor(x, y) {
         return this.terrainInference.getGenuineFloor(x, y);
@@ -444,7 +453,31 @@ export class AreaStateManager {
                 if (cell.top && this.monsterTracker && typeof this.monsterTracker.notifyCellLostMonster === 'function') {
                     this.monsterTracker.notifyCellLostMonster(x, y);
                 }
-                cell.bottom = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
+                let currentTyp = undefined;
+                let currentDoor = null;
+                let currentAltar = null;
+                if (this.directBindingService && typeof this.directBindingService.getCellInfo === 'function') {
+                    const cInfo = this.directBindingService.getCellInfo(x, y);
+                    if (cInfo) {
+                        if (typeof cInfo.typ === 'number') currentTyp = cInfo.typ;
+                        if (cInfo.door) currentDoor = cInfo.door;
+                        if (cInfo.altar) currentAltar = cInfo.altar;
+                    }
+                }
+                cell.bottom = {
+                    ...info,
+                    glyphInfo,
+                    glyph: glyphId,
+                    rawGlyph: glyphId,
+                    typ: currentTyp,
+                    door: currentDoor,
+                    altar: currentAltar,
+                    isGenuine: true,
+                    fromPrintGlyph: true // 🎯 受信Glyph (print_glyph) からの確定地形を最優先マーク
+                };
+                if (this.directBindingService && this.directBindingService._cachedLevelGlyphs && x >= 0 && x < 80 && y >= 0 && y < 21) {
+                    this.directBindingService._cachedLevelGlyphs[y * 80 + x] = glyphId;
+                }
                 cell.middle = null;
                 cell.top = null;
                 cell.effect = null;
@@ -467,6 +500,9 @@ export class AreaStateManager {
                     this.monsterTracker.notifyCellLostMonster(x, y);
                 }
                 this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
+                if (cell.bottom && cell.bottom.isCachedPreload) {
+                    delete cell.bottom.isCachedPreload;
+                }
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
                 cell.effect = null;
@@ -503,6 +539,10 @@ export class AreaStateManager {
                     }
                 } else {
                     this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
+                }
+
+                if (cell.bottom && cell.bottom.isCachedPreload) {
+                    delete cell.bottom.isCachedPreload;
                 }
 
                 let directMon = null;
@@ -554,24 +594,22 @@ export class AreaStateManager {
     }
 
     /**
-     * 指定座標 (デフォルト: プレイヤー足元) の床落ちアイテム (cell.middle) を Shim から照合・確定更新 (Stage 8.3-B)
-     * - 0個になった場合: cell.middle !== null なら cell.middle = null に消去し markDirty(x, y)
-     * - 1個以上ある場合: 先頭アイテム + 山積みフラグ (isPile: length > 1) からグリフ・属性を導出して cell.middle を更新し markDirty(x, y)
-     * @param {number} [x=this.playerX]
-     * @param {number} [y=this.playerY]
+     * 指定座標の床落ちアイテム (cell.middle) を Shim から照合・確定更新
+     * @param {number} x
+     * @param {number} y
      * @returns {boolean} cell.middle に変更があったかどうか
      */
-    syncPlayerFeetObjects(x = this.playerX, y = this.playerY) {
+    syncCellObjects(x, y) {
         if (x < 0 || x >= this.width || y < 0 || y >= this.height) return false;
         if (!this.directBindingService ||
-            this.directBindingMode === 'fallback' ||
             typeof this.directBindingService.isAvailable !== 'function' ||
             !this.directBindingService.isAvailable() ||
             typeof this.directBindingService.getObjectsAt !== 'function') {
             return false;
         }
 
-        if (typeof this.directBindingService.hasFloorObjectsCacheAt === 'function' &&
+        const isPlayerCell = (x === this.playerX && y === this.playerY);
+        if (isPlayerCell && typeof this.directBindingService.hasFloorObjectsCacheAt === 'function' &&
             !this.directBindingService.hasFloorObjectsCacheAt(x, y)) {
             return false;
         }
@@ -639,6 +677,110 @@ export class AreaStateManager {
     }
 
     /**
+     * 指定座標 (デフォルト: プレイヤー足元) の床落ちアイテム (cell.middle) を Shim から照合・確定更新 (Stage 8.3-B)
+     * @param {number} [x=this.playerX]
+     * @param {number} [y=this.playerY]
+     * @returns {boolean} cell.middle に変更があったかどうか
+     */
+    syncPlayerFeetObjects(x = this.playerX, y = this.playerY) {
+        return this.syncCellObjects(x, y);
+    }
+
+    /**
+     * マップ上の全モンスター足元マス (cell.top !== null) の床アイテム (cell.middle) を同期 (Hybridアーキテクチャ)
+     * @returns {boolean} いずれかのセルの middle が更新されたかどうか
+     */
+    syncMonstersFeetObjects() {
+        if (!this.directBindingService ||
+            typeof this.directBindingService.isAvailable !== 'function' ||
+            !this.directBindingService.isAvailable() ||
+            typeof this.directBindingService.getObjectsAt !== 'function') {
+            return false;
+        }
+
+        let anyChanged = false;
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const cell = this.grid[y] && this.grid[y][x];
+                if (!cell || !cell.top) continue;
+
+                // プレイヤー現在地は syncPlayerFeetObjects で個別に処理するため除外
+                if (x === this.playerX && y === this.playerY) continue;
+
+                const changed = this.syncCellObjects(x, y);
+                if (changed) {
+                    anyChanged = true;
+                }
+            }
+        }
+        return anyChanged;
+    }
+
+    /**
+     * 真の床情報 (genuine) を指定セルへ適用 (Hybrid二重管理・差分検知)
+     * - 確定地形グリフ完全保護による硬直化を撤廃し、グリフ・typ・ドア状態の変化を検知して最新化
+     * - 変化がない場合も属性（door, altar, room, trap, engraving）を最新化
+     * @param {Object} cell
+     * @param {Object} genuine
+     * @param {number} x
+     * @param {number} y
+     * @returns {boolean} セルに変更が生じたかどうか
+     */
+    _applyGenuineFloor(cell, genuine, x, y, options = {}) {
+        if (!cell || !genuine) return false;
+        const { registerStairs = true, markDirtyIfUnobserved = true } = options;
+
+        let hasChanged = false;
+        if (!cell.bottom || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred) {
+            cell.bottom = genuine;
+            hasChanged = true;
+        } else {
+            // 🎯 Cコア直接結合・確定地形完全保護（SSOT原則）:
+            // すでに確定した地形 (TERRAIN) が存在する場合、地形の物理的変化
+            // (掘削等による typ の変化、またはドアの開閉・破壊等の状態変化) が
+            // 検知された場合のみセルグリフを最新化する。
+            // 物理変化がない限り、確定グリフ (角壁・既存開閉扉等) を同期処理で上書き（Re-clobber）してはならない。
+            const typChanged = (cell.bottom.typ !== undefined && genuine.typ !== undefined && cell.bottom.typ !== genuine.typ);
+            const isExistingOpen = Boolean(cell.bottom.door?.isOpen || cell.bottom.glyph === 3986 || cell.bottom.glyph === 3987);
+            const isExistingClosed = Boolean(cell.bottom.door?.isClosed || cell.bottom.glyph === 3988 || cell.bottom.glyph === 3989);
+            const isExistingBroken = Boolean(cell.bottom.door?.isBroken || cell.bottom.door?.isNoDoor || cell.bottom.glyph === 3985);
+
+            const isNewOpen = Boolean(genuine.door?.isOpen || genuine.glyph === 3986 || genuine.glyph === 3987);
+            const isNewClosed = Boolean(genuine.door?.isClosed || genuine.glyph === 3988 || genuine.glyph === 3989);
+            const isNewBroken = Boolean(genuine.door?.isBroken || genuine.door?.isNoDoor || genuine.glyph === 3985);
+
+            const doorStateChanged = Boolean(
+                cell.bottom.typ === 23 &&
+                (isExistingOpen !== isNewOpen || isExistingClosed !== isNewClosed || isExistingBroken !== isNewBroken)
+            );
+
+            if (typChanged || doorStateChanged) {
+                const prevFromPrintGlyph = Boolean(cell.bottom.fromPrintGlyph);
+                cell.bottom = { ...genuine, fromPrintGlyph: prevFromPrintGlyph };
+                hasChanged = true;
+            } else {
+                // 物理変化がない場合: 確定した glyph は 100% 維持保護し、属性のみを安全に最新化
+                if (genuine.door) cell.bottom.door = genuine.door;
+                if (genuine.altar) cell.bottom.altar = genuine.altar;
+                if (genuine.room) cell.bottom.room = genuine.room;
+                if (genuine.trap) cell.bottom.trap = genuine.trap;
+                if (genuine.engraving) cell.bottom.engraving = genuine.engraving;
+                if (genuine.typ !== undefined) cell.bottom.typ = genuine.typ;
+                cell.bottom.isGenuine = true;
+            }
+        }
+
+        if (registerStairs && genuine.cmapFlags && (genuine.cmapFlags.isStairUp || genuine.cmapFlags.isStairDown)) {
+            this._registerStairAt(x, y, genuine.glyph, normalizeFloorKey(this.currentFloor));
+        }
+
+        if (hasChanged && markDirtyIfUnobserved) {
+            this.markDirty(x, y);
+        }
+        return hasChanged;
+    }
+
+    /**
      * プレイヤー現在地の更新
      * @param {number} x 
      * @param {number} y 
@@ -655,25 +797,7 @@ export class AreaStateManager {
             if (cell) {
                 const genuine = this.getGenuineFloor(x, y);
                 if (genuine && genuine.isGenuine) {
-                    const isBottomTerrainConfirmed = cell.bottom &&
-                        cell.bottom.type === ENTITY_TYPES.TERRAIN &&
-                        !cell.bottom.inferred;
-
-                    if (isBottomTerrainConfirmed) {
-                        // 確定地形グリフ完全保護: print_glyph で確定した地形のグリフ・形状・属性を 100% 尊重し上書きしない
-                        if (genuine.door) cell.bottom.door = genuine.door;
-                        if (genuine.altar) cell.bottom.altar = genuine.altar;
-                        if (genuine.room) cell.bottom.room = genuine.room;
-                        if (genuine.trap) cell.bottom.trap = genuine.trap;
-                        if (genuine.engraving) cell.bottom.engraving = genuine.engraving;
-                        cell.bottom.isGenuine = true;
-                    } else {
-                        cell.bottom = genuine;
-                        if (genuine.cmapFlags && (genuine.cmapFlags.isStairUp || genuine.cmapFlags.isStairDown)) {
-                            this._registerStairAt(x, y, genuine.glyph, normalizeFloorKey(this.currentFloor));
-                        }
-                    }
-                    this.markDirty(x, y);
+                    this._applyGenuineFloor(cell, genuine, x, y);
                 } else {
                     const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
                     const cachedStair = this.stairCache ? this.stairCache.get(key) : null;
@@ -695,6 +819,12 @@ export class AreaStateManager {
 
                 // 足元の床アイテム (cell.middle) を照合・更新 (移動時・その場操作時の両方)
                 this.syncPlayerFeetObjects(x, y);
+
+                // 自キャラ足元セルのプレロードフラグを確実に解除
+                if (cell.bottom && cell.bottom.isCachedPreload) {
+                    delete cell.bottom.isCachedPreload;
+                    this.markDirty(x, y);
+                }
             }
             if (this.playerX === x && this.playerY === y) return false;
 
@@ -734,26 +864,7 @@ export class AreaStateManager {
         let updated = false;
         const genuineFloor = this.getGenuineFloor(x, y);
         if (genuineFloor) {
-            const isBottomTerrainConfirmed = cell.bottom &&
-                cell.bottom.type === ENTITY_TYPES.TERRAIN &&
-                !cell.bottom.inferred;
-
-            if (isBottomTerrainConfirmed) {
-                // 確定地形グリフ完全保護: print_glyph で確定した地形のグリフ・形状・属性を 100% 尊重し上書きしない
-                if (genuineFloor.door) cell.bottom.door = genuineFloor.door;
-                if (genuineFloor.altar) cell.bottom.altar = genuineFloor.altar;
-                if (genuineFloor.room) cell.bottom.room = genuineFloor.room;
-                if (genuineFloor.trap) cell.bottom.trap = genuineFloor.trap;
-                if (genuineFloor.engraving) cell.bottom.engraving = genuineFloor.engraving;
-                cell.bottom.isGenuine = true;
-            } else {
-                cell.bottom = genuineFloor;
-                if (genuineFloor.cmapFlags && (genuineFloor.cmapFlags.isStairUp || genuineFloor.cmapFlags.isStairDown)) {
-                    this._registerStairAt(x, y, genuineFloor.glyph, normalizeFloorKey(this.currentFloor));
-                }
-            }
-            this.markDirty(x, y);
-            updated = true;
+            updated = this._applyGenuineFloor(cell, genuineFloor, x, y);
         }
 
         const middleChanged = this.syncPlayerFeetObjects(x, y);
@@ -790,12 +901,9 @@ export class AreaStateManager {
                     !isPlayerCell;
                 if (isUnobserved) continue;
 
-                if (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred) {
-                    const genuine = this.getGenuineFloor(x, y);
-                    if (genuine) {
-                        cell.bottom = genuine;
-                        this.markDirty(x, y);
-                    }
+                const genuine = this.getGenuineFloor(x, y);
+                if (genuine) {
+                    this._applyGenuineFloor(cell, genuine, x, y);
                 }
 
                 if (cell.top && typeof this.directBindingService.getFullMonsterAt === 'function') {
@@ -825,18 +933,65 @@ export class AreaStateManager {
     }
 
     /**
-     * Wasm メモリ直結からフロア全域 (80x21) の参照用地形ルックアップテーブル (typ) を保持 (Stage 8.3-B)
-     * - 未踏セル (print_glyph 未受信) には cell.bottom を直接書き込まず、Dirty 登録も行わない
-     * - 未発見の階段もここでは台帳登録しない
-     * - 既に print_glyph でアイテム (middle) やモンスター/自キャラ (top) が観測済みのセルで下層地形が未確定の場合のみ補完する
+     * C コアのフロア全域キャッシュ (_cachedLevelGlyphs / _cachedLevelTerrain) から
+     * 全 80x21 セルに対して直接真床エンティティ (cell.bottom) を展開・下敷き化
+     * - 未観測マスには isCachedPreload: true を付与して下敷き化し、未発見の階段の漏洩を防ぐ
+     * @returns {number} 展開・更新されたセル数
+     */
+    deployLevelBaseTerrain() {
+        if (!this.directBindingService || typeof this.directBindingService.isAvailable !== 'function' || !this.directBindingService.isAvailable()) {
+            return 0;
+        }
+
+        const COLNO = 80;
+        const ROWNO = 21;
+        let deployedCount = 0;
+
+        for (let y = 0; y < ROWNO && y < this.height; y++) {
+            for (let x = 0; x < COLNO && x < this.width; x++) {
+                const cell = this.grid[y] && this.grid[y][x];
+                if (!cell) continue;
+
+                // 🎯 確定地形完全保護: すでにセルに確定した地形 (TERRAIN) が存在する場合はそのまま保護し上書きしない
+                if (cell.bottom && cell.bottom.type === ENTITY_TYPES.TERRAIN && !cell.bottom.inferred) {
+                    continue;
+                }
+
+                const genuine = this.getGenuineFloor(x, y);
+                if (genuine) {
+                    const hasObservedOverlay = Boolean(cell.middle !== null || cell.top !== null || (x === this.playerX && y === this.playerY));
+                    const isNewDeployment = (!cell.bottom || cell.bottom.type === ENTITY_TYPES.UNEXPLORED);
+                    const genuineWithPreload = (isNewDeployment && !hasObservedOverlay)
+                        ? { ...genuine, isCachedPreload: true }
+                        : genuine;
+
+                    const changed = this._applyGenuineFloor(cell, genuineWithPreload, x, y, {
+                        registerStairs: hasObservedOverlay,
+                        markDirtyIfUnobserved: hasObservedOverlay
+                    });
+                    if (changed) {
+                        deployedCount++;
+                    }
+                }
+            }
+        }
+        return deployedCount;
+    }
+
+    /**
+     * Wasm メモリ直結からフロア全域 (80x21) の真の地形 (typ) および完成形グリフ (levl.glyph) を一括ロードし、全域下敷き化
      * @returns {boolean} 成功したか否か
      */
-    dumpLevelTerrain() {
+    dumpLevelMap() {
         if (!this.directBindingService || typeof this.directBindingService.isAvailable !== 'function' || !this.directBindingService.isAvailable()) {
             return false;
         }
 
         const terrain = this.directBindingService.dumpLevelTerrain();
+        const glyphs = (typeof this.directBindingService.dumpLevelGlyphs === 'function')
+            ? this.directBindingService.dumpLevelGlyphs()
+            : null;
+
         if (!terrain || terrain.length < 80 * 21) {
             return false;
         }
@@ -844,28 +999,22 @@ export class AreaStateManager {
         if (typeof this.directBindingService.setCachedLevelTerrain === 'function' && !this.directBindingService._cachedLevelTerrain) {
             this.directBindingService.setCachedLevelTerrain(terrain);
         }
-
-        const COLNO = 80;
-        const ROWNO = 21;
-
-        for (let y = 0; y < ROWNO && y < this.height; y++) {
-            for (let x = 0; x < COLNO && x < this.width; x++) {
-                const cell = this.grid[y] && this.grid[y][x];
-                if (!cell) continue;
-
-                // print_glyph でアイテム・モンスター・自キャラが既に観測されているが、下層地形が隠れて未確定のマスのみ補完
-                const hasObservedOverlay = (cell.middle !== null || cell.top !== null);
-                if (hasObservedOverlay && (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred)) {
-                    const genuine = this.getGenuineFloor(x, y);
-                    if (genuine) {
-                        cell.bottom = genuine;
-                        this.markDirty(x, y);
-                    }
-                }
-            }
+        if (glyphs && typeof this.directBindingService.setCachedLevelGlyphs === 'function' && !this.directBindingService._cachedLevelGlyphs) {
+            this.directBindingService.setCachedLevelGlyphs(glyphs);
         }
+
+        // 全 80x21 セルへ C コア真グリフと地形を cell.bottom に隙間なく展開
+        this.deployLevelBaseTerrain();
 
         this._needsFullTerrainDump = false;
         return true;
+    }
+
+    /**
+     * Wasm メモリ直結からフロア全域 (80x21) の参照用地形ルックアップテーブル (typ) を保持 (後方互換プロキシ)
+     * @returns {boolean}
+     */
+    dumpLevelTerrain() {
+        return this.dumpLevelMap();
     }
 }
