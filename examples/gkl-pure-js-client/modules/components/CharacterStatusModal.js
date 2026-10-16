@@ -40,6 +40,25 @@ export class CharacterStatusModal {
         if (this.isVisible) this.close();
       });
     }
+
+    this._boundCore = null;
+    this._ensureCoreEvents();
+  }
+
+  _ensureCoreEvents() {
+    const core = this.getCore();
+    if (!core || this._boundCore === core || typeof core.on !== 'function') return;
+
+    this._boundCore = core;
+    const handleUpdate = () => {
+      if (this.isVisible) {
+        this.render();
+      }
+    };
+    core.on('attributesStateUpdated', handleUpdate);
+    core.on('status_update', handleUpdate);
+    core.on('skillsStateUpdated', handleUpdate);
+    core.on('spellsStateUpdated', handleUpdate);
   }
 
   _ensureDom() {
@@ -81,6 +100,7 @@ export class CharacterStatusModal {
    * モーダルを開き、Direct Binding から最新データをオンデマンド取得
    */
   async open() {
+    this._ensureCoreEvents();
     this.isVisible = true;
     if (this.elModal) {
       this.elModal.classList.remove('hidden');
@@ -131,6 +151,12 @@ export class CharacterStatusModal {
       if (typeof gkl.syncAttributesOnDemand === 'function') {
         tasks.push(gkl.syncAttributesOnDemand());
       }
+      if (typeof gkl.syncPlayerProfileOnDemand === 'function') {
+        tasks.push(gkl.syncPlayerProfileOnDemand());
+      }
+      if (typeof gkl.syncPlayerSummaryOnDemand === 'function') {
+        tasks.push(gkl.syncPlayerSummaryOnDemand());
+      }
       if (typeof gkl.syncSkillsOnDemand === 'function') {
         tasks.push(gkl.syncSkillsOnDemand());
       }
@@ -159,6 +185,11 @@ export class CharacterStatusModal {
     const spellManager = gkl?.getSpellStateManager?.();
     const skillManager = gkl?.getSkillStateManager?.();
 
+    // 最新の status を attrManager に反映（レベル・名前・属性等の不整合を防止）
+    if (attrManager && typeof attrManager.updateFromStatus === 'function') {
+      attrManager.updateFromStatus(status);
+    }
+
     // 1. プロファイル情報の集約
     const summary = attrManager?.getCharacterSummary?.(this.currentLanguage) || {};
     const playerName = summary.playerName || status.title || (isEn ? 'Hero' : '勇者');
@@ -166,7 +197,7 @@ export class CharacterStatusModal {
     const raceName = summary.raceName || (isEn ? 'Unknown' : '不明');
     const genderName = summary.gender === 'female' ? (isEn ? 'Female' : '女性') : (isEn ? 'Male' : '男性');
     const alignName = summary.alignName || (status.align ? (isEn ? ALIGNMENT_NAMES_EN[status.align.toLowerCase()] || status.align : ALIGNMENT_NAMES_JA[status.align.toLowerCase()] || status.align) : (isEn ? 'Neutral' : '中立'));
-    const level = summary.level || status.level || 1;
+    const level = (status.level && status.level > 0) ? status.level : (summary.level || 1);
     const expText = status.hasExp && status.exp ? `${level} / ${status.exp}` : `${level}`;
     const dlvlText = status.dlevel?.text || (isEn ? 'Dlvl:1' : '地下1階');
     const turnsText = status.turns !== undefined ? String(status.turns) : '0';
@@ -205,7 +236,7 @@ export class CharacterStatusModal {
               <span>👤</span>
               <span>${isEn ? 'Character Profile & Status' : 'キャラクター詳細 ＆ 属性情報'}</span>
             </h2>
-            <span class="char-status-tag-badge">${summary.displayTag || `👤 ${raceName} / ${roleName} Lv.${level}`}</span>
+            <span class="char-status-tag-badge">👤 ${raceName} / ${roleName} Lv.${level}</span>
           </div>
           <button id="btn-char-status-close" class="modal-close-btn" title="${isEn ? 'Close (Esc / q)' : '閉じる (Esc / q)'}">✕</button>
         </div>

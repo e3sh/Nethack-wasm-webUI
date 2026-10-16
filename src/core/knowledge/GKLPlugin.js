@@ -401,8 +401,18 @@ export class GKLPlugin {
 
     // --- オンデマンド同期 (モーダル・詳細画面を開くときトリガー) ---
     async syncAttributesOnDemand() {
-        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.syncAttributesOnDemand === 'function') {
-            await this.wasmDirectBindingService.syncAttributesOnDemand();
+        if (this.wasmDirectBindingService) {
+            const tasks = [];
+            if (typeof this.wasmDirectBindingService.syncAttributesOnDemand === 'function') {
+                tasks.push(this.wasmDirectBindingService.syncAttributesOnDemand());
+            }
+            if (typeof this.wasmDirectBindingService.syncPlayerProfileOnDemand === 'function') {
+                tasks.push(this.wasmDirectBindingService.syncPlayerProfileOnDemand());
+            }
+            if (typeof this.wasmDirectBindingService.syncPlayerSummaryOnDemand === 'function') {
+                tasks.push(this.wasmDirectBindingService.syncPlayerSummaryOnDemand());
+            }
+            await Promise.allSettled(tasks);
         }
         if (this.attributeStateManager && typeof this.attributeStateManager.syncFromDirectBinding === 'function') {
             const changed = this.attributeStateManager.syncFromDirectBinding(this.wasmDirectBindingService);
@@ -411,6 +421,30 @@ export class GKLPlugin {
             }
             if (this.core) this.core.emit('attributesStateUpdated', this.attributeStateManager);
             return changed;
+        }
+        return false;
+    }
+
+    async syncPlayerProfileOnDemand() {
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.syncPlayerProfileOnDemand === 'function') {
+            const res = await this.wasmDirectBindingService.syncPlayerProfileOnDemand();
+            if (this.attributeStateManager && typeof this.attributeStateManager.syncFromDirectBinding === 'function') {
+                const changed = this.attributeStateManager.syncFromDirectBinding(this.wasmDirectBindingService);
+                if (this.core) this.core.emit('attributesStateUpdated', this.attributeStateManager);
+            }
+            return res;
+        }
+        return false;
+    }
+
+    async syncPlayerSummaryOnDemand() {
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.syncPlayerSummaryOnDemand === 'function') {
+            const res = await this.wasmDirectBindingService.syncPlayerSummaryOnDemand();
+            if (this.attributeStateManager && typeof this.attributeStateManager.syncFromDirectBinding === 'function') {
+                const changed = this.attributeStateManager.syncFromDirectBinding(this.wasmDirectBindingService);
+                if (this.core) this.core.emit('attributesStateUpdated', this.attributeStateManager);
+            }
+            return res;
         }
         return false;
     }

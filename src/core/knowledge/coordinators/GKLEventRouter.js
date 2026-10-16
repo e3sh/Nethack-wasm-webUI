@@ -567,8 +567,9 @@ export class GKLEventRouter {
                     }
                 }
 
-                // タイトル (BL_TITLE = 0) または属性 (BL_ALIGN = 7) によるプロファイル同期
-                if (data.field === 0 || data.field === 'title' || data.field === 7 || data.field === 'align') {
+                // タイトル (BL_TITLE = 0), 属性 (BL_ALIGN = 7), レベル (BL_XP = 13), 経験値 (BL_EXP = 21) によるプロファイル同期
+                if (data.field === 0 || data.field === 'title' || data.field === 7 || data.field === 'align' ||
+                    data.field === 13 || data.field === 'xp' || data.field === 'level' || data.field === 21 || data.field === 'exp') {
                     if (p.attributeStateManager && typeof p.attributeStateManager.updateFromStatus === 'function') {
                         const st = p.statusAccessor && typeof p.statusAccessor.getStatus === 'function'
                             ? p.statusAccessor.getStatus()

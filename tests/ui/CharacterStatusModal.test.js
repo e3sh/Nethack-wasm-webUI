@@ -55,6 +55,8 @@ describe('CharacterStatusModal (On-Demand Direct Binding Sheet)', () => {
 
     mockGkl = {
       syncAttributesOnDemand: vi.fn().mockResolvedValue(true),
+      syncPlayerProfileOnDemand: vi.fn().mockResolvedValue(true),
+      syncPlayerSummaryOnDemand: vi.fn().mockResolvedValue(true),
       syncSkillsOnDemand: vi.fn().mockResolvedValue(true),
       syncSpellsOnDemand: vi.fn().mockResolvedValue(true),
       getAttributeStateManager: () => mockAttrManager,
@@ -77,9 +79,17 @@ describe('CharacterStatusModal (On-Demand Direct Binding Sheet)', () => {
       })
     };
 
+    const listeners = {};
     mockCore = {
       gkl: mockGkl,
-      getStatus: () => mockGkl.getStatus()
+      getStatus: () => mockGkl.getStatus(),
+      on: vi.fn((event, cb) => {
+        if (!listeners[event]) listeners[event] = [];
+        listeners[event].push(cb);
+      }),
+      emit: vi.fn((event, data) => {
+        if (listeners[event]) listeners[event].forEach(cb => cb(data));
+      })
     };
 
     modal = new CharacterStatusModal({
@@ -187,5 +197,57 @@ describe('CharacterStatusModal (On-Demand Direct Binding Sheet)', () => {
     expect(text).toContain('Adventurer Identity');
     expect(text).toContain('Learned Spells');
     expect(text).toContain('Weapon & Martial Skills');
+  });
+
+  it('summary.level が古くても最新の status.level が優先して描画され、updateFromStatus が呼ばれること', async () => {
+    mockAttrManager.updateFromStatus = vi.fn();
+    mockAttrManager.getCharacterSummary = vi.fn(() => ({
+      playerName: 'Val-Valkyrie',
+      role: 'valkyrie',
+      roleName: 'ワルキューレ',
+      race: 'human',
+      raceName: '人間',
+      gender: 'female',
+      alignment: 'neutral',
+      alignName: '中立',
+      level: 1, // 古いまま
+      displayTag: '👤 [人間 / ワルキューレ Lv.1]'
+    }));
+    mockGkl.getStatus = () => ({
+      title: 'Val-Valkyrie',
+      dlevel: { text: 'Dlvl:1' },
+      hp: { current: 30, max: 30 },
+      pw: { current: 10, max: 10 },
+      ac: 2,
+      level: 5, // レベルアップ後
+      exp: 1500,
+      hasExp: true
+    });
+
+    await modal.open();
+    expect(mockAttrManager.updateFromStatus).toHaveBeenCalled();
+    const text = elModal.textContent;
+    expect(text).toContain('Lv.5 / 1500');
+    expect(text).toContain('👤 人間 / ワルキューレ Lv.5');
+  });
+
+  it('モーダル表示中に status_update が発火された場合、自動的に最新ステータスに再描画されること', async () => {
+    let currentHp = 20;
+    mockGkl.getStatus = () => ({
+      title: 'Val-Valkyrie',
+      dlevel: { text: 'Dlvl:1' },
+      hp: { current: currentHp, max: 30 },
+      pw: { current: 10, max: 10 },
+      level: 2
+    });
+
+    await modal.open();
+    expect(elModal.textContent).toContain('20 / 30');
+
+    // HP変動イベント発生
+    currentHp = 15;
+    mockCore.emit('status_update', { field: 18, value: 15 });
+
+    expect(elModal.textContent).toContain('15 / 30');
   });
 });

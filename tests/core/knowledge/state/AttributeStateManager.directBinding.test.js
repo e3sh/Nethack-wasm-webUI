@@ -256,11 +256,14 @@ describe('AttributeStateManager - Direct Binding (Wasm Memory Integration)', () 
             expect(manager.characterInfo.role).toBe('valkyrie');
 
             // ステータス更新が届く
-            manager.updateFromStatus({
+            const res = manager.updateFromStatus({
                 title: 'Brunhilde the Stripling',
                 align: 'Lawful',
                 level: 2
             });
+
+            // レベル変更により true が返ること
+            expect(res).toBe(true);
 
             // レベルは 2 に更新され、種族とロールは Direct Binding の真値のまま保護される
             expect(manager.characterInfo.level).toBe(2);

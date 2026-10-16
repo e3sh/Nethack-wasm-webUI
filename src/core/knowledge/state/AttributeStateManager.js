@@ -397,8 +397,22 @@ export class AttributeStateManager {
 
         // Stage 8.5: Direct Binding の真値が確定している場合、レガシー推測による上書きをブロック
         if (this.isProfileDirectBound && !charInfo.fromDirectBinding) {
+            let changed = false;
             if (charInfo.level !== undefined && typeof charInfo.level === 'number' && charInfo.level > 0) {
-                this.characterInfo.level = charInfo.level;
+                if (this.characterInfo.level !== charInfo.level) {
+                    this.characterInfo.level = charInfo.level;
+                    changed = true;
+                }
+            }
+            if (charInfo.playerName !== undefined && charInfo.playerName && this.characterInfo.playerName !== charInfo.playerName) {
+                this.characterInfo.playerName = charInfo.playerName;
+                changed = true;
+            }
+            if (charInfo.alignment !== undefined && charInfo.alignment && this.characterInfo.alignment !== charInfo.alignment) {
+                this.characterInfo.alignment = charInfo.alignment;
+                changed = true;
+            }
+            if (changed) {
                 const newInnateMap = calculateInnateResistances(this.characterInfo);
                 const newInnate = this._createEmptyMap();
                 for (const [k, v] of Object.entries(newInnateMap)) {
@@ -409,30 +423,50 @@ export class AttributeStateManager {
                 this.innate = newInnate;
                 this._recalculateIntrinsics();
             }
-            return false;
+            return changed;
         }
 
-        if (charInfo.race !== undefined) this.characterInfo.race = charInfo.race;
-        if (charInfo.role !== undefined) this.characterInfo.role = charInfo.role;
-        if (charInfo.level !== undefined) this.characterInfo.level = charInfo.level;
-        if (charInfo.gender !== undefined) this.characterInfo.gender = charInfo.gender;
-        if (charInfo.alignment !== undefined) this.characterInfo.alignment = charInfo.alignment;
-        if (charInfo.playerName !== undefined) this.characterInfo.playerName = charInfo.playerName;
+        let changed = false;
+        if (charInfo.race !== undefined && this.characterInfo.race !== charInfo.race) {
+            this.characterInfo.race = charInfo.race;
+            changed = true;
+        }
+        if (charInfo.role !== undefined && this.characterInfo.role !== charInfo.role) {
+            this.characterInfo.role = charInfo.role;
+            changed = true;
+        }
+        if (charInfo.level !== undefined && this.characterInfo.level !== charInfo.level) {
+            this.characterInfo.level = charInfo.level;
+            changed = true;
+        }
+        if (charInfo.gender !== undefined && this.characterInfo.gender !== charInfo.gender) {
+            this.characterInfo.gender = charInfo.gender;
+            changed = true;
+        }
+        if (charInfo.alignment !== undefined && this.characterInfo.alignment !== charInfo.alignment) {
+            this.characterInfo.alignment = charInfo.alignment;
+            changed = true;
+        }
+        if (charInfo.playerName !== undefined && this.characterInfo.playerName !== charInfo.playerName) {
+            this.characterInfo.playerName = charInfo.playerName;
+            changed = true;
+        }
 
-        const newInnateMap = calculateInnateResistances(this.characterInfo);
-        const newInnate = this._createEmptyMap();
-        for (const [k, v] of Object.entries(newInnateMap)) {
-            if (newInnate[k] !== undefined) {
-                newInnate[k] = Boolean(v);
+        if (changed) {
+            const newInnateMap = calculateInnateResistances(this.characterInfo);
+            const newInnate = this._createEmptyMap();
+            for (const [k, v] of Object.entries(newInnateMap)) {
+                if (newInnate[k] !== undefined) {
+                    newInnate[k] = Boolean(v);
+                }
             }
+            this.innate = newInnate;
+            this._recalculateIntrinsics();
         }
-
-        this.innate = newInnate;
-        this._recalculateIntrinsics();
         if (charInfo.race !== undefined || charInfo.role !== undefined) {
             this.isSynced = true;
         }
-        return true;
+        return changed;
     }
 
     /**
