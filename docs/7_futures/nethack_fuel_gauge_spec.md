@@ -1,7 +1,7 @@
 ---
 title: GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計統合仕様書
-status: proposed
-last_updated: 2026-10-11
+status: implemented (Stage 8.4 Direct Binding: ublesscnt / ugangr / uhunger)
+last_updated: 2026-10-16
 related_code:
   - src/core/knowledge/
   - src/core/knowledge/services/WasmDirectBindingService.js
@@ -11,7 +11,7 @@ related_code:
 
 本ドキュメントは、NetHack WASM WebUI におけるゲーム知識層（GKL）の拡張構想であり、プレイヤーの不可避な餓死や詰みを先読みしてダッシュボードに可視化する**「タイムライン予測エンジン（雑な燃費計＆燃料計）」**、およびその中核となる**「神のご機嫌管理システム（PrayerStatusTracker）」**の詳細設計仕様書です。
 
-- **ステータス**: 💡 proposed (2026-09-25 策定 / 2026-10-11 更新)
+- **ステータス**: 🟢 implemented (Stage 8.4 にて `u.ublesscnt`, `u.ugangr`, `u.uhunger` Direct Binding 直結完了 / 2026-10-16 更新)
 - **対象ドメイン**: `src/core/knowledge/` (GKL内部ロジック), `MinimapHudRenderer.js` (ミニマップ周辺UI)
 - **最上位制約**: 当初は C言語コアのメモリや内部変数（`u.ublesscnt` 等）を直接参照せずメッセージログから逆算する前提で策定されたが、下記 Note の通り Phase 8 でメモリ直結 Ground Truth 取得が確立済み。
 

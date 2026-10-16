@@ -1,35 +1,35 @@
 # Direct Binding 前提の同期ライフサイクル・画面構成の抜本的再構築 計画書
 ## (Direct Binding Native Lifecycle & UI Pipeline Reconstruction Plan)
 
-- **文書ステータス**: `⏸️ pending` (設計完了・全体調整・合意形成中)
-- **策定日**: 2026-10-15
+- **文書ステータス**: `🚧 in-progress (75% implemented: Phase 1, 2, 4 完了 / Phase 3 UI刷新待ち)`
+- **策定日**: 2026-10-15 (最終更新: 2026-10-16)
 - **対象領域**: Wasm Cコア (`shim_bridge.c`)、Direct Binding サービス (`WasmDirectBindingService`)、GKL ライフサイクル (`GKLEventRouter`, `StartupFlowController`, `WebUICore`)、UI画面構成 (`main.js`, `StatusView`, 各種モーダル)
+
+> [!IMPORTANT]
+> **【2026-10-16 実装進捗アップデート（75% 完了）】**  
+> 本計画書の全4フェーズのうち、基盤領域である以下の3フェーズは **Stage 8.5 にて 100% 実装・テスト完了** しています：
+> - **✅ Phase 1 完了**: `shim_bridge.c` への `SHIM_CMD_GET_PLAYER_PROFILE (0x33)` 追加、`PlayerWasmAdapter.getPlayerProfile()`、および `AttributeStateManager.syncPlayerProfileFromDirectBinding()` による真値プロファイル同期。
+> - **✅ Phase 2 完了**: `StartupFlowController.completeStartup` の完全 `async` 化（`setTimeout` 遅延ハック全廃）、および `InventoryStateManager` の未同期時空配列上書き防止ガード。
+> - **✅ Phase 4 完了**: `src/core/lifecycle/GameLifecycleState.js` (`GameLifecycleManager`) の新設と散在フラグの一元化。
+> 
+> **残る実装スコープは Phase 3（UI側：ステータスバー「▽」アコーディオン廃止・オンデマンドのキャラクター詳細ダイアログ新設・上部 Quick Dock 整備・キー透過モード調停）のみ** です。
 
 ---
 
-## 1. 背景と現状の深刻な課題 (Problem Statement)
+## 1. 背景と課題（Phase 1, 2, 4 にて基盤解決済み）
 
-ROADMAP Stage 8.3-B, C 以降、Wasm Direct Binding（`shim_bridge.c` / `WasmDirectBindingService`）の導入により、Cコア構造体メモリの直接同期が進められてきました。しかし、デバッグを進めるほどに既存機能が破壊される「対症療法の悪循環」が発生しています。
+ROADMAP Stage 8.3-B, C 以降、Wasm Direct Binding（`shim_bridge.c` / `WasmDirectBindingService`）の導入により、Cコア構造体メモリの直接同期が進められてきました。当初発生していた以下の 3 大課題のうち、1 と 2 は Stage 8.5 で解消済みであり、現在は 3（UI層の整理）が残存スコープとなっています。
 
-その根本原因は、**「かつての端末メッセージパース（`botl` / `putstr`）やキー入力マクロ駆動を前提とした画面構成・起動シーケンス・キーハンドリングの上に、非同期Direct Bindingをツギハギで継ぎ足したことによるライフサイクルと同期確定境界の構造的破綻」**にあります。
+### 当初の具体的病巣と解消状況
 
-### 現状発生している具体的病巣
+1. **【✅ Stage 8.5 解消済】セーブ再開時のインベントリ未取得・空化**:
+   - `completeStartup` の `async/await` 化および `InventoryStateManager` の空配列上書きガードにより解決済み。
 
-1. **セーブ再開時のインベントリ未取得・空化**:
-   - `syncFromWorkerBridge` が10回以上のShim呼び出しを直列に `await` しているため、Workerとの通信遅延が発生する。
-   - プレイヤーがダンジョン突入操作（Space/移動キー）を行った瞬間に `notifyActionSent()` が走り、同期世代（`_syncGeneration`）が進んでしまう。
-   - これにより、実行中だったインベントリ同期が `isStale()` 判定によって Stale Cancel（自己中断）され、`_cachedInventory` が空配列 `[]` のまま残る。
-   - その後 `renderGklUi()` 等で呼ばれる `InventoryStateManager.syncFromDirectBinding()` が、空配列を「所持品ゼロ」と誤認して `this.items = []`, `isSynced = true` と確定上書きしてしまう。
-   - `completeStartup` 内の `setTimeout(..., 50)` 等の遅延ハックに依存しており、タイミング保証が崩壊している。
+2. **【✅ Stage 8.5 解消済】ステータス（種族・職業等）が「考古学者/人間」に固定化**:
+   - `SHIM_CMD_GET_PLAYER_PROFILE (0x33)` の新設と `AttributeStateManager` への直結により解決済み。
 
-2. **ステータス（種族・職業等）が「考古学者/人間」に固定化**:
-   - Cコアメモリ（`flags.initrole`, `flags.initrace`, `gu.urole`, `gu.urace`, `flags.female`, `u.ualign.type`）には真のデータが正しく復元されている。
-   - しかし、`shim_bridge.c` の `SHIM_CMD_GET_PLAYER_SUMMARY` (0x30) はダンジョン階層やターン数しか返しておらず、プロファイルを取得するShimコマンドが存在しない。
-   - JS側の `AttributeStateManager` に `this.characterInfo = { race: 'human', role: 'archeologist' }` が初期値としてハードコードされており、Cコアから一度も更新されないまま、ステータスバー、ペーパードール、願い・虐殺サービス等に露出・固定化している。
-
-3. **通常時キー横取りとUIライフサイクルの競合**:
-   - 通常プレイ中に `/`（What is this?）や `\`（Known objects）といったNetHack標準キーをJavaScript側で横取り（`e.preventDefault`）し、独自モーダルを開いている。
-   - これが原因で、Cコアの入力待ちステートマシンとWebUIモーダルのライフサイクルが非同期に分裂し、キー入力判定の条件分岐が肥大化・複雑化している。
+3. **【⏸️ Phase 3 残存課題】通常時キー横取りとUIステータス表示の整理**:
+   - 通常プレイ中の `/`（What is this?）や `\`（Known objects）の扱いについて、ネイティブ素通し（Vanilla）と拡張ダイアログ（Enhanced）の調停、および常時表示ステータスバーのスリム化（インライン「▽」展開の廃止と専用ダイアログ化）を行う。
 
 ---
 
@@ -39,25 +39,23 @@ ROADMAP Stage 8.3-B, C 以降、Wasm Direct Binding（`shim_bridge.c` / `WasmDir
 Cコアの構造体メモリ（`struct you`, `gu.urole`, `gu.urace`, `gi.invent`, `svl.level`）が唯一の真実（Single Source of Truth: SSOT）である。テキストパースやマクロによる推測は補助またはフォールバックに限定し、UIへのデータ供給はDirect Bindingから一元的に行う。
 
 ### 原則2: NetHack ネイティブ操作の尊重と WebUI 専用操作の直交分離
-- **通常プレイ中（モーダル非表示時）のゲームキー入力は、原則 100% Cコアへ素通し（ネイティブパススルー）する**。
-  - `/` を押せば NetHack 本来の "What is this?" が起動する。
-  - `\` や `¥` を押せば NetHack 本来の "Known objects" が起動する。
-  - `^X` を押せば NetHack 本来の属性確認画面（テキストウィンドウ）が起動する。
+- **通常プレイ中（モーダル非表示時）のゲームキー入力の透過制御**:
+  - `InputCoordinator.js` の `bypassEnhancedSignals`（または UI 設定トグル）と連動し、ネイティブ透過時は `/`, `\`, `^X` 等を 100% C コアへ素通し（`PASSTHROUGH_GAME_KEY`）する。
+  - Enhanced モード有効時は `/`・`\` からのリッチインスペクター起動も選択可能としつつ、**WebUI 拡張機能には上部「統合ツールバー（Quick Dock）」からマウス/タッチでも常時ワンクリックでアクセス可能**とする。
 - **UIモーダル（キャラクター作成、コンテナ、ペーパードール、新設ステータス等）がアクティブな間のみ、キー入力を適切にトラップ（横取り）する**。
   - Escape でのキャンセル、矢印キーやタブでのフォーカス移動など、ダイアログが開いている間だけキー制御を行う。
-- **WebUI拡張機能は専用ダイアログ・統合ツールバーから明示的に開く形式とする**。
 
 ### 原則3: ステータス表示の On-Demand 化（表示更新タイミング ＝ 開くタイミング）
-- **常時表示ステータスバー（Always-on）**: `statusUpdate` に直結する軽量・リアルタイム情報（HP, Pw, AC, Gold, Dlvl, 状態異常バッジ）のみを表示し、旧来の「▽」インライン展開アコーディオンを全廃する。
-- **キャラクター詳細画面（On-Demand Dialog）**: 専用の独立ダイアログとして新設し、ユーザーが開いた瞬間に Direct Binding から最新の C コアメモリ（プロファイル、能力値、属性耐性、スキル、呪文）を一括フェッチして描画する。閉じた状態では毎ターンの再描画を行わない。
+- **常時表示ステータスバー（Always-on）**: `statusUpdate` に直結する軽量・リアルタイム情報（HP, Pw, AC, Gold, Dlvl, 状態異常バッジ）のみを表示し、旧来の「▽」インライン展開アコーディオンを廃止する。
+- **キャラクター詳細画面（On-Demand Dialog）**: 専用の独立ダイアログとして新設し、ユーザーが開いた瞬間に Direct Binding から最新の C コアメモリ（プロファイル、能力値、属性耐性、スキル、呪文）を一括参照して描画する。
 
 ---
 
 ## 3. To-Be アーキテクチャ設計
 
-### 3.1 単一トランザクショナル・ライフサイクルステートマシン
+### 3.1 単一トランザクショナル・ライフサイクルステートマシン（✅ 実装完了）
 
-散在しているフラグ（`core.isResumingSave`, `StartupFlowController.isSaveResuming`, `_isSyncing`, 各Managerの `isSynced`）を廃止し、起動・セーブ再開・通常ターン遷移を包括する単一のステートマシン（`GameLifecycleState`）を導入する。
+`src/core/lifecycle/GameLifecycleState.js` にて導入済み。
 
 ```mermaid
 stateDiagram-v2
@@ -81,36 +79,17 @@ stateDiagram-v2
     ACTIVE_PLAY --> GAME_OVER: 死亡・脱出
 ```
 
-### 3.2 プレイヤープロファイル真値取得パイプライン
+### 3.2 プレイヤープロファイル真値取得パイプライン（✅ 実装完了）
 
-`shim_bridge.c` に `SHIM_CMD_GET_PLAYER_PROFILE` (0x33) を新設し、Cコアから真のプレイヤー情報を一括取得する。
+`shim_bridge.c` の `SHIM_CMD_GET_PLAYER_PROFILE` (0x33) および `PlayerWasmAdapter.js` にて実装済み。
 
-```c
-/* SHIM_CMD_GET_PLAYER_PROFILE (0x33) 出力フォーマット */
-/* buf = long[16], len = sizeof(long)*16 + 256 bytes (名前文字列バッファ) */
-out[0] = (long) flags.initrole;     /* 初期職業インデックス */
-out[1] = (long) flags.initrace;     /* 初期種族インデックス */
-out[2] = (long) (flags.female ? 1 : 0); /* 性別 */
-out[3] = (long) u.ualign.type;      /* 陣営 (A_LAWFUL, A_NEUTRAL, A_CHAOTIC) */
-out[4] = (long) gu.urole.mnum;      /* 現在の職業モンスター番号 */
-out[5] = (long) gu.urace.mnum;      /* 現在の種族モンスター番号 */
-out[6] = (long) u.ulevel;           /* 経験レベル */
-/* 文字列領域に plname (プレイヤー名) を安全にコピー */
-```
+### 3.3 アトミック同期＆確定描画コミット境界（✅ 実装完了）
 
-### 3.3 アトミック同期＆確定描画コミット境界 (Atomic Commit Barrier)
+`StartupFlowController.js` および `InventoryStateManager.js` にて実装済み。
 
-- **直列RPCの不可文化**:
-  - 初回同期（`ATOMIC_INITIAL_SYNC`）中は、ユーザー操作による世代インクリメント（`notifyActionSent()`）を遮断し、同期完了を 100% 保証する。
-- **生データ未到着時の空配列確定ガード**:
-  - `InventoryStateManager.syncFromDirectBinding()` は、生メモリ走査が完了していない（`_cachedInventory` が未設定または同期中）状態での呼び出しに対し、既存アイテムを空配列で上書きしないフェイルセーフを設ける。
-- **確定描画シグナルの一本化**:
-  - 全マネージャー（Area, Inventory, Attributes, Skills, Spells）の同期が整った段階で単一のコミットシグナル（`gameStateCommitted`）を発火し、UIはこれを受信して一括描画する。
-  - `completeStartup` や描画処理内の `setTimeout` 遅延ハックを全廃し、Promise チェーンによる完全同期に移行する。
+### 3.4 画面構成・WebUI 統合ツールバーと専用ダイアログ（⏸️ Phase 3 実装対象）
 
-### 3.4 画面構成・WebUI 統合ツールバーと専用ダイアログ
-
-NetHackオリジナルのキー入力を阻害しないよう、WebUI拡張機能は画面上の「統合ツールバー（Quick Dock）」に集約する。
+WebUI拡張機能は画面上の「統合ツールバー（Quick Dock）」に集約する。
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -121,28 +100,24 @@ NetHackオリジナルのキー入力を阻害しないよう、WebUI拡張機�
 
 - **`[ 👤 ]` キャラクター詳細ダイアログ**:
   - クリックまたはステータスバーのキャラ名クリックで開く。
-  - 開いた瞬間に Direct Binding から最新のプロファイル、能力値、属性耐性、スキル、呪文を読み込み、リッチなキャラクターシートとして表示。
+  - 開いた瞬間に Direct Binding から最新のプロファイル、能力値、属性耐性、スキル、呪文を読み込み、リッチなキャラクターシートとして表示（啓蒙時の表示UIとしても共用可能）。
 - **`[ 📖 ]` 冒険手帳 / ディスカバリー図鑑**:
-  - クリックで開く（素の `\` キーは NetHack の Known objects へパススルー）。
+  - クリックで開く。
 - **`[ 🔍 ]` ナレッジインスペクター**:
-  - クリックで開く（素の `/` キーは NetHack の What is this? へパススルー）。
+  - クリックで開く。
 - **`[ 🛡️ ]` ペーパードール装備換装**:
   - クリックで開く。
-
-※ 各ダイアログが開いている最中は、キーボードの Escape で閉じる、矢印キーでタブ切り替えを行う等のキートラップを適切に有効化する。
 
 ---
 
 ## 4. 段階的移行・リファクタリング計画 (Phased Migration Plan)
 
-全144ファイル、1,765テストのパスを維持しながら、安全に4段階で移行する。
-
-| フェーズ | 対象スコープ | 主な作業内容 | 担保するテスト / 検証項目 |
-| :--- | :--- | :--- | :--- |
-| **Phase 1** | **Cコア＆Direct Binding拡張<br/>(プレイヤープロファイル真値取得)** | 1. `shim_bridge.c` に `SHIM_CMD_GET_PLAYER_PROFILE` を実装。<br/>2. `WasmDirectBindingService` に `getPlayerProfile()` メソッドを追加。<br/>3. `AttributeStateManager` のハードコードデフォルト値（`archeologist/human`）を排除し、Cコア真値同期と結合。 | 既存テスト全通過 + `AttributeStateManager.directBinding.test.js` にプロファイル同期テスト追加 |
-| **Phase 2** | **アトミック同期パイプライン化<br/>(セーブ復帰時インベントリ空化の撲滅)** | 1. `syncFromWorkerBridge` の初期同期保護を強化し、ユーザー操作による Stale Cancel 破棄を防止。<br/>2. `InventoryStateManager` における生データ未到着時の「空配列確定誤認」ガードを実装。<br/>3. `completeStartup` の `setTimeout` 遅延ハックを Promise 確定待ちへ置換。 | `SaveRestoreDirectBindingSync.test.js`, `FirstTurnFullSync.test.js` の強化・完全通過 |
-| **Phase 3** | **ステータス画面のOn-Demand化＆<br/>ネイティブキー横取り整理** | 1. ステータスバーから「▽」インライン展開領域と毎ターンの耐性・呪文・スキルDOM更新を撤廃（スリム化）。<br/>2. `InputCoordinator.js` から通常プレイ中の `/`, `\`, `^X` 等のキー横取り（`e.preventDefault`）を全廃し、Cコアへの 100% 透過を復元。<br/>3. キャラクター詳細ダイアログを新設し、開いた瞬間に Direct Binding から一括描画する On-Demand 描画パイプラインを実装（モーダル表示中のみキートラップ有効化）。 | `StatusView.test.js` の改修・新設ダイアログテスト追加 |
-| **Phase 4** | **ライフサイクルステートマシン統合＆クリーンアップ** | 1. `StartupFlowController` と `WebUICore` の散在フラグを `GameLifecycleState` に統合。<br/>2. 旧マクロ同期（`querySequenceSilent` 等）の残骸と不要な遅延ハックを全廃。<br/>3. 全テスト（144ファイル、1,765+テスト）の一括回帰検証。 | `npm test` 144ファイル全通過 |
+| フェーズ | 状態 | 対象スコープ | 主な作業内容 | 担保するテスト / 検証項目 |
+| :--- | :---: | :--- | :--- | :--- |
+| **Phase 1** | **✅ 完了**<br>*(Stage 8.5)* | **Cコア＆Direct Binding拡張<br/>(プレイヤープロファイル真値取得)** | 1. `shim_bridge.c` に `SHIM_CMD_GET_PLAYER_PROFILE` を実装。<br/>2. `WasmDirectBindingService` / `PlayerWasmAdapter` に `getPlayerProfile()` を追加。<br/>3. `AttributeStateManager` を Cコア真値同期と結合。 | `AttributeStateManager.test.js` 等 PASS |
+| **Phase 2** | **✅ 完了**<br>*(Stage 8.5)* | **アトミック同期パイプライン化<br/>(セーブ復帰時インベントリ空化の撲滅)** | 1. `syncFromWorkerBridge` の初期同期保護を強化。<br/>2. `InventoryStateManager` の空配列確定誤認ガードを実装。<br/>3. `completeStartup` の `setTimeout` 遅延ハックを Promise 確定待ちへ置換。 | `SaveRestoreDirectBindingSync.test.js`, `FirstTurnFullSync.test.js` PASS |
+| **Phase 3** | **⏸️ 未着手**<br>*(残タスク)* | **ステータス画面のOn-Demand化＆<br/>Quick Dock・キー透過調停** | 1. ステータスバーから「▽」インライン展開領域を整理。<br/>2. キャラクター詳細ダイアログを新設し、開いた瞬間に Direct Binding から一括描画する On-Demand 描画パイプラインを実装。<br/>3. 上部 Quick Dock ツールバーの整備と `InputCoordinator.js` のキー透過設定連携。 | `StatusView.test.js` の改修・新設ダイアログテスト追加 |
+| **Phase 4** | **✅ 完了**<br>*(Stage 8.5)* | **ライフサイクルステートマシン統合＆クリーンアップ** | 1. `StartupFlowController` と `WebUICore` の散在フラグを `GameLifecycleState` に統合。<br/>2. 不要な遅延ハックを全廃。<br/>3. 全テスト（149ファイル、1,811テスト）の一括回帰検証。 | `npm test` 全通過済 |
 
 ---
 
@@ -151,6 +126,4 @@ NetHackオリジナルのキー入力を阻害しないよう、WebUI拡張機�
 1. **Rank S/A テスト（絶対死守）**:
    - Direct Binding 経由の真値取得、Cコアメモリとの整合性、セーブ復元時の全データ保持を検証するテストを最優先で維持・強化。
 2. **UI操作分離のテスト**:
-   - 通常時のゲームキー押下が正しく `PASSTHROUGH_GAME_KEY` として返ること、およびモーダル表示時のみ `BLOCK_INPUT` / `TEXT_WINDOW_DISMISS` 等にルーティングされることを `InputCoordinator.test.js` で検証。
-3. **無停止・段階的コミット**:
-   - 各フェーズ完了ごとに `npm test`（144ファイル、1,765+テスト）が完全にパスすることを確認し、リグレッションをゼロに抑える。
+   - 通常時のゲームキー押下と Enhanced モード切替、およびモーダル表示時の `BLOCK_INPUT` / `CLOSE_TOP_MODAL` ルーティングを `InputCoordinator.test.js` で検証。

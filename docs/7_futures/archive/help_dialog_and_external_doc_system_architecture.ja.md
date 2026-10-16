@@ -1,8 +1,8 @@
 ---
 title: ヘルプ専用ダイアログ化 ＆ 外部ドキュメント連携アーキテクチャ構想
 subtitle: WebUI最適化操作ガイド・外部翻訳連携・ライセンス独立性の両立
-status: proposed
-last_updated: 2026-10-07
+status: archived (Freeze resolved via fast display_file bypass)
+last_updated: 2026-10-16
 author: AI Pair Programmer & e3-sh
 priority: low (backlog)
 related_docs:

@@ -1,8 +1,8 @@
 ---
 title: 啓蒙ダイアログシグナル化による隠れステータス横取りと状態精度向上アーキテクチャ構想
-status: proposed
+status: archived (Superseded by Stage 8.4 Direct Binding)
 created: 2026-09-30
-last_updated: 2026-10-11
+last_updated: 2026-10-16
 author: AI Pair Programmer & e3-sh
 related_docs:
   - docs/7_futures/message_context_and_signal_driven_architecture.ja.md

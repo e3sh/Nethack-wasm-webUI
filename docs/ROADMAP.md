@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-10-15
+last_updated: 2026-10-16
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -33,82 +33,80 @@ last_updated: 2026-10-15
 ## 🔥 1. 現在実施中・最優先フォーカス (Active Focus: 次期着手スロット)
 
 > [!NOTE]
-> **Phase 8（公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結）は全ステージ (8.1〜8.5) 完遂しました！**  
-> 完了した実装仕様および詳細成果は、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** および **[最新引き継ぎ総合レポート (handover_20261015_stage8_completion.ja.md)](./6_project_reports/handover_20261015_stage8_completion.ja.md)** を参照してください。過去のマイグレーションステップ詳細はアーカイブ資料へ移管・集約されました。
+> **Phase 8（公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結）完遂後の棚卸し・現実化（Step 1）が完了しました！**  
+> 既存の設計書群を実コードと突き合わせて監査した結果、Phase 8 基盤によって不要となった旧構想4件をアーカイブ退避し、**§2 の着手待ちタスク群はいずれも基盤層の 50%〜75% がすでに実装済み**であることが確認されました。
 
-Phase 8 の真値直結基盤の完成に伴い、後続の重要機能がすべて安全・シンプルに実装可能な状態となりました。  
-現在、以下の 3 候補から **次期最優先フォーカス（Active Focus）** を選定し、スロットインする準備を進めています。
+現在、以下の 3 候補（残作業のみにスリム化済み）から **次期最優先フォーカス（Active Focus）** を選定し、スロットインする準備が整っています。
 
-| 候補 | 対象タスク | 概要 | 前提状況 |
+| 候補 | 対象タスク | 残作業スコープ（実態監査後） | 進捗・前提状況 |
 | :--- | :--- | :--- | :--- |
-| **候補 A** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | 未鑑定アイテムの仮名付けサジェストコア（`ItemCandidateResolver`）＋候補選択ダイアログ | **着手可能 (Ready)**<br>Phase 8 メモリ直結で買値・売値・真名が即時取得可能 |
-| **候補 B** | **[§2.3 ネイティブキー透過 ＆ 統合ツールバー (Quick Dock)](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md)** | 通常時キー完全素通し、上部 WebUI クイックドック、オンデマンド取得型キャラクター詳細ダイアログ | **着手可能 (Ready)**<br>不可分同期・ライフサイクル管理完備 |
-| **候補 C** | **[§3.1 シグナル駆動ハイブリッド翻訳 / メッセージトークン化](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)** | 辞書90%削減（18,000行➔1,500行）、非翻訳時でも名詞ハイライト・ナレッジポップアップ・演出連携 | **設計完了**<br>構文シグナルと `struct obj` 埋め込み活用 |
+| **候補 A** | **[§2.2 事後ナレッジ連携 (`PostMortemKnowledgeResolver`) 完結](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md)** | 腐敗死体（`rotted ... corpse`）・爆発物（`exploding <item>`）の複合抽出、`while` 優先度スコア調停、`ADVICE_DEFINITIONS` 拡充 | **基盤実装済 (約60%完了)**<br>基本8構文・`scoreboard.html` は稼働中。小〜中規模で完結可能 |
+| **候補 B** | **[§2.3 キャラクター詳細ダイアログ ＆ Quick Dock ＆ キー透過調停](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md)** | ステータスバー `▽` 廃止、`[👤 キャラクター詳細]` On-Demand ダイアログ（`0x33` 直結）、上部 Quick Dock、`/`・`\` キー透過切替 | **Cコア・同期層完了 (75%完了)**<br>Phase 1 (`0x33`), Phase 2 (不可分同期), Phase 4 (`GameLifecycleState`) は実装済。残るは Phase 3 (UI層) のみ |
+| **候補 C** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | 未鑑定アイテムの価格帯・知識照合コア（`ItemCandidateResolver.js`）＋候補選択ダイアログ（`<nh-call-candidate-dialog>`） | **Step 1 完了 (50%完了)**<br>`DiscoveryStateManager` の `0x60`/`0x61`/`0x62` 直結は実装済。Step 2 & 3 のみ |
 
 ---
 
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
-仕様・設計が完了しており、次期着手スロットを待機しているタスク群です。  
+仕様・設計が完了しており、基盤部分の実装も進んでいて残作業が明確化されているタスク群です。  
 ※なお、**旧2.1, 2.2, 2.5, 2.6 (Peek Wisdom), 2.7 (ASCII純化)** は Phase 8 と共に完遂し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
 
 ### 2.1 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
-- **ステータス**: `⏸️ pending (Ready)` (Phase 8 完遂により前提条件クリア・着手可能)
+- **ステータス**: `⏸️ pending (Ready: 50%完了)` (Step 1 実装済み・Step 2〜3 着手可能)
 - **設計書**: [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)
-- **現状**: Phase 8 完遂により C コアから直接アイテム情報（買値・売値・真名 `otyp`）を取得する基盤が整ったため、画面テキストパース不要でシンプルに実装可能。次期フォーカス最有力候補。
+- **現状**: `DiscoveryStateManager.js` における Direct Binding（`0x60`/`0x61`/`0x62`）とメッセージ確定昇格は実装完了。さらに `InventoryStateManager` で買値・売値・外見がメモリ直結取得できるため、画面テキストパース不要で Step 2・3 をシンプルに実装可能。
 - **ステップ**:
-  - [ ] Step 1: `DiscoveryStateManager.js` への Phase 8 価格・未鑑定直結
-  - [ ] Step 2: `ItemCandidateResolver.js` によるワンタップ候補サジェストコア
-  - [ ] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`)
+  - [x] Step 1: `DiscoveryStateManager.js` への Phase 8 発見状態メモリ直結 (`syncWithLiveMemory` 実装済み)
+  - [ ] Step 2: `ItemCandidateResolver.js` によるワンタップ候補サジェストコア（価格帯・識別済み除外フィルタ）
+  - [ ] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`) ＆ `CustomNameStore` 連携
 
 ### 2.2 事後ナレッジ連携 ＆ 戦術アドバイザー刷新（残存部）
-- **ステータス**: `⏸️ pending` (設計完了 / 連動待ち)
+- **ステータス**: `⏸️ pending (Ready: 約60%完了)` (基本リゾルバ＆スコアボード実装済み・複合死因対応待ち)
 - **設計書**: [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md)
-- **現状**: `tools/scoreboard.html` および `PostMortemKnowledgeResolver.js`（多段構文解析・RCA調停）は実装完了。残る「未接続アドバイス（マインドフレア、グリーンスライム等）の包括バインド」および「50+件の死因検証ベンチマークテスト」が着手待ち。
+- **現状**: `tools/scoreboard.html` および `PostMortemKnowledgeResolver.js` の基本8構文は実装済み。一方で「腐った死体による食中毒（`poisoned by a rotted <monster> corpse` がモンスター討伐死に化ける問題）」や「アイテム爆発・罠爆発」「`while ...` 付帯状況の優先度比較（RCA調停）」「`ADVICE_DEFINITIONS.js` の拡充」が未実装として残っている。
+- **ステップ**:
+  - [x] Step 1: 基本死因構文解析 ＆ `tools/scoreboard.html` 連携（実装済み）
+  - [ ] Step 2: 複合エンティティ抽出（`rotted ... corpse`, `exploding <item>`, `caught in an explosion` 等）と `while` RCA優先度調停の実装
+  - [ ] Step 3: `ADVICE_DEFINITIONS.js` の拡充（食中毒・石化・窒息・マインドフレア・グリーンスライム等）と 50+ 件死因ベンチマークテスト
 
-### 2.3 NetHack ネイティブキー透過 ＆ WebUI 統合ツールバー (Quick Dock) ＆ キャラクター詳細ダイアログ新設構想
-- **ステータス**: `⏸️ pending (Ready)` (Stage 8.5 から独立構想として分離・策定)
+### 2.3 ステータス On-Demand ダイアログ ＆ WebUI 統合ツールバー (Quick Dock) ＆ キー透過調停
+- **ステータス**: `⏸️ pending (Ready: 75%完了)` (Phase 1, 2, 4 実装完了・残るは Phase 3 UI層のみ)
 - **設計書**: [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md)
 - **対象コード**: `examples/gkl-pure-js-client/main.js`, `src/ui-controller/InputCoordinator.js`, `src/components/`, `modals.css`
-- **概要**:
-  - 通常プレイ中のキー入力（`/`, `\`, `^X`, `?` 等）を C コア（WASM）へ 100% 素通し（ネイティブパススルー）し、モーダルダイアログ表示中のみ排他的キートラップを適用。
-  - 画面上部に WebUI 拡張機能（インベントリ、ペーパードール、冒険手帳、キャラクター詳細、設定）を一覧できる統合ツールバー（Quick Dock）を新設。
-  - ステータスバーのインラインアコーディオン（▽）を全廃し、専用のキャラクター詳細ダイアログ（`[👤 キャラクター]`）を新設。ダイアログを開いた瞬間に Direct Binding から Role, Race, Gender, Align, 耐性, スキル, 呪文をオンデマンド一括取得して描画。
+- **現状**:
+  - [x] **Phase 1 完了**: C コア `SHIM_CMD_GET_PLAYER_PROFILE` (`0x33`) ＆ `PlayerWasmAdapter.getPlayerProfile()` 実装済み
+  - [x] **Phase 2 完了**: `AttributeStateManager` 空配列防護 ＆ `StartupFlowController` 不可分同期実装済み
+  - [x] **Phase 4 完了**: `GameLifecycleState.js` 単一状態マシン (FSM) 実装済み
+  - [ ] **Phase 3 (残作業)**:
+    - ステータスバーのインラインアコーディオン（`▽`）を廃止し、専用キャラクター詳細ダイアログ（`[👤 キャラクター詳細]`）を新設。開いた瞬間に `0x33` Profile・耐性 (`0x32`)・属性 (`0x30`)・スキル (`0x71`)・呪文 (`0x70`) をオンデマンド描画。
+    - 画面上部に WebUI 拡張機能（インベントリ、ペーパードール、冒険手帳、キャラクター詳細、設定）を一覧できる統合ツールバー（Quick Dock）を新設。
+    - `/` や `\` 等のコマンドについて、`WebUICore.bypassEnhancedSignals` と連動したネイティブ C コア透過モード切替を調停。
 
 ---
 
 ## 💡 3. 構想・将来バックログ (Backlog / Ideas)
 
-設計構想・アイデアが策定されている将来検討項目です。
+設計構想・アイデアが策定されている将来検討項目です（Phase 8 で不要となった旧構想は `docs/7_futures/archive/` へ整理済み）。
 
 ### 3.1 Phase 8 直結の恩恵を強く受ける構想群
-- **シグナル駆動ハイブリッド翻訳 ＆ 辞書スリム化構想**:
-  - 設計書: [signal_driven_hybrid_translation_architecture.ja.md](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)
-  - 概要: 18,000行辞書を1,000〜1,500行へ90%削減。Phase 8 の `struct obj` から名詞スロットを直接埋め込む。
-- **セマンティック・メッセージトークン化 ＆ インタラクティブUI / 演出連携構想 (非翻訳モード拡張)**:
-  - 設計書: [semantic_message_tokenization_and_interactive_rendering_specification.ja.md](./9_translation/semantic_message_tokenization_and_interactive_rendering_specification.ja.md)
-  - 概要: 翻訳OFF（英語原文）時でも構文シグナルから名詞・変数を構造化トークン（Message AST）として認識。固有名詞の色分け表示、クリックによる GKL（Lore Codex / MonsterTracker）ナレッジポップアップ、アイテム即時操作、およびシグナル演出翻訳（画面シェイク・フラッシュ・音響等の VFX/SFX 連動）を実現。シグナル駆動翻訳への最短の架け橋となる。
-- **啓蒙ダイアログシグナル化による隠れステータス横取り**:
-  - 設計書: [enlightenment_dialog_signal_and_state_interception_architecture.ja.md](./7_futures/enlightenment_dialog_signal_and_state_interception_architecture.ja.md)
-  - 概要: 魔法の啓蒙（`MAGICENLIGHTENMENT`）ダイアログの専用モーダルUI化と Direct Binding 非稼働時のステータス補正。
-- **モダン総合インベントリダイアログ ＆ 重量アナリティクス構想 (`i`キー専用UI)**:
-  - 設計書: [modern_inventory_dialog_and_weight_analytics_architecture.ja.md](./7_futures/modern_inventory_dialog_and_weight_analytics_architecture.ja.md)
-  - 概要: Phase 8 の真の重量・BUC直結により、クラス別重量構成比バー、積載境界警告、モダンRPG風の2ペイン所持品コックピット（詳細カード＆クイックアクション）を実現。
-- **足元山積み（Floor Pile）の二画面ファイラー統合 ＆ ダイアログ操作系（Key/Pad）完全統一構想**:
-  - 設計書: [floor_pile_filer_and_dialog_navigation_architecture.ja.md](./7_futures/floor_pile_filer_and_dialog_navigation_architecture.ja.md)
-  - 概要: `ContainerController` の `turn_ready` 起点・1操作1レシピ設計と Phase 8 `SHIM_CMD_GET_OBJECT_AT` を応用し、足元の山積み（`,` 拾う ⇄ `d` 置く）を二画面コンテナUI（`ContainerModal`）でシームレスに整理可能にする。**※着手前提条件：ダイアログが開くたびにキーボードとマウスで手が移動してしまう課題を解消するため、全ダイアログのキーボード／ゲームパッド操作最適化（[`modal_interaction_and_navigation_guide.ja.md`](./2_client_ui/modal_interaction_and_navigation_guide.ja.md) 準拠）を先行完了させること。**
+- **セマンティック・メッセージトークン化 (`MessageSegmenter`) ＆ `CustomNameStore` ＆ ハイブリッド翻訳連携構想**:
+  - 設計書:
+    - [semantic_message_tokenization_and_interactive_rendering_specification.ja.md](./9_translation/semantic_message_tokenization_and_interactive_rendering_specification.ja.md)
+    - [signal_driven_hybrid_translation_architecture.ja.md](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)
+  - 概要: **既存の 18,000 行辞書（`dictionary.csv`）は安定フォールバック資産として温存（非破壊）**した上で、構文シグナルから名詞・変数を構造化トークン（Message AST）として抽出する `MessageSegmenter.js` と、プレイヤー命名（`called ...`）の動的辞書 `CustomNameStore` を先行導入。翻訳ON/OFFを問わず固有名詞の色分けハイライト、クリックによる GKL ナレッジポップアップ、およびプレイヤー命名時の翻訳崩壊防止を実現する。
+- **モダン総合インベントリダイアログ (`i`) ＆ 足元山積み二画面ファイラー (`,`) ＆ ダイアログ操作系（Key/Pad）完全統一構想**:
+  - 設計書:
+    - [modern_inventory_dialog_and_weight_analytics_architecture.ja.md](./7_futures/modern_inventory_dialog_and_weight_analytics_architecture.ja.md)
+    - [floor_pile_filer_and_dialog_navigation_architecture.ja.md](./7_futures/floor_pile_filer_and_dialog_navigation_architecture.ja.md)
+  - 概要: Phase 8 の真の重量・BUC・床スタック直結（`SHIM_CMD_GET_OBJECT_AT`）を活かし、クラス別重量構成比バー付き2ペイン所持品コックピット（`i`）および足元山積み二画面ファイラー（`,` 拾う ⇄ `d` 置く）を実現。**※両構想とも、全ダイアログ共通の2ペイン・キーボード／ゲームパッド操作骨格（[`modal_interaction_and_navigation_guide.ja.md`](./2_client_ui/modal_interaction_and_navigation_guide.ja.md) 準拠）を共通基盤として実装する。**
 - **コンテキスト連動型・岩盤（STONE）可視化 ＆ 掘削アシストレンダリング構想**:
   - 設計書: [context_aware_stone_and_digging_rendering_concept.ja.md](./7_futures/context_aware_stone_and_digging_rendering_concept.ja.md)
   - 概要: 普段は通路・部屋の構造がくっきり見やすい「黒抜き」を維持しつつ、つるはし・穴掘りの杖等で `ContextActions` に「掘る」指示が出るときや自キャラの周辺狭域視野（トーチライト範囲）に限り、通路脇の観測済み岩盤（`STONE`: `glyph 3917` / `typ 0`）を浮かび上がらせるスマート描画拡張。
 
-
 ### 3.2 独立した長期構想群
 - **外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想**:
   - 設計書: [external_wiki_knowledge_linking_architecture.ja.md](./7_futures/external_wiki_knowledge_linking_architecture.ja.md)
-  - 概要: モンスター・アイテム・伝承からNetHackWikiへワンクリックジャンプ。
-- **ヘルプ専用ダイアログ化 ＆ 外部ドキュメント連携構想**:
-  - 設計書: [help_dialog_and_external_doc_system_architecture.ja.md](./7_futures/help_dialog_and_external_doc_system_architecture.ja.md)
-  - 概要: CUI英文ヘルプに代わる、WebUI最適化ガイドモーダル（`HelpGuideModal`）と外部翻訳連携。
+  - 概要: ナレッジカード（`<nh-knowledge-card>`）や詳細モーダルのヘッダーに `[🌐 NetHackWiki]` ボタンを配置し、英語真名（`entity.name`）で外部 Wiki へワンクリックジャンプ（約50行で独立実装可能）。
 
 ---
 
@@ -119,7 +117,7 @@ Phase 8 の真値直結基盤の完成に伴い、後続の重要機能がすべ
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :---: | :--- |
 | **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、基本憲法、重複整理、未接続パイプラインの公式総合カタログ |
-| **GKL・不可分同期** | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) | `StartupFlowController.js`<br>`GameLifecycleState.js`<br>`SilentSyncCoordinator.js` | `🟢 implemented` | **不可分同期ライフサイクル ＆ 単一状態マシン管理 (Stage 8.5: 2026-10-15)**<br>`completeStartup` の async 化による遅延ハック完全排除、`GameLifecycleManager`（単一ステートマシンSSOT）による状態遷移一元化、セーブ再開時チラつき根絶 |
+| **GKL・不可分同期** | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) | `StartupFlowController.js`<br>`GameLifecycleState.js`<br>`SilentSyncCoordinator.js`<br>`PlayerWasmAdapter.js` | `🟢 implemented` | **不可分同期ライフサイクル・単一状態マシン・基本プロフィール直結 (Stage 8.5: 2026-10-15)**<br>`completeStartup` の async 化による遅延ハック完全排除、`GameLifecycleManager`（単一ステートマシンSSOT）による状態遷移一元化、`SHIM_CMD_GET_PLAYER_PROFILE` (`0x33`) による Role/Race/Gender/Align 直結 |
 | **GKL・床知恵 (旧2.6)** | [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) | `ItemSpecPresenter.js`<br>`AreaStateManager.js`<br>`NhKnowledgeCard.js` | `🟢 implemented` | **床アイテム Direct Binding 完全化 ＆ 覗き見知恵 (Peek Wisdom / Stage 8.5: 2026-10-15)**<br>`syncPlayerFeetFloor` 直結の `struct obj` からスタック数量 (`quan`)、強化値 (`spe`)、残チャージ (`charges`)、対象生物 (`corpsenm`)、BUC を動的バッジ化 |
 | **GKL・ASCII純化 (旧2.7)** | [gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/gkl_multibyte_removal_and_ascii_purification_plan.ja.md) | `InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`EquipmentRules.js`<br>`EquipmentDependencyAnalyzer.js` | `🟢 implemented` | **GKL/装備判定ロジックからの日本語正規表現完全削除 ＆ ASCII純化 (Stage 8.5: 2026-10-15)**<br>`rawText` への和名合成汚染を解消し 100% 英語 ASCII に純化（和名は `nameJa`/`customNameJa` へ分離）。判定バグリスクを根絶 |
 | **GKL・探索同期** | [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)<br>[nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md) | `PlayerWasmAdapter.js`<br>`BindingConstants.js`<br>`AreaStateManager.js`<br>`AttributeStateManager.js`<br>`GKLEventRouter.js` | `🟢 implemented` | **ブランチ同定・お祈りタイマー・プレイヤー耐性直結 (Stage 8.4: 2026-10-15)**<br>`dnum` による全9ブランチ 100% 確定同定 ＆ `branch:dlvl` キャッシュ分離、新エリア突入バナー演出（`AREA_ENTERED`）、`ublesscnt` / `ugangr`（推測誤差ゼロお祈り判定）、`uprops` 69要素耐性配列 SSOT 直結 |
@@ -128,7 +126,7 @@ Phase 8 の真値直結基盤の完成に伴い、後続の重要機能がすべ
 | **GKL・空間** | [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md) | `src/core/knowledge/state/AreaStateManager.js`<br>`src/core/knowledge/state/area/` | `🟢 implemented` | **AreaStateManager 4モジュール分割 ＆ 空間状態オーケストレーター (Phase 8 先行3: 2026-10-11)**<br>`AreaStateManager.js` を 1,552行 ➔ 437行（約71.8%削減）へスリム化。`TerrainInferenceEngine`, `DungeonLandmarkRegistry`, `ViewportTileProjector` を分離し 100% 後方互換ファサード化 |
 | **GKL・設計** | [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md) | `src/core/knowledge/GKLPlugin.js`<br>`src/core/knowledge/coordinators/`<br>`src/core/knowledge/services/` | `🟢 implemented` | **GKLPlugin モジュール分割 ＆ アーキテクチャ適正化 (ROADMAP 2.2: 2026-10-11)**<br>`GKLPlugin.js` を 2,613行 ➔ 482行（約81.5%削減）へスリム化。`SilentSyncCoordinator`, `GKLEventRouter`, `GKLFxCoordinator`, `InspectionService`, `AutoTravelService` を分離し 100% 後方互換ファサード化 |
 | **UI・設計** | [gkl_client_modularization_plan.ja.md](./2_client_ui/archive/gkl_client_modularization_plan.ja.md) | `examples/gkl-pure-js-client/main.js`<br>`examples/gkl-pure-js-client/modules/` | `🟢 implemented` | **GKL Pure JS Client (main.js) モジュール分割 ＆ オーケストレーター適正化 (ROADMAP 2.1: 2026-10-11)**<br>`main.js` を 2,364行 ➔ 618行（約74%削減）へスリム化。多言語・レイアウト・FX・起動・盤面操作を独立モジュールへ分離 |
-| **戦歴・スコア** | [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md) | `tools/scoreboard.html`<br>`PostMortemKnowledgeResolver.js`<br>`GameOverResolver.js` | `🟢 implemented` | **公式 xlogfile 準拠スコアボード ＆ 事後ナレッジ構文解析 (2026-10-08)**<br>公式戦歴ビュワー、NetHack 5.0 `formatkiller()` 構文解析（Prefix/Core/Suffix分解）、根本原因調停 (RCA) コア |
+| **戦歴・スコア** | [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md) | `tools/scoreboard.html`<br>`PostMortemKnowledgeResolver.js`<br>`GameOverResolver.js` | `🟢 implemented` | **公式 xlogfile 準拠スコアボード ＆ 事後ナレッジ基本構文解析 (2026-10-08)**<br>公式戦歴ビュワー、NetHack 5.0 基本死因構文解析（8パターン）、根本原因調停 (RCA) コア（※複合死因・アドバイス拡充は §2.2 にて継続） |
 | **品質・堅牢化** | [bugfix_plan_oracles_explore_attackfx.ja.md](./6_project_reports/archive/bugfix_plan_oracles_explore_attackfx.ja.md) | `WebUICore.js`<br>`GKLPlugin.js`<br>`AdventureLogManager.js` | `🟢 implemented` | **3大不具合是正 ＆ 品質堅牢化 (2026-10-08)**<br>信託テキストウィンドウ検知＆大予言一括管理（OOM解消）、exploreランキング除外＆死因SSOT化、攻撃FX誤爆完全抑止 |
 | **操作・動的知識** | [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md) | `OnDemandLookupService.js`<br>`NhKnowledgeCard.js`<br>`NhDiscoveryCodex.js` | `🟢 implemented` | **標準操作プログレッシブ拡張 Phase 1 (2026-10-02)**<br>`/` 動的サイレントクエリ、3層統合ナレッジカード（基本・攻撃・文学引用）、`\` 発見済みアイテム真名・外見対照図鑑 |
 | **伝承・冒険手帳** | [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md) | `tools/adventure_log.html`<br>`AdventureLogManager.js`<br>`NhCodexGrid.js` | `🟢 implemented` | **標準操作プログレッシブ拡張 Phase 2 (2026-10-03)**<br>独立冒険手帳画面、セッション横断メタ進行管理、シルエット解禁グリッド、モンスター公式攻撃データ3,767行 |
@@ -194,7 +192,7 @@ Phase 8 の真値直結基盤の完成に伴い、後続の重要機能がすべ
   - `docs/4_sound/archive/`: 旧 SoundEngine 単一クラス仕様書 (`sound_system_spec.md`)、C層 soundprocs 調査メモ
   - `docs/5_gamedata/archive/`: 店主仕様・アイテム効果レポート等
   - `docs/6_project_reports/archive/`: 過去の引き継ぎ資料・進捗報告書群・不具合是正計画書
-  - `docs/7_futures/archive/`: 完遂済み Phase 5 詳細計画群（全6ステージ）、旧マイクロカーネル構想、旧Gamepad独立クライアント構想等
+  - `docs/7_futures/archive/`: 完遂済み Phase 5 詳細計画群（全6ステージ）、Phase 8 で代替・不要となった旧構想群（啓蒙ダイアログ横取り、真値監査エンジン、ヘルプ専用モーダル、バリアント適合メモ）、旧マイクロカーネル構想、旧Gamepad独立クライアント構想等
   - `docs/8_testing/archive/`: 旧テスト基盤刷新ロードマップ等
   - `docs/9_translation/archive/`: 旧翻訳フロー、旧次世代翻訳拡張計画（かすれ文字・Unicodeシム）、Inspector統合計画等
 

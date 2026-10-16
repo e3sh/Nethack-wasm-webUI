@@ -1,7 +1,7 @@
 ---
 title: ground_truth_knowledge_audit_architecture
-status: future_proposal
-last_updated: 2026-10-09
+status: archived (Offline build/test verification preferred over runtime LocalStorage audit)
+last_updated: 2026-10-16
 related_code:
   - src/core/knowledge/services/WasmDirectBindingService.js
   - src/core/knowledge/lore/AdventureLogManager.js

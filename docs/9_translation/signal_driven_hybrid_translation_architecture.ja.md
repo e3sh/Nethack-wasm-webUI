@@ -142,19 +142,18 @@ NetHack では未識別アイテムやモンスターに名前を付ける（`#n
 
 ---
 
-## 6. 段階的マイグレーション計画 (Implementation Steps)
+## 6. 現実的な段階導入方針 (Pragmatic Phased Strategy - 2026-10-16 評価)
 
-1. **Phase 1: 構文テンプレートエンジン基盤の実装**
-   - `TemplateTranslationSynthesizer.js` の新設。
-   - `MessageContext` のプレースホルダと GKL 名詞マスタ（モンスター・アイテム）の結合テスト。
-2. **Phase 2: 特定シグナル専用訳カタログ (`SpecializedTranslationCatalog.js`) の構築**
-   - 神託、神の怒り、特殊死亡、DevTeam 特有メッセージなどの専用訳テーブルを定義。
-   - `MessageContextResolver` からの $O(1)$ 優先ディスパッチ配線。
-3. **Phase 3: 既存 `dictionary.csv` の統廃合とスリム化**
-   - テンプレート化された戦闘・持ち物ログを既存辞書から一括パージ。
-   - 辞書サイズを 18,000 行からコンパクトな辞書へ圧縮。
-4. **Phase 4: プレイヤー別名・自動呼び名フォロー (`CustomNameStore`) の配備**
-   - UI/GKL 層での安全な日本語エイリアス管理の実装。
+> [!TIP]
+> **【リスク最小化・高コスパ優先の導入方針】**  
+> 既存の `dictionary.csv`（約18,000行）はすでに本番環境で安定稼働しているため、これをいきなり全面パージ・置換すると翻訳品質のリグレッションリスクが生じます。  
+> そのため、辞書の全面入れ替えは急がず、**既存翻訳を 100% 維持したまま即座に UX 価値を生む以下の 2 機能のみを先行抽出して導入**します：
+> 1. **先行 Step A: セマンティック・メッセージトークン化 (`MessageSegmenter.js`)**
+>    - [semantic_message_tokenization_and_interactive_rendering_specification.ja.md](./semantic_message_tokenization_and_interactive_rendering_specification.ja.md) に基づき、メッセージ内のモンスター名・アイテム名をトークン分割（色分けハイライト＋クリックで `<nh-knowledge-card>` ポップアップ表示）。
+> 2. **先行 Step B: プレイヤー別名・日本語仮名フォロー (`CustomNameStore`)**
+>    - C コアには安全な ASCII 識別子を送りつつ、UI/GKL 層（LocalStorage）で日本語の自由な呼び名（`#call`）をオーバーレイ表示（ROADMAP §2.1 命名アシストと統合）。
+> 3. **将来 Step C（任意・長期バックログ）: テンプレート合成訳 ＆ 辞書スリム化**
+>    - 上記トークン化基盤が十分に熟成した段階で、必要に応じて段階的に `dictionary.csv` の戦闘・日常文をテンプレートへ移行する。
 
 ---
 

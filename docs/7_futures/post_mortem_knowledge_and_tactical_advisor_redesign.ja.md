@@ -172,16 +172,18 @@ $$\text{DeathString} = [\text{Prefix}] + [\text{Core Incident / Entity}] + [\tex
 
 ## 8. 実装ロードマップ (Implementation Phases)
 
-- [x] **Phase 1: 構文分解と複合エンティティ抽出基盤の刷新（実装完了）**
-  - [x] `PostMortemKnowledgeResolver.js` を Stage 1〜3 ハイブリッドパイプラインに分離。
-  - [x] 接尾辞 `while ...` および修飾子のトークナイザーを実装。
-  - [x] **死骸（`corpse`）・爆発（`explosion`）・コンテナ（`exploding <item>`）の先行抽出・辞書照会ロジックを実装。**
-  - [x] 単体スコアボード画面（`tools/scoreboard.html`）との連携完了。
-- [x] **Phase 2: コアTDDコーパスの実装と検証（実装完了）**
-  - [x] 第7章のベンチマーク死因ケース（食中毒死、爆死、箱トラップ死、無力化優先を含む代表パターン）に対するユニットテスト（`PostMortemKnowledgeResolver.test.js`）を作成・PASS。
-- [x] **Phase 3: 根本原因調停器 (Root Cause Arbiter) のコア実装（実装完了）**
-  - [x] スコアリングによる主教訓（Primary）と副因の二重構造化（`while fainted` / `while frozen` 優先調停）。
-- [ ] **Phase 4: ADVICE_DEFINITIONS 包括バインド拡張と 50+件 コーパスベンチマーク（残タスク）**
-  - [ ] 未接続アドバイス（`ADVICE_HAZARD_ROTTEN_CORPSE`、`ADVICE_HAZARD_EXPLOSION`、`ADVICE_HAZARD_EXPLODING_CONTAINER` 等の専用ID定義）の `ADVICE_DEFINITIONS.js` への包括バインド。
-  - [ ] NetHack 5.0 `topten.c` の全死因バリエーションを網羅する 50+ 件の拡張コーパスベンチマーク整備と GameOver モーダル表示のさらなる洗練。
+> [!WARNING]
+> **【2026-10-16 実コード突合による進捗ステータス是正】**  
+> 以前の本ドキュメントでは Phase 1〜3 が `[x] 実装完了` と記載されていましたが、`src/core/knowledge/services/PostMortemKnowledgeResolver.js`（全301行）および `tests/core/knowledge/PostMortemKnowledgeResolver.test.js` の実コード監査により、**現在は「基本8パターンの解決と `tools/scoreboard.html` 統合」までが完了しており、複合エンティティ抽出（`rotted ... corpse`, `exploding <item>`, `explosion`）および `while` 付帯状況の主因優先調停（RCA）は未実装**であることが確認されました。以下のチェックリストを実態に合わせて是正します。
+
+- [x] **Phase 0: 基本死因リゾルバと公式スコアボード (`tools/scoreboard.html`) 連携（実装完了）**
+  - [x] 基本死因構文（`ascended`, `quit`, `escaped`, `starvation`, `petrified`, `choked on`, `drowned`, 基本モンスター撃破、`floating eye` 麻痺）の日本語翻訳とアドバイス紐付け。
+  - [x] 単体スコアボード画面（`tools/scoreboard.html`）および `PostMortemKnowledgeResolver.test.js`（基本12テスト）の配備・PASS。
+- [ ] **Phase 1: 複合エンティティ先行抽出 ＆ 構文分解パイプラインの実装（残タスク）**
+  - [ ] **死骸食中毒（`rotted <monster> corpse`）・環境爆発（`explosion`）・コンテナ罠爆発（`exploding <item>`）** が一般モンスター戦闘死（`THREAT_MONSTER`）に誤フォールバックしないよう先行抽出・辞書照会ロジックを実装。
+  - [ ] 修飾子（`invisible`, `peaceful`, `shopkeeper`, `called ...`）と接尾辞 `while ...` の精密分離。
+- [ ] **Phase 2: 根本原因調停器 (Root Cause Arbiter: RCA) の実装（残タスク）**
+  - [ ] `while fainted from lack of food` 等の無力化状態（Helpless Suffix）を直接打撃（`a newt` 等）より優先して主教訓（Primary Advice）に選出する調停ロジック。
+- [ ] **Phase 3: `ADVICE_DEFINITIONS.js` 包括バインド拡張と TDD コーパステスト完備（残タスク）**
+  - [ ] 未接続アドバイス（`ADVICE_THREAT_MIND_FLAYER`, `ADVICE_THREAT_GREEN_SLIME`, 新規ハザード定義等）の包括バインドと第7章の全16+ケース TDD 検証。
 

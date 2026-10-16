@@ -9,7 +9,7 @@ related_docs:
   - docs/ROADMAP.md
   - docs/SYSTEM_CAPABILITIES.md
   - docs/3_gkl/GKL_Structured_Knowledge_Usage_Guide.md
-  - docs/7_futures/help_dialog_and_external_doc_system_architecture.ja.md
+  - docs/7_futures/archive/help_dialog_and_external_doc_system_architecture.ja.md
 ---
 
 # 🌐 外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想

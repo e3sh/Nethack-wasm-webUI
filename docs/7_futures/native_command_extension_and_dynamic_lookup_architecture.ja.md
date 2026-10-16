@@ -282,22 +282,11 @@ NetHackの本質である**「神聖なパーマデス（死んだら全ロス�
   - [x] タイルグリッドコンポーネント（`<nh-codex-grid>`）と CSS シルエット／アンロック点灯演出、および `MONSTER_OFFICIAL_ATTACKS.js` による Cソース準拠攻撃定義の統合。
   - [x] LocalStorage の収集記録に基づく全体およびカテゴリ別進捗率（%）の可視化。
   - [x] `SaveManager`（`tools/save_manager.html`）とのデータメンテナンス連携。
-- [ ] **Phase 3: 【ゲーム内】命名アシスト ＆ GamePad候補選択ダイアログ（Phase 8 メモリ直結完了後に実装予定）**
-  - **実装タイミング**: Phase 8 (`WasmDirectBindingService` / `SHIM_CMD_DUMP_DISCOVERIES` 0x60 & `SHIM_CMD_DUMP_DESCR_INDEXES` 0x62) によるCメモリ直結同期基盤の完了を受け、その確定データ上で実装を進める。
-  - **背景と目的**:
-    - GamePad（コントローラー）やモバイル操作において、`C` やアイテム使用後の「What do you want to call this...?」プロンプトでソフトウェアキーボードから手動タイピングさせる操作負荷を解消する。
-    - 十字キー（↑↓）とAボタン（決定）で即座に選べる「候補選択リストUI」を提供し、PC前提のタイピングをスマートな選択操作へと昇華。
-  - **2大サジェスト・インプット**:
-    - **① 使用後メッセージ解析サジェスト（効果ログ逆引き）**:
-      - 巻物読了・薬服用・杖使用後の直前メッセージ（例: `You feel very comfortable.` 等）を `MessageContextResolver` で解析し、推定されるアイテム真名候補（大回復、完全回復等）をサジェスト。
-      - 確実なメッセージの場合はダイアログをスキップして即時仮名登録する「Call自動登録モード」もオプション提供。
-    - **② 店頭価格識別サジェスト（Base Price 逆引き）**:
-      - NetHack 5.0 Cコアの `pricequotes` 機能による `{buy ...}` メモや店主の提示価格から、プレイヤーのカリスマ値・店の掛け率を逆算し、`OBJECT_KNOWLEDGE_FULL` の `basePrice` と照合して候補アイテム群（例: 100Gの巻物群）をサジェスト。
-  - **ディスカバリー図鑑（`DiscoveryStateManager`）の堅牢化**:
-    - Phase 8 Direct Binding (`0x60` / `0x62`) と連携しつつ、価格情報やユーザー命名情報を保持。
-  - **コンポーネント / プロンプト統合**:
-    - `What do you want to call...` プロンプトを捕捉する GamePad 対応ダイアログ（`<nh-call-candidate-dialog>` または既存プロンプト拡張）の実装。
-    - 決定時に `queueSequence` で C コアへ仮名文字列を自動入力・確定送信。
+- [ ] **Phase 3: 【ゲーム内】命名アシスト ＆ GamePad候補選択ダイアログ（基盤50%完了・残UI/Resolver着手可能）**
+  - **実装進捗 (2026-10-16 時点)**:
+    - [x] **Step 1 完了 (`DiscoveryStateManager.js`)**: Phase 8 Direct Binding (`SHIM_CMD_DUMP_DISCOVERIES` 0x60, `SHIM_CMD_GET_OBJECT_UNAME` 0x61, `SHIM_CMD_DUMP_DESCR_INDEXES` 0x62) とのライブメモリ同期 (`syncWithLiveMemory`)、および効果メッセージからの真名自動昇格 (`processDiscoveryMessage`) は実装済み。
+    - [ ] **Step 2 (`ItemCandidateResolver.js`)**: 未識別アイテムに対して、`OBJECT_KNOWLEDGE_FULL` の基礎価格 (`cost`)・カテゴリ・直前効果メッセージから候補アイテム群（例: 100Gの巻物群、回復系ポーション群）をワンタップ用にサジェストする軽量リゾルバの実装。
+    - [ ] **Step 3 (`<nh-call-candidate-dialog>`)**: `What do you want to call...` プロンプトを捕捉し、GamePad（十字キー＋Aボタン）やタッチ操作で候補リストから即座に仮名を選択・送信できるダイアログコンポーネントの実装。
 
 
 
