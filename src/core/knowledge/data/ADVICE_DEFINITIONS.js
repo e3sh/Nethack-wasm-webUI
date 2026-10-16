@@ -432,6 +432,101 @@ export const ADVICE_DEFINITIONS = {
         baseScore: 350,
         templateJa: '⚠️ クリスナイフ注意: クリスナイフは床に落とすと壊れて消滅する恐れがあります。所持したまま管理してください。',
         templateEn: '⚠️ BRITTLE BLADE: Crysknife may shatter if dropped on the floor. Keep it in inventory.'
+    },
+
+    // 20. 事後ナレッジ・死因対策アドバイス (Post-Mortem & Survival)
+    'ADVICE_SURVIVAL_FOOD_POISONING': {
+        id: 'ADVICE_SURVIVAL_FOOD_POISONING',
+        severity: 'CRITICAL',
+        topic: 'SURVIVAL',
+        baseScore: 900,
+        defaultCommand: 'e',
+        templateJa: '🍖 食中毒警告: 腐った死体や有毒な死骸を摂取すると致命的な毒や病気で死亡します。新鮮な死体や保存食・缶詰を摂取し、トカゲの死体やユニコーンの角で解毒してください。',
+        templateEn: '🍖 FOOD POISONING WARNING: Eating tainted or rotted corpses causes lethal illness or poisoning. Eat only fresh corpses or rations, and cure with lizard corpse or unicorn horn.'
+    },
+    'ADVICE_HAZARD_ROTTEN_CORPSE': {
+        id: 'ADVICE_HAZARD_ROTTEN_CORPSE',
+        severity: 'CRITICAL',
+        topic: 'SURVIVAL',
+        baseScore: 900,
+        defaultCommand: 'e',
+        templateJa: '🍖 腐敗死骸警告: 死後ターンが経過した死体は腐敗し、食べると食中毒で即死します。新鮮な死体のみ摂取するか、保存食・缶詰を活用してください。',
+        templateEn: '🍖 ROTTEN CORPSE HAZARD: Corpses decay over turns. Eating tainted corpses causes fatal food poisoning. Eat fresh corpses or rations.'
+    },
+    'ADVICE_SURVIVAL_CHOKING': {
+        id: 'ADVICE_SURVIVAL_CHOKING',
+        severity: 'CRITICAL',
+        topic: 'SURVIVAL',
+        baseScore: 920,
+        templateJa: '⚠️ 窒息死警告: 満腹(Satiated)状態でさらに食料を摂取すると喉に詰まらせて窒息死します。満腹度が下がるまで食事を控えましょう。',
+        templateEn: '⚠️ CHOKING HAZARD: Eating while Satiated can cause fatal choking. Wait until digestion completes before eating more.'
+    },
+    'ADVICE_SURVIVAL_DROWNING': {
+        id: 'ADVICE_SURVIVAL_DROWNING',
+        severity: 'CRITICAL',
+        topic: 'SURVIVAL',
+        baseScore: 960,
+        templateJa: '🌊 水没・溺死警告: 重い荷物を背負ったまま水場や堀に入ると沈んで溺死します。浮遊の指輪や水上歩行の靴を装備するか、荷物を軽くしてください。',
+        templateEn: '🌊 DROWNING HAZARD: Entering water or moats while burdened causes drowning. Use Levitation or Water Walking Boots.'
+    },
+    'ADVICE_THREAT_SLIME': {
+        id: 'ADVICE_THREAT_SLIME',
+        severity: 'CRITICAL',
+        topic: 'THREAT',
+        baseScore: 920,
+        defaultCommand: 'f',
+        templateJa: '🧪 スライム化警告: グリーンスライム(Green Slime)の接触でスライム化即死します！火炎の杖や火の呪文、遠隔攻撃で速やかに焼き払ってください。',
+        templateEn: '🧪 SLIME THREAT: Green slime contact turns player into slime! Burn it away with fire or attack from range.'
+    },
+    'ADVICE_THREAT_RIDER': {
+        id: 'ADVICE_THREAT_RIDER',
+        severity: 'CRITICAL',
+        topic: 'THREAT',
+        baseScore: 1100,
+        templateJa: '💀 黙示録の騎手: 死・飢饉・疫病の三騎士（Death, Famine, Pestilence）は直接攻撃が極めて致命的です。近接を避け、遠距離から杖や飛び道具で撃破してください。',
+        templateEn: '💀 APOCALYPTIC RIDER: Riders of the Apocalypse (Death, Famine, Pestilence) possess lethal attacks. Avoid melee and strike from distance.'
+    },
+    'ADVICE_HAZARD_EXPLOSION': {
+        id: 'ADVICE_HAZARD_EXPLOSION',
+        severity: 'WARNING',
+        topic: 'THREAT',
+        baseScore: 850,
+        templateJa: '💥 爆発警戒: ガス胞子の誘爆や杖・魔法の爆風に巻き込まれると大ダメージを受けます。火炎耐性を確保し、安全な距離を保ちましょう。',
+        templateEn: '💥 EXPLOSION HAZARD: Caught in explosion from gas spores or wands. Ensure fire resistance and keep safe distance.'
+    },
+    'ADVICE_HAZARD_EXPLODING_CONTAINER': {
+        id: 'ADVICE_HAZARD_EXPLODING_CONTAINER',
+        severity: 'WARNING',
+        topic: 'THREAT',
+        baseScore: 800,
+        defaultCommand: 'a',
+        templateJa: '📦 箱罠警戒: 鍵のかかった箱やチェストには爆弾トラップが仕掛けられている場合があります。遠隔飛び道具で破壊するか、鍵や開錠スキル、ノックの呪文で解除してください。',
+        templateEn: '📦 EXPLODING CONTAINER: Locked boxes or chests may be booby-trapped. Disarm with keys, unlock skill/spell, or trigger from range.'
+    },
+    'ADVICE_HAZARD_DRAWBRIDGE': {
+        id: 'ADVICE_HAZARD_DRAWBRIDGE',
+        severity: 'CRITICAL',
+        topic: 'THREAT',
+        baseScore: 1000,
+        templateJa: '🌉 跳ね橋即死警告: 跳ね橋(Drawbridge)の真下にいるときに開閉されると押し潰されて即死します。跳ね橋の昇降スイッチには細心の注意を払いましょう。',
+        templateEn: '🌉 DRAWBRIDGE HAZARD: Standing under a closing/opening drawbridge causes instant crushing death. Operate bridges with extreme care.'
+    },
+    'ADVICE_SURVIVAL_BOUNCED_RAY': {
+        id: 'ADVICE_SURVIVAL_BOUNCED_RAY',
+        severity: 'CRITICAL',
+        topic: 'SURVIVAL',
+        baseScore: 900,
+        templateJa: '⚡ 反射光線自爆警告: 壁に反射した電撃や死の光線に当たると自滅します。反射の盾を装備するか、直角以外の角度での照射を避けてください。',
+        templateEn: '⚡ BOUNCED RAY HAZARD: Lightning or death rays bouncing off walls can strike you. Wear Shield of Reflection or mind your firing angle.'
+    },
+    'ADVICE_SURVIVAL_DIVINE_WRATH': {
+        id: 'ADVICE_SURVIVAL_DIVINE_WRATH',
+        severity: 'CRITICAL',
+        topic: 'SURVIVAL',
+        baseScore: 950,
+        defaultCommand: 'p',
+        templateJa: '⚡ 神罰警告: 祈りの間隔が早すぎる、不敬な行動を行うなどで神の怒り(Wrath/Anger)に触れると即死・致命的打撃を受けます。祈りは十分にターンを空けて行いましょう。',
+        templateEn: '⚡ DIVINE WRATH: Praying too frequently or sacrilegious actions incur godly wrath. Wait sufficient turns before praying again.'
     }
 };
 

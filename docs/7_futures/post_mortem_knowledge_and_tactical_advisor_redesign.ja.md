@@ -1,11 +1,11 @@
 ---
 title: 事後ナレッジ連携＆戦術アドバイザー刷新 設計構想 (Future Vision)
-status: in-progress (Core Resolver & Scoreboard implemented)
-last_updated: 2026-10-11
+status: implemented
+last_updated: 2026-10-16
 related_code:
-  - src/core/knowledge/PostMortemKnowledgeResolver.js
-  - src/core/knowledge/PostMortemKnowledgeResolver.test.js
-  - src/core/knowledge/ADVICE_DEFINITIONS.js
+  - src/core/knowledge/services/PostMortemKnowledgeResolver.js
+  - tests/core/knowledge/PostMortemKnowledgeResolver.test.js
+  - src/core/knowledge/data/ADVICE_DEFINITIONS.js
   - tools/scoreboard.html
 ---
 
@@ -13,8 +13,8 @@ related_code:
 
 - **文書ID**: `DOC-FUTURE-POST-MORTEM-ADVICE-01`
 - **対象領域**: Core Knowledge層 (`PostMortemKnowledgeResolver.js`, `ADVICE_DEFINITIONS.js`) / UI層 (`scoreboard.html`, ゲームオーバー画面)
-- **ステータス**: `in-progress (Core Resolver & Scoreboard implemented)`
-- **最終更新**: 2026-10-11
+- **ステータス**: `implemented`
+- **最終更新**: 2026-10-16
 
 ---
 
@@ -179,11 +179,11 @@ $$\text{DeathString} = [\text{Prefix}] + [\text{Core Incident / Entity}] + [\tex
 - [x] **Phase 0: 基本死因リゾルバと公式スコアボード (`tools/scoreboard.html`) 連携（実装完了）**
   - [x] 基本死因構文（`ascended`, `quit`, `escaped`, `starvation`, `petrified`, `choked on`, `drowned`, 基本モンスター撃破、`floating eye` 麻痺）の日本語翻訳とアドバイス紐付け。
   - [x] 単体スコアボード画面（`tools/scoreboard.html`）および `PostMortemKnowledgeResolver.test.js`（基本12テスト）の配備・PASS。
-- [ ] **Phase 1: 複合エンティティ先行抽出 ＆ 構文分解パイプラインの実装（残タスク）**
-  - [ ] **死骸食中毒（`rotted <monster> corpse`）・環境爆発（`explosion`）・コンテナ罠爆発（`exploding <item>`）** が一般モンスター戦闘死（`THREAT_MONSTER`）に誤フォールバックしないよう先行抽出・辞書照会ロジックを実装。
-  - [ ] 修飾子（`invisible`, `peaceful`, `shopkeeper`, `called ...`）と接尾辞 `while ...` の精密分離。
-- [ ] **Phase 2: 根本原因調停器 (Root Cause Arbiter: RCA) の実装（残タスク）**
-  - [ ] `while fainted from lack of food` 等の無力化状態（Helpless Suffix）を直接打撃（`a newt` 等）より優先して主教訓（Primary Advice）に選出する調停ロジック。
-- [ ] **Phase 3: `ADVICE_DEFINITIONS.js` 包括バインド拡張と TDD コーパステスト完備（残タスク）**
-  - [ ] 未接続アドバイス（`ADVICE_THREAT_MIND_FLAYER`, `ADVICE_THREAT_GREEN_SLIME`, 新規ハザード定義等）の包括バインドと第7章の全16+ケース TDD 検証。
+- [x] **Phase 1: 複合エンティティ先行抽出 ＆ 構文分解パイプラインの実装（実装完了）**
+  - [x] **死骸食中毒（`rotted <monster> corpse`）・環境爆発（`explosion`）・コンテナ罠爆発（`exploding <item>`）** が一般モンスター戦闘死（`THREAT_MONSTER`）に誤フォールバックしないよう先行抽出・辞書照会ロジックを実装。
+  - [x] 修飾子（`invisible`, `peaceful`, `shopkeeper`, `called ...`）と接尾辞 `while ...` の精密分離。
+- [x] **Phase 2: 根本原因調停器 (Root Cause Arbiter: RCA) の実装（実装完了）**
+  - [x] `while fainted from lack of food` 等の無力化状態（Helpless Suffix）を直接打撃（`a newt` 等）より優先して主教訓（Primary Advice）に選出する調停ロジック。
+- [x] **Phase 3: `ADVICE_DEFINITIONS.js` 包括バインド拡張と TDD コーパステスト完備（実装完了）**
+  - [x] 未接続アドバイス（`ADVICE_THREAT_MIND_FLAYER`, `ADVICE_THREAT_GREEN_SLIME`, 新規ハザード定義等）の包括バインドと第7章の全16+ケース TDD 検証（64テスト 100% PASS）。
 
