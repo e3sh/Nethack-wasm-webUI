@@ -291,11 +291,26 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
                 ((o->rknown ? 1 : 0) << 4) |
                 ((o->oeroded & 3) << 5) |
                 ((o->oeroded2 & 3) << 7) |
-                ((o->known ? 1 : 0) << 9)
+                ((o->known ? 1 : 0) << 9) |
+                ((o->cknown ? 1 : 0) << 10) |
+                ((o->lknown ? 1 : 0) << 11) |
+                ((o->tknown ? 1 : 0) << 12) |
+                ((o->olocked ? 1 : 0) << 13) |
+                ((o->obroken ? 1 : 0) << 14) |
+                ((o->otrapped ? 1 : 0) << 15) |
+                ((o->oerodeproof ? 1 : 0) << 16) |
+                ((o->greased ? 1 : 0) << 17) |
+                ((o->unpaid ? 1 : 0) << 18)
             );
             out[7] = (long) ((o->quan >= 1) ? weight(o) : o->owt); /* 鞄の軽減・4倍補正込み真の重量 (quan < 1 時の impossible 回避) */
             if (len >= (sizeof(long) * 9)) {
                 out[8] = (long) o->corpsenm;
+            }
+            if (len >= (sizeof(long) * 12)) {
+                out[8] = (long) o->corpsenm;
+                out[9] = (long) o->age;
+                out[10] = (long)(uintptr_t) o->cobj;
+                out[11] = (long)(uintptr_t) o->nexthere;
             }
             return 0;
         }
@@ -321,7 +336,16 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
                     ((o->rknown ? 1 : 0) << 4) |
                     ((o->oeroded & 3) << 5) |
                     ((o->oeroded2 & 3) << 7) |
-                    ((o->known ? 1 : 0) << 9)
+                    ((o->known ? 1 : 0) << 9) |
+                    ((o->cknown ? 1 : 0) << 10) |
+                    ((o->lknown ? 1 : 0) << 11) |
+                    ((o->tknown ? 1 : 0) << 12) |
+                    ((o->olocked ? 1 : 0) << 13) |
+                    ((o->obroken ? 1 : 0) << 14) |
+                    ((o->otrapped ? 1 : 0) << 15) |
+                    ((o->oerodeproof ? 1 : 0) << 16) |
+                    ((o->greased ? 1 : 0) << 17) |
+                    ((o->unpaid ? 1 : 0) << 18)
                 );
                 out[base + 7] = (long) ((o->quan >= 1) ? weight(o) : o->owt); /* 鞄の軽減・4倍補正込み真の重量 (quan < 1 時の impossible 回避) */
                 out[base + 8] = (long) o;         /* 構造体ポインタ (装備スロット照合用) */

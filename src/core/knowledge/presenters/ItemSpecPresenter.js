@@ -37,10 +37,17 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
     const cat = knowledge.category || 'OTHER';
     const stats = knowledge.stats || {};
     const identification = options.identification || knowledge.identification || null;
-    const isUnidentified = Boolean(knowledge.isUnidentified || (identification && identification.isUnidentified));
-
+    const isWisdomRevealed = Boolean(options.isWisdomRevealed || knowledge.isWisdomRevealed || options.sagesWisdomMode);
     const directObj = options.directObject || options.item?.directObject || knowledge.directObject || null;
     const item = options.item || null;
+    const flags = directObj?.flags || item?.flags || knowledge.flags || {};
+
+    const isUnidentified = Boolean(
+        !isWisdomRevealed && (
+            knowledge.isUnidentified ||
+            (identification && identification.isUnidentified)
+        )
+    );
 
     const quan = (directObj && typeof directObj.quan === 'number')
         ? directObj.quan
@@ -54,14 +61,30 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
         ? directObj.corpsenm
         : ((item && typeof item.corpsenm === 'number') ? item.corpsenm : knowledge.corpsenm);
 
-    const bucRaw = (directObj && directObj.bucStatus)
+    const extraPileCount = (typeof options.extraPileCount === 'number')
+        ? options.extraPileCount
+        : ((typeof directObj?.extraPileCount === 'number')
+            ? directObj.extraPileCount
+            : ((typeof knowledge.extraPileCount === 'number')
+                ? knowledge.extraPileCount
+                : ((typeof item?.extraPileCount === 'number') ? item.extraPileCount : 0)));
+
+    const isPile = Boolean(options.isPile || directObj?.isPile || knowledge.isPile || item?.isPile || extraPileCount > 0);
+
+    let bucRaw = (directObj && directObj.bucStatus)
         || (item && item.bucStatus)
         || (directObj && directObj.blessed ? 'BLESSED' : (directObj && directObj.cursed ? 'CURSED' : null))
         || (item && item.blessed ? 'BLESSED' : (item && item.cursed ? 'CURSED' : null))
         || knowledge.bucStatus
         || (identification && identification.bucStatus);
 
-    // 🕵️ 未識別アイテム (UNIDENTIFIED) 専用の適応型バッジ＆マスク表示
+    if (isWisdomRevealed && (!bucRaw || bucRaw === 'UNKNOWN') && flags) {
+        if (flags.blessed) bucRaw = 'BLESSED';
+        else if (flags.cursed) bucRaw = 'CURSED';
+        else bucRaw = 'UNCURSED';
+    }
+
+    // 🕵️ 未識別アイテム (UNIDENTIFIED) かつ非Peek時の適応型バッジ＆マスク表示
     if (isUnidentified) {
         specs.push({
             id: 'identification_status',
@@ -92,7 +115,7 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
             });
         }
 
-        if (bucRaw && bucRaw !== 'UNKNOWN') {
+        if (bucRaw && bucRaw !== 'UNKNOWN' && (flags.bknown || !directObj)) {
             const bucJaMap = { BLESSED: '祝福 (Blessed)', UNCURSED: '通常 (Uncursed)', CURSED: '呪い (Cursed)' };
             const bucEnMap = { BLESSED: 'Blessed', UNCURSED: 'Uncursed', CURSED: 'Cursed' };
             specs.push({
@@ -111,6 +134,19 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
                 value: isEn ? `${quan}x` : `${quan}個`,
                 type: 'info',
                 quan: quan
+            });
+        }
+
+        if (isPile) {
+            specs.push({
+                id: 'pile_count',
+                label: isEn ? 'Pile' : '山積み',
+                value: extraPileCount > 0
+                    ? (isEn ? `+${extraPileCount} beneath` : `下に +${extraPileCount} 個`)
+                    : (isEn ? '+ beneath' : '下に複数アイテム'),
+                type: 'info',
+                highlight: true,
+                extraPileCount
             });
         }
 
@@ -167,8 +203,40 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
         return specs;
     }
 
-    // 🌟 識別済みアイテムの個体スペック (BUC, 数量, 対象モンスター, 強化値)
-    if (bucRaw && bucRaw !== 'UNKNOWN') {
+    // 🌟 識別済みまたは Peek Wisdom 開示時の個体スペック (BUC, 数量, 対象モンスター, 強化値, 箱, 劣化, 山積み)
+    const isUnidItem = Boolean(
+        knowledge.isUnidentified ||
+        (identification && identification.isUnidentified) ||
+        (directObj && directObj.flags && directObj.flags.dknown === false)
+    );
+
+    // 🧙 賢者の知恵（Peek Wisdom）透視時: 正式名（真名）およびゲーム内外見をスペック最上段に明示開示
+    if (isWisdomRevealed && isUnidItem) {
+        const trueName = (!isEn && (knowledge.wisdomTrueNameJa || knowledge.nameJa))
+            ? (knowledge.wisdomTrueNameJa || knowledge.nameJa)
+            : (knowledge.wisdomTrueName || knowledge.nameEn || knowledge.name);
+        if (trueName) {
+            specs.push({
+                id: 'wisdom_true_name',
+                label: isEn ? 'True Name' : '正式名 (真名)',
+                value: trueName,
+                type: 'magic',
+                highlight: true
+            });
+        }
+        const appearance = knowledge.appearanceName || (identification && identification.appearanceName);
+        if (appearance) {
+            specs.push({
+                id: 'appearance',
+                label: isEn ? 'Appearance' : '外見',
+                value: appearance,
+                type: 'info'
+            });
+        }
+    }
+
+    const canShowBuc = Boolean(isWisdomRevealed || flags.bknown || (directObj && directObj.bucStatus) || !directObj || !directObj.flags);
+    if (bucRaw && bucRaw !== 'UNKNOWN' && canShowBuc) {
         const bucJaMap = { BLESSED: '祝福 (Blessed)', UNCURSED: '通常 (Uncursed)', CURSED: '呪い (Cursed)' };
         const bucEnMap = { BLESSED: 'Blessed', UNCURSED: 'Uncursed', CURSED: 'Cursed' };
         specs.push({
@@ -176,7 +244,7 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
             label: 'BUC',
             value: isEn ? (bucEnMap[bucRaw] || bucRaw) : (bucJaMap[bucRaw] || bucRaw),
             type: bucRaw === 'CURSED' ? 'warning' : (bucRaw === 'BLESSED' ? 'magic' : 'info'),
-            highlight: bucRaw !== 'UNCURSED'
+            highlight: bucRaw !== 'UNCURSED' || isWisdomRevealed
         });
     }
 
@@ -187,6 +255,19 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
             value: isEn ? `${quan}x` : `${quan}個`,
             type: 'info',
             quan: quan
+        });
+    }
+
+    if (isPile) {
+        specs.push({
+            id: 'pile_count',
+            label: isEn ? 'Pile' : '山積み',
+            value: extraPileCount > 0
+                ? (isEn ? `+${extraPileCount} beneath` : `下に +${extraPileCount} 個`)
+                : (isEn ? '+ beneath' : '下に複数アイテム'),
+            type: 'info',
+            highlight: true,
+            extraPileCount
         });
     }
 
@@ -205,7 +286,9 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
         });
     }
 
-    if (typeof spe === 'number' && (cat === 'WEAPON' || cat === 'ARMOR' || cat === 'RING')) {
+    // 強化値 (spe): 既知または Peek 時に開示
+    const canShowSpe = Boolean(isWisdomRevealed || flags.known || (directObj && typeof directObj.spe === 'number' && !directObj.flags) || !directObj || !directObj.flags);
+    if (canShowSpe && typeof spe === 'number' && (cat === 'WEAPON' || cat === 'ARMOR' || cat === 'RING')) {
         const sign = spe > 0 ? `+${spe}` : `${spe}`;
         specs.push({
             id: 'enchantment',
@@ -213,11 +296,12 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
             value: sign,
             spe: spe,
             type: spe > 0 ? 'magic' : (spe < 0 ? 'warning' : 'weapon'),
-            highlight: spe !== 0
+            highlight: spe !== 0 || isWisdomRevealed
         });
     }
 
-    if (cat === 'WAND' && typeof spe === 'number') {
+    // 杖のチャージ数: 既知または Peek 時に開示
+    if (canShowSpe && cat === 'WAND' && typeof spe === 'number') {
         specs.push({
             id: 'charges',
             label: isEn ? 'Charges' : '残チャージ',
@@ -225,6 +309,102 @@ export function getAdaptiveItemSpecs(knowledge, options = {}) {
             type: 'magic',
             highlight: true
         });
+    }
+
+    // 劣化・コーティング状態 (oeroded, oeroded2, oerodeproof, greased)
+    if (flags) {
+        if (flags.oeroded > 0 || flags.oeroded2 > 0) {
+            const erodeVal = Math.max(flags.oeroded || 0, flags.oeroded2 || 0);
+            const erodeJa = erodeVal >= 3 ? 'ひどく損傷 (Very damaged)' : (erodeVal === 2 ? '損傷 (Damaged)' : '軽微な損傷 (Rusty/Burnt)');
+            const erodeEn = erodeVal >= 3 ? 'Very damaged' : (erodeVal === 2 ? 'Damaged' : 'Rusty / Burnt');
+            specs.push({
+                id: 'erosion',
+                label: isEn ? 'Erosion' : '劣化状態',
+                value: isEn ? erodeEn : erodeJa,
+                type: 'warning',
+                highlight: true
+            });
+        }
+        if (flags.oerodeproof) {
+            specs.push({
+                id: 'erodeproof',
+                label: isEn ? 'Proofing' : '耐食加工',
+                value: isEn ? 'Corrodeproof' : '耐腐食・耐火',
+                type: 'magic',
+                highlight: true
+            });
+        }
+        if (flags.greased) {
+            specs.push({
+                id: 'greased',
+                label: isEn ? 'Grease' : '塗布',
+                value: isEn ? 'Greased' : 'グリース塗布',
+                type: 'info',
+                highlight: true
+            });
+        }
+        if (flags.unpaid) {
+            specs.push({
+                id: 'unpaid',
+                label: isEn ? 'Shop' : '店舗',
+                value: isEn ? 'Unpaid' : '未払い品 (Unpaid)',
+                type: 'warning',
+                highlight: true
+            });
+        }
+    }
+
+    // コンテナ（箱・鞄）専用スペック
+    const isContainer = cat === 'CONTAINER' || cat === 'BOX' || knowledge.isContainer ||
+        (cat === 'TOOL' && (
+            (knowledge.nameEn && /box|chest|bag|sack/i.test(knowledge.nameEn)) ||
+            (knowledge.name && /box|chest|bag|sack/i.test(knowledge.name)) ||
+            flags.olocked !== undefined || flags.lknown !== undefined || flags.tknown !== undefined
+        ));
+
+    if (isContainer) {
+        const canShowLock = Boolean(isWisdomRevealed || flags.lknown);
+        if (canShowLock) {
+            let lockVal = isEn ? 'Unlocked' : '解錠 (Unlocked)';
+            let lockType = 'info';
+            if (flags.obroken) {
+                lockVal = isEn ? 'Broken' : '錠前破損 (Broken)';
+                lockType = 'warning';
+            } else if (flags.olocked) {
+                lockVal = isEn ? 'Locked' : '施錠 (Locked)';
+                lockType = 'warning';
+            }
+            specs.push({
+                id: 'container_lock',
+                label: isEn ? 'Lock' : '施錠状態',
+                value: lockVal,
+                type: lockType,
+                highlight: Boolean(flags.olocked || flags.obroken || isWisdomRevealed)
+            });
+        }
+
+        const canShowTrap = Boolean(isWisdomRevealed || flags.tknown);
+        if (canShowTrap) {
+            specs.push({
+                id: 'container_trap',
+                label: isEn ? 'Trap' : '罠状態',
+                value: flags.otrapped ? (isEn ? 'Trapped' : '罠あり (Trapped)') : (isEn ? 'Untrapped' : '罠なし (Untrapped)'),
+                type: flags.otrapped ? 'warning' : 'info',
+                highlight: Boolean(flags.otrapped || isWisdomRevealed)
+            });
+        }
+
+        const canShowContents = Boolean(isWisdomRevealed || flags.cknown);
+        if (canShowContents) {
+            const hasItems = Boolean((directObj?.cobjPtr && directObj.cobjPtr > 0) || (directObj?.contents && directObj.contents.length > 0));
+            specs.push({
+                id: 'container_contents',
+                label: isEn ? 'Contents' : '中身',
+                value: hasItems ? (isEn ? 'Contains items' : '中身あり') : (isEn ? 'Empty' : '空'),
+                type: 'info',
+                highlight: isWisdomRevealed
+            });
+        }
     }
 
     // 1. ⚔️ 武器 (WEAPON)

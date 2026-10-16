@@ -1,8 +1,9 @@
 # 床落ちアイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵（Peek Wisdom）統合アーキテクチャ設計書
 
-**対象ロードマップ**: `docs/ROADMAP.md` §2.6  
+**対象ロードマップ**: `docs/ROADMAP.md` §2.2 (旧 §2.6)  
+**ステータス**: `✅ implemented (全 Phase 1〜4 実装完了、全153テストファイル 1903テスト 100% PASS)`  
 **関連ステージ**: Stage 8.2-C（シャッフル外見＆床オブジェクト直結）/ Stage 8.3（モジュール分割完了後）  
-**最終更新**: 2026-10-11（最新モジュール構成 `InspectionService.js` / `AreaStateManager.js` / `StructuredKnowledgeEngine.js` / `ItemSpecPresenter.js` 対応版）
+**最終更新**: 2026-10-16（Phase 1〜4 実装完了、全テスト PASS 確認）
 
 ---
 
@@ -15,12 +16,13 @@
 3. **床落ち `struct obj` インスタンス属性の未伝搬**: インベントリアイテムと異なり、床落ちアイテム（`cell.middle`）にはスタック数（`quan`）、BUC状態（`blessed`/`cursed`/`bknown`）、強化値（`spe`）、箱の施錠状態（`olocked`/`lknown`）、死体・像のモンスター種別（`corpsenm`）や鮮度（`age`）が伝搬されていなかった。
 
 ### 完了済みの基盤（現在利用可能な資産）
-- **Stage 8.2-C 完了**:
-  - `src/driver/shim/shim_bridge.c` および `WasmDirectBindingService.js` に `SHIM_CMD_DUMP_DESCR_INDEXES` (0x62: `objects[i].oc_descr_idx` 配列ダンプ) と `SHIM_CMD_GET_OBJECT_AT` (0x41) / `SHIM_CMD_DUMP_OBJECT_INFO` (0x42) が実装済み。
-  - `DiscoveryStateManager.syncDescrIndexes()` と `tileMapping.js` (`setDescrIndexesForTileMapping`) の連携が稼働済み。
+- **Stage 8.2-C ＆ Stage 8.5 先行実装分**:
+  - `src/driver/shim/shim_bridge.c` および `WasmDirectBindingService.js` に `SHIM_CMD_DUMP_DESCR_INDEXES` (`0x62`: `objects[i].oc_descr_idx` 配列ダンプ) と `SHIM_CMD_GET_OBJECT_AT` (`0x41`) / `SHIM_CMD_DUMP_OBJECT_INFO` (`0x42`, 9ワード版: `corpsenm` / `known` まで) が実装済み。
+  - `AreaStateManager.syncPlayerFeetFloor()` と `ItemSpecPresenter.js` による、足元単体オブジェクトの `quan`, `spe`, `corpsenm`, `bucStatus` バッジ化までが Stage 8.5 で先行実装済み。
+  - **※一方、以下の §6 Phase 1〜4（箱フラグ＆`nexthere` 床スタック12ワード化、`AdventureLogManager` 3段階支援モード＆`peekedObjects`、`StructuredKnowledgeEngine` の `dknown==0` 遠距離マスク＆ `onum` 欠落バグ修正、`KnowledgeDetailModal`/`NhKnowledgeCard` の View 純化＆ `👁️` ボタン/`w` キー復元＆ PileTop `+1`/`+2` バッジ）は未実装であり、本設計書に基づき実装を行う。**
 - **Stage 8.3 モジュール分割完了**:
   - `GKLPlugin.js` から調査・座標検査ロジックが `src/core/knowledge/services/InspectionService.js` へ分離済み。
-  - `AreaStateManager.js` が 4 サブモジュール（`LevelMapStore.js`, `ViewportTileProjector.js`, `MonsterTrackSynchronizer.js`, `TerrainSemanticsResolver.js`）へ分離済み。
+  - `AreaStateManager.js` が 4 サブモジュールへ分離済み。
   - アイテム仕様の整形が `src/core/knowledge/presenters/ItemSpecPresenter.js` へ分離済み。
 
 ---

@@ -651,6 +651,7 @@ export class AreaStateManager {
             glyphId = (isPile ? GLYPH_OFFSETS.GLYPH_OBJ_PILETOP_OFF : GLYPH_OFFSETS.GLYPH_OBJ_OFF) + otyp;
         }
 
+        const extraPileCount = Math.max(0, floorObjs.length - 1);
         const classified = classifyGlyph(glyphId);
         const prevMiddle = cell.middle;
         const nextMiddle = {
@@ -659,6 +660,7 @@ export class AreaStateManager {
             glyph: glyphId,
             rawGlyph: glyphId,
             isPile,
+            extraPileCount,
             quan: topObj.quan ?? 1,
             directObject: topObj,
             floorObjects: floorObjs
@@ -668,6 +670,7 @@ export class AreaStateManager {
             prevMiddle.rawGlyph !== nextMiddle.rawGlyph ||
             prevMiddle.glyph !== nextMiddle.glyph ||
             Boolean(prevMiddle.isPile) !== isPile ||
+            prevMiddle.extraPileCount !== extraPileCount ||
             prevMiddle.subType !== nextMiddle.subType ||
             prevMiddle.quan !== nextMiddle.quan ||
             (prevMiddle.floorObjects?.length ?? 0) !== floorObjs.length;

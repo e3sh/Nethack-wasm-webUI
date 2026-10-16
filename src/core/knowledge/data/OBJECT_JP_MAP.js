@@ -30,7 +30,7 @@ export const OBJECT_JP_MAP = {
         "ya": "竹の矢",
         "crossbow bolt": "クロスボウのボルト",
         "dart": "ダーツ",
-        "shuriken": "投石器",
+        "shuriken": "手裏剣",
         "boomerang": "ブーメラン",
         "spear": "槍",
         "elven spear": "エルフの槍",

@@ -233,31 +233,36 @@ export class HD2DFxOverlay {
         const cell = areaGrid[y]?.[x];
         if (!cell) continue;
 
-        // 1. piletop (アイテム山積み) 視覚強調マーク (右下 [+] バッジ)
+        // 1. piletop (アイテム山積み) 視覚強調マーク (右下 [+] または [+N] バッジ)
         const middleGlyph = cell.middle?.rawGlyph ?? -1;
-        const isPile = Boolean(cell.middle?.isPile || (middleGlyph >= 7992 && middleGlyph < 9622));
+        const extraCount = cell.middle?.extraPileCount ?? 0;
+        const isPile = Boolean(cell.middle?.isPile || extraCount > 0 || (middleGlyph >= 7992 && middleGlyph < 9622));
         if (isPile) {
           const itemProj = this.worldToScreen(x, 0.12, y);
           if (itemProj && itemProj.screenX >= -20 && itemProj.screenX <= canvasW + 20 &&
               itemProj.screenY >= -20 && itemProj.screenY <= canvasH + 20) {
-            const badgeSize = Math.max(10, Math.min(18, Math.round(ts * 0.28)));
-            const halfSize = Math.round(badgeSize / 2);
-            const fontSize = Math.max(9, Math.min(13, Math.round(badgeSize * 0.8)));
+            const badgeText = extraCount > 0 ? (extraCount >= 10 ? '+9+' : `+${extraCount}`) : '+';
+            const baseSize = Math.max(10, Math.min(18, Math.round(ts * 0.28)));
+            const badgeWidth = badgeText.length > 2 ? Math.round(baseSize * 1.5) : (badgeText.length > 1 ? Math.round(baseSize * 1.25) : baseSize);
+            const badgeHeight = baseSize;
+            const halfW = Math.round(badgeWidth / 2);
+            const halfH = Math.round(badgeHeight / 2);
+            const fontSize = Math.max(9, Math.min(13, Math.round(baseSize * 0.8)));
 
             const bx = Math.round(itemProj.screenX + ts * 0.22);
             const by = Math.round(itemProj.screenY + ts * 0.22);
             ctx.save();
             ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.fillRect(bx - halfSize, by - halfSize, badgeSize, badgeSize);
+            ctx.fillRect(bx - halfW, by - halfH, badgeWidth, badgeHeight);
             ctx.strokeStyle = '#ffd700';
             ctx.lineWidth = 1;
-            ctx.strokeRect(bx - halfSize, by - halfSize, badgeSize, badgeSize);
+            ctx.strokeRect(bx - halfW, by - halfH, badgeWidth, badgeHeight);
             if (typeof ctx.fillText === 'function') {
               ctx.fillStyle = '#ffeb3b';
               ctx.font = `bold ${fontSize}px sans-serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
-              ctx.fillText('+', bx, by);
+              ctx.fillText(badgeText, bx, by);
             }
             ctx.restore();
           }

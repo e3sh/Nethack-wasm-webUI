@@ -74,6 +74,7 @@ const CARD_CSS = `
   font-weight: 700;
   color: #f8fafc;
   margin: 0;
+  word-break: break-word;
 }
 
 .card-subtitle {
@@ -478,7 +479,23 @@ export class NhKnowledgeCard extends NhBaseElement {
    * 賢者の知恵によるオンデマンド一時透視をトグル
    */
   togglePeekWisdom() {
+    const data = this.targetData;
+    if (!data) return;
+    const alm = this.adventureLogManager;
+    const onum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
+      (data.identification && typeof data.identification.onum === 'number' && data.identification.onum >= 0) ? data.identification.onum :
+      (data.knowledge && typeof data.knowledge.onum === 'number' && data.knowledge.onum >= 0) ? data.knowledge.onum : -1;
+
+    if (alm && typeof alm.canPeekObject === 'function' && onum >= 0) {
+      if (!alm.canPeekObject(onum)) {
+        return;
+      }
+    }
+
     this.isPeekRevealed = !this.isPeekRevealed;
+    if (this.isPeekRevealed && alm && typeof alm.unlockObject === 'function' && onum >= 0) {
+      alm.unlockObject(onum, { viaPeek: true });
+    }
     this.render();
   }
 
@@ -627,6 +644,10 @@ export class NhKnowledgeCard extends NhBaseElement {
       }
     } else if (e.key === '3') {
       this.setActiveTab('lore');
+    } else if (e.key === 'w' || e.key === 'W') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.togglePeekWisdom();
     }
   }
 
@@ -836,6 +857,23 @@ export class NhKnowledgeCard extends NhBaseElement {
       this.activeTab = 'spec';
     }
 
+    const extraPileCount = data.extraPileCount ?? (data.floorObjects ? Math.max(0, data.floorObjects.length - 1) : 0);
+    const hasPile = Boolean(data.isPile || data.glyphInfo?.isPile || extraPileCount > 0);
+
+    let peekButtonHtml = '';
+    if (data.isUnidentified || isWisdom || isUnidentified) {
+      const alm = this.adventureLogManager;
+      const onum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
+        (data.identification && typeof data.identification.onum === 'number' && data.identification.onum >= 0) ? data.identification.onum :
+        (data.knowledge && typeof data.knowledge.onum === 'number' && data.knowledge.onum >= 0) ? data.knowledge.onum : -1;
+      const canPeek = alm && typeof alm.canPeekObject === 'function' && onum >= 0 ? alm.canPeekObject(onum) : true;
+      if (canPeek) {
+        peekButtonHtml = `<button class="btn-peek-wisdom ${this.isPeekRevealed ? 'active' : ''}" id="peekWisdomBtn" title="${isEn ? 'Toggle Wisdom Peek (w)' : '賢者の知恵で透視 (w)'}">👁️ ${isEn ? 'Peek' : '知恵透視'}</button>`;
+      } else {
+        peekButtonHtml = `<button class="btn-peek-wisdom locked" id="peekWisdomBtn" disabled style="opacity: 0.6; cursor: not-allowed;" title="${isEn ? 'Unregistered in Adventure Log' : '冒険手帳未登録'}">🔒 ${isEn ? 'Locked' : '手帳未登録'}</button>`;
+      }
+    }
+
     this.shadowRoot.innerHTML = `
       <div class="knowledge-card" role="dialog" aria-modal="true" aria-label="${title}">
         <!-- ヘッダー -->
@@ -849,10 +887,11 @@ export class NhKnowledgeCard extends NhBaseElement {
           </div>
           <div class="card-badges">
             <span class="badge badge-category">${category}</span>
-            ${(data.isPile || data.glyphInfo?.isPile) ? `<span class="badge badge-pile" title="${isEn ? 'Multiple items stacked here (only top item visible from afar)' : '複数のアイテム等が重なっています（遠方からは最上部のみ視認可能）'}">${isEn ? '📚 PileTop' : '📚 山積み (PileTop)'}</span>` : ''}
+            ${hasPile ? `<span class="badge badge-pile" title="${isEn ? 'Multiple items stacked here (only top item visible from afar)' : '複数のアイテム等が重なっています（遠方からは最上部のみ視認可能）'}">${extraPileCount > 0 ? (isEn ? `📚 Pile (+${extraPileCount})` : `📚 山積み (+${extraPileCount})`) : (isEn ? '📚 PileTop' : '📚 山積み (PileTop)')}</span>` : ''}
             ${data.dangerLevel ? `<span class="badge ${this._getDangerClass(data.dangerLevel)}">${data.dangerLevel}</span>` : ''}
             ${isWisdom ? `<span class="badge badge-wisdom">${isEn ? "🧙 Sage's Wisdom" : '🧙 賢者の知恵'}</span>` : ''}
             ${isUnidentified ? `<span class="badge badge-unidentified">${isEn ? 'Unidentified' : '未識別'}</span>` : ''}
+            ${peekButtonHtml}
             <button class="card-close-btn" id="closeBtn" title="${isEn ? 'Close (Esc / q)' : '閉じる (Esc / q)'}">✕</button>
           </div>
         </div>
@@ -967,8 +1006,46 @@ export class NhKnowledgeCard extends NhBaseElement {
       ? (isEn ? (data.wisdomEffectSummary || data.effectSummary) : (data.wisdomEffectSummaryJa || data.wisdomEffectSummary || data.effectSummary))
       : (data.effectSummary || data.summary || data.description);
 
+    let wisdomBannerHtml = '';
+    let trueNameSpecHtml = '';
+    if (isWisdom && (data.isUnidentified || data.identification?.isUnidentified)) {
+      const trueName = (!isEn && (data.wisdomTrueNameJa || data.nameJa))
+        ? (data.wisdomTrueNameJa || data.nameJa)
+        : (data.wisdomTrueName || data.nameEn || data.name);
+      const appName = isEn
+        ? (data.appearanceName || data.appearance || data.name)
+        : (data.appearanceNameJa || data.appearanceName || data.appearance || data.nameJa || data.name);
+
+      wisdomBannerHtml = `
+        <div style="background: rgba(147, 51, 234, 0.18); border: 1px solid rgba(168, 85, 247, 0.55); padding: 10px 12px; border-radius: 6px; margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="color: #e9d5ff; font-weight: 700; font-size: 0.8rem;">🧙 ${isEn ? "Sage's Wisdom (Revealed)" : "賢者の知恵・透視中"}</span>
+            <span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: rgba(168, 85, 247, 0.3); color: #f5d0fe; font-weight: 600;">👁️ ${isEn ? 'True Identity' : '正式鑑定名'}</span>
+          </div>
+          <div style="font-size: 1.05rem; font-weight: 700; margin: 2px 0 4px 0; word-break: break-word;">
+            <span style="color: #c084fc; font-size: 0.8rem; font-weight: 600;">${isEn ? 'True Name:' : '正式名 (真名):'}</span>
+            <span style="color: #ffffff; text-shadow: 0 0 10px rgba(192, 132, 252, 0.5);">${trueName || (isEn ? 'Unknown' : '不明')}</span>
+          </div>
+          ${appName && appName !== trueName ? `
+            <div style="font-size: 0.78rem; color: #94a3b8;">
+              <span>${isEn ? 'Game Appearance:' : 'ゲーム内での外見:'}</span> <span style="color: #cbd5e1;">${appName}</span>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      trueNameSpecHtml = `
+        <div class="spec-item" style="border-color: rgba(168, 85, 247, 0.5); background: rgba(147, 51, 234, 0.12);">
+          <div class="spec-label" style="color: #d8b4fe;">${isEn ? 'True Name' : '正式名 (真名)'}</div>
+          <div class="spec-val" style="color: #fdf4ff; font-size: 0.9rem;">${trueName || '-'}</div>
+        </div>
+      `;
+    }
+
     return `
+      ${wisdomBannerHtml}
       <div class="spec-grid">
+        ${trueNameSpecHtml}
         <div class="spec-item"><div class="spec-label">${isEn ? 'Category' : '種別'}</div><div class="spec-val">${data.category || '-'}</div></div>
         <div class="spec-item"><div class="spec-label">${isEn ? 'Weight' : '重量'}</div><div class="spec-val">${wisdomWeight ?? '-'}</div></div>
         <div class="spec-item"><div class="spec-label">${isEn ? 'Material' : '材質'}</div><div class="spec-val">${wisdomMaterial ?? '-'}</div></div>
@@ -1100,6 +1177,12 @@ export class NhKnowledgeCard extends NhBaseElement {
     const closeBtn = this.shadowRoot.querySelector('#closeBtn');
     if (closeBtn) {
       closeBtn.addEventListener('click', () => this.close());
+    }
+
+    // 賢者の知恵ボタン
+    const peekBtn = this.shadowRoot.querySelector('#peekWisdomBtn');
+    if (peekBtn && !peekBtn.disabled) {
+      peekBtn.addEventListener('click', () => this.togglePeekWisdom());
     }
 
     // タブ切り替えボタン

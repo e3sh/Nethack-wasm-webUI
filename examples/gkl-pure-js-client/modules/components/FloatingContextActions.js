@@ -272,9 +272,10 @@ export class FloatingContextActions {
    */
   _buildKnowledgeSummaryHtml(cardData, isSelf) {
     const isEn = this.currentLanguage === 'en';
-    const isPile = Boolean(cardData?.isPile);
+    const extraPileCount = cardData?.extraPileCount ?? (cardData?.floorObjects ? Math.max(0, cardData.floorObjects.length - 1) : 0);
+    const isPile = Boolean(cardData?.isPile || extraPileCount > 0);
     const pilePill = isPile
-      ? `<span class="kn-pill kn-status-pile" style="background: rgba(14, 165, 233, 0.22); border: 1px solid rgba(56, 189, 248, 0.55); color: #bae6fd;" title="${isEn ? 'Multiple items stacked here (only top item visible from afar)' : '複数のアイテム等が重なっています（遠方からは最上部のみ視認可能）'}">📚 ${isEn ? 'PileTop' : '山積み (PileTop)'}</span>`
+      ? `<span class="kn-pill kn-status-pile" style="background: rgba(14, 165, 233, 0.22); border: 1px solid rgba(56, 189, 248, 0.55); color: #bae6fd;" title="${isEn ? 'Multiple items stacked here (only top item visible from afar)' : '複数のアイテム等が重なっています（遠方からは最上部のみ視認可能）'}">📚 ${extraPileCount > 0 ? (isEn ? `Pile (+${extraPileCount})` : `山積み (+${extraPileCount})`) : (isEn ? 'PileTop' : '山積み (PileTop)')}</span>`
       : '';
 
     if (isSelf) {

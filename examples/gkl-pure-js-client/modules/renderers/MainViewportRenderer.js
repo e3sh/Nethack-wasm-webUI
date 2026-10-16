@@ -405,22 +405,25 @@ export class MainViewportRenderer {
           }
         }
 
-        // piletop (アイテム山積み) 視覚強調マーク (右下 [+] バッジ)
+        // piletop (アイテム山積み) 視覚強調マーク (右下 [+] または [+N] バッジ)
         const middleGlyph = cell?.middle?.rawGlyph ?? -1;
-        const isPile = Boolean(cell?.middle?.isPile || (middleGlyph >= 7992 && middleGlyph < 9622));
+        const extraCount = cell?.middle?.extraPileCount ?? 0;
+        const isPile = Boolean(cell?.middle?.isPile || extraCount > 0 || (middleGlyph >= 7992 && middleGlyph < 9622));
         if (isPile) {
+          const badgeText = extraCount > 0 ? (extraCount >= 10 ? '+9+' : `+${extraCount}`) : '+';
+          const badgeWidth = badgeText.length > 2 ? 16 : (badgeText.length > 1 ? 13 : 10);
           this.ctx.save();
           this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-          this.ctx.fillRect(screenX + ts - 11, screenY + ts - 11, 10, 10);
+          this.ctx.fillRect(screenX + ts - (badgeWidth + 1), screenY + ts - 11, badgeWidth, 10);
           this.ctx.strokeStyle = '#ffd700';
           this.ctx.lineWidth = 1;
-          this.ctx.strokeRect(screenX + ts - 11, screenY + ts - 11, 10, 10);
+          this.ctx.strokeRect(screenX + ts - (badgeWidth + 1), screenY + ts - 11, badgeWidth, 10);
           if (typeof this.ctx.fillText === 'function') {
             this.ctx.fillStyle = '#ffeb3b';
             this.ctx.font = 'bold 9px sans-serif';
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
-            this.ctx.fillText('+', screenX + ts - 6, screenY + ts - 6);
+            this.ctx.fillText(badgeText, screenX + ts - Math.round(badgeWidth / 2 + 1), screenY + ts - 6);
           }
           this.ctx.restore();
         }

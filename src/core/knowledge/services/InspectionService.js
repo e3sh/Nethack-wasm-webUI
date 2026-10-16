@@ -76,18 +76,39 @@ export class InspectionService {
 
         // モンスターが存在せず、地形やアイテムのみの場合: ホバー・クリック問わず即座にナレッジを返却
         if (!hasMonster) {
+            if (cell?.middle && !cell.middle.directObject && p.wasmDirectBindingService && typeof p.wasmDirectBindingService.fetchObjectsAt === 'function') {
+                try {
+                    const floorObjs = await p.wasmDirectBindingService.fetchObjectsAt(targetPos.x, targetPos.y);
+                    if (Array.isArray(floorObjs) && floorObjs.length > 0) {
+                        cell.middle.directObject = floorObjs[0];
+                        cell.middle.floorObjects = floorObjs;
+                        cell.middle.isPile = floorObjs.length > 1 || Boolean(cell.middle.isPile);
+                        cell.middle.extraPileCount = Math.max(0, floorObjs.length - 1);
+                        asm?.markDirty?.(targetPos.x, targetPos.y);
+                    }
+                } catch (e) {
+                    // 非同期取得失敗時はフォールバック継続
+                }
+            }
+
             const targetEntity = cell?.middle || cell?.bottom;
             if (!targetEntity) return null;
             const isPile = Boolean(targetEntity.isPile || targetEntity.glyphInfo?.isPile);
             const knowledge = p.structuredKnowledge.getKnowledge(targetEntity, {
                 language: p.language,
                 sagesWisdomMode: p.sagesWisdomMode,
-                isPile
+                isPile,
+                extraPileCount: targetEntity.extraPileCount ?? 0,
+                directObject: targetEntity.directObject,
+                floorObjects: targetEntity.floorObjects
             });
             if (!knowledge) return null;
             return {
                 ...knowledge,
                 ...(isPile || knowledge.isPile ? { isPile: true } : {}),
+                ...(targetEntity.extraPileCount !== undefined ? { extraPileCount: targetEntity.extraPileCount } : {}),
+                ...(targetEntity.floorObjects ? { floorObjects: targetEntity.floorObjects } : {}),
+                ...(targetEntity.directObject ? { directObject: targetEntity.directObject } : {}),
                 isClickConfirmed: !options.isHover
             };
         }

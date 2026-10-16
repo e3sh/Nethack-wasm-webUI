@@ -71,13 +71,48 @@ export class AdventureLogManager {
         this.newRumors = new Set();
         this.newOracles = new Set();
 
-        // 🔮 公式ガイドモード（常時開示・ネタバレ許可）フラグ
-        this.oracleGuideAlwaysUnlocked = Boolean(options.oracleGuideAlwaysUnlocked);
+        // 覗き見解禁（👁️マーク）識別子セット
+        this.peekedObjects = new Set(); // onum (number)
+
+        // 3段階の知恵・ガイド支援モード: 'STOIC' | 'VETERAN' | 'SAGE_GUIDE' (デフォルト: 'VETERAN')
+        if (options.guideAssistanceMode) {
+            this.guideAssistanceMode = options.guideAssistanceMode;
+        } else if (options.oracleGuideAlwaysUnlocked) {
+            this.guideAssistanceMode = 'SAGE_GUIDE';
+        } else {
+            this.guideAssistanceMode = 'VETERAN';
+        }
 
         this.listeners = new Set();
 
         if (options.autoLoad !== false) {
             this.load();
+        }
+    }
+
+    /**
+     * 🔮 公式ガイドモード（常時開示・ネタバレ許可）の後方互換 getter/setter
+     */
+    get oracleGuideAlwaysUnlocked() {
+        return this.guideAssistanceMode === 'SAGE_GUIDE';
+    }
+
+    set oracleGuideAlwaysUnlocked(enabled) {
+        this.setGuideAssistanceMode(enabled ? 'SAGE_GUIDE' : 'VETERAN');
+    }
+
+    /**
+     * ガイド支援モードの設定 ('STOIC' | 'VETERAN' | 'SAGE_GUIDE')
+     * @param {'STOIC' | 'VETERAN' | 'SAGE_GUIDE'} mode
+     */
+    setGuideAssistanceMode(mode) {
+        const validModes = ['STOIC', 'VETERAN', 'SAGE_GUIDE'];
+        const newMode = validModes.includes(mode) ? mode : 'VETERAN';
+        if (this.guideAssistanceMode !== newMode) {
+            this.guideAssistanceMode = newMode;
+            this.save();
+            this._notify('GUIDE_ASSISTANCE_MODE_CHANGED', { mode: newMode });
+            this._notify('ORACLE_GUIDE_MODE_CHANGED', { enabled: newMode === 'SAGE_GUIDE' });
         }
     }
 
@@ -120,6 +155,12 @@ export class AdventureLogManager {
         }
         if (Array.isArray(data.unlockedObjects)) {
             this.unlockedObjects = new Set(data.unlockedObjects.map(Number));
+        }
+        if (Array.isArray(data.peekedObjects)) {
+            this.peekedObjects = new Set(data.peekedObjects.map(Number));
+        }
+        if (data.guideAssistanceMode) {
+            this.guideAssistanceMode = data.guideAssistanceMode;
         }
         if (Array.isArray(data.unlockedRumors)) {
             this.unlockedRumors = new Set(data.unlockedRumors);
@@ -191,6 +232,8 @@ export class AdventureLogManager {
         const payload = {
             unlockedMonsters: Array.from(this.unlockedMonsters),
             unlockedObjects: Array.from(this.unlockedObjects),
+            peekedObjects: Array.from(this.peekedObjects),
+            guideAssistanceMode: this.guideAssistanceMode,
             unlockedRumors: Array.from(this.unlockedRumors),
             unlockedOracles: Array.from(this.unlockedOracles),
             newlyUnlocked: {
@@ -202,6 +245,7 @@ export class AdventureLogManager {
             stats: {
                 monstersCount: this.unlockedMonsters.size,
                 objectsCount: this.unlockedObjects.size,
+                peekedObjectsCount: this.peekedObjects.size,
                 rumorsCount: this.unlockedRumors.size,
                 oraclesCount: this.unlockedOracles.size
             }
@@ -271,22 +315,47 @@ export class AdventureLogManager {
     /**
      * アイテムのアンロック
      * @param {number|string} identifier - onum またはアイテム真名
-     * @returns {boolean} 新規にアンロックされたかどうか
+     * @param {Object} [options={}]
+     * @param {boolean} [options.viaPeek=false] - 覗き見知恵による一時解禁フラグ
+     * @returns {boolean} 新規にアンロックまたは昇格されたかどうか
      */
-    unlockObject(identifier) {
+    unlockObject(identifier, { viaPeek = false } = {}) {
         const onum = this._resolveObjectOnum(identifier);
         if (onum === null || onum < 0 || onum >= OBJECT_KNOWLEDGE_MAP.size) {
             return false;
         }
 
+        if (viaPeek) {
+            if (!this.unlockedObjects.has(onum)) {
+                this.unlockedObjects.add(onum);
+                this.peekedObjects.add(onum);
+                this.newObjects.add(onum);
+                this.save();
+                this._notify('OBJECT_UNLOCKED', { onum, viaPeek: true });
+                return true;
+            }
+            return false;
+        }
+
+        let promoted = false;
+        if (this.peekedObjects.has(onum)) {
+            this.peekedObjects.delete(onum);
+            promoted = true;
+        }
+
         if (this.unlockedObjects.has(onum)) {
+            if (promoted) {
+                this.save();
+                this._notify('OBJECT_PROMOTED', { onum });
+                return true;
+            }
             return false;
         }
 
         this.unlockedObjects.add(onum);
         this.newObjects.add(onum);
         this.save();
-        this._notify('OBJECT_UNLOCKED', { onum });
+        this._notify('OBJECT_UNLOCKED', { onum, viaPeek: false });
         return true;
     }
 
@@ -294,26 +363,44 @@ export class AdventureLogManager {
      * アイテムの複数一括アンロック (初期所持品同期・一括識別用)
      * ストレージ保存およびイベント通知を1回に集約して高パフォーマンスに処理する。
      * @param {Array<number|string>} identifiers - onum またはアイテム真名の配列
+     * @param {Object} [options={}]
+     * @param {boolean} [options.viaPeek=false]
      * @returns {{ count: number, isNew: boolean, newOnums: Array<number> }}
      */
-    unlockObjects(identifiers) {
+    unlockObjects(identifiers, { viaPeek = false } = {}) {
         if (!Array.isArray(identifiers) || identifiers.length === 0) {
             return { count: 0, isNew: false, newOnums: [] };
         }
 
         const newOnums = [];
+        let anyPromoted = false;
         for (const id of identifiers) {
             const onum = this._resolveObjectOnum(id);
             if (onum === null || onum < 0 || onum >= OBJECT_KNOWLEDGE_MAP.size) continue;
-            if (this.unlockedObjects.has(onum)) continue;
-            this.unlockedObjects.add(onum);
-            this.newObjects.add(onum);
-            newOnums.push(onum);
+
+            if (viaPeek) {
+                if (!this.unlockedObjects.has(onum)) {
+                    this.unlockedObjects.add(onum);
+                    this.peekedObjects.add(onum);
+                    this.newObjects.add(onum);
+                    newOnums.push(onum);
+                }
+            } else {
+                if (this.peekedObjects.has(onum)) {
+                    this.peekedObjects.delete(onum);
+                    anyPromoted = true;
+                }
+                if (!this.unlockedObjects.has(onum)) {
+                    this.unlockedObjects.add(onum);
+                    this.newObjects.add(onum);
+                    newOnums.push(onum);
+                }
+            }
         }
 
-        if (newOnums.length > 0) {
+        if (newOnums.length > 0 || anyPromoted) {
             this.save();
-            this._notify('OBJECTS_UNLOCKED_BATCH', { onums: newOnums, count: newOnums.length });
+            this._notify('OBJECTS_UNLOCKED_BATCH', { onums: newOnums, count: newOnums.length, viaPeek });
         }
 
         return {
@@ -331,6 +418,36 @@ export class AdventureLogManager {
     isObjectUnlocked(identifier) {
         const onum = this._resolveObjectOnum(identifier);
         return onum !== null && this.unlockedObjects.has(onum);
+    }
+
+    /**
+     * アイテムが覗き見知恵（Peek Wisdom）可能か判定する
+     * - STOIC: 常に false（完全無効）
+     * - VETERAN: 手帳に正式登録されている品目のみ true（未知アイテムのネタバレ防止）
+     * - SAGE_GUIDE: 常に true
+     * @param {number|string} identifier
+     * @returns {boolean}
+     */
+    canPeekObject(identifier) {
+        if (this.guideAssistanceMode === 'STOIC') {
+            return false;
+        }
+        if (this.guideAssistanceMode === 'SAGE_GUIDE') {
+            return true;
+        }
+        const onum = this._resolveObjectOnum(identifier);
+        if (onum === null) return false;
+        return this.unlockedObjects.has(onum);
+    }
+
+    /**
+     * アイテムが覗き見解禁（👁️）状態か確認
+     * @param {number|string} identifier
+     * @returns {boolean}
+     */
+    isObjectPeeked(identifier) {
+        const onum = this._resolveObjectOnum(identifier);
+        return onum !== null && this.peekedObjects.has(onum);
     }
 
     /**
@@ -778,6 +895,7 @@ export class AdventureLogManager {
     reset() {
         this.unlockedMonsters.clear();
         this.unlockedObjects.clear();
+        this.peekedObjects.clear();
         this.unlockedRumors.clear();
         this.unlockedOracles.clear();
         this.newMonsters.clear();
@@ -797,6 +915,8 @@ export class AdventureLogManager {
         const payload = {
             unlockedMonsters: Array.from(this.unlockedMonsters),
             unlockedObjects: Array.from(this.unlockedObjects),
+            peekedObjects: Array.from(this.peekedObjects),
+            guideAssistanceMode: this.guideAssistanceMode,
             unlockedRumors: Array.from(this.unlockedRumors),
             unlockedOracles: Array.from(this.unlockedOracles),
             newlyUnlocked: {
@@ -823,6 +943,12 @@ export class AdventureLogManager {
             }
             if (Array.isArray(data.unlockedObjects)) {
                 this.unlockedObjects = new Set(data.unlockedObjects.map(Number));
+            }
+            if (Array.isArray(data.peekedObjects)) {
+                this.peekedObjects = new Set(data.peekedObjects.map(Number));
+            }
+            if (data.guideAssistanceMode) {
+                this.guideAssistanceMode = data.guideAssistanceMode;
             }
             if (Array.isArray(data.unlockedRumors)) {
                 this.unlockedRumors = new Set(data.unlockedRumors);

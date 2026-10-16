@@ -17,6 +17,7 @@ import { OBJECT_CATEGORY_ADVICE, inferObjectCategory, OBJECT_CATEGORY_DEFINITION
 import { ITEM_KNOWLEDGE_BASE } from "../data/ITEM_KNOWLEDGE_BASE.js";
 import { TERRAIN_KNOWLEDGE_MAP, getTerrainEntryByCmap, getTerrainEntryByKey } from "../data/TERRAIN_KNOWLEDGE_BASE.js";
 import { getAdaptiveMonsterSpecs, getMonsterSpecSummaryStrings } from "../presenters/MonsterSpecPresenter.js";
+import { getAdaptiveItemSpecs } from "../presenters/ItemSpecPresenter.js";
 import { MONSTER_CLASS_DEFINITIONS, getMonsterClassDefinition, getAllMonsterClassDefinitions } from "../data/MONSTER_CLASS_KNOWLEDGE.js";
 import { MonsterArmorRiskResolver } from './MonsterArmorRiskResolver.js';
 import { ARTIFACT_KNOWLEDGE_BASE, getArtifactDefinition, getAllArtifactDefinitions } from "../data/ARTIFACT_KNOWLEDGE_BASE.js";
@@ -198,7 +199,28 @@ export class StructuredKnowledgeEngine {
             return this.translationEngine.translate(str);
         };
 
-        const cloned = JSON.parse(JSON.stringify(obj));
+        let cloned;
+        try {
+            const savedFloorObjects = obj.floorObjects;
+            const savedDirectObject = obj.directObject;
+            const hadFloor = 'floorObjects' in obj;
+            const hadDirect = 'directObject' in obj;
+            if (hadFloor) delete obj.floorObjects;
+            if (hadDirect) delete obj.directObject;
+
+            cloned = JSON.parse(JSON.stringify(obj));
+
+            if (hadFloor) {
+                obj.floorObjects = savedFloorObjects;
+                cloned.floorObjects = savedFloorObjects;
+            }
+            if (hadDirect) {
+                obj.directObject = savedDirectObject;
+                cloned.directObject = savedDirectObject;
+            }
+        } catch (e) {
+            cloned = { ...obj };
+        }
         const originalName = obj.name || '';
         cloned.nameEn = obj.nameEn || originalName;
         // translationEngine がある場合は動的翻訳を優先し、フォールバックとして obj.nameJa を採用
@@ -666,8 +688,27 @@ export class StructuredKnowledgeEngine {
         const formattedJa = (typeof rawInput === 'object' && rawInput.nameJa) ? rawInput.nameJa : ItemIdentificationResolver.formatAppearanceName(baseApp, category, 'ja');
         const displayName = lang === 'ja' ? formattedJa : formattedEn;
 
+        const onum = (typeof rawInput === 'object' && typeof rawInput.onum === 'number')
+            ? rawInput.onum
+            : (typeof options.onum === 'number' ? options.onum : undefined);
+        const directObject = (typeof rawInput === 'object' && rawInput.directObject)
+            ? rawInput.directObject
+            : (options.directObject || null);
+        const floorObjects = (typeof rawInput === 'object' && rawInput.floorObjects)
+            ? rawInput.floorObjects
+            : (options.floorObjects || null);
+        const extraPileCount = (typeof rawInput === 'object' && typeof rawInput.extraPileCount === 'number')
+            ? rawInput.extraPileCount
+            : (typeof options.extraPileCount === 'number' ? options.extraPileCount : 0);
+        const isPile = Boolean(
+            (typeof rawInput === 'object' && rawInput.isPile) ||
+            options.isPile ||
+            extraPileCount > 0
+        );
+
         const rawObj = {
             id: `unidentified_${category.toLowerCase()}`,
+            onum,
             name: (typeof rawInput === 'object' && rawInput.name) ? rawInput.name : displayName,
             nameJa: formattedJa,
             nameEn: formattedEn,
@@ -676,6 +717,11 @@ export class StructuredKnowledgeEngine {
             appearanceName: formattedEn,
             calledName: idRes.calledName,
             bucStatus: idRes.bucStatus,
+            directObject,
+            floorObjects,
+            ...(isPile ? { isPile: true } : {}),
+            extraPileCount,
+            isGenericMasked: Boolean(typeof rawInput === 'object' && rawInput.isGenericMasked),
             wisdomTrueName: (typeof rawInput === 'object' && rawInput.wisdomTrueName) ? rawInput.wisdomTrueName : null,
             wisdomTrueNameJa: (typeof rawInput === 'object' && rawInput.wisdomTrueNameJa) ? rawInput.wisdomTrueNameJa : null,
             wisdomEffectSummary: (typeof rawInput === 'object' && rawInput.wisdomEffectSummary) ? rawInput.wisdomEffectSummary : null,
@@ -798,12 +844,24 @@ export class StructuredKnowledgeEngine {
     getItemKnowledge(identifier, options = {}) {
         if (identifier === null || identifier === undefined) return null;
 
-        const isPile = this._isPileInput(identifier, options);
+        const directObj = (typeof identifier === 'object' && identifier !== null)
+            ? (identifier.directObject || options.directObject || null)
+            : (options.directObject || null);
+        const floorObjects = (typeof identifier === 'object' && identifier !== null)
+            ? (identifier.floorObjects || options.floorObjects || null)
+            : (options.floorObjects || null);
+        const extraPileCount = (typeof options.extraPileCount === 'number')
+            ? options.extraPileCount
+            : ((typeof identifier === 'object' && typeof identifier?.extraPileCount === 'number')
+                ? identifier.extraPileCount
+                : ((directObj && typeof directObj.extraPileCount === 'number') ? directObj.extraPileCount : 0));
+
+        const isPile = this._isPileInput(identifier, { ...options, extraPileCount });
         const shouldTranslate = options.translate !== false;
         const lang = options.language || this.language || 'ja';
         const isWisdomMode = Boolean(options.sagesWisdomMode !== undefined ? options.sagesWisdomMode : this.sagesWisdomMode);
         let cacheKey = null;
-        if (shouldTranslate && !options.dynamicState && !this.discoveryStateManager) {
+        if (shouldTranslate && !options.dynamicState && !this.discoveryStateManager && !directObj) {
             if (typeof identifier === 'number' && !options.identification && !options.isUnidentified) {
                 cacheKey = `${lang}_item_num_${identifier}_${isWisdomMode ? 'w' : 'n'}`;
             } else if (typeof identifier === 'string') {
@@ -825,6 +883,10 @@ export class StructuredKnowledgeEngine {
         let targetOnum = -1;
         let originalDisplayName = '';
 
+        if (directObj && typeof directObj.otyp === 'number' && directObj.otyp >= 0) {
+            targetOnum = directObj.otyp;
+        }
+
         if (typeof identifier === 'object') {
             originalDisplayName = identifier.rawText || identifier.str || identifier.label || identifier.name || '';
         } else if (typeof identifier === 'string') {
@@ -843,41 +905,77 @@ export class StructuredKnowledgeEngine {
 
             if (rawName && this.isUnidentifiedAppearance(rawName) && !isWisdomMode) {
                 return this._applyPileFlag(
-                    this.getUnidentifiedItemKnowledge(rawName, { ...options, sagesWisdomMode: isWisdomMode }),
+                    this.getUnidentifiedItemKnowledge(rawName, { ...options, sagesWisdomMode: isWisdomMode, directObject: directObj, extraPileCount, isPile }),
                     isPile
                 );
             }
             if (identifier.onum === 476 || identifier.subType === 476 || (identifier.name && identifier.name.toLowerCase() === 'statue')) {
                 return this._applyPileFlag(this.getStatueKnowledge(identifier, options), isPile);
             }
-            if (typeof identifier.onum === 'number' && identifier.onum >= 0) {
-                targetOnum = identifier.onum;
-            } else if (typeof identifier.subType === 'number' && identifier.subType >= 0 && identifier.subType < 500) {
-                targetOnum = identifier.subType;
-            } else if (identifier.identification && typeof identifier.identification.onum === 'number' && identifier.identification.onum >= 0) {
-                targetOnum = identifier.identification.onum;
-            } else if (identifier.knowledge && typeof identifier.knowledge.onum === 'number' && identifier.knowledge.onum >= 0) {
-                targetOnum = identifier.knowledge.onum;
-            } else if (typeof identifier.id === 'string' && identifier.id.startsWith('item_onum_')) {
-                const parsed = parseInt(identifier.id.replace('item_onum_', ''), 10);
-                if (!isNaN(parsed) && parsed >= 0) targetOnum = parsed;
-            } else if (typeof identifier.glyph === 'number' && identifier.glyph >= 0) {
-                targetOnum = getOnumFromGlyph(identifier.glyph);
-                if (targetOnum < 0 && identifier.glyph < 500) targetOnum = identifier.glyph;
-            } else if (typeof identifier.rawGlyph === 'number' && identifier.rawGlyph >= 0) {
-                targetOnum = getOnumFromGlyph(identifier.rawGlyph);
-                if (targetOnum < 0 && identifier.rawGlyph < 500) targetOnum = identifier.rawGlyph;
+            if (targetOnum < 0) {
+                if (typeof identifier.onum === 'number' && identifier.onum >= 0) {
+                    targetOnum = identifier.onum;
+                } else if (typeof identifier.subType === 'number' && identifier.subType >= 0 && identifier.subType < 500) {
+                    targetOnum = identifier.subType;
+                } else if (identifier.identification && typeof identifier.identification.onum === 'number' && identifier.identification.onum >= 0) {
+                    targetOnum = identifier.identification.onum;
+                } else if (identifier.knowledge && typeof identifier.knowledge.onum === 'number' && identifier.knowledge.onum >= 0) {
+                    targetOnum = identifier.knowledge.onum;
+                } else if (typeof identifier.id === 'string' && identifier.id.startsWith('item_onum_')) {
+                    const parsed = parseInt(identifier.id.replace('item_onum_', ''), 10);
+                    if (!isNaN(parsed) && parsed >= 0) targetOnum = parsed;
+                } else if (typeof identifier.glyph === 'number' && identifier.glyph >= 0) {
+                    targetOnum = getOnumFromGlyph(identifier.glyph);
+                    if (targetOnum < 0 && identifier.glyph < 500) targetOnum = identifier.glyph;
+                } else if (typeof identifier.rawGlyph === 'number' && identifier.rawGlyph >= 0) {
+                    targetOnum = getOnumFromGlyph(identifier.rawGlyph);
+                    if (targetOnum < 0 && identifier.rawGlyph < 500) targetOnum = identifier.rawGlyph;
+                }
+            }
+
+            // 🕵️ ネタバレ防止ルール: 遠距離未確認（dknown === false）のオブジェクト
+            const isDistanceUnseen = Boolean(directObj && directObj.flags && directObj.flags.dknown === false);
+            if (isDistanceUnseen && !isWisdomMode && targetOnum >= 0) {
+                const catStr = getCategoryFromOnum(targetOnum);
+                const genericNameEn = `unidentified ${catStr.toLowerCase()}`;
+                const catJa = (typeof ItemIdentificationResolver.getCategoryNameJa === 'function')
+                    ? ItemIdentificationResolver.getCategoryNameJa(catStr)
+                    : (catStr === 'POTION' ? '薬' : (catStr === 'SCROLL' ? '巻物' : (catStr === 'WAND' ? '杖' : (catStr === 'RING' ? '指輪' : (catStr === 'AMULET' ? '魔除け' : (catStr === 'SPELLBOOK' ? '魔法書' : (catStr === 'GEM' ? '宝石' : catStr)))))));
+                const genericNameJa = `未確認の${catJa}`;
+                const masterObj = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(targetOnum) : null;
+                return this._applyPileFlag(
+                    this.getUnidentifiedItemKnowledge({
+                        category: catStr,
+                        onum: targetOnum,
+                        directObject: directObj,
+                        floorObjects,
+                        isPile,
+                        extraPileCount,
+                        isGenericMasked: true,
+                        appearanceName: genericNameEn,
+                        name: lang === 'ja' ? genericNameJa : genericNameEn,
+                        nameJa: genericNameJa,
+                        nameEn: genericNameEn,
+                        wisdomTrueName: masterObj?.name || null,
+                        wisdomTrueNameJa: masterObj?.nameJa || null,
+                        wisdomEffectSummary: masterObj?.effectSummary || null,
+                        wisdomEffectSummaryJa: masterObj?.effectSummaryJa || masterObj?.effectSummary || null,
+                        wisdomMaterial: masterObj?.material || null,
+                        wisdomWeight: masterObj?.weight || null
+                    }, { ...options, sagesWisdomMode: false, directObject: directObj, extraPileCount, isPile }),
+                    isPile
+                );
             }
 
             // 未識別アイテムかつ通常モードの場合、未識別ナレッジを即座に返す
             if (targetOnum >= 0 && isUnidentifiedInput && !isWisdomMode && options.forceFullKnowledge !== true) {
                 return this._applyPileFlag(
-                    this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode }),
+                    this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode, directObject: directObj, extraPileCount, isPile }),
                     isPile
                 );
             }
 
-            if (targetOnum >= 0 && !isUnidentifiedInput && !options.identification && !options.isUnidentified) {
+            if (targetOnum >= 0 && !isUnidentifiedInput && !options.identification && !options.isUnidentified && !directObj) {
                 return this._applyPileFlag(this.getItemKnowledge(targetOnum, options), isPile);
             }
             if (targetOnum < 0) {
@@ -890,10 +988,9 @@ export class StructuredKnowledgeEngine {
             if (options.isOnum === true) {
                 targetOnum = identifier;
             } else {
-                // 統一 Glyph 検索: glyphId (例: 3448〜3928, 7992等) から onum 抽出
                 targetOnum = getOnumFromGlyph(identifier);
                 if (targetOnum < 0 && identifier >= 0 && identifier < 500) {
-                    targetOnum = identifier; // 直接 onum フォールバック
+                    targetOnum = identifier;
                 }
             }
         }
@@ -901,7 +998,7 @@ export class StructuredKnowledgeEngine {
         else if (typeof identifier === 'string') {
             if (this.isUnidentifiedAppearance(identifier) && !isWisdomMode) {
                 return this._applyPileFlag(
-                    this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode }),
+                    this.getUnidentifiedItemKnowledge(identifier, { ...options, sagesWisdomMode: isWisdomMode, directObject: directObj, extraPileCount, isPile }),
                     isPile
                 );
             }
@@ -909,12 +1006,10 @@ export class StructuredKnowledgeEngine {
             const cleaned = this.cleanItemName(identifier);
             const cleanKey = cleaned.toLowerCase().replace(/\s+/g, '_');
             
-            // 手動登録辞書から検索
             found = this.items.get(cleanKey) || 
                     this.items.get(cleaned.toLowerCase()) || 
                     this.items.get(identifier.trim().toLowerCase()) || null;
 
-            // onum 逆引きテーブル (OBJECT_TILEMAP_NAMES) からのスラッシュ分割スマート逆引き検索！
             if (!found && OBJECT_TILEMAP_NAMES) {
                 const cleanLower = cleaned.toLowerCase();
                 const entry = Object.entries(OBJECT_TILEMAP_NAMES).find(([onumStr, fullName]) => {
@@ -942,7 +1037,6 @@ export class StructuredKnowledgeEngine {
 
         // onum が定まっている場合は onumMap からナレッジを取得
         if (!found && targetOnum >= 0) {
-            // 🕵️ ネタバレ防止ガード
             const isIdentifiedInDiscovery = this.discoveryStateManager ? this.discoveryStateManager.isIdentified(targetOnum) : true;
             const isExplicitlyUnidentified = Boolean(
                 options.isUnidentified ||
@@ -967,6 +1061,10 @@ export class StructuredKnowledgeEngine {
                             this.getUnidentifiedItemKnowledge({
                                 category: catStr,
                                 onum: targetOnum,
+                                directObject: directObj,
+                                floorObjects,
+                                isPile,
+                                extraPileCount,
                                 appearanceName: formattedEn,
                                 name: targetName,
                                 nameJa: formattedJa,
@@ -977,7 +1075,7 @@ export class StructuredKnowledgeEngine {
                                 wisdomEffectSummaryJa: masterObj?.effectSummaryJa || masterObj?.effectSummary || null,
                                 wisdomMaterial: masterObj?.material || null,
                                 wisdomWeight: masterObj?.weight || null
-                            }, { ...options, sagesWisdomMode: isWisdomMode }),
+                            }, { ...options, sagesWisdomMode: isWisdomMode, directObject: directObj, extraPileCount, isPile }),
                             isPile
                         );
                     }
@@ -986,7 +1084,6 @@ export class StructuredKnowledgeEngine {
 
             found = this.onumMap.get(targetOnum) || null;
 
-            // onumMap に手動エントリーが未登録でも公式名前 & onum 範囲カテゴリから100%正確に生成！
             if (!found && OBJECT_TILEMAP_NAMES[targetOnum]) {
                 const itemName = OBJECT_TILEMAP_NAMES[targetOnum];
                 const catStr = getCategoryFromOnum(targetOnum);
@@ -1007,35 +1104,75 @@ export class StructuredKnowledgeEngine {
 
         if (!found) return null;
 
-        // 🧙 賢者の知恵モード時のバッジ・プロパティ付与
+        // 🧙 覗き見知恵（Peek Wisdom）モード時の真名・外見同時解放
         if (isWisdomMode) {
             const isUnid = Boolean(
                 options.isUnidentified ||
                 options.identification?.isUnidentified ||
                 (typeof identifier === 'object' && identifier && (identifier.isUnidentified || identifier.identification?.isUnidentified)) ||
-                (this.discoveryStateManager && targetOnum >= 0 && !this.discoveryStateManager.isIdentified(targetOnum))
+                (this.discoveryStateManager && targetOnum >= 0 && !this.discoveryStateManager.isIdentified(targetOnum)) ||
+                (directObj && directObj.flags && directObj.flags.dknown === false)
             );
-            if (isUnid) {
+            if (isUnid && targetOnum >= 0) {
                 const catStr = getCategoryFromOnum(targetOnum);
                 const masterObj = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(targetOnum) : null;
                 const dynApp = (this.discoveryStateManager && typeof this.discoveryStateManager.getAppearance === 'function')
                     ? this.discoveryStateManager.getAppearance(targetOnum)
                     : null;
                 const descr = dynApp || masterObj?.descr || '';
-                const formattedEn = ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'en');
-                const formattedJa = ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'ja');
+                const formattedEn = descr ? ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'en') : (masterObj?.name || found.name);
+                const formattedJa = descr ? ItemIdentificationResolver.formatAppearanceName(descr, catStr, 'ja') : (masterObj?.nameJa || found.nameJa || found.name);
+
+                const trueNameEn = masterObj?.name || found.name;
+                const trueNameJa = masterObj?.nameJa || found.nameJa || found.name;
+
+                const combinedNameJa = (formattedJa && formattedJa !== trueNameJa) ? `${formattedJa} [${trueNameJa}]` : trueNameJa;
+                const combinedNameEn = (formattedEn && formattedEn !== trueNameEn) ? `${formattedEn} [${trueNameEn}]` : trueNameEn;
 
                 found = {
                     ...found,
+                    name: lang === 'ja' ? combinedNameJa : combinedNameEn,
+                    nameJa: combinedNameJa,
+                    nameEn: combinedNameEn,
                     isUnidentified: true,
                     isWisdomRevealed: true,
                     wisdomBadge: true,
                     appearanceName: formattedEn,
-                    wisdomTrueName: masterObj?.name || found.name,
-                    wisdomTrueNameJa: masterObj?.nameJa || found.nameJa || found.name,
+                    wisdomTrueName: trueNameEn,
+                    wisdomTrueNameJa: trueNameJa,
                     wisdomEffectSummary: masterObj?.effectSummary || found.effectSummary,
                     wisdomEffectSummaryJa: masterObj?.effectSummaryJa || masterObj?.effectSummary || found.effectSummaryJa || found.effectSummary
                 };
+            }
+        }
+
+        // 🥫 缶詰 (TIN, 247) / フィギュア (FIGURINE, 419) のモンスター名解決
+        if ((targetOnum === 247 || targetOnum === 419) && directObj && typeof directObj.corpsenm === 'number' && directObj.corpsenm >= 0) {
+            const mon = ALL_MONSTER_KNOWLEDGE_BASE[directObj.corpsenm] || (MONSTER_KNOWLEDGE_MAP && MONSTER_KNOWLEDGE_MAP.get(directObj.corpsenm));
+            if (mon) {
+                const monNameEn = mon.name || `monster ${directObj.corpsenm}`;
+                const monNameJa = mon.nameJa || mon.name || `モンスター ${directObj.corpsenm}`;
+                if (targetOnum === 247) {
+                    const canReveal = Boolean(isWisdomMode || directObj.flags?.known || directObj.flags?.rknown);
+                    if (canReveal) {
+                        found = {
+                            ...found,
+                            nameEn: `tin of ${monNameEn} meat`,
+                            nameJa: `${monNameJa} の缶詰`,
+                            name: lang === 'ja' ? `${monNameJa} の缶詰` : `tin of ${monNameEn} meat`
+                        };
+                    }
+                } else if (targetOnum === 419) {
+                    const canReveal = Boolean(isWisdomMode || directObj.flags?.known);
+                    if (canReveal) {
+                        found = {
+                            ...found,
+                            nameEn: `figurine of ${monNameEn}`,
+                            nameJa: `${monNameJa} のフィギュア`,
+                            name: lang === 'ja' ? `${monNameJa} のフィギュア` : `figurine of ${monNameEn}`
+                        };
+                    }
+                }
             }
         }
 
@@ -1047,7 +1184,20 @@ export class StructuredKnowledgeEngine {
         }
 
         const finalResult = shouldTranslate ? this.localizeKnowledge(found, options) : found;
-        if (cacheKey && finalResult) {
+
+        // 動的スペック (specs / wisdomSpecs) および床スタック情報の付与
+        finalResult.directObject = directObj;
+        finalResult.floorObjects = floorObjects;
+        finalResult.extraPileCount = extraPileCount;
+        if (isPile) {
+            finalResult.isPile = true;
+        } else {
+            delete finalResult.isPile;
+        }
+        finalResult.specs = getAdaptiveItemSpecs(finalResult, { ...options, isWisdomRevealed: false, directObject: directObj, extraPileCount, isPile });
+        finalResult.wisdomSpecs = getAdaptiveItemSpecs(finalResult, { ...options, isWisdomRevealed: true, directObject: directObj, extraPileCount, isPile });
+
+        if (cacheKey && finalResult && !directObj) {
             this.staticCache.set(cacheKey, finalResult);
         }
         return this._applyPileFlag(finalResult, isPile);
@@ -1344,7 +1494,12 @@ export class StructuredKnowledgeEngine {
         // 🎯 -1. すでに完成した構造化ナレッジオブジェクト (category 及び effectSummary を保持) の場合、二重検索で破壊せずにそのまま返却！
         // ただし、賢者の知恵モード(sagesWisdomMode)で未識別アイテムが渡された場合は真名開示のために再解決を許可！
         if (typeof identifier === 'object' && identifier !== null && identifier.category && identifier.effectSummary) {
-            const isUnid = Boolean(identifier.isUnidentified || identifier.identification?.isUnidentified || options.isUnidentified);
+            const isUnid = Boolean(
+                identifier.isUnidentified ||
+                identifier.identification?.isUnidentified ||
+                options.isUnidentified ||
+                (identifier.directObject && identifier.directObject.flags && identifier.directObject.flags.dknown === false)
+            );
             const isWisdom = Boolean(options.sagesWisdomMode);
             if (!isWisdom || !isUnid) {
                 return this._applyPileFlag(identifier, isPile);
@@ -1365,7 +1520,7 @@ export class StructuredKnowledgeEngine {
             if (identifier.type === 'MONSTER' || identifier.type === 'PET') {
                 return this.getMonsterKnowledge(identifier, options);
             }
-            if (identifier.type === 'ITEM') {
+            if (identifier.type === 'ITEM' || identifier.onum !== undefined || identifier.directObject || identifier.category) {
                 return this._applyPileFlag(this.getItemKnowledge(identifier, options), isPile);
             }
         }

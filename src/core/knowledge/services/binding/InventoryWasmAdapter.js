@@ -51,9 +51,10 @@ export class InventoryWasmAdapter {
      * @param {number} [cobjPtr=0] - コンテナ内アイテムポインタ (struct obj* cobj)
      * @param {number} [o_id=0] 
      * @param {number} [corpsenm=-1]
+     * @param {number} [age=0]
      * @returns {Object|null}
      */
-    unpackObjectBuffer(rawValues, ptr = 0, cobjPtr = 0, o_id = 0, corpsenm = -1) {
+    unpackObjectBuffer(rawValues, ptr = 0, cobjPtr = 0, o_id = 0, corpsenm = -1, age = 0) {
         if (!rawValues || rawValues.length < 8) return null;
         const otyp = rawValues[0];
         const owt = rawValues[1];
@@ -67,6 +68,13 @@ export class InventoryWasmAdapter {
         const resolvedCorpsenm = (typeof corpsenm === 'number' && corpsenm >= 0)
             ? corpsenm
             : (rawValues.length >= 9 && rawValues[8] >= 0 && rawValues[8] < 400 ? rawValues[8] : -1);
+        const resolvedAge = (typeof age === 'number' && age > 0)
+            ? age
+            : (rawValues.length >= 10 && rawValues[9] > 0 ? rawValues[9] : 0);
+        const resolvedCobjPtr = (typeof cobjPtr === 'number' && cobjPtr > 0)
+            ? cobjPtr
+            : (rawValues.length >= 11 && rawValues[10] > 0 ? rawValues[10] : 0);
+        const resolvedNextherePtr = (rawValues.length >= 12 && rawValues[11] > 0) ? rawValues[11] : 0;
 
         const flags = {
             blessed: Boolean(flagsRaw & 0x01),
@@ -77,6 +85,15 @@ export class InventoryWasmAdapter {
             oeroded: (flagsRaw >> 5) & 0x03,
             oeroded2: (flagsRaw >> 7) & 0x03,
             known: Boolean(flagsRaw & 0x200),
+            cknown: Boolean(flagsRaw & 0x400),
+            lknown: Boolean(flagsRaw & 0x800),
+            tknown: Boolean(flagsRaw & 0x1000),
+            olocked: Boolean(flagsRaw & 0x2000),
+            obroken: Boolean(flagsRaw & 0x4000),
+            otrapped: Boolean(flagsRaw & 0x8000),
+            oerodeproof: Boolean(flagsRaw & 0x10000),
+            greased: Boolean(flagsRaw & 0x20000),
+            unpaid: Boolean(flagsRaw & 0x40000),
         };
 
         return {
@@ -91,9 +108,11 @@ export class InventoryWasmAdapter {
             invlet,
             flags,
             weight,
-            cobjPtr,
+            cobjPtr: resolvedCobjPtr,
             o_id,
-            corpsenm: resolvedCorpsenm
+            corpsenm: resolvedCorpsenm,
+            age: resolvedAge,
+            nextherePtr: resolvedNextherePtr
         };
     }
 
@@ -143,7 +162,7 @@ export class InventoryWasmAdapter {
             const items = [];
             const visited = new Set();
             const MAX_ITEMS = 100; // 安全上限（52文字+予備）
-            const singleBufSize = 36;
+            const singleBufSize = 48;
             const singleBufPtr = memory.allocateBuffer(singleBufSize);
             if (!singleBufPtr) return [];
 
@@ -154,10 +173,12 @@ export class InventoryWasmAdapter {
 
                     const res = memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, singleBufPtr, singleBufSize);
                     if (res === 0) {
-                        const rawValues = memory.readInt32Array(singleBufPtr, 9);
-                        const cobjPtr = memory.getValue(currPtr + 8, 'i32');
+                        const rawValues = memory.readInt32Array(singleBufPtr, 12);
+                        const cobjPtr = (rawValues.length >= 11 && rawValues[10] > 0) ? rawValues[10] : memory.getValue(currPtr + 8, 'i32');
                         const o_id = memory.getValue(currPtr + 12, 'i32');
-                        const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id);
+                        const corpsenm = (rawValues.length >= 9 && rawValues[8] >= 0) ? rawValues[8] : -1;
+                        const age = (rawValues.length >= 10 && rawValues[9] > 0) ? rawValues[9] : 0;
+                        const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id, corpsenm, age);
                         if (item) {
                             items.push(item);
                         }
@@ -376,7 +397,7 @@ export class InventoryWasmAdapter {
             const items = [];
             const visited = new Set();
             const MAX_FLOOR_ITEMS = 50;
-            const bufSize = 36;
+            const bufSize = 48; // 12 words * 4 bytes
             const bufPtr = memory.allocateBuffer(bufSize);
 
             if (bufPtr) {
@@ -386,20 +407,34 @@ export class InventoryWasmAdapter {
                         visited.add(currPtr);
                         const res = memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, bufPtr, bufSize);
                         if (res === 0) {
-                            const rawValues = memory.readInt32Array(bufPtr, 9);
-                            const cobjPtr = memory.getValue(currPtr + 8, 'i32');
+                            const rawValues = memory.readInt32Array(bufPtr, 12);
+                            const cobjPtr = (rawValues.length >= 11 && rawValues[10] > 0) ? rawValues[10] : memory.getValue(currPtr + 8, 'i32');
                             const o_id = memory.getValue(currPtr + 12, 'i32');
-                            const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id);
+                            const corpsenm = (rawValues.length >= 9 && rawValues[8] >= 0) ? rawValues[8] : -1;
+                            const age = (rawValues.length >= 10 && rawValues[9] > 0 && rawValues[9] < 1024) ? rawValues[9] : 0;
+                            const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id, corpsenm, age);
                             if (item) {
                                 items.push(item);
                             }
+                            if (rawValues.length >= 12 && rawValues[11] >= 1024) {
+                                currPtr = rawValues[11];
+                            } else if (rawValues.length >= 10 && rawValues[9] >= 1024) {
+                                currPtr = rawValues[9];
+                            } else {
+                                currPtr = memory.getValue(currPtr + 4, 'i32');
+                            }
+                        } else {
+                            break;
                         }
-                        currPtr = memory.getValue(currPtr + 4, 'i32');
                     }
                 } finally {
                     memory.freeBuffer(bufPtr);
                 }
             }
+            items.forEach(it => {
+                it.isPile = items.length > 1;
+                it.extraPileCount = Math.max(0, items.length - 1);
+            });
             return items;
         }
 
@@ -439,18 +474,31 @@ export class InventoryWasmAdapter {
                     let currPtr = headPtr;
                     while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_FLOOR_ITEMS) {
                         visited.add(currPtr);
-                        const objRes = await bridge.callShim(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, 36, 'int32');
+                        const objRes = await bridge.callShim(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, 48, 'int32');
                         if (objRes && Array.isArray(objRes.buffer)) {
                             let nextPtr = 0;
                             let cobjPtr = 0;
                             let o_id = 0;
                             let corpsenm = -1;
+                            let age = 0;
 
                             if (objRes.buffer.length >= 12) {
                                 corpsenm = objRes.buffer[8] ?? -1;
-                                nextPtr = objRes.buffer[9] || 0;
-                                cobjPtr = objRes.buffer[10] || 0;
-                                o_id = objRes.buffer[11] || 0;
+                                if (objRes.buffer[11] >= 1024) {
+                                    // 新仕様: out[9] = age, out[10] = cobj, out[11] = nexthere
+                                    age = objRes.buffer[9] || 0;
+                                    cobjPtr = objRes.buffer[10] || 0;
+                                    nextPtr = objRes.buffer[11] || 0;
+                                } else if (objRes.buffer[9] >= 1024) {
+                                    // 旧互換モック: [corpsenm, nexthere, cobj, o_id]
+                                    nextPtr = objRes.buffer[9] || 0;
+                                    cobjPtr = objRes.buffer[10] || 0;
+                                    o_id = objRes.buffer[11] || 0;
+                                } else {
+                                    age = objRes.buffer[9] || 0;
+                                    cobjPtr = objRes.buffer[10] || 0;
+                                    nextPtr = objRes.buffer[11] || 0;
+                                }
                             } else if (objRes.buffer.length === 11) {
                                 nextPtr = objRes.buffer[8] || 0;
                                 cobjPtr = objRes.buffer[9] || 0;
@@ -464,7 +512,7 @@ export class InventoryWasmAdapter {
                                 break;
                             }
 
-                            const item = this.unpackObjectBuffer(objRes.buffer, currPtr, cobjPtr, o_id, corpsenm);
+                            const item = this.unpackObjectBuffer(objRes.buffer, currPtr, cobjPtr, o_id, corpsenm, age);
                             if (item) items.push(item);
 
                             currPtr = (nextPtr >= 1024) ? nextPtr : 0;
@@ -473,6 +521,10 @@ export class InventoryWasmAdapter {
                         }
                     }
                 }
+                items.forEach(it => {
+                    it.isPile = items.length > 1;
+                    it.extraPileCount = Math.max(0, items.length - 1);
+                });
                 this._cachedPlayerFloorObjects = items;
                 this._cachedFloorObjectsX = x;
                 this._cachedFloorObjectsY = y;

@@ -48,10 +48,13 @@ function createMockElement(tagName = 'div') {
       return child;
     },
     querySelector: (selector) => {
-      if (selector === '#btn-knowledge-modal-close') {
-        const btn = createMockElement('button');
-        btn.id = 'btn-knowledge-modal-close';
-        return btn;
+      if (selector.startsWith('#')) {
+        const id = selector.slice(1);
+        if (el.innerHTML && el.innerHTML.includes(`id="${id}"`)) {
+          const btn = createMockElement('button');
+          btn.id = id;
+          return btn;
+        }
       }
       return null;
     },
@@ -418,7 +421,7 @@ describe('KnowledgeDetailModal - 構造化ナレッジ詳細モーダル', () =>
     expect(html).toContain('未解禁の噂: 1件');
   });
 
-  it('14. 未鑑定アイテム表示時、「正体を見る」ボタンが一時的にオミット（非表示）されていること', () => {
+  it('14. 未鑑定アイテム表示時、Peek Wisdom ボタンが表示され、通常時は真名がネタバレされないこと', () => {
     modal.open({
       name: '赤紫色の薬',
       appearanceName: '赤紫色の薬',
@@ -428,10 +431,37 @@ describe('KnowledgeDetailModal - 構造化ナレッジ詳細モーダル', () =>
     });
 
     const peekBtn = elModal.querySelector('#btn-modal-peek-wisdom');
-    expect(peekBtn).toBeNull();
+    expect(peekBtn).not.toBeNull();
     // ヘッダーに外見名が表示され、勝手に真名がネタバレされないこと
     expect(elModal.innerHTML).toContain('赤紫色の薬');
-    expect(elModal.innerHTML).not.toContain('btn-modal-peek-wisdom');
+  });
+
+  it('15. Peek Wisdom トグル時、ダイアログ内の透視バナーおよび適応スペック欄に正式名（真名）が明示表示されること', () => {
+    modal.open({
+      name: '赤紫色の薬',
+      nameJa: '超回復の薬',
+      wisdomTrueNameJa: '超回復の薬',
+      appearanceName: '赤紫色の薬',
+      category: 'POTION',
+      onum: 300,
+      isUnidentified: true,
+      effectSummary: '未鑑定の薬'
+    });
+
+    // 透視前: ダイアログ内に正式名バナーは存在しない
+    expect(elModal.innerHTML).not.toContain('正式名 (真名):');
+
+    // 透視実行
+    modal.togglePeekWisdom();
+
+    const html = elModal.innerHTML;
+    // ダイアログ内の透視バナーに正式名（真名）が明示表示されること
+    expect(html).toContain('正式名 (真名):');
+    expect(html).toContain('超回復の薬');
+    expect(html).toContain('kn-wisdom-banner');
+
+    // 適応スペック内にも正式名（真名）が表示されること
+    expect(html).toContain('spec-k">正式名 (真名)');
   });
 });
 

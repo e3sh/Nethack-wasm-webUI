@@ -239,7 +239,7 @@ export const APPEARANCE_NOUN_JA = {
     'broad pick': '幅広のつるはし',
     'thonged club': '紐付きの棍棒',
     'staff': '杖',
-    'throwing star': '手裏剣',
+    'throwing star': '星形の投げナイフ',
     'vulgar polearm': '低俗な長柄武器',
     'hilted polearm': '柄のある長柄武器',
     'forked polearm': '二股の長柄武器',

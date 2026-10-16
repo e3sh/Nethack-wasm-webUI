@@ -36,18 +36,18 @@ last_updated: 2026-10-16
 > **Phase 8（公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結）完遂後の棚卸し・現実化（Step 1）が完了しました！**  
 > 既存の設計書群を実コードと突き合わせて監査した結果、Phase 8 基盤によって不要となった旧構想4件をアーカイブ退避し、**§2 の着手待ちタスク群はいずれも基盤層の 50%〜75% がすでに実装済み**であることが確認されました。
 
-現在、**「キャラクター詳細ダイアログ ＆ Quick Dock ＆ キー透過調停 (Phase 1〜4)」が 100% 完結**し、次期最優先フォーカス（Active Focus）は以下のタスクとなります。
+Now, **「事後ナレッジ連携 (`PostMortemKnowledgeResolver`)」**、**「キャラクター詳細ダイアログ ＆ Quick Dock ＆ キー透過調停 (Phase 1〜4)」**、および **「床落ちアイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵 (Peek Wisdom / 旧 §2.6)」** が 100% 完結し、残る着手可能（Ready）タスクは以下の 1 件となります。
 
 | 候補 | 対象タスク | 残作業スコープ（実態監査後） | 進捗・前提状況 |
 | :--- | :--- | :--- | :--- |
-| **Active Focus** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | 未鑑定アイテムの価格帯・知識照合コア（`ItemCandidateResolver.js`）＋候補選択ダイアログ（`<nh-call-candidate-dialog>`） | **Step 1 完了 (50%完了)**<br>`DiscoveryStateManager` の `0x60`/`0x61`/`0x62` 直結は実装済。Step 2 & 3 のみ |
+| **候補 C** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | 未鑑定アイテムの価格帯・知識照合コア（`ItemCandidateResolver.js`）＋候補選択ダイアログ（`<nh-call-candidate-dialog>`） | **Step 1 完了 (50%完了)**<br>`DiscoveryStateManager` の `0x60`/`0x61`/`0x62` 直結は実装済。Step 2 & 3 のみ |
 
 ---
 
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
 仕様・設計が完了しており、基盤部分の実装も進んでいて残作業が明確化されているタスク群です。  
-※なお、**旧2.1 (命名アシスト以外), 2.2 (キャラクター詳細ダイアログ＆Quick Dock), 2.5, 2.6 (Peek Wisdom), 2.7 (ASCII純化), 事後ナレッジ連携 (PostMortemKnowledgeResolver)** は完遂し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
+※なお、**旧2.1 (命名アシスト以外), 2.2 (事後ナレッジ連携), 2.3 (キャラクター詳細ダイアログ＆Quick Dock), 2.5, 2.6 (床落ちアイテム・コンテナ・Peek Wisdom), 2.7 (ASCII純化)** は完遂し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
 
 ### 2.1 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
 - **ステータス**: `⏸️ pending (Ready: 50%完了)` (Step 1 実装済み・Step 2〜3 着手可能)
@@ -88,13 +88,12 @@ last_updated: 2026-10-16
 
 ## 🟢 4. 実装完了コア機能・現行仕様 (Living Specs) <a id="living-specs"></a>
 
-すで​​に実装が完了し、テストが通過（**全151スイート・1,883テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全151スイート・1,883テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :---: | :--- |
 | **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、基本憲法、重複整理、未接続パイプラインの公式総合カタログ |
-| **GKL・不可分同期** | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) | `StartupFlowController.js`<br>`GameLifecycleState.js`<br>`SilentSyncCoordinator.js`<br>`PlayerWasmAdapter.js` | `🟢 implemented` | **不可分同期ライフサイクル・単一状態マシン・基本プロフィール直結 (Stage 8.5: 2026-10-15)**<br>`completeStartup` の async 化による遅延ハック完全排除、`GameLifecycleManager`（単一ステートマシンSSOT）による状態遷移一元化、`SHIM_CMD_GET_PLAYER_PROFILE` (`0x33`) による Role/Race/Gender/Align 直結 |
-| **GKL・床知恵 (旧2.6)** | [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) | `ItemSpecPresenter.js`<br>`AreaStateManager.js`<br>`NhKnowledgeCard.js` | `🟢 implemented` | **床アイテム Direct Binding 完全化 ＆ 覗き見知恵 (Peek Wisdom / Stage 8.5: 2026-10-15)**<br>`syncPlayerFeetFloor` 直結の `struct obj` からスタック数量 (`quan`)、強化値 (`spe`)、残チャージ (`charges`)、対象生物 (`corpsenm`)、BUC を動的バッジ化 |
+| **GKL・床/知恵** | [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) | `src/driver/shim/shim_bridge.c`<br>`InventoryWasmAdapter.js`<br>`AdventureLogManager.js`<br>`StructuredKnowledgeEngine.js`<br>`ItemSpecPresenter.js`<br>`KnowledgeDetailModal.js`<br>`NhKnowledgeCard.js`<br>`FloatingContextActions.js`<br>`MainViewportRenderer.js`<br>`WebGPUHD2DRenderer.js` | `🟢 implemented` | **床落ちアイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵 (Peek Wisdom) (Phase 1〜4 完遂: 2026-10-16)**<br>Cシム層 `0x42` 12ワード拡張（箱フラグ・`nexthere` 床スタック走査）、冒険手帳 3段階支援モード（`STOIC`/`VETERAN`/`SAGE_GUIDE`）＆ `peekedObjects` 昇格、遠距離 `dknown==0` ネタバレ防止マスク、UI層の View 純化 ＆ `👁️` ボタン・`w` キー復元、マップ・カード・ポップアップの `[+1]`〜`[+9]` / `📚 山積み (+N)` バッジ表示完備 |
 | **GKL・ASCII純化 (旧2.7)** | [gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/gkl_multibyte_removal_and_ascii_purification_plan.ja.md) | `InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`EquipmentRules.js`<br>`EquipmentDependencyAnalyzer.js` | `🟢 implemented` | **GKL/装備判定ロジックからの日本語正規表現完全削除 ＆ ASCII純化 (Stage 8.5: 2026-10-15)**<br>`rawText` への和名合成汚染を解消し 100% 英語 ASCII に純化（和名は `nameJa`/`customNameJa` へ分離）。判定バグリスクを根絶 |
 | **GKL・探索同期** | [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)<br>[nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md) | `PlayerWasmAdapter.js`<br>`BindingConstants.js`<br>`AreaStateManager.js`<br>`AttributeStateManager.js`<br>`GKLEventRouter.js` | `🟢 implemented` | **ブランチ同定・お祈りタイマー・プレイヤー耐性直結 (Stage 8.4: 2026-10-15)**<br>`dnum` による全9ブランチ 100% 確定同定 ＆ `branch:dlvl` キャッシュ分離、新エリア突入バナー演出（`AREA_ENTERED`）、`ublesscnt` / `ugangr`（推測誤差ゼロお祈り判定）、`uprops` 69要素耐性配列 SSOT 直結 |
 | **GKL・確定情報** | [direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md](./3_gkl/direct_binding_ground_truth_and_terrain_glyph_bugfix_plan.ja.md) | `src/driver/shim/shim_bridge.c`<br>`glyphClassifier.js`<br>`InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`TerrainInferenceEngine.js` | `🟢 implemented` | **Direct Binding 確定情報純化 ＆ 地形・インベントリ不具合是正 (Stage 8.3-C: 2026-10-15)**<br>Cシム層 `corpsenm`/`known` 拡張、像・死体の専用グリフ（`GLYPH_STATUE_OFF`/`GLYPH_BODY_OFF`）適用、扉なし枠（`3985`）適正化、魔法書・杖・缶詰の境界・誤爆根絶 |
