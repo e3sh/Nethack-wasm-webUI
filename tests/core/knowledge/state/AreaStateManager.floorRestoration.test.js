@@ -350,6 +350,38 @@ describe('C-Core Direct Glyph Floor Underlay & Multi-Layer Rendering Normalizati
             asm.syncFromDirectBinding(1);
             expect(asm.grid[y][x].bottom.glyph).toBe(3989);
         });
+
+        it('deploys real-time C-core genuine floor (3992) via getCellGlyph (0x16) when item/monster appears on unobserved cell', () => {
+            const x = 12, y = 12;
+            // 1. 初見マス: cell.bottom は null
+            expect(asm.grid[y][x].bottom).toBeNull();
+
+            // C コア側で正規の部屋床 (back_to_glyph / 3992) を返すと設定
+            mockDirectBindingService.getCellInfo.mockImplementation((cx, cy) => {
+                if (cx === x && cy === y) {
+                    return { x: cx, y: cy, typ: 25, flags: 0, lit: true, roomno: 1, door: null, altar: null };
+                }
+                return { x: cx, y: cy, typ: 0, flags: 0, lit: true, roomno: 0, door: null, altar: null };
+            });
+            mockDirectBindingService.getCellGlyph = vi.fn((cx, cy) => (cx === x && cy === y ? 3992 : null));
+
+            // 2. その初見マスにモンスター (例: glyph 100: コボルド) が出現
+            const koboldGlyph = 100;
+            asm.updateGlyph(x, y, koboldGlyph, { glyph: koboldGlyph, ch: 'k' });
+
+            // モンスターが cell.top に設定され、下敷き cell.bottom には 0x16 経由で取得した真の床 (3992) が敷かれること！
+            expect(asm.grid[y][x].top).not.toBeNull();
+            expect(asm.grid[y][x].top.glyph).toBe(koboldGlyph);
+            expect(asm.grid[y][x].bottom).not.toBeNull();
+            expect(asm.grid[y][x].bottom.glyph).toBe(3992);
+            expect(asm.grid[y][x].bottom.isGenuine).toBe(true);
+            expect(mockDirectBindingService.getCellGlyph).toHaveBeenCalledWith(x, y);
+
+            // 3. モンスターが立ち去った場合 (確定した部屋床 3992 が残る)
+            asm.updateGlyph(x, y, 3992, { glyph: 3992, ch: '.' });
+            expect(asm.grid[y][x].top).toBeNull();
+            expect(asm.grid[y][x].bottom.glyph).toBe(3992);
+        });
     });
 });
 

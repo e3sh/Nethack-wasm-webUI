@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { VirtualDungeonScreen } from '../../examples/gkl-pure-js-client/modules/renderers/VirtualDungeonScreen.js';
+import { VirtualDungeonScreen, isCellInShadow } from '../../examples/gkl-pure-js-client/modules/renderers/VirtualDungeonScreen.js';
 import { ZoomRenderer } from '../../examples/gkl-pure-js-client/modules/renderers/ZoomRenderer.js';
 import { AreaStateManager } from '../../src/core/knowledge/state/AreaStateManager.js';
 
@@ -228,6 +228,79 @@ describe('VirtualDungeonScreen - 仮想スクリーン統合レンダラー Phas
     vScreen.flushCommittedState(state2, null, null, asm.getDirtyCells());
     // bottom (3992) の 1 回のみ drawImage が呼ばれ、middle は消える
     expect(mockCtx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('10. isCellInShadow: S_darkroom: 3993 が 2 個以上存在する暗室マスを影エリアと判定し、廊下やプレイヤー直近は除外すること', () => {
+    // 80x24 のグリッド
+    const grid = Array.from({ length: 24 }, () =>
+      Array.from({ length: 80 }, () => ({
+        bottom: { type: 'UNEXPLORED', rawGlyph: 9622 },
+        middle: null,
+        top: null
+      }))
+    );
+
+    // プレイヤーが (10, 10) にいる
+    const px = 10;
+    const py = 10;
+
+    // 廊下 (S_corr: 3995) にアイテムがあっても、3993 が無いため影エリアにはならない (廊下違和感防止)
+    grid[15][20] = { bottom: { type: 'CORR', rawGlyph: 3995 }, middle: { rawGlyph: 1938 }, top: null };
+    expect(isCellInShadow(grid, 20, 15, px, py)).toBe(false);
+
+    // 暗い部屋 (S_darkroom: 3993) が 2 個以上存在するエリア (自身 3993 + 隣接 3993)
+    grid[18][40] = { bottom: { type: 'TERRAIN', rawGlyph: 3993 }, middle: { rawGlyph: 1938 }, top: null };
+    grid[18][41] = { bottom: { type: 'TERRAIN', rawGlyph: 3993 }, middle: null, top: null };
+    expect(isCellInShadow(grid, 40, 18, px, py)).toBe(true);
+
+    // 3993 が 1 個のみの場合は閾値 2 未満のため false
+    grid[20][50] = { bottom: { type: 'TERRAIN', rawGlyph: 3993 }, middle: { rawGlyph: 1938 }, top: null };
+    expect(isCellInShadow(grid, 50, 20, px, py)).toBe(false);
+
+    // プレイヤー直近 (マンハッタン距離 1) は、たとえ 3993 があっても除外 (通常描画)
+    grid[10][11] = { bottom: { type: 'TERRAIN', rawGlyph: 3993 }, middle: null, top: null };
+    grid[10][12] = { bottom: { type: 'TERRAIN', rawGlyph: 3993 }, middle: null, top: null };
+    expect(isCellInShadow(grid, 11, 10, px, py)).toBe(false);
+  });
+
+  it('11. flushDirtyCells: 暗い部屋 (3993) の個別暗所処理では床を描画後に黒塗りで完全な黒床にし、アイテムは暗くせず通常描画されること', () => {
+    const vScreen = new VirtualDungeonScreen();
+    vScreen.tileLoaded = true;
+    vScreen.tileImg = { width: 1280, naturalWidth: 1280 };
+
+    const grid = Array.from({ length: 24 }, () =>
+      Array.from({ length: 80 }, () => ({
+        bottom: { type: 'UNEXPLORED', rawGlyph: 9622 },
+        middle: null,
+        top: null
+      }))
+    );
+
+    // (20, 10) にアイテムを配置し、自身と隣接を S_darkroom (3993) に設定
+    grid[10][20] = {
+      bottom: { type: 'TERRAIN', rawGlyph: 3993 },
+      middle: { rawGlyph: 1938 },
+      top: null
+    };
+    grid[10][21] = {
+      bottom: { type: 'TERRAIN', rawGlyph: 3993 },
+      middle: null,
+      top: null
+    };
+
+    vScreen.markDirty(20, 10);
+    mockCtx.fillRect.mockClear();
+    mockCtx.drawImage.mockClear();
+
+    vScreen.flushDirtyCells(grid, null, null, 5, 5); // プレイヤーは (5, 5) で遠く
+
+    // 床とアイテムで 2 回 drawImage される
+    expect(mockCtx.drawImage).toHaveBeenCalledTimes(2);
+
+    // 背景クリア (黒) + 床の黒塗り (#000000) の 2 回 fillRect が呼ばれ、アイテムには余計な影トーンを掛けない
+    expect(mockCtx.fillRect).toHaveBeenCalledTimes(2);
+    expect(mockCtx.fillRect).toHaveBeenNthCalledWith(1, 20 * 32, 10 * 32, 32, 32);
+    expect(mockCtx.fillRect).toHaveBeenNthCalledWith(2, 20 * 32, 10 * 32, 32, 32);
   });
 });
 

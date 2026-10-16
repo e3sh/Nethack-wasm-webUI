@@ -11,8 +11,9 @@ import { getTileCandidatePaths } from "../config/TileConfig.js";
 import { Mat4 } from "./hd2d/hd2dMath.js";
 import { WGSL_SHADER } from "./hd2d/hd2dShaders.js";
 import { HD2DFxOverlay } from "./hd2d/hd2dFxOverlay.js";
+import { isCellInShadow } from "./VirtualDungeonScreen.js";
 
-export { Mat4, WGSL_SHADER, HD2DFxOverlay };
+export { Mat4, WGSL_SHADER, HD2DFxOverlay, isCellInShadow };
 
 // ============================================================================
 // WebGPUHD2DRenderer クラス本体
@@ -990,6 +991,11 @@ export class WebGPUHD2DRenderer {
             }
           }
 
+          // アイテムまたはモンスターが存在する場合の周囲近傍判定 (局所的影コントロール)
+          const hasItem = Boolean(cell?.middle && cell.middle.rawGlyph >= 0 && cell.middle.rawGlyph < 9622);
+          const hasMonster = Boolean(cell?.top && !cell.top.isPlayer && cell.top.rawGlyph >= 0 && cell.top.rawGlyph < 9622);
+          const inShadow = (hasItem || hasMonster) && isCellInShadow(areaGrid, x, y, targetPx, targetPy);
+
           if (cell) {
             // Layer 0 & 1/2: Bottom (床 / 壁) - 未踏領域 (UNEXPLORED / >= 9622) は描画しない
             if (isExploredBottom) {
@@ -1002,12 +1008,18 @@ export class WebGPUHD2DRenderer {
                   pushInstance(x, 0.0, y, 2.0, 0.0, 0.0, tileIdx, cellLight); // 壁前面
                 }
               } else {
-                pushInstance(x, 0.0, y, 0.0, 0.0, 0.0, tileIdx, cellLight); // 床
+                // 影エリアの床は真っ黒照明 (0.20) で描画
+                pushInstance(x, 0.0, y, 0.0, 0.0, 0.0, tileIdx, inShadow ? 0.20 : cellLight); // 床
               }
+              drawnAny = true;
+            } else if (inShadow) {
+              // 3D 空間で床が透明に抜けるのを防ぐため、暗室床 (S_darkroom: 3993) を真っ黒照明 (0.20) で敷く
+              const floorTileIdx = getTileIdx(3993);
+              pushInstance(x, 0.0, y, 0.0, 0.0, 0.0, floorTileIdx, 0.20);
               drawnAny = true;
             }
 
-            // Layer 3: Middle (アイテム)
+            // Layer 3: Middle (アイテム) - 床さえ暗くなればアイテムは暗くする必要はないため cellLight で通常描画
             if (cell.middle && cell.middle.rawGlyph >= 0 && cell.middle.rawGlyph < 9622) {
               const tileIdx = getTileIdx(cell.middle.rawGlyph);
               pushInstance(x, 0.0, y, 3.0, 0.0, (x * 7 + y * 13) % 10, tileIdx, cellLight);

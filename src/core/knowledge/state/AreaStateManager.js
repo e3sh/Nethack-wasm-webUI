@@ -456,12 +456,14 @@ export class AreaStateManager {
                 let currentTyp = undefined;
                 let currentDoor = null;
                 let currentAltar = null;
+                let currentLit = true;
                 if (this.directBindingService && typeof this.directBindingService.getCellInfo === 'function') {
                     const cInfo = this.directBindingService.getCellInfo(x, y);
                     if (cInfo) {
                         if (typeof cInfo.typ === 'number') currentTyp = cInfo.typ;
                         if (cInfo.door) currentDoor = cInfo.door;
                         if (cInfo.altar) currentAltar = cInfo.altar;
+                        if (typeof cInfo.lit !== 'undefined') currentLit = Boolean(cInfo.lit);
                     }
                 }
                 cell.bottom = {
@@ -470,6 +472,7 @@ export class AreaStateManager {
                     glyph: glyphId,
                     rawGlyph: glyphId,
                     typ: currentTyp,
+                    lit: currentLit,
                     door: currentDoor,
                     altar: currentAltar,
                     isGenuine: true,
@@ -740,7 +743,12 @@ export class AreaStateManager {
             // (掘削等による typ の変化、またはドアの開閉・破壊等の状態変化) が
             // 検知された場合のみセルグリフを最新化する。
             // 物理変化がない限り、確定グリフ (角壁・既存開閉扉等) を同期処理で上書き（Re-clobber）してはならない。
-            const typChanged = (cell.bottom.typ !== undefined && genuine.typ !== undefined && cell.bottom.typ !== genuine.typ);
+            const prevTyp = cell.bottom.typ;
+            const newTyp = genuine.typ;
+            const typChanged = (prevTyp !== undefined && newTyp !== undefined)
+                ? (prevTyp !== newTyp)
+                : (cell.bottom.glyph !== genuine.glyph);
+
             const isExistingOpen = Boolean(cell.bottom.door?.isOpen || cell.bottom.glyph === 3986 || cell.bottom.glyph === 3987);
             const isExistingClosed = Boolean(cell.bottom.door?.isClosed || cell.bottom.glyph === 3988 || cell.bottom.glyph === 3989);
             const isExistingBroken = Boolean(cell.bottom.door?.isBroken || cell.bottom.door?.isNoDoor || cell.bottom.glyph === 3985);
@@ -750,11 +758,21 @@ export class AreaStateManager {
             const isNewBroken = Boolean(genuine.door?.isBroken || genuine.door?.isNoDoor || genuine.glyph === 3985);
 
             const doorStateChanged = Boolean(
-                cell.bottom.typ === 23 &&
+                (cell.bottom.typ === 23 || genuine.typ === 23 || isExistingOpen || isExistingClosed || isExistingBroken || isNewOpen || isNewClosed || isNewBroken) &&
                 (isExistingOpen !== isNewOpen || isExistingClosed !== isNewClosed || isExistingBroken !== isNewBroken)
             );
 
-            if (typChanged || doorStateChanged) {
+            // 掘削判定: 壁 (3975-3984) から 床 (3992-3996) への物理変化
+            const isWallGlyph = (g) => (typeof g === 'number' && g >= 3975 && g <= 3984);
+            const isFloorGlyph = (g) => (typeof g === 'number' && g >= 3992 && g <= 3996);
+            const isDugOut = isWallGlyph(cell.bottom.glyph) && isFloorGlyph(genuine.glyph);
+
+            // 🎯 C コア直接結合・確定地形完全保護（SSOT原則 / direct_binding_ssot_rules.md 第2条）:
+            // C コアから送信された print_glyph (fromPrintGlyph: true) は、最高精度の確定描画原本である。
+            // 掘削等の物理的 typ 変化がない限り、定期同期処理によって上書き（Re-clobber / 地形化け）してはならない。
+            const isProtectedFromPrintGlyph = Boolean(cell.bottom.fromPrintGlyph && !typChanged && !isDugOut);
+
+            if (!isProtectedFromPrintGlyph && (typChanged || doorStateChanged || isDugOut)) {
                 const prevFromPrintGlyph = Boolean(cell.bottom.fromPrintGlyph);
                 cell.bottom = { ...genuine, fromPrintGlyph: prevFromPrintGlyph };
                 hasChanged = true;
@@ -766,6 +784,10 @@ export class AreaStateManager {
                 if (genuine.trap) cell.bottom.trap = genuine.trap;
                 if (genuine.engraving) cell.bottom.engraving = genuine.engraving;
                 if (genuine.typ !== undefined) cell.bottom.typ = genuine.typ;
+                if (genuine.lit !== undefined && cell.bottom.lit !== genuine.lit) {
+                    cell.bottom.lit = genuine.lit;
+                    hasChanged = true;
+                }
                 cell.bottom.isGenuine = true;
             }
         }

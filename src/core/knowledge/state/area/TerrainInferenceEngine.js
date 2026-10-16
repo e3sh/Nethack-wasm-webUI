@@ -115,26 +115,31 @@ export class TerrainInferenceEngine {
 
                 const hasPhysicalChanged = isTypPhysicalChanged || isDoorStateChanged;
 
-                // 1. C コアネイティブ関数 back_to_glyph(x, y) をリアルタイム直接呼び出し
+                // 1. 🎯 受信確定地形の絶対優先・保護 (direct_binding_ssot_rules.md 第2条):
+                // 物理的な変化 (typ変化 または ドア物理変化) がない場合は、
+                // 画面描画の絶対真値である既存グリフ (向きを持つ開閉扉・角壁等) を最優先で100%維持保護！
+                if (existingBottom && existingBottom.type === ENTITY_TYPES.TERRAIN && !existingBottom.inferred && typeof existingBottom.glyph === 'number' && !hasPhysicalChanged) {
+                    glyphId = existingBottom.glyph;
+                    isDirectGlyph = Boolean(existingBottom.isDirectGlyph);
+                }
+
+                // 2. 物理変化があった場合、またはセルが未確定の場合に C コア直接グリフを取得
                 if (glyphId === null && typeof asm.directBindingService.getCellGlyph === 'function') {
                     const realTimeGlyph = asm.directBindingService.getCellGlyph(x, y);
                     if (typeof realTimeGlyph === 'number' && realTimeGlyph > 0) {
                         const directClassified = classifyGlyph(realTimeGlyph);
                         if (directClassified.type === ENTITY_TYPES.TERRAIN) {
-                            glyphId = realTimeGlyph;
-                            isDirectGlyph = true;
-                            if (asm.directBindingService._cachedLevelGlyphs && x >= 0 && x < 80 && y >= 0 && y < 21) {
-                                asm.directBindingService._cachedLevelGlyphs[y * 80 + x] = realTimeGlyph;
+                            // 視認済みの壁 (3975-3984) を未視認の石 (3973) で上書きしない
+                            const isExistingWall = existingBottom && typeof existingBottom.glyph === 'number' && existingBottom.glyph >= 3975 && existingBottom.glyph <= 3984;
+                            if (!(isExistingWall && realTimeGlyph === 3973)) {
+                                glyphId = realTimeGlyph;
+                                isDirectGlyph = true;
+                                if (asm.directBindingService._cachedLevelGlyphs && x >= 0 && x < 80 && y >= 0 && y < 21) {
+                                    asm.directBindingService._cachedLevelGlyphs[y * 80 + x] = realTimeGlyph;
+                                }
                             }
                         }
                     }
-                }
-
-                // 2. 物理的な変化 (typ変化 または ドア開閉変化) がない場合は、
-                // 画面描画の絶対真値として既存グリフ (向きを持つ開閉扉・角壁等) を最優先維持！
-                if (glyphId === null && existingBottom && existingBottom.type === ENTITY_TYPES.TERRAIN && !existingBottom.inferred && typeof existingBottom.glyph === 'number' && !hasPhysicalChanged) {
-                    glyphId = existingBottom.glyph;
-                    isDirectGlyph = Boolean(existingBottom.isDirectGlyph);
                 }
 
                 // 3. 物理変化があった場合、またはセルが未確定の場合、Cコア直接グリフ (_cachedLevelGlyphs) を採用
@@ -156,6 +161,12 @@ export class TerrainInferenceEngine {
                     isDirectGlyph = Boolean(existingBottom.isDirectGlyph);
                 }
 
+                // 新規床生成時: 暗い部屋 (typ === 1 かつ lit === false) の場合、NetHack 公式仕様 (display.c / DARKROOMSYM) に従い
+                // 明るい部屋の床 (3992: S_room) ではなく暗い部屋の床 (3993: S_darkroom) を採用
+                if (glyphId === 3992 && !cellInfo.lit && (!existingBottom || !existingBottom.fromPrintGlyph)) {
+                    glyphId = 3993;
+                }
+
                 // Cコア直接グリフおよび既存確定グリフのいずれも存在しない場合は推論捏造せず null を返却
                 if (glyphId === null || glyphId < 0) {
                     return null;
@@ -170,6 +181,7 @@ export class TerrainInferenceEngine {
                     isGenuine: true,
                     isDirectGlyph,
                     typ: cellInfo.typ,
+                    lit: Boolean(cellInfo.lit),
                     door: effectiveDoor,
                     cellInfo: isSecretDoor ? { ...cellInfo, door: null } : cellInfo
                 };
@@ -282,8 +294,24 @@ export class TerrainInferenceEngine {
             }
         }
 
-        // ② 既存の有効な cell.bottom (確定済み TERRAIN) が存在する場合はそのまま維持
+        // ② 既存の有効な cell.bottom (確定済み TERRAIN) が存在する場合は照明状態を最新化
         if (cell.bottom !== null && cell.bottom.type !== ENTITY_TYPES.UNEXPLORED && !cell.bottom.inferred) {
+            const asm = this.areaStateManager;
+            if (asm && asm.directBindingService && typeof asm.directBindingService.getCellInfo === 'function') {
+                const cInfo = asm.directBindingService.getCellInfo(x, y);
+                if (cInfo && typeof cInfo.lit !== 'undefined') {
+                    const newLit = Boolean(cInfo.lit);
+                    if (cell.bottom.lit !== newLit) {
+                        cell.bottom.lit = newLit;
+                        if (!cell.bottom.fromPrintGlyph && (cell.bottom.typ === 1 || cell.bottom.glyph === 3992 || cell.bottom.glyph === 3993)) {
+                            const newGlyph = newLit ? 3992 : 3993;
+                            cell.bottom.glyph = newGlyph;
+                            cell.bottom.rawGlyph = newGlyph;
+                        }
+                        asm.markDirty(x, y);
+                    }
+                }
+            }
             return;
         }
 

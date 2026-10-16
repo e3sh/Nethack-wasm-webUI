@@ -319,7 +319,7 @@ export class MainViewportRenderer {
         this.virtualScreen.markCellsDirty(asm.getDirtyCells());
         asm.clearDirtyCells();
       }
-      this.virtualScreen.flushDirtyCells(areaState?.grid, this.glyphGridBuffer);
+      this.virtualScreen.flushDirtyCells(areaState?.grid, this.glyphGridBuffer, null, this.playerX, this.playerY);
     }
 
     const canvasW = this.canvas.width;

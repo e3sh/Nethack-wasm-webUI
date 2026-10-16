@@ -127,10 +127,14 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
   let dist = distance(input.worldPos.xz, uniforms.playerPos);
   let torchLight = 1.0 - smoothstep(1.5, uniforms.lightRadius, dist);
 
-  // 総合明度: タイル基礎明度 (tileLight) と ランタン光 (torchLight) をブレンド
-  // 視界外でも最低限のシルエット (0.22) は確保
+  // 影エリアの個別暗所処理: tileLight <= 0.25 の床プレーンは完全に真っ黒
+  if (input.tileLight <= 0.25 && input.layerType < 0.5) {
+    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+  }
+
+  // 総合明度: 通常タイルおよび上に乗る敵・アイテムはトーチ光で照らされる (暗くしない)
   var light = max(input.tileLight * uniforms.ambientFloor, torchLight * 0.95);
-  light = clamp(light, 0.22, 1.15);
+  light = clamp(light, 0.08, 1.15);
 
   if (input.isPlayer > 0.5) {
     // プレイヤー自身は常に最大光度

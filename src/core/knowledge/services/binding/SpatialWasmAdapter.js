@@ -109,7 +109,9 @@ export class SpatialWasmAdapter {
         if (this._cachedLevelTerrain && x >= 0 && x < 80 && y >= 0 && y < 21) {
             const idx = y * 80 + x;
             if (idx >= 0 && idx < this._cachedLevelTerrain.length) {
-                const typ = this._cachedLevelTerrain[idx];
+                const raw = this._cachedLevelTerrain[idx];
+                const typ = raw & 0x7F;
+                const lit = Boolean(raw & 0x80);
                 const isDoor = (typ === LEVL_TYP.DOOR || typ === LEVL_TYP.SDOOR);
                 const isAltar = (typ === LEVL_TYP.ALTAR);
                 return {
@@ -117,7 +119,7 @@ export class SpatialWasmAdapter {
                     y,
                     typ,
                     flags: 0,
-                    lit: false,
+                    lit,
                     roomno: 0,
                     door: isDoor ? {
                         isClosed: false,

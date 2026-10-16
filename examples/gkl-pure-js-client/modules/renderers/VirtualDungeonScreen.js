@@ -126,12 +126,28 @@ export class VirtualDungeonScreen {
    * 差分セルのみをピンポイントでオフスクリーン背景 Canvas に再描画
    * Layer 1: 地形 (Bottom) ＋ Layer 2: アイテム (Middle) を焼き込み
    */
-  flushDirtyCells(areaGrid, glyphGridBuffer = null, tileMappingFn = null) {
+  flushDirtyCells(areaGrid, glyphGridBuffer = null, tileMappingFn = null, px = null, py = null) {
     if (!this.bgCtx || this.dirtyCells.size === 0) return 0;
 
     const tileMap = typeof tileMappingFn === 'function' ? tileMappingFn() : (typeof tileMapping === 'function' ? tileMapping() : []);
     const ts = this.tileSize;
     let renderedCount = 0;
+
+    let playerX = px;
+    let playerY = py;
+    if ((playerX == null || playerY == null || playerX < 0 || playerY < 0) && areaGrid) {
+      outer: for (let r = 0; r < this.rows; r++) {
+        const row = areaGrid[r];
+        if (!row) continue;
+        for (let c = 0; c < this.cols; c++) {
+          if (row[c]?.top?.isPlayer) {
+            playerX = c;
+            playerY = r;
+            break outer;
+          }
+        }
+      }
+    }
 
     for (const key of this.dirtyCells) {
       const [xStr, yStr] = key.split(',');
@@ -158,16 +174,29 @@ export class VirtualDungeonScreen {
           cell.bottom.rawGlyph < 9622
         );
         const isObserved = Boolean(hasNetHackGlyph || cell.middle || cell.top);
+        const hasMiddleItem = Boolean(cell.middle && cell.middle.rawGlyph >= 0 && cell.middle.rawGlyph < 9622);
+        const inShadow = hasMiddleItem && isCellInShadow(areaGrid, x, y, playerX, playerY);
+
         // Layer 1: 地形 (Bottom)
         if (isExploredBottom && (!cell.bottom.isCachedPreload || isObserved)) {
           this.drawTile(this.bgCtx, cell.bottom.rawGlyph, dx, dy, ts, ts, 0, () => tileMap);
+          if (inShadow) {
+            // 個別暗所処理: 床は完全に真っ黒 (#000000) に塗りつぶす
+            this.bgCtx.fillStyle = '#000000';
+            this.bgCtx.fillRect(dx, dy, ts, ts);
+          }
+        } else if (inShadow) {
+          // 下層の床が未探索でも、アイテムが影エリアにある場合は暗い床を補完描画した上で真っ黒に
+          this.drawTile(this.bgCtx, 3993, dx, dy, ts, ts, 0, () => tileMap);
+          this.bgCtx.fillStyle = '#000000';
+          this.bgCtx.fillRect(dx, dy, ts, ts);
         } else if (!isExploredBottom && !cell.middle && hasNetHackGlyph) {
           // フォールバック
           this.drawTile(this.bgCtx, gData.glyph, dx, dy, ts, ts, 0, () => tileMap);
         }
 
-        // Layer 2: アイテム (Middle - 透過重ね描き)
-        if (cell.middle && cell.middle.rawGlyph >= 0 && cell.middle.rawGlyph < 9622) {
+        // Layer 2: アイテム (Middle - 透過重ね描き) - 床のみ黒塗りにし、上に乗るアイテムは暗くせず通常描画
+        if (hasMiddleItem) {
           this.drawTile(this.bgCtx, cell.middle.rawGlyph, dx, dy, ts, ts, 0, () => tileMap);
         }
       } else if (hasNetHackGlyph) {
@@ -187,9 +216,11 @@ export class VirtualDungeonScreen {
    * @param {Array<Array<Object>>} [glyphGridBuffer=null]
    * @param {Function} [tileMappingFn=null]
    * @param {Set<string>} [asmDirtyCells=null]
+   * @param {number|null} [px=null]
+   * @param {number|null} [py=null]
    * @returns {number} 再描画されたセル数
    */
-  flushCommittedState(areaState, glyphGridBuffer = null, tileMappingFn = null, asmDirtyCells = null) {
+  flushCommittedState(areaState, glyphGridBuffer = null, tileMappingFn = null, asmDirtyCells = null, px = null, py = null) {
     if (asmDirtyCells && asmDirtyCells.size > 0) {
       this.markCellsDirty(asmDirtyCells);
       if (typeof asmDirtyCells.clear === 'function') {
@@ -197,6 +228,70 @@ export class VirtualDungeonScreen {
       }
     }
     const grid = areaState?.grid || areaState;
-    return this.flushDirtyCells(grid, glyphGridBuffer, tileMappingFn);
+    const playerX = px ?? areaState?.playerX;
+    const playerY = py ?? areaState?.playerY;
+    return this.flushDirtyCells(grid, glyphGridBuffer, tileMappingFn, playerX, playerY);
   }
 }
+
+/**
+ * 暗い部屋 (S_darkroom: 3993) に存在するアイテム・敵の局所的影判定
+ * 廊下（通路）等での誤判定を防ぐため、S_darkroom: 3993 が自身または隣接に 2 個以上存在する場合のみ影エリアと判定する
+ * @param {Array<Array<Object>>} areaGrid 
+ * @param {number} x 
+ * @param {number} y 
+ * @param {number|null} [px=null] プレイヤーX座標
+ * @param {number|null} [py=null] プレイヤーY座標
+ * @param {number} [threshold=2] 必要とする S_darkroom (3993) の数 (デフォルト: 2個以上)
+ * @returns {boolean}
+ */
+export function isCellInShadow(areaGrid, x, y, px = null, py = null, threshold = 2) {
+  if (!areaGrid) return false;
+
+  let playerX = px;
+  let playerY = py;
+  if ((playerX == null || playerY == null || playerX < 0 || playerY < 0) && areaGrid) {
+    outer: for (let r = 0; r < 24; r++) {
+      const row = areaGrid[r];
+      if (!row) continue;
+      for (let c = 0; c < 80; c++) {
+        if (row[c]?.top?.isPlayer) {
+          playerX = c;
+          playerY = r;
+          break outer;
+        }
+      }
+    }
+  }
+
+  // プレイヤーの直近 (マンハッタン距離 1、直接照らされているマス) は除外 (通常描画)
+  if (playerX != null && playerY != null && playerX >= 0 && playerY >= 0) {
+    const dist = Math.abs(x - playerX) + Math.abs(y - playerY);
+    if (dist <= 1) {
+      return false;
+    }
+  }
+
+  let darkRoomCount = 0;
+  const targetCell = areaGrid[y]?.[x];
+  if (targetCell?.bottom?.rawGlyph === 3993) {
+    darkRoomCount++;
+  }
+
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (ny < 0 || ny >= 24 || nx < 0 || nx >= 80) continue;
+
+      const nCell = areaGrid[ny]?.[nx];
+      if (nCell?.bottom?.rawGlyph === 3993) {
+        darkRoomCount++;
+      }
+    }
+  }
+
+  return darkRoomCount >= threshold;
+}
+

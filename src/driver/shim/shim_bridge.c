@@ -80,7 +80,7 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
             unsigned char *out = (unsigned char*) buf;
             for (int y = 0; y < ROWNO; y++) {
                 for (int x = 0; x < COLNO; x++) {
-                    out[y * COLNO + x] = (unsigned char) levl[x][y].typ;
+                    out[y * COLNO + x] = (unsigned char) ((levl[x][y].typ & 0x7F) | (levl[x][y].lit ? 0x80 : 0));
                 }
             }
             return 0;

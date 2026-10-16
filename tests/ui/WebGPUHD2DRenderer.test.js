@@ -516,6 +516,164 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     expect(renderer.instanceCounts.floor).toBeGreaterThan(0);
     expect(renderer.instanceCounts.item).toBe(2); // アイテムスプライト(Layer 3.0) + 自キャラ足元枠(Layer 3.2)
   });
+
+  it('25. 周囲近傍判定による局所的影コントロール: 影エリアにあるアイテムおよびモンスターに対して cellLight = 0.35 が適用され、床が未探索でも暗室床が生成されること', () => {
+    const grid = [];
+    for (let y = 0; y < 24; y++) {
+      const row = [];
+      for (let x = 0; x < 80; x++) {
+        row.push({
+          x,
+          y,
+          bottom: { type: 'UNEXPLORED', rawGlyph: 9622 },
+          middle: null,
+          top: null,
+          effect: null
+        });
+      }
+      grid.push(row);
+    }
+
+    // プレイヤーを (10, 10) に配置
+    grid[10][10] = {
+      x: 10, y: 10,
+      bottom: { type: 'FLOOR', rawGlyph: 3992 },
+      middle: null,
+      top: { type: 'PLAYER', isPlayer: true, rawGlyph: 380 },
+      effect: null
+    };
+
+    // 影エリアのマス (20, 15): S_darkroom (3993) が 2 個以上存在
+    grid[15][20] = {
+      x: 20, y: 15,
+      bottom: { type: 'TERRAIN', rawGlyph: 3993 },
+      middle: { type: 'ITEM', rawGlyph: 1938 },
+      top: null,
+      effect: null
+    };
+    grid[15][21] = {
+      x: 21, y: 15,
+      bottom: { type: 'TERRAIN', rawGlyph: 3993 },
+      middle: null,
+      top: null,
+      effect: null
+    };
+
+    // 影エリアのマス (25, 15): S_darkroom (3993) が 2 個以上存在
+    grid[15][25] = {
+      x: 25, y: 15,
+      bottom: { type: 'TERRAIN', rawGlyph: 3993 },
+      middle: null,
+      top: { type: 'MONSTER', isPlayer: false, rawGlyph: 100 },
+      effect: null
+    };
+    grid[15][26] = {
+      x: 26, y: 15,
+      bottom: { type: 'TERRAIN', rawGlyph: 3993 },
+      middle: null,
+      top: null,
+      effect: null
+    };
+
+    // 廊下のマス (30, 15): S_corr (3995) にアイテムがあっても 3993 が無いため影除外 (廊下の床は通常明度 0.45)
+    grid[15][30] = {
+      x: 30, y: 15,
+      bottom: { type: 'CORR', rawGlyph: 3995 },
+      middle: { type: 'ITEM', rawGlyph: 1940 },
+      top: null,
+      effect: null
+    };
+
+    // プレイヤー直近マス (11, 10): アイテムが存在するがプレイヤー直近のため影除外
+    grid[10][11] = {
+      x: 11, y: 10,
+      bottom: { type: 'FLOOR', rawGlyph: 3992 },
+      middle: { type: 'ITEM', rawGlyph: 1939 },
+      top: null,
+      effect: null
+    };
+
+    const renderer = new WebGPUHD2DRenderer({
+      canvas: mockCanvas,
+      getSituation: () => ({
+        turn: 2,
+        area: { playerX: 10, playerY: 10, grid }
+      }),
+      getAreaGrid: () => grid
+    });
+
+    renderer.isSupported = true;
+    renderer.pipeline = {};
+    renderer.bindGroup = {};
+    renderer.device = {
+      queue: { writeBuffer: vi.fn(), submit: vi.fn() },
+      createCommandEncoder: vi.fn(() => ({
+        beginRenderPass: vi.fn(() => ({
+          setPipeline: vi.fn(),
+          setBindGroup: vi.fn(),
+          setVertexBuffer: vi.fn(),
+          draw: vi.fn(),
+          end: vi.fn()
+        })),
+        finish: vi.fn()
+      }))
+    };
+    renderer.context = { getCurrentTexture: vi.fn(() => ({ createView: vi.fn() })) };
+    renderer.depthTexture = { createView: vi.fn() };
+
+    renderer.render(0);
+
+    // インスタンスデータから各セルの tileLight (index + 7) を検証
+    const data = renderer.instanceData;
+    let foundShadowFloor = null;
+    let foundShadowItem = null;
+    let foundShadowMonster = null;
+    let foundCorrFloor = null;
+    let foundNearPlayerItem = null;
+
+    const totalInstances = renderer.instanceCounts.floor + renderer.instanceCounts.wall +
+                           renderer.instanceCounts.item + renderer.instanceCounts.char +
+                           renderer.instanceCounts.effect;
+
+    for (let i = 0; i < totalInstances; i++) {
+      const idx = i * 8;
+      const wx = data[idx + 0];
+      const wz = data[idx + 2];
+      const layer = data[idx + 3];
+      const light = data[idx + 7];
+
+      if (wx === 20 && wz === 15 && layer === 0.0) {
+        foundShadowFloor = light;
+      }
+      if (wx === 20 && wz === 15 && layer === 3.0) {
+        foundShadowItem = light;
+      }
+      if (wx === 25 && wz === 15 && layer === 4.0) {
+        foundShadowMonster = light;
+      }
+      if (wx === 30 && wz === 15 && layer === 0.0) {
+        foundCorrFloor = light;
+      }
+      if (wx === 11 && wz === 10 && layer === 3.0) {
+        foundNearPlayerItem = light;
+      }
+    }
+
+    // 1. 暗い部屋 (3993) のアイテムマス (20, 15) の床が真っ黒照明 cellLight = 0.20 で描画されていること
+    expect(foundShadowFloor).toBeCloseTo(0.20, 2);
+
+    // 2. 影エリアのアイテム (20, 15) は暗くせず、通常環境明度 (3993 なので 0.35) で鮮明に描画されていること
+    expect(foundShadowItem).toBeCloseTo(0.35, 2);
+
+    // 3. 影エリアの敵 (25, 15) も暗くせず、通常環境明度 (0.35) で鮮明に描画されていること
+    expect(foundShadowMonster).toBeCloseTo(0.35, 2);
+
+    // 4. 廊下の床 (30, 15) は影除外され、通常の通路明度 (0.45) で描画されていること (廊下の違和感解消)
+    expect(foundCorrFloor).toBeCloseTo(0.45, 2);
+
+    // 5. プレイヤー直近 (11, 10) のアイテムは影除外され、通常明度 (1.0) で描画されていること
+    expect(foundNearPlayerItem).toBeCloseTo(1.0, 2);
+  });
 });
 
 
