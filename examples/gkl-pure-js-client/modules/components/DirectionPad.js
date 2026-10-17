@@ -8,37 +8,74 @@ export class DirectionPad {
     elBtnDirReset,
     elGklActionList,
     elGklActionCount,
+    elBtnToggleDpad,
+    elDirFilterContainer,
     getCore,
     onDirectionFiltered,
-    onUserAction
+    onUserAction,
+    onToggleCollapsed
   }) {
     this.elGklDirectionPad = elGklDirectionPad;
     this.elGklFilterLabel = elGklFilterLabel;
     this.elBtnDirReset = elBtnDirReset;
     this.elGklActionList = elGklActionList;
     this.elGklActionCount = elGklActionCount;
+    this.elBtnToggleDpad = elBtnToggleDpad || null;
+    this.elDirFilterContainer = elDirFilterContainer || (elGklDirectionPad?.closest ? elGklDirectionPad.closest('.gkl-dir-filter-container') : null);
 
     this.getCore = getCore || (() => null);
     this.onDirectionFiltered = onDirectionFiltered || (() => {});
     this.onUserAction = onUserAction || (() => {});
+    this.onToggleCollapsed = onToggleCollapsed || (() => {});
 
     this.currentLanguage = 'ja';
     this.selectedDir = 'NONE';
+    this.isPadCollapsed = false;
     this._lastActionHtml = null;
     this._lastActions = [];
 
     this.initDirectionPadEvents();
+    this.initCollapseEvents();
+    this._updateCollapseButton();
   }
 
   setLanguage(lang) {
     this.currentLanguage = lang;
     this._lastActionHtml = null;
+    this._updateCollapseButton();
     if (this.elGklDirectionPad) {
       this.renderDirectionPad(new Map());
     }
     if (this._lastActions && this._lastActions.length > 0) {
       this.renderGklActions(this._lastActions);
     }
+  }
+
+  setPadCollapsed(collapsed) {
+    this.isPadCollapsed = Boolean(collapsed);
+    if (this.elDirFilterContainer) {
+      this.elDirFilterContainer.classList.toggle('collapsed', this.isPadCollapsed);
+    }
+    this._updateCollapseButton();
+  }
+
+  _updateCollapseButton() {
+    if (!this.elBtnToggleDpad) return;
+    const isEn = this.currentLanguage === 'en';
+    const arrow = this.isPadCollapsed ? '▸' : '▾';
+    const label = isEn ? 'D-Pad' : 'キーパッド';
+    this.elBtnToggleDpad.textContent = `${label} ${arrow}`;
+    this.elBtnToggleDpad.title = isEn
+      ? (this.isPadCollapsed ? 'Expand 3x3 direction pad' : 'Collapse 3x3 direction pad')
+      : (this.isPadCollapsed ? '3x3 方向キーパッドを展開' : '3x3 方向キーパッドを折りたたむ');
+  }
+
+  initCollapseEvents() {
+    if (!this.elBtnToggleDpad) return;
+    this.elBtnToggleDpad.addEventListener('click', () => {
+      this.setPadCollapsed(!this.isPadCollapsed);
+      this.onToggleCollapsed(this.isPadCollapsed);
+    });
   }
 
   /**

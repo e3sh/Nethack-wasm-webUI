@@ -317,11 +317,14 @@
         <div id="card-actions" class="gkl-card">
           <div class="gkl-card-header">
             <span>🧠 推奨アクション (ContextActions)</span>
-            <span id="gkl-action-count" class="gkl-badge">0</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button id="btn-toggle-dpad" class="gkl-mini-toggle-btn" title="3x3 方向キーパッドの折りたたみ/展開">キーパッド ▾</button>
+              <span id="gkl-action-count" class="gkl-badge">0</span>
+            </div>
           </div>
 
           <!-- 🎯 方向フィルターインジケーター (「囲」型 3x3 キーパッド) -->
-          <div class="gkl-dir-filter-container">
+          <div id="gkl-dir-filter-container" class="gkl-dir-filter-container">
             <div class="gkl-dir-filter-bar">
               <span id="gkl-filter-label" class="gkl-filter-label">表示: 全て</span>
               <button id="btn-dir-reset" class="gkl-dir-reset-btn active" data-dir="ALL" title="フィルター解除 (すべて表示)">全表示</button>

@@ -7,6 +7,7 @@
  */
 
 import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/AreaStateManager.js";
+import { GLYPH_STONE } from "../../../../src/core/knowledge/engines/glyphClassifier.js";
 import { getTileCandidatePaths } from "../config/TileConfig.js";
 import { Mat4 } from "./hd2d/hd2dMath.js";
 import { WGSL_SHADER } from "./hd2d/hd2dShaders.js";
@@ -116,6 +117,24 @@ export class WebGPUHD2DRenderer {
     this.currentLightRadius = 6.0;
     this.targetLightRadius = 6.0;
     this.ambientFloor = 0.45;
+
+    // 岩盤レンダリング設定 ('smart' | 'minimal' | 'classic_tile')
+    this.stoneRenderingMode = 'smart';
+  }
+
+  setStoneRenderingMode(mode) {
+    if (mode === 'smart' || mode === 'minimal' || mode === 'classic_tile') {
+      this.stoneRenderingMode = mode;
+      this.isInstanceDirty = true;
+      this.wakeUp();
+    }
+  }
+
+  setMapActionIndicator(enabled) {
+    if (this.fxOverlay) {
+      this.fxOverlay.setMapActionIndicator(enabled);
+      this.wakeUp();
+    }
   }
 
   // 互換用プロパティ連携
@@ -1017,6 +1036,48 @@ export class WebGPUHD2DRenderer {
               const floorTileIdx = getTileIdx(3993);
               pushInstance(x, 0.0, y, 0.0, 0.0, 0.0, floorTileIdx, 0.20);
               drawnAny = true;
+            } else if (this.stoneRenderingMode !== 'minimal' && cell?.bottom?.isObservedStone && !cell.bottom.isCachedPreload) {
+              const dx = x - Math.round(targetPx);
+              const dy = y - Math.round(targetPy);
+              const dist = Math.max(Math.abs(dx), Math.abs(dy));
+
+              // 掘削アクション判定 (隣接 1 マス)
+              let targetDir = null;
+              if (dist <= 1) {
+                if (dx === 0 && dy === -1) targetDir = 'N';
+                else if (dx === 1 && dy === -1) targetDir = 'NE';
+                else if (dx === 1 && dy === 0) targetDir = 'E';
+                else if (dx === 1 && dy === 1) targetDir = 'SE';
+                else if (dx === 0 && dy === 1) targetDir = 'S';
+                else if (dx === -1 && dy === 1) targetDir = 'SW';
+                else if (dx === -1 && dy === 0) targetDir = 'W';
+                else if (dx === -1 && dy === -1) targetDir = 'NW';
+              }
+
+              const hasDig = Boolean(
+                targetDir && situation?.actions?.some(a => {
+                  const d = a.directionCode || a.dirCode;
+                  const isDig = a.id?.includes('DIG');
+                  return d === targetDir && isDig;
+                })
+              );
+
+              const stoneGlyph = cell?.bottom?.rawGlyph || GLYPH_STONE;
+              const stoneIdx = getTileIdx(stoneGlyph);
+
+              if (hasDig) {
+                pushInstance(x, 0.0, y, 1.0, 0.0, 0.0, stoneIdx, 0.85); // 壁天面
+                if (this.cameraMode !== 'topdown') {
+                  pushInstance(x, 0.0, y, 2.0, 0.0, 0.0, stoneIdx, 0.85); // 壁前面
+                }
+                drawnAny = true;
+              } else if (this.stoneRenderingMode === 'classic_tile') {
+                pushInstance(x, 0.0, y, 1.0, 0.0, 0.0, stoneIdx, 0.75);
+                if (this.cameraMode !== 'topdown') {
+                  pushInstance(x, 0.0, y, 2.0, 0.0, 0.0, stoneIdx, 0.75);
+                }
+                drawnAny = true;
+              }
             }
 
             // Layer 3: Middle (アイテム) - 床さえ暗くなればアイテムは暗くする必要はないため cellLight で通常描画

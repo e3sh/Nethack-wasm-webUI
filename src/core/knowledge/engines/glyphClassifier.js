@@ -16,6 +16,7 @@ export const GLYPH_OFFSETS = {
     GLYPH_RIDDEN_FEM_OFF: 3065,
     GLYPH_OBJ_OFF: 3448,
     GLYPH_CMAP_OFF: 3929,
+    GLYPH_CMAP_STONE_OFF: 3929,
     GLYPH_ZAP_OFF: 4051,
     GLYPH_SWALLOW_OFF: 4093,
     GLYPH_EXPLODE_OFF: 7157,
@@ -26,6 +27,8 @@ export const GLYPH_OFFSETS = {
     GLYPH_STATUE_PILETOP_OFF: 8856,
     GLYPH_UNEXPLORED_OFF: 9622
 };
+
+export const GLYPH_STONE = 3929;
 
 export const ENTITY_TYPES = {
     MONSTER: 'MONSTER',
@@ -45,6 +48,7 @@ export const ENTITY_TYPES = {
  * @returns {Object} CMAP 特性フラグ
  */
 export function getCmapInfo(glyphId) {
+    const isStone = (glyphId === 3929);
     const isWall = (glyphId >= 3929 && glyphId <= 3984);
     const isDoorway = (glyphId === 3985);
     const isOpenDoor = (glyphId === 3986 || glyphId === 3987);
@@ -71,6 +75,7 @@ export function getCmapInfo(glyphId) {
     const isTrappedChest = (glyphId === 4050);
 
     return {
+        isStone,
         isWall,
         isDoorway,
         isOpenDoor,

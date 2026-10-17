@@ -155,6 +155,27 @@ export class LayoutController {
       client.core.bypassEnhancedSignals = Boolean(config.bypassEnhancedSignals);
     }
 
+    // 3.5. 方向キーパッドの折りたたみ & マップ上オーバーレイ & 岩盤レンダリング設定反映
+    if (client.directionPad && typeof client.directionPad.setPadCollapsed === 'function') {
+      client.directionPad.setPadCollapsed(config.panelDirectionPad === false);
+    }
+    if (client.mainViewportRenderer) {
+      if (typeof client.mainViewportRenderer.setMapActionIndicator === 'function') {
+        client.mainViewportRenderer.setMapActionIndicator(config.mapActionIndicator !== false);
+      }
+      if (typeof client.mainViewportRenderer.setStoneRenderingMode === 'function') {
+        client.mainViewportRenderer.setStoneRenderingMode(config.stoneRenderingMode || 'smart');
+      }
+    }
+    if (client.webgpuRenderer) {
+      if (typeof client.webgpuRenderer.setMapActionIndicator === 'function') {
+        client.webgpuRenderer.setMapActionIndicator(config.mapActionIndicator !== false);
+      }
+      if (typeof client.webgpuRenderer.setStoneRenderingMode === 'function') {
+        client.webgpuRenderer.setStoneRenderingMode(config.stoneRenderingMode || 'smart');
+      }
+    }
+
     // 4. プリセットボタンのアクティブ表示同期
     const btnClassic = document.getElementById('btn-preset-classic');
     const btnModern = document.getElementById('btn-preset-modern');

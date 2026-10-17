@@ -174,9 +174,14 @@ export class UiComponentFactory {
       elBtnDirReset: document.getElementById('btn-dir-reset'),
       elGklActionList: document.getElementById('gkl-action-list'),
       elGklActionCount: document.getElementById('gkl-action-count'),
+      elBtnToggleDpad: document.getElementById('btn-toggle-dpad'),
+      elDirFilterContainer: document.getElementById('gkl-dir-filter-container'),
       getCore: () => client.core,
       onDirectionFiltered: () => client.renderGklUi(),
-      onUserAction: () => client.floatingMessageHud?.notifyUserAction()
+      onUserAction: () => client.floatingMessageHud?.notifyUserAction(),
+      onToggleCollapsed: (collapsed) => {
+        client.uiConfigStore?.setProperty('panelDirectionPad', !collapsed);
+      }
     });
 
     // 7. Status Bar

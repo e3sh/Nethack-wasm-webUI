@@ -180,6 +180,7 @@ export const UI_CONFIG_I18N = {
     sectionPanels: '📐 パネル表示',
     panelInventory: '🎒 所持品パネル',
     panelActions: '⚡ アクションパネル',
+    panelDirectionPad: '🧭 3x3 方向キーパッド',
     panelKnowledge: '📖 知識図鑑パネル',
     panelHistoryDock: '📜 過去ログドック',
     sectionStatus: '📊 ステータス表示',
@@ -191,6 +192,13 @@ export const UI_CONFIG_I18N = {
     hudFadeFast: '⚡ 1.2s - 早い',
     hudFadeNormal: '⏱️ 2.5s - 標準',
     hudFadeSlow: '⏳ 4.0s - ゆっくり',
+    sectionRendering: '⛏️ 描画・可視化アシスト設定',
+    mapActionIndicator: '🎯 マップ上アクション数バッジ',
+    labelStoneRenderingMode: '岩盤（STONE）可視化モード',
+    descStoneRenderingMode: '通路周辺の観測済み岩盤（STONE）の表示・掘削アシスト表現の設定',
+    stoneModeSmart: '🕯️ スマート (掘削連動/周辺トーチライト)',
+    stoneModeMinimal: '⬛ ミニマル (黒抜き・ASCII準拠)',
+    stoneModeClassicTile: '🧱 クラシック (常時タイル描画)',
     sectionGameplay: '🎮 探索アシスト・知恵支援設定',
     labelGuideAssistanceMode: '🧭 冒険手帳・知恵透視モード',
     descGuideAssistanceMode: '床落ち・所持品の覗き見透視 (Peek Wisdom) および神託解禁レベルの設定',
@@ -211,6 +219,7 @@ export const UI_CONFIG_I18N = {
     sectionPanels: '📐 Panel Display',
     panelInventory: '🎒 Inventory Panel',
     panelActions: '⚡ Actions Panel',
+    panelDirectionPad: '🧭 3x3 Direction D-Pad',
     panelKnowledge: '📖 Codex / Knowledge Panel',
     panelHistoryDock: '📜 Message History Dock',
     sectionStatus: '📊 Status Display',
@@ -222,6 +231,13 @@ export const UI_CONFIG_I18N = {
     hudFadeFast: '⚡ 1.2s - Fast',
     hudFadeNormal: '⏱️ 2.5s - Standard',
     hudFadeSlow: '⏳ 4.0s - Relaxed',
+    sectionRendering: '⛏️ Rendering & Digging Assist',
+    mapActionIndicator: '🎯 Map Action Badges',
+    labelStoneRenderingMode: 'Stone Rendering Mode',
+    descStoneRenderingMode: 'Configure stone wall visibility and digging assist highlight around corridors',
+    stoneModeSmart: '🕯️ Smart (Digging Context & Torchlight)',
+    stoneModeMinimal: '⬛ Minimal (Hidden Black)',
+    stoneModeClassicTile: '🧱 Classic (Always Tile)',
     sectionGameplay: '🎮 Exploration Assist & Lore Settings',
     labelGuideAssistanceMode: '🧭 Adventure Log & Peek Mode',
     descGuideAssistanceMode: 'Configure inspection assistance for floor/inventory items and oracle rumors',
@@ -346,6 +362,13 @@ export class NhUiConfig extends NhBaseElement {
               </label>
             </div>
             <div class="toggle-row">
+              <span class="toggle-label">${t.panelDirectionPad}</span>
+              <label class="toggle-switch">
+                <input type="checkbox" data-config-key="panelDirectionPad">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
               <span class="toggle-label">${t.panelKnowledge}</span>
               <label class="toggle-switch">
                 <input type="checkbox" data-config-key="panelKnowledge">
@@ -387,6 +410,28 @@ export class NhUiConfig extends NhBaseElement {
                 <span class="slider"></span>
               </label>
             </div>
+          </div>
+        </div>
+
+        <!-- 描画・可視化アシスト設定 -->
+        <div class="config-section">
+          <div class="section-title">${t.sectionRendering}</div>
+          <div class="toggle-grid" style="margin-bottom: 8px;">
+            <div class="toggle-row">
+              <span class="toggle-label">${t.mapActionIndicator}</span>
+              <label class="toggle-switch">
+                <input type="checkbox" data-config-key="mapActionIndicator">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="select-row">
+            <span class="toggle-label">${t.labelStoneRenderingMode}</span>
+            <select class="config-select" data-config-key="stoneRenderingMode">
+              <option value="smart">${t.stoneModeSmart}</option>
+              <option value="minimal">${t.stoneModeMinimal}</option>
+              <option value="classic_tile">${t.stoneModeClassicTile}</option>
+            </select>
           </div>
         </div>
 

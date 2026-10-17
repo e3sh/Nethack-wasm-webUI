@@ -5,7 +5,7 @@
  * 各サブモジュール (TerrainInferenceEngine, DungeonLandmarkRegistry, ViewportTileProjector) への統括窓口 (Core & Facade)
  */
 
-import { classifyGlyph, ENTITY_TYPES, GLYPH_OFFSETS } from "../engines/glyphClassifier.js";
+import { classifyGlyph, ENTITY_TYPES, GLYPH_OFFSETS, GLYPH_STONE } from "../engines/glyphClassifier.js";
 import {
     TerrainInferenceEngine,
     DEFAULT_INFERRED_FLOOR_GLYPH,
@@ -420,8 +420,9 @@ export class AreaStateManager {
         if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
 
         let info = classifyGlyph(glyphId);
-        if (glyphInfo && glyphInfo.ch === ' ') {
-            info = { ...info, type: ENTITY_TYPES.UNEXPLORED };
+        const isObservedStone = Boolean(glyphId === GLYPH_STONE || glyphId === GLYPH_OFFSETS.GLYPH_CMAP_STONE_OFF);
+        if ((glyphInfo && glyphInfo.ch === ' ') || isObservedStone) {
+            info = { ...info, type: ENTITY_TYPES.UNEXPLORED, isObservedStone };
         }
         const cell = this.grid[y][x];
 
@@ -442,7 +443,21 @@ export class AreaStateManager {
                 if (cell.top && this.monsterTracker && typeof this.monsterTracker.notifyCellLostMonster === 'function') {
                     this.monsterTracker.notifyCellLostMonster(x, y);
                 }
-                cell.bottom = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
+                let stoneTyp = undefined;
+                if (isObservedStone && this.directBindingService && typeof this.directBindingService.getCellInfo === 'function') {
+                    const cInfo = this.directBindingService.getCellInfo(x, y);
+                    if (cInfo && typeof cInfo.typ === 'number') {
+                        stoneTyp = cInfo.typ;
+                    }
+                }
+                cell.bottom = {
+                    ...info,
+                    glyphInfo,
+                    glyph: glyphId,
+                    rawGlyph: glyphId,
+                    isObservedStone,
+                    typ: stoneTyp !== undefined ? stoneTyp : (isObservedStone ? 0 : undefined)
+                };
                 cell.middle = null;
                 cell.top = null;
                 cell.effect = null;

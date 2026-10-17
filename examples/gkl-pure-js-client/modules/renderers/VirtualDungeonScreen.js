@@ -264,10 +264,10 @@ export function isCellInShadow(areaGrid, x, y, px = null, py = null, threshold =
     }
   }
 
-  // プレイヤーの直近 (マンハッタン距離 1、直接照らされているマス) は除外 (通常描画)
+  // プレイヤーの直近 (マンハッタン距離 2、直接照らされているマス) は除外 (通常描画)
   if (playerX != null && playerY != null && playerX >= 0 && playerY >= 0) {
     const dist = Math.abs(x - playerX) + Math.abs(y - playerY);
-    if (dist <= 1) {
+    if (dist <= 2) {
       return false;
     }
   }

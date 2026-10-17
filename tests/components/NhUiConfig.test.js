@@ -150,4 +150,37 @@ describe('NhUiConfig (<nh-ui-config>)', () => {
     expect(el.getConfig().oracleGuideAlwaysUnlocked).toBe(false);
     expect(descEl.textContent).toContain('透視機能 (Peek) を完全に無効化');
   });
+
+  it('mapActionIndicator, stoneRenderingMode, panelDirectionPad がUI操作で正しく更新されること', () => {
+    const el = new NhUiConfig();
+    el.connectedCallback();
+
+    const changeSpy = vi.fn();
+    el.addEventListener('config-change', changeSpy);
+
+    const cbDpad = el.shadowRoot.querySelector('input[data-config-key="panelDirectionPad"]');
+    const cbMap = el.shadowRoot.querySelector('input[data-config-key="mapActionIndicator"]');
+    const selStone = el.shadowRoot.querySelector('select[data-config-key="stoneRenderingMode"]');
+
+    expect(cbDpad).not.toBeNull();
+    expect(cbMap).not.toBeNull();
+    expect(selStone).not.toBeNull();
+
+    expect(cbDpad.checked).toBe(true);
+    expect(cbMap.checked).toBe(true);
+    expect(selStone.value).toBe('smart');
+
+    // トグル操作
+    cbDpad.checked = false;
+    cbDpad.dispatchEvent({ type: 'change' });
+    expect(el.getConfig().panelDirectionPad).toBe(false);
+
+    cbMap.checked = false;
+    cbMap.dispatchEvent({ type: 'change' });
+    expect(el.getConfig().mapActionIndicator).toBe(false);
+
+    selStone.value = 'minimal';
+    selStone.dispatchEvent({ type: 'change' });
+    expect(el.getConfig().stoneRenderingMode).toBe('minimal');
+  });
 });

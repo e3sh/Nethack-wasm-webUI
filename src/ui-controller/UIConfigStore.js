@@ -26,7 +26,10 @@ export const DEFAULT_LAYOUT_CONFIG = Object.freeze({
   bypassEnhancedSignals: false,
   hudFadeDelay: 2500,
   oracleGuideAlwaysUnlocked: false,
-  guideAssistanceMode: 'VETERAN'
+  guideAssistanceMode: 'VETERAN',
+  panelDirectionPad: true,
+  mapActionIndicator: true,
+  stoneRenderingMode: 'smart'
 });
 
 export class UIConfigStore {
@@ -172,7 +175,10 @@ export class UIConfigStore {
         panelKnowledge: false,
         statusClassic2Line: true,
         statusGauges: true,
-        statusGklExtra: false
+        statusGklExtra: false,
+        panelDirectionPad: false,
+        mapActionIndicator: false,
+        stoneRenderingMode: 'minimal'
       };
     } else if (presetName === PRESETS.MODERN) {
       next = {
@@ -183,7 +189,10 @@ export class UIConfigStore {
         panelKnowledge: true,
         statusClassic2Line: false,
         statusGauges: true,
-        statusGklExtra: true
+        statusGklExtra: true,
+        panelDirectionPad: true,
+        mapActionIndicator: true,
+        stoneRenderingMode: 'smart'
       };
     }
 
@@ -230,7 +239,12 @@ export class UIConfigStore {
         : (Boolean(raw.oracleGuideAlwaysUnlocked) ? 'SAGE_GUIDE' : 'VETERAN'),
       oracleGuideAlwaysUnlocked: raw.guideAssistanceMode
         ? (raw.guideAssistanceMode === 'SAGE_GUIDE')
-        : Boolean(raw.oracleGuideAlwaysUnlocked)
+        : Boolean(raw.oracleGuideAlwaysUnlocked),
+      panelDirectionPad: raw.panelDirectionPad !== undefined ? Boolean(raw.panelDirectionPad) : true,
+      mapActionIndicator: raw.mapActionIndicator !== undefined ? Boolean(raw.mapActionIndicator) : true,
+      stoneRenderingMode: (['smart', 'minimal', 'classic_tile'].includes(raw.stoneRenderingMode))
+        ? raw.stoneRenderingMode
+        : 'smart'
     };
   }
 }

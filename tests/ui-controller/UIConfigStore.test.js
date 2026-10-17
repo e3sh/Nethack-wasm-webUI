@@ -32,6 +32,9 @@ describe('UIConfigStore (Headless UI Layout Config)', () => {
     expect(config.statusClassic2Line).toBe(false);
     expect(config.statusGauges).toBe(true);
     expect(config.statusGklExtra).toBe(true);
+    expect(config.panelDirectionPad).toBe(true);
+    expect(config.mapActionIndicator).toBe(true);
+    expect(config.stoneRenderingMode).toBe('smart');
     expect(config.sagesWisdomMode).toBeUndefined();
   });
 
@@ -146,5 +149,22 @@ describe('UIConfigStore (Headless UI Layout Config)', () => {
       STORAGE_KEY_DEFAULT,
       expect.stringContaining('"bypassEnhancedSignals":true')
     );
+  });
+
+  it('panelDirectionPad, mapActionIndicator, stoneRenderingMode の更新と永続化・フォールバックが正常に行われること', () => {
+    const configStore = new UIConfigStore({ storage: mockStorage });
+
+    configStore.setProperty('panelDirectionPad', false);
+    configStore.setProperty('mapActionIndicator', false);
+    configStore.setProperty('stoneRenderingMode', 'minimal');
+
+    const config = configStore.get();
+    expect(config.panelDirectionPad).toBe(false);
+    expect(config.mapActionIndicator).toBe(false);
+    expect(config.stoneRenderingMode).toBe('minimal');
+
+    // 不正な stoneRenderingMode が指定された場合は 'smart' にフォールバックすること
+    configStore.setProperty('stoneRenderingMode', 'invalid_mode');
+    expect(configStore.get().stoneRenderingMode).toBe('smart');
   });
 });

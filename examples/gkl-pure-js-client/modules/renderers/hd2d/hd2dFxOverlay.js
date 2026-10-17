@@ -35,6 +35,11 @@ export class HD2DFxOverlay {
     this.screenShakeIntensity = 0;
 
     this.ambientParticles = [];
+    this.mapActionIndicator = true;
+  }
+
+  setMapActionIndicator(enabled) {
+    this.mapActionIndicator = Boolean(enabled);
   }
 
   init() {
@@ -303,6 +308,104 @@ export class HD2DFxOverlay {
     }
   }
 
+  _renderActionBadges(ctx, ts, now, playerPos) {
+    if (!this.mapActionIndicator) return;
+    const situation = this.getSituation ? this.getSituation() : null;
+    const actions = situation?.actions || [];
+    if (!actions || actions.length === 0) return;
+
+    const DIR_OFFSETS = [
+      { dx: 0, dy: 0, dir: 'SELF' },
+      { dx: 0, dy: -1, dir: 'N' },
+      { dx: 1, dy: -1, dir: 'NE' },
+      { dx: 1, dy: 0, dir: 'E' },
+      { dx: 1, dy: 1, dir: 'SE' },
+      { dx: 0, dy: 1, dir: 'S' },
+      { dx: -1, dy: 1, dir: 'SW' },
+      { dx: -1, dy: 0, dir: 'W' },
+      { dx: -1, dy: -1, dir: 'NW' }
+    ];
+
+    const extractDir = (a) => {
+      if (!a) return 'NONE';
+      if (a.directionCode) return a.directionCode;
+      if (a.dirCode) return String(a.dirCode).toUpperCase().replace(/^DIR_/, '');
+      return a.isDirectional === false ? 'SELF' : 'NONE';
+    };
+
+    const isSpecificAction = (a) => {
+      if (!a) return false;
+      if (a.isDefault) return false;
+      if (a.category === 'DEFAULT') return false;
+      if (a.id === 'ACTION_WAIT' || a.id === 'ACTION_MOVE') return false;
+      return true;
+    };
+
+    const isDigAction = (a) => {
+      if (!a || !a.id) return false;
+      return a.id.includes('DIG') || a.id === 'ACTION_APPLY_DIG' || a.id === 'ACTION_ZAP_DIG';
+    };
+
+    for (const { dx, dy, dir } of DIR_OFFSETS) {
+      const gx = playerPos.x + dx;
+      const gy = playerPos.y + dy;
+      if (gx < 0 || gx >= 80 || gy < 0 || gy >= 24) continue;
+
+      const cellActions = actions.filter(a => extractDir(a) === dir && isSpecificAction(a));
+      if (cellActions.length === 0) continue;
+
+      const hasDig = cellActions.some(isDigAction);
+
+      // セル枠の 3D 投影四隅
+      const p0 = this.worldToScreen(gx - 0.48, 0.02, gy - 0.48);
+      const p1 = this.worldToScreen(gx + 0.48, 0.02, gy - 0.48);
+      const p2 = this.worldToScreen(gx + 0.48, 0.02, gy + 0.48);
+      const p3 = this.worldToScreen(gx - 0.48, 0.02, gy + 0.48);
+
+      if (p0 && p1 && p2 && p3) {
+        ctx.save();
+        ctx.strokeStyle = hasDig ? 'rgba(251, 191, 36, 0.65)' : 'rgba(56, 189, 248, 0.45)';
+        ctx.lineWidth = hasDig ? 1.5 : 1;
+        ctx.beginPath();
+        ctx.moveTo(p0.screenX, p0.screenY);
+        ctx.lineTo(p1.screenX, p1.screenY);
+        ctx.lineTo(p2.screenX, p2.screenY);
+        ctx.lineTo(p3.screenX, p3.screenY);
+        if (typeof ctx.closePath === 'function') {
+          ctx.closePath();
+        } else {
+          ctx.lineTo(p0.screenX, p0.screenY);
+        }
+        ctx.stroke();
+
+        // 左上（p0）付近にミニバッジを描画
+        const countText = String(cellActions.length);
+        const baseSize = Math.max(10, Math.min(16, Math.round(ts * 0.28)));
+        const badgeWidth = countText.length > 1 ? Math.round(baseSize * 1.35) : baseSize;
+        const badgeHeight = Math.round(baseSize * 0.85);
+        const bx = Math.round(p0.screenX + 2);
+        const by = Math.round(p0.screenY + 2);
+        const fontSize = Math.max(8, Math.min(11, Math.round(baseSize * 0.75)));
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.fillRect(bx, by, badgeWidth, badgeHeight);
+        ctx.strokeStyle = hasDig ? '#fbbf24' : '#38bdf8';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx, by, badgeWidth, badgeHeight);
+
+        if (typeof ctx.fillText === 'function') {
+          ctx.fillStyle = hasDig ? '#fbbf24' : '#e0f2fe';
+          ctx.font = `bold ${fontSize}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(countText, bx + badgeWidth / 2, by + badgeHeight / 2 + 0.5);
+        }
+
+        ctx.restore();
+      }
+    }
+  }
+
   render(now) {
     if (!this.fxCtx || !this.fxCanvas) return;
     const ctx = this.fxCtx;
@@ -326,6 +429,9 @@ export class HD2DFxOverlay {
 
     // 2. Pet / Ridden / piletop アイテムの視覚的強調描画
     this._renderEntityHighlights(ctx, baseTs, now);
+
+    // 2.5. マップ上への ContextActions バッジ ＆ 掘削アシスト枠描画
+    this._renderActionBadges(ctx, baseTs, now, playerPos);
 
     // 3. Visual FX の描画
     if (!this.activeFxList || this.activeFxList.length === 0) return;

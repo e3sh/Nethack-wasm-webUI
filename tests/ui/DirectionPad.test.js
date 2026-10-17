@@ -250,4 +250,62 @@ describe('DirectionPad - 方向未選択時ボタン非表示標準化', () => {
     // 実行後に NONE にリセットされていること
     expect(dpad.selectedDir).toBe('NONE');
   });
+
+  it('6. elBtnToggleDpad クリックで 3x3 キーパッドの折りたたみがトグルされること', () => {
+    const elBtnToggleDpad = createMockElement('button');
+    const elDirFilterContainer = createMockElement('div');
+    const onToggleCollapsed = vi.fn();
+
+    const collapsiblePad = new DirectionPad({
+      elGklDirectionPad,
+      elGklFilterLabel,
+      elBtnDirReset,
+      elGklActionList,
+      elGklActionCount,
+      elBtnToggleDpad,
+      elDirFilterContainer,
+      onToggleCollapsed
+    });
+
+    expect(collapsiblePad.isPadCollapsed).toBe(false);
+    expect(elDirFilterContainer.classList.contains('collapsed')).toBe(false);
+    expect(elBtnToggleDpad.textContent).toBe('キーパッド ▾');
+
+    // ボタンクリックで折りたたみ
+    elBtnToggleDpad.dispatchEvent({ type: 'click' });
+    expect(collapsiblePad.isPadCollapsed).toBe(true);
+    expect(elDirFilterContainer.classList.contains('collapsed')).toBe(true);
+    expect(elBtnToggleDpad.textContent).toBe('キーパッド ▸');
+    expect(onToggleCollapsed).toHaveBeenCalledWith(true);
+
+    // 再度クリックで展開
+    elBtnToggleDpad.dispatchEvent({ type: 'click' });
+    expect(collapsiblePad.isPadCollapsed).toBe(false);
+    expect(elDirFilterContainer.classList.contains('collapsed')).toBe(false);
+    expect(elBtnToggleDpad.textContent).toBe('キーパッド ▾');
+    expect(onToggleCollapsed).toHaveBeenCalledWith(false);
+  });
+
+  it('7. 言語設定に応じて折りたたみボタンのラベルが適切に切り替わること', () => {
+    const elBtnToggleDpad = createMockElement('button');
+    const elDirFilterContainer = createMockElement('div');
+
+    const collapsiblePad = new DirectionPad({
+      elGklDirectionPad,
+      elGklFilterLabel,
+      elBtnDirReset,
+      elGklActionList,
+      elGklActionCount,
+      elBtnToggleDpad,
+      elDirFilterContainer
+    });
+
+    expect(elBtnToggleDpad.textContent).toBe('キーパッド ▾');
+
+    collapsiblePad.setLanguage('en');
+    expect(elBtnToggleDpad.textContent).toBe('D-Pad ▾');
+
+    collapsiblePad.setPadCollapsed(true);
+    expect(elBtnToggleDpad.textContent).toBe('D-Pad ▸');
+  });
 });

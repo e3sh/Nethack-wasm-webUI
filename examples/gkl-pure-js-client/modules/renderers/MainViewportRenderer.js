@@ -12,7 +12,7 @@
  */
 
 import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/AreaStateManager.js";
-import { classifyGlyph } from "../../../../src/core/knowledge/engines/glyphClassifier.js";
+import { classifyGlyph, GLYPH_STONE } from "../../../../src/core/knowledge/engines/glyphClassifier.js";
 import { getTileCandidatePaths } from "../config/TileConfig.js";
 
 export class MainViewportRenderer {
@@ -68,6 +68,20 @@ export class MainViewportRenderer {
     this.screenShakeTime = 0;
     this.screenShakeDuration = 0;
     this.screenShakeIntensity = 0;
+
+    // マップ上オーバーレイ＆岩盤表示設定
+    this.mapActionIndicator = true;
+    this.stoneRenderingMode = 'smart'; // 'smart' | 'minimal' | 'classic_tile'
+  }
+
+  setMapActionIndicator(enabled) {
+    this.mapActionIndicator = Boolean(enabled);
+  }
+
+  setStoneRenderingMode(mode) {
+    if (mode === 'smart' || mode === 'minimal' || mode === 'classic_tile') {
+      this.stoneRenderingMode = mode;
+    }
   }
 
   init() {
@@ -272,9 +286,13 @@ export class MainViewportRenderer {
 
   /**
    * メインビューポートの描画処理
+   * @param {Object} areaState
+   * @param {Array} [actions] GKL 推奨アクション一覧
    */
-  renderMainViewport(areaState) {
+  renderMainViewport(areaState, actions = null) {
     if (!this.ctx || !this.canvas) return;
+
+    const currentActions = actions || (this.getSituation ? this.getSituation()?.actions : null) || [];
 
     const core = this.getCore();
     const asm = core?.gkl?.areaStateManager;
@@ -499,10 +517,174 @@ export class MainViewportRenderer {
       }
     }
 
+    // 4.5. マップ上への ContextActions バッジ ＆ スマート岩盤・掘削アシストの最前面オーバーレイ描画
+    this.renderMapContextOverlays(srcX, srcY, dstX, dstY, ts, px, py, currentActions, areaGrid, cols, tileMap);
+
     // 5. Visual FX 最前面オーバーレイ描画
     this.renderVisualFx(srcX, srcY, dstX, dstY, ts, canvasW, canvasH, now);
 
     this.ctx.restore();
+  }
+
+  /**
+   * マップ上への ContextActions バッジ ＆ スマート岩盤・掘削アシストの最前面オーバーレイ描画
+   */
+  renderMapContextOverlays(srcX, srcY, dstX, dstY, ts, px, py, actions, areaGrid, cols, tileMap) {
+    if (!this.ctx) return;
+
+    const DIR_OFFSETS = [
+      { dx: 0, dy: 0, dir: 'SELF' },
+      { dx: 0, dy: -1, dir: 'N' },
+      { dx: 1, dy: -1, dir: 'NE' },
+      { dx: 1, dy: 0, dir: 'E' },
+      { dx: 1, dy: 1, dir: 'SE' },
+      { dx: 0, dy: 1, dir: 'S' },
+      { dx: -1, dy: 1, dir: 'SW' },
+      { dx: -1, dy: 0, dir: 'W' },
+      { dx: -1, dy: -1, dir: 'NW' }
+    ];
+
+    const extractDir = (a) => {
+      if (!a) return 'NONE';
+      if (a.directionCode) return a.directionCode;
+      if (a.dirCode) return String(a.dirCode).toUpperCase().replace(/^DIR_/, '');
+      return a.isDirectional === false ? 'SELF' : 'NONE';
+    };
+
+    const isSpecificAction = (a) => {
+      if (!a) return false;
+      if (a.isDefault) return false;
+      if (a.category === 'DEFAULT') return false;
+      if (a.id === 'ACTION_WAIT' || a.id === 'ACTION_MOVE') return false;
+      return true;
+    };
+
+    const isDigAction = (a) => {
+      if (!a || !a.id) return false;
+      return a.id.includes('DIG') || a.id === 'ACTION_APPLY_DIG' || a.id === 'ACTION_ZAP_DIG';
+    };
+
+    // 1. スマート岩盤 / クラシック常時岩盤 可視化 ＆ 掘削ハイライト
+    if (this.stoneRenderingMode === 'classic_tile' && areaGrid) {
+      // 画面内に見える範囲の観測済み岩盤を常時クッキリ描画
+      const minGx = Math.max(0, Math.floor((srcX - dstX) / ts));
+      const maxGx = Math.min(79, Math.ceil((srcX - dstX + (this.canvas?.width || 800)) / ts));
+      const minGy = Math.max(0, Math.floor((srcY - dstY) / ts));
+      const maxGy = Math.min(23, Math.ceil((srcY - dstY + (this.canvas?.height || 600)) / ts));
+
+      for (let gy = minGy; gy <= maxGy; gy++) {
+        for (let gx = minGx; gx <= maxGx; gx++) {
+          const cell = areaGrid[gy]?.[gx];
+          const isStone = Boolean(
+            cell?.bottom &&
+            cell.bottom.isObservedStone === true &&
+            !cell.bottom.isCachedPreload
+          );
+          if (!isStone) continue;
+
+          const stoneGlyph = cell?.bottom?.rawGlyph || GLYPH_STONE;
+          const screenX = Math.round(gx * ts - srcX + dstX);
+          const screenY = Math.round(gy * ts - srcY + dstY);
+
+          this.ctx.save();
+          this.ctx.globalAlpha = 1.0;
+          this.drawTile(stoneGlyph, cols, tileMap, screenX, screenY, 0);
+
+          // 隣接マスに掘削アクションがある場合はアンバー枠
+          const dx = gx - px;
+          const dy = gy - py;
+          if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+            const dirEntry = DIR_OFFSETS.find(o => o.dx === dx && o.dy === dy);
+            const targetDir = dirEntry ? dirEntry.dir : null;
+            const hasDig = Boolean(
+              targetDir && actions.some(a => extractDir(a) === targetDir && isDigAction(a))
+            );
+            if (hasDig) {
+              this.ctx.strokeStyle = '#fbbf24';
+              this.ctx.lineWidth = 1.5;
+              this.ctx.strokeRect(screenX + 1, screenY + 1, ts - 2, ts - 2);
+            }
+          }
+          this.ctx.restore();
+        }
+      }
+    } else if (this.stoneRenderingMode === 'smart' && areaGrid) {
+      // ⛏️ スマート表示: 掘削アクション候補がある隣接岩盤マスのみを浮かび上がらせる（普段は完全黒抜き）
+      DIR_OFFSETS.forEach(({ dx, dy, dir }) => {
+        const gx = px + dx;
+        const gy = py + dy;
+        if (gx < 0 || gx >= 80 || gy < 0 || gy >= 24) return;
+
+        const cell = areaGrid[gy]?.[gx];
+        const isStone = Boolean(
+          cell?.bottom &&
+          cell.bottom.isObservedStone === true &&
+          !cell.bottom.isCachedPreload
+        );
+        if (!isStone) return;
+
+        const hasDig = Boolean(
+          actions.some(a => extractDir(a) === dir && isDigAction(a))
+        );
+        if (hasDig) {
+          const stoneGlyph = cell?.bottom?.rawGlyph || GLYPH_STONE;
+          const screenX = Math.round(gx * ts - srcX + dstX);
+          const screenY = Math.round(gy * ts - srcY + dstY);
+
+          this.ctx.save();
+          this.ctx.globalAlpha = 0.85;
+          this.drawTile(stoneGlyph, cols, tileMap, screenX, screenY, 0);
+          this.ctx.strokeStyle = '#fbbf24';
+          this.ctx.lineWidth = 1.5;
+          this.ctx.strokeRect(screenX + 1, screenY + 1, ts - 2, ts - 2);
+          this.ctx.restore();
+        }
+      });
+    }
+
+    // 2. マップ上の ContextActions コマンド数ミニバッジ描画 (Phase 1)
+    if (this.mapActionIndicator) {
+      DIR_OFFSETS.forEach(({ dx, dy, dir }) => {
+        const gx = px + dx;
+        const gy = py + dy;
+        if (gx < 0 || gx >= 80 || gy < 0 || gy >= 24) return;
+
+        const cellActions = actions.filter(a => extractDir(a) === dir && isSpecificAction(a));
+        if (cellActions.length === 0) return;
+
+        const hasDig = cellActions.some(isDigAction);
+        const screenX = Math.round(gx * ts - srcX + dstX);
+        const screenY = Math.round(gy * ts - srcY + dstY);
+
+        // 控えめなセルガイド枠 (最前面)
+        this.ctx.save();
+        this.ctx.strokeStyle = hasDig ? 'rgba(251, 191, 36, 0.55)' : 'rgba(56, 189, 248, 0.4)';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(screenX + 0.5, screenY + 0.5, ts - 1, ts - 1);
+
+        // タイル左上コーナーのミニピルバッジ (数字件数)
+        const countText = String(cellActions.length);
+        const badgeW = countText.length > 1 ? 14 : 11;
+        const badgeH = 10;
+        const bx = screenX + 1;
+        const by = screenY + 1;
+
+        this.ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        this.ctx.fillRect(bx, by, badgeW, badgeH);
+        this.ctx.strokeStyle = hasDig ? '#fbbf24' : '#38bdf8';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(bx, by, badgeW, badgeH);
+
+        if (typeof this.ctx.fillText === 'function') {
+          this.ctx.fillStyle = hasDig ? '#fbbf24' : '#e0f2fe';
+          this.ctx.font = 'bold 8.5px sans-serif';
+          this.ctx.textAlign = 'center';
+          this.ctx.textBaseline = 'middle';
+          this.ctx.fillText(countText, bx + badgeW / 2, by + badgeH / 2 + 0.5);
+        }
+        this.ctx.restore();
+      });
+    }
   }
 
   /**

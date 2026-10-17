@@ -283,4 +283,107 @@ describe('MainViewportRenderer - 自キャラ追従迫力メインビューポ�
     expect(renderedTexts).toContain('R');
     expect(renderedTexts).toContain('+');
   });
+
+  it('10. マップ上の ContextActions バッジ ＆ 掘削アシスト枠がオーバーレイ描画されること', () => {
+    const areaGrid = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
+    // プレイヤー (25, 10)
+    areaGrid[10][25] = { bottom: { rawGlyph: 3992 }, middle: null, top: { rawGlyph: 100, isPlayer: true } };
+    // 東隣 (26, 10): 観測済み岩盤
+    areaGrid[10][26] = { bottom: { rawGlyph: 3929, isObservedStone: true, type: 'UNEXPLORED' }, middle: null, top: null };
+
+    const actions = [
+      { id: 'ACTION_APPLY_DIG', dirCode: 'E', category: 'SURVIVAL', labelJa: '東の岩盤を掘る' },
+      { id: 'ACTION_WAIT', dirCode: 'SELF', isDefault: true, category: 'DEFAULT', labelJa: '待機' } // デフォルトは除外されるべき
+    ];
+
+    const renderer = new MainViewportRenderer({
+      canvas: mockCanvas,
+      asciiGrid: mockAsciiGrid,
+      virtualScreen: vScreen,
+      getAreaGrid: () => areaGrid
+    });
+
+    renderer.drawTile = vi.fn();
+
+    renderer.renderMainViewport({ playerX: 25, playerY: 10, grid: areaGrid }, actions);
+
+    // 固有アクション（掘削）が存在する東隣セルにバッジテキスト '1' が描画されること
+    expect(mockCtx.fillText).toHaveBeenCalled();
+    const renderedTexts = mockCtx.fillText.mock.calls.map(c => c[0]);
+    expect(renderedTexts).toContain('1');
+
+    // 掘削ハイライトによる drawTile(3929) が呼ばれていること
+    expect(renderer.drawTile).toHaveBeenCalledWith(3929, expect.any(Number), expect.anything(), expect.any(Number), expect.any(Number), 0);
+
+    // mapActionIndicator を false にするとバッジ描画がスキップされること
+    mockCtx.fillText.mockClear();
+    renderer.setMapActionIndicator(false);
+    renderer.renderMainViewport({ playerX: 25, playerY: 10, grid: areaGrid }, actions);
+    const textsAfterDisable = mockCtx.fillText.mock.calls.map(c => c[0]);
+    expect(textsAfterDisable).not.toContain('1');
+  });
+
+  it('11. smart モードでは掘削アクションがない時に岩盤が描画されず（黒抜き）、classic_tile モードでは常時描画されること', () => {
+    const areaGrid = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
+    // プレイヤー (25, 10)
+    areaGrid[10][25] = { bottom: { rawGlyph: 3992 }, middle: null, top: { rawGlyph: 100, isPlayer: true } };
+    // 東隣 (26, 10): 観測済み岩盤
+    areaGrid[10][26] = { bottom: { rawGlyph: 3929, isObservedStone: true, type: 'UNEXPLORED' }, middle: null, top: null };
+
+    const renderer = new MainViewportRenderer({
+      canvas: mockCanvas,
+      asciiGrid: mockAsciiGrid,
+      virtualScreen: vScreen,
+      getAreaGrid: () => areaGrid
+    });
+
+    renderer.drawTile = vi.fn();
+
+    // 1. smart モード（デフォルト）かつ掘削アクションなし（待機アクションのみ）
+    const normalActions = [
+      { id: 'ACTION_WAIT', dirCode: 'SELF', isDefault: true, category: 'DEFAULT', labelJa: '待機' }
+    ];
+    renderer.renderMainViewport({ playerX: 25, playerY: 10, grid: areaGrid }, normalActions);
+
+    // 掘削アクションがないため、岩盤タイル(3929)は描画されない（黒抜き維持）
+    const stoneCallsInSmart = renderer.drawTile.mock.calls.filter(call => call[0] === 3929);
+    expect(stoneCallsInSmart.length).toBe(0);
+
+    // 2. classic_tile モードに切り替え
+    renderer.drawTile.mockClear();
+    renderer.setStoneRenderingMode('classic_tile');
+    renderer.renderMainViewport({ playerX: 25, playerY: 10, grid: areaGrid }, normalActions);
+
+    // classic_tile では掘削アクションがなくても観測済み岩盤(3929)が常時描画されること
+    const stoneCallsInClassic = renderer.drawTile.mock.calls.filter(call => call[0] === 3929);
+    expect(stoneCallsInClassic.length).toBeGreaterThan(0);
+  });
+
+  it('12. classic_tile モードであっても、未到達のプリロード壁 (isCachedPreload: true) は絶対に岩盤として描画されないこと', () => {
+    const areaGrid = Array.from({ length: 24 }, () => Array.from({ length: 80 }, () => null));
+    // プレイヤー (25, 10)
+    areaGrid[10][25] = { bottom: { rawGlyph: 3992 }, middle: null, top: { rawGlyph: 100, isPlayer: true } };
+
+    // 観測済みの正規岩盤 (26, 10)
+    areaGrid[10][26] = { bottom: { rawGlyph: 3929, isObservedStone: true, isCachedPreload: false, type: 'UNEXPLORED' }, middle: null, top: null };
+
+    // 未到達の部屋の壁 (27, 10): Cコア初期値 3929、TERRAIN、プリロード下敷き (未観測)
+    areaGrid[10][27] = { bottom: { rawGlyph: 3929, glyph: 3929, isCachedPreload: true, isObservedStone: false, type: 'TERRAIN' }, middle: null, top: null };
+
+    const renderer = new MainViewportRenderer({
+      canvas: mockCanvas,
+      asciiGrid: mockAsciiGrid,
+      virtualScreen: vScreen,
+      getAreaGrid: () => areaGrid
+    });
+
+    renderer.drawTile = vi.fn();
+    renderer.setStoneRenderingMode('classic_tile');
+
+    renderer.renderMainViewport({ playerX: 25, playerY: 10, grid: areaGrid }, []);
+
+    // 観測済みの (26, 10) のみ描画され、未到達の (27, 10) は絶対に描画されない
+    const calls = renderer.drawTile.mock.calls.filter(call => call[0] === 3929);
+    expect(calls.length).toBe(1); // 26,10 の1回のみ
+  });
 });
