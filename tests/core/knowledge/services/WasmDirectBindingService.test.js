@@ -492,14 +492,14 @@ describe('WasmDirectBindingService', () => {
 
                 vi.spyOn(memory, 'readInt32Array').mockImplementation((ptr) => {
                     if (ptr === bufPtr) {
-                        // 呼び出し毎に切り替え
+                        // 呼び出し毎に切り替え (12要素: [otyp, owt, quan, spe, oclass, invlet, flags, weight, corpsenm, age, cobj, nexthere])
                         if (memory.bridgeCall.mock.calls.filter(c => c[0] === NetHackMemory.SHIM_CMD.DUMP_OBJECT_INFO).length === 1) {
-                            return new Int32Array([24, 50, 1, 1, 2, 0, 5, 50]); // blessed, bknown
+                            return new Int32Array([24, 50, 1, 1, 2, 0, 5, 50, -1, 0, 0, item2Ptr]); // blessed, bknown, next: item2Ptr
                         } else {
-                            return new Int32Array([30, 10, 1, 0, 2, 0, 6, 10]); // cursed, bknown
+                            return new Int32Array([30, 10, 1, 0, 2, 0, 6, 10, -1, 0, 0, 0]); // cursed, bknown, next: 0
                         }
                     }
-                    return new Int32Array(8);
+                    return new Int32Array(12);
                 });
 
                 vi.spyOn(memory, 'getValue').mockImplementation((ptr) => {
@@ -528,6 +528,44 @@ describe('WasmDirectBindingService', () => {
                 expect(memory.freeBuffer).toHaveBeenCalledWith(bufPtr);
             });
 
+            it('correctly handles a single floor object with age >= 1024 without mistaking age for nextPtr', () => {
+                const itemPtr = 0x3000;
+                const bufPtr = 0x9000;
+
+                memory.allocateBuffer = vi.fn(() => bufPtr);
+                memory.freeBuffer = vi.fn();
+
+                vi.spyOn(memory, 'bridgeCall').mockImplementation((cmd, a1, a2) => {
+                    if (cmd === NetHackMemory.SHIM_CMD.GET_OBJECT_AT && a1 === 5 && a2 === 5) {
+                        return itemPtr;
+                    }
+                    if (cmd === NetHackMemory.SHIM_CMD.DUMP_OBJECT_INFO && a1 === itemPtr) {
+                        return 0;
+                    }
+                    return -1;
+                });
+
+                // 12要素: [otyp, owt, quan, spe, oclass, invlet, flags, weight, corpsenm, age, cobj, nexthere]
+                // age = 1500, nexthere = 0
+                vi.spyOn(memory, 'readInt32Array').mockImplementation((ptr) => {
+                    if (ptr === bufPtr) {
+                        return new Int32Array([24, 50, 1, 1, 2, 0, 5, 50, -1, 1500, 0, 0]);
+                    }
+                    return new Int32Array(12);
+                });
+
+                vi.spyOn(memory, 'getValue').mockImplementation(() => 0);
+
+                const floorItems = service.getObjectsAt(5, 5);
+
+                expect(floorItems.length).toBe(1);
+                expect(floorItems[0].otyp).toBe(24);
+                expect(floorItems[0].age).toBe(1500);
+                expect(floorItems[0].nextherePtr).toBe(0);
+                expect(floorItems[0].isPile).toBe(false);
+                expect(memory.bridgeCall).toHaveBeenCalledTimes(2); // GET_OBJECT_AT + 1x DUMP_OBJECT_INFO
+            });
+
             it('returns empty array when no objects are on the floor', () => {
                 vi.spyOn(memory, 'bridgeCall').mockImplementation((cmd) => {
                     if (cmd === NetHackMemory.SHIM_CMD.GET_OBJECT_AT) return 0;
@@ -547,8 +585,8 @@ describe('WasmDirectBindingService', () => {
                         return { result: 0x5000, buffer: null };
                     }
                     if (cmd === 0x42 && a1 === 0x5000) { // DUMP_OBJECT_INFO
-                        // otyp: 24, owt: 50, quan: 1, spe: 0, oclass: 2, invlet: 0, flags: blessed(1)|bknown(4)=5, weight: 50
-                        return { result: 0, buffer: [24, 50, 1, 0, 2, 0, 5, 50] };
+                        // 12要素: [otyp, owt, quan, spe, oclass, invlet, flags, weight, corpsenm, age, cobj, nexthere]
+                        return { result: 0, buffer: [24, 50, 1, 0, 2, 0, 5, 50, -1, 0, 0, 0] };
                     }
                     return { result: 0, buffer: null };
                 });

@@ -408,20 +408,22 @@ export class InventoryWasmAdapter {
                         const res = memory.bridgeCall(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, bufPtr, bufSize);
                         if (res === 0) {
                             const rawValues = memory.readInt32Array(bufPtr, 12);
-                            const cobjPtr = (rawValues.length >= 11 && rawValues[10] > 0) ? rawValues[10] : memory.getValue(currPtr + 8, 'i32');
-                            const o_id = memory.getValue(currPtr + 12, 'i32');
+                            const cobjPtr = (rawValues.length >= 11 && rawValues[10] > 0)
+                                ? rawValues[10]
+                                : (typeof memory.getValue === 'function' ? (memory.getValue(currPtr + 8, 'i32') || 0) : 0);
+                            const o_id = typeof memory.getValue === 'function' ? (memory.getValue(currPtr + 12, 'i32') || 0) : 0;
                             const corpsenm = (rawValues.length >= 9 && rawValues[8] >= 0) ? rawValues[8] : -1;
-                            const age = (rawValues.length >= 10 && rawValues[9] > 0 && rawValues[9] < 1024) ? rawValues[9] : 0;
+                            const age = (rawValues.length >= 10 && rawValues[9] > 0) ? rawValues[9] : 0;
                             const item = this.unpackObjectBuffer(rawValues, currPtr, cobjPtr, o_id, corpsenm, age);
                             if (item) {
                                 items.push(item);
                             }
-                            if (rawValues.length >= 12 && rawValues[11] >= 1024) {
-                                currPtr = rawValues[11];
-                            } else if (rawValues.length >= 10 && rawValues[9] >= 1024) {
-                                currPtr = rawValues[9];
+                            if (rawValues.length >= 12) {
+                                currPtr = (rawValues[11] > 0) ? rawValues[11] : 0;
+                            } else if (typeof memory.getValue === 'function') {
+                                currPtr = memory.getValue(currPtr + 4, 'i32') || 0;
                             } else {
-                                currPtr = memory.getValue(currPtr + 4, 'i32');
+                                currPtr = 0;
                             }
                         } else {
                             break;
@@ -475,47 +477,19 @@ export class InventoryWasmAdapter {
                     while (currPtr > 0 && !visited.has(currPtr) && items.length < MAX_FLOOR_ITEMS) {
                         visited.add(currPtr);
                         const objRes = await bridge.callShim(SHIM_CMD.DUMP_OBJECT_INFO, currPtr, 0, 48, 'int32');
-                        if (objRes && Array.isArray(objRes.buffer)) {
-                            let nextPtr = 0;
-                            let cobjPtr = 0;
-                            let o_id = 0;
-                            let corpsenm = -1;
-                            let age = 0;
+                        if (objRes && Array.isArray(objRes.buffer) && objRes.buffer.length >= 8) {
+                            // Cコア12要素仕様:
+                            // out[0..7]: otyp, owt, quan, spe, oclass, invlet, flags, weight
+                            // out[8]: corpsenm, out[9]: age, out[10]: cobj, out[11]: nexthere
+                            const corpsenm = (objRes.buffer.length >= 9) ? (objRes.buffer[8] ?? -1) : -1;
+                            const age = (objRes.buffer.length >= 10 && objRes.buffer[9] > 0) ? objRes.buffer[9] : 0;
+                            const cobjPtr = (objRes.buffer.length >= 11 && objRes.buffer[10] > 0) ? objRes.buffer[10] : 0;
+                            const nextPtr = (objRes.buffer.length >= 12 && objRes.buffer[11] > 0) ? objRes.buffer[11] : 0;
 
-                            if (objRes.buffer.length >= 12) {
-                                corpsenm = objRes.buffer[8] ?? -1;
-                                if (objRes.buffer[11] >= 1024) {
-                                    // 新仕様: out[9] = age, out[10] = cobj, out[11] = nexthere
-                                    age = objRes.buffer[9] || 0;
-                                    cobjPtr = objRes.buffer[10] || 0;
-                                    nextPtr = objRes.buffer[11] || 0;
-                                } else if (objRes.buffer[9] >= 1024) {
-                                    // 旧互換モック: [corpsenm, nexthere, cobj, o_id]
-                                    nextPtr = objRes.buffer[9] || 0;
-                                    cobjPtr = objRes.buffer[10] || 0;
-                                    o_id = objRes.buffer[11] || 0;
-                                } else {
-                                    age = objRes.buffer[9] || 0;
-                                    cobjPtr = objRes.buffer[10] || 0;
-                                    nextPtr = objRes.buffer[11] || 0;
-                                }
-                            } else if (objRes.buffer.length === 11) {
-                                nextPtr = objRes.buffer[8] || 0;
-                                cobjPtr = objRes.buffer[9] || 0;
-                                o_id = objRes.buffer[10] || 0;
-                            } else if (objRes.buffer.length === 9) {
-                                corpsenm = objRes.buffer[8] ?? -1;
-                                nextPtr = 0;
-                            } else if (objRes.buffer.length >= 8) {
-                                nextPtr = 0;
-                            } else {
-                                break;
-                            }
-
-                            const item = this.unpackObjectBuffer(objRes.buffer, currPtr, cobjPtr, o_id, corpsenm, age);
+                            const item = this.unpackObjectBuffer(objRes.buffer, currPtr, cobjPtr, 0, corpsenm, age);
                             if (item) items.push(item);
 
-                            currPtr = (nextPtr >= 1024) ? nextPtr : 0;
+                            currPtr = (nextPtr > 0) ? nextPtr : 0;
                         } else {
                             break;
                         }

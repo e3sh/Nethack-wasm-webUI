@@ -542,9 +542,10 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
 
             let floorObjHeadPtr = 0x7000;
             // 0x7000 (dagger: otyp=16, nextPtr=0x7100) -> 0x7100 (long sword: otyp=25, nextPtr=0)
+            // 12要素仕様: [otyp, owt, quan, spe, oclass, invlet, flags, weight, corpsenm, age, cobj, nexthere]
             let objMap = {
-                0x7000: [16, 10, 1, 0, 2, 97, 4, 10, 0x7100, 0, 201],
-                0x7100: [25, 40, 1, 1, 2, 98, 5, 40, 0, 0, 202]
+                0x7000: [16, 10, 1, 0, 2, 97, 4, 10, -1, 0, 0, 0x7100],
+                0x7100: [25, 40, 1, 1, 2, 98, 5, 40, -1, 0, 0, 0]
             };
 
             mockWorker.postMessage.mockImplementation((msg) => {
@@ -603,7 +604,7 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
             expect(cellAfterPickup.middle).toBeNull();
         });
 
-        it('11. 新仕様（corpsenm 入り 12要素）の床アイテム走査時に corpsenm がポインタと誤認されず正しく山積みが取得できること', async () => {
+        it('11. 新仕様（corpsenm / age / cobj / nexthere 12要素）の床アイテム走査時に corpsenm や age がポインタと誤認されず正しく山積みが取得できること', async () => {
             const px = 8;
             const py = 8;
             gkl.areaStateManager.updatePlayerPosition(px, py);
@@ -611,11 +612,11 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
             const ptrStatue = 20001;
             const ptrRock = 20002;
             const objMap = {
-                // 12要素: [otyp, owt, quan, spe, oclass, invlet, flags, weight, corpsenm, nexthere, cobj, o_id]
+                // 12要素: [otyp, owt, quan, spe, oclass, invlet, flags, weight, corpsenm, age, cobj, nexthere]
                 // 像 (otyp: 476, corpsenm: 45) -> nexthere: ptrRock (20002)
-                [ptrStatue]: [476, 500, 1, 0, 7, 0, 0, 500, 45, ptrRock, 0, 101],
+                [ptrStatue]: [476, 500, 1, 0, 7, 0, 0, 500, 45, 0, 0, ptrRock],
                 // 岩 (otyp: 474, corpsenm: -1) -> nexthere: 0
-                [ptrRock]: [474, 10, 1, 0, 7, 0, 0, 10, -1, 0, 0, 102],
+                [ptrRock]: [474, 10, 1, 0, 7, 0, 0, 10, -1, 0, 0, 0],
             };
 
             mockWorker.postMessage.mockImplementation((msg) => {
@@ -652,6 +653,54 @@ describe('GKLPlugin - WorkerBridge 隔離環境における直接同期 ＆ フ�
             expect(floorItems[0].corpsenm).toBe(45);
             expect(floorItems[1].onum).toBe(474);
             expect(floorItems[1].corpsenm).toBe(-1);
+        });
+
+        it('13. 床に単一アイテムがあり (nexthere = 0)、かつ age >= 1024 (1500) のケースで age が nextPtr と誤認されず1件のみ正常取得できること', async () => {
+            const px = 12;
+            const py = 12;
+            gkl.areaStateManager.updatePlayerPosition(px, py);
+
+            const ptrApple = 30001;
+            const objMap = {
+                // 12要素: [otyp, owt, quan, spe, oclass, invlet, flags, weight, corpsenm, age, cobj, nexthere]
+                // りんご (otyp: 300, age: 1500, nexthere: 0)
+                [ptrApple]: [300, 2, 1, 0, 7, 0, 0, 2, -1, 1500, 0, 0],
+            };
+
+            mockWorker.postMessage.mockImplementation((msg) => {
+                if (msg.type === 'CALL_SHIM') {
+                    const { callId, payload } = msg;
+                    let result = 0;
+                    let buffer = null;
+
+                    if (payload.cmd === SHIM_CMD.GET_CELL_INFO) {
+                        result = 25 | (0 << 8) | (1 << 16) | (1 << 17);
+                    } else if (payload.cmd === SHIM_CMD.GET_OBJECT_AT) {
+                        result = ptrApple;
+                    } else if (payload.cmd === SHIM_CMD.DUMP_OBJECT_INFO) {
+                        result = 0;
+                        buffer = objMap[payload.arg1] || null;
+                    } else if (payload.cmd === SHIM_CMD.GET_EQUIPMENT_PTRS) {
+                        buffer = new Array(14).fill(0);
+                    } else if (payload.cmd === SHIM_CMD.DUMP_ALL_INVENT) {
+                        result = 0;
+                        buffer = [];
+                    }
+
+                    Promise.resolve().then(() => {
+                        mockWorker.onmessage({
+                            data: { type: 'SHIM_RESULT', callId, result, buffer }
+                        });
+                    });
+                }
+            });
+
+            const floorItems = await gkl.wasmDirectBindingService.fetchObjectsAt(px, py);
+            expect(floorItems.length).toBe(1);
+            expect(floorItems[0].onum).toBe(300);
+            expect(floorItems[0].age).toBe(1500);
+            expect(floorItems[0].nextherePtr).toBe(0);
+            expect(floorItems[0].isPile).toBe(false);
         });
 
         it('12. WorkerBridge 隔離環境において DUMP_SKILLS (0x51) が自動同期されマクロ送信なしに SkillStateManager が更新されること', async () => {

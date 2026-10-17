@@ -121,15 +121,7 @@ export class SpatialWasmAdapter {
                     flags: 0,
                     lit,
                     roomno: 0,
-                    door: isDoor ? {
-                        isClosed: false,
-                        isLocked: false,
-                        isOpen: false,
-                        isBroken: false,
-                        isTrapped: false,
-                        isSecret: (typ === LEVL_TYP.SDOOR),
-                        isNoDoor: true
-                    } : null,
+                    door: null,
                     altar: isAltar ? parseAltarFlags(0) : null
                 };
             }

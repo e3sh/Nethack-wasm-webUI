@@ -476,9 +476,14 @@ export class InteractionContext {
 
                     // B. 隣接する扉 (DOOR / SDOOR)
                     const b = cell.bottom;
-                    const isDoor = b && (b.typ === 23 || b.typ === 14 || b.type === 'DOOR' || b.type === 'SDOOR' || Boolean(b.door));
+                    const flags = b?.cmapFlags || {};
+                    const doorInfo = b?.door || b?.cellInfo?.door || null;
+                    const isGlyphClosed = Boolean(flags.isClosedDoor);
+                    const isGlyphOpen = Boolean(flags.isOpenDoor);
+                    const isGlyphDoorway = Boolean(flags.isDoorway);
+                    const isNoDoor = isGlyphDoorway || (!isGlyphClosed && !isGlyphOpen && Boolean(doorInfo?.isNoDoor || doorInfo?.isBroken));
+                    const isDoor = !isNoDoor && (isGlyphClosed || isGlyphOpen || Boolean(b && (b.typ === 23 || b.typ === 14 || b.type === 'DOOR' || b.type === 'SDOOR' || Boolean(b.door))));
                     if (isDoor) {
-                        const doorInfo = b.door || b.cellInfo?.door || null;
                         const isLocked = Boolean(doorInfo?.isLocked);
                         const isTrapped = Boolean(doorInfo?.isTrapped);
 

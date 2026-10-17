@@ -311,16 +311,6 @@ self.onmessage = async function(e) {
                     } else {
                         const count = Math.floor(bufferSize / 4);
                         bufferData = Array.from(mem.readInt32Array(bufPtr, count));
-                        // SHIM_CMD_DUMP_OBJECT_INFO (0x42): 床落ち山積み走査 (nexthere) ＆ コンテナ/固有ID 補完
-                        if (cmd === 0x42 && result === 0 && arg1 > 0 && (bufferData.length === 8 || bufferData.length === 9)) {
-                            try {
-                                bufferData.push(
-                                    mem.getValue(arg1 + 4, 'i32') || 0, // v.nexthere
-                                    mem.getValue(arg1 + 8, 'i32') || 0, // cobj
-                                    mem.getValue(arg1 + 12, 'i32') || 0 // o_id
-                                );
-                            } catch (_) {}
-                        }
                     }
                     mem.freeBuffer(bufPtr);
                 }

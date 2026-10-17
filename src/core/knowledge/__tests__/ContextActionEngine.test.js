@@ -337,6 +337,120 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
             expect(openAction.priority).toBe(65);
         });
 
+        it('扉のない戸口（doorway / isNoDoor）や破壊された扉（isBroken）に対して扉の開閉・施錠アクションを一切提案しないこと', () => {
+            const invMgr = new InventoryStateManager();
+            const areaState = {
+                feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
+                adjacentMonsters: [],
+                adjacentEntities: [
+                    {
+                        // 扉のない戸口 (CMAP: isDoorway = true, S_ndoor 3985)
+                        dir: { code: 'N' },
+                        cell: {
+                            bottom: {
+                                type: 'TERRAIN',
+                                cmapFlags: { isDoorway: true },
+                                door: { isNoDoor: true, isClosed: false, isOpen: false, isLocked: false, isBroken: false }
+                            },
+                            middle: null,
+                            top: null
+                        }
+                    },
+                    {
+                        // 壊れた扉 (DirectBinding: isBroken = true)
+                        dir: { code: 'E' },
+                        cell: {
+                            bottom: {
+                                type: 'TERRAIN',
+                                cmapFlags: {},
+                                door: { isBroken: true, isClosed: false, isOpen: false, isLocked: false, isNoDoor: false }
+                            },
+                            middle: null,
+                            top: null
+                        }
+                    }
+                ]
+            };
+
+            const actions = ContextActionEngine.generateActions(areaState, invMgr);
+            const doorActions = actions.filter(a => a.id.includes('_DOOR_'));
+            expect(doorActions).toHaveLength(0);
+        });
+
+        it('開いた扉（isOpenDoor または door.isOpen）に対して扉を閉める (c) アクションが正しく提案されること', () => {
+            const invMgr = new InventoryStateManager();
+            const areaState = {
+                feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
+                adjacentMonsters: [],
+                adjacentEntities: [
+                    {
+                        dir: { code: 'S' },
+                        cell: {
+                            bottom: {
+                                type: 'TERRAIN',
+                                cmapFlags: { isOpenDoor: true },
+                                door: { isOpen: true, isClosed: false, isLocked: false }
+                            },
+                            middle: null,
+                            top: null
+                        }
+                    }
+                ]
+            };
+
+            const actions = ContextActionEngine.generateActions(areaState, invMgr);
+            const closeAction = actions.find(a => a.id === 'ACTION_CLOSE_DOOR_S');
+            expect(closeAction).toBeDefined();
+            expect(closeAction.key).toBe('cDIR_S');
+            expect(closeAction.keySequence).toEqual(['c', 'DIR_S']);
+            expect(closeAction.dirCode).toBe('S');
+        });
+
+        it('描画グリフ（isClosedDoor / isOpenDoor）が最優先され、キャッシュに isNoDoor が紛れ込んでいても扉アクションが正しく提案されること', () => {
+            const invMgr = new InventoryStateManager();
+            const areaState = {
+                feet: { bottom: { type: 'TERRAIN', cmapFlags: { isFloor: true } } },
+                adjacentMonsters: [],
+                adjacentEntities: [
+                    {
+                        // 画面上は閉じた扉（+）だが、キャッシュに isNoDoor: true があるケース
+                        dir: { code: 'W' },
+                        cell: {
+                            bottom: {
+                                type: 'TERRAIN',
+                                cmapFlags: { isClosedDoor: true },
+                                door: { isNoDoor: true, isClosed: false }
+                            },
+                            middle: null,
+                            top: null
+                        }
+                    },
+                    {
+                        // 画面上は開いた扉（|）だが、キャッシュに isNoDoor: true があるケース
+                        dir: { code: 'E' },
+                        cell: {
+                            bottom: {
+                                type: 'TERRAIN',
+                                cmapFlags: { isOpenDoor: true },
+                                door: { isNoDoor: true, isClosed: false }
+                            },
+                            middle: null,
+                            top: null
+                        }
+                    }
+                ]
+            };
+
+            const actions = ContextActionEngine.generateActions(areaState, invMgr);
+            const openDoorW = actions.find(a => a.id === 'ACTION_OPEN_DOOR_W');
+            expect(openDoorW).toBeDefined();
+            expect(openDoorW.label).toContain('扉を開ける');
+
+            const closeDoorE = actions.find(a => a.id === 'ACTION_CLOSE_DOOR_E');
+            expect(closeDoorE).toBeDefined();
+            expect(closeDoorE.label).toContain('扉を閉める');
+        });
+
         it('平和的NPC（isPeaceful）および店主・僧侶に対して近接攻撃アクションを一切生成せず、話しかけ (#chat) を優先提示すること', () => {
             const invMgr = new InventoryStateManager();
             const areaState = {

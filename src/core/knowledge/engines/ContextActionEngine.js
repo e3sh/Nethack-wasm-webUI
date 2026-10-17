@@ -981,26 +981,35 @@ export class ContextActionEngine {
             const b = item.cell?.bottom;
             const entity = item.entity;
             const flags = b?.cmapFlags || {};
+            const doorInfo = b?.door || b?.cellInfo?.door || null;
 
-            const isTrappedDoor = Boolean(
+            // 1. 描画グリフによる確定判定 (SSOT: Cコアの print_glyph で受信した真値)
+            const isGlyphClosed = Boolean(flags.isClosedDoor);
+            const isGlyphOpen = Boolean(flags.isOpenDoor);
+            const isGlyphDoorway = Boolean(flags.isDoorway);
+
+            // 2. 扉のない戸口 (doorway) または破壊された扉 (broken) の判定
+            // - グリフが明確に S_ndoor (3985, isDoorway) である場合
+            // - または描画グリフが閉じた扉・開いた扉のいずれでもなく、かつ Cコア情報で isNoDoor または isBroken が確定している場合
+            const isNoDoorOrBroken = isGlyphDoorway || (!isGlyphClosed && !isGlyphOpen && Boolean(doorInfo?.isNoDoor || doorInfo?.isBroken));
+
+            const isTrappedDoor = !isNoDoorOrBroken && Boolean(
                 flags.isTrappedDoor ||
-                b?.door?.isTrapped ||
-                b?.cellInfo?.door?.isTrapped ||
+                doorInfo?.isTrapped ||
                 entity?.isTrapped ||
                 entity?.directState?.isTrapped
             );
-            const isLockedDoor = Boolean(
+            const isLockedDoor = !isNoDoorOrBroken && Boolean(
                 flags.isLockedDoor ||
-                b?.door?.isLocked ||
-                b?.cellInfo?.door?.isLocked ||
+                doorInfo?.isLocked ||
                 entity?.isLocked ||
                 entity?.directState?.isLocked
             );
-            const isClosedOrLocked = Boolean(
-                flags.isClosedDoor ||
+            const isClosedOrLocked = !isNoDoorOrBroken && Boolean(
+                isGlyphClosed ||
                 flags.isLockedDoor ||
                 isLockedDoor ||
-                (b?.door && (b.door.isClosed || b.door.isLocked)) ||
+                (doorInfo && (doorInfo.isClosed || doorInfo.isLocked)) ||
                 entity?.isClosed ||
                 entity?.directState?.isClosed
             );
@@ -1093,23 +1102,26 @@ export class ContextActionEngine {
             }
 
             // 開いた扉 (Open Door)
-            else if (flags.isOpenDoor || (b?.door && !b.door.isClosed && !isClosedOrLocked) || entity?.isOpen) {
-                if (!actions.some(a => a.id.startsWith('ACTION_CLOSE_DOOR'))) {
+            else if (!isNoDoorOrBroken && (isGlyphOpen || doorInfo?.isOpen || entity?.isOpen)) {
+                if (!actions.some(a => a.id === `ACTION_CLOSE_DOOR_${dirCode}`)) {
                     actions.push({
                         id: `ACTION_CLOSE_DOOR_${dirCode}`,
                         category: 'INTERACT',
-                        label: `Close door`,
-                        labelJa: `扉を閉める (Close)`,
+                        label: `Close door [${dirCode}]`,
+                        labelJa: `扉を閉める [${dirNameJa}]`,
                         key: `c${dirKey}`,
                         keySequence: ['c', dirKey],
                         charStr: 'c',
                         directionKey: dirKey,
                         direction: item.dir,
+                        isDirectional: true,
+                        dirNameJa,
+                        dirSymbol,
                         target: 'adjacent',
                         risk: null,
                         priority: 70,
-                        description: `Close open door`,
-                        descriptionJa: `開いたドアを閉めます`
+                        description: `Close open door in ${dirNameJa}`,
+                        descriptionJa: `${dirNameJa}の開いたドアを閉めます`
                     });
                 }
             }
