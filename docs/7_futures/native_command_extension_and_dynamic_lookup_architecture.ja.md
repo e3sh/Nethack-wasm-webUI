@@ -282,11 +282,11 @@ NetHackの本質である**「神聖なパーマデス（死んだら全ロス�
   - [x] タイルグリッドコンポーネント（`<nh-codex-grid>`）と CSS シルエット／アンロック点灯演出、および `MONSTER_OFFICIAL_ATTACKS.js` による Cソース準拠攻撃定義の統合。
   - [x] LocalStorage の収集記録に基づく全体およびカテゴリ別進捗率（%）の可視化。
   - [x] `SaveManager`（`tools/save_manager.html`）とのデータメンテナンス連携。
-- [ ] **Phase 3: 【ゲーム内】命名アシスト ＆ GamePad候補選択ダイアログ（基盤50%完了・残UI/Resolver着手可能）**
-  - **実装進捗 (2026-10-16 時点)**:
+- [x] **Phase 3: 【ゲーム内】命名アシスト ＆ GamePad候補選択ダイアログ（実装完了）**
+  - **実装進捗 (2026-10-17 完遂)**:
     - [x] **Step 1 完了 (`DiscoveryStateManager.js`)**: Phase 8 Direct Binding (`SHIM_CMD_DUMP_DISCOVERIES` 0x60, `SHIM_CMD_GET_OBJECT_UNAME` 0x61, `SHIM_CMD_DUMP_DESCR_INDEXES` 0x62) とのライブメモリ同期 (`syncWithLiveMemory`)、および効果メッセージからの真名自動昇格 (`processDiscoveryMessage`) は実装済み。
-    - [ ] **Step 2 (`ItemCandidateResolver.js`)**: 未識別アイテムに対して、`OBJECT_KNOWLEDGE_FULL` の基礎価格 (`cost`)・カテゴリ・直前効果メッセージから候補アイテム群（例: 100Gの巻物群、回復系ポーション群）をワンタップ用にサジェストする軽量リゾルバの実装。
-    - [ ] **Step 3 (`<nh-call-candidate-dialog>`)**: `What do you want to call...` プロンプトを捕捉し、GamePad（十字キー＋Aボタン）やタッチ操作で候補リストから即座に仮名を選択・送信できるダイアログコンポーネントの実装。
+    - [x] **Step 2 完了 (`ItemCandidateResolver.js` ＆ `CustomNameStore.js`)**: 未識別アイテムに対して、`OBJECT_KNOWLEDGE_FULL` の基礎価格 (`cost`)・カテゴリ・直前効果メッセージから候補アイテム群（例: 100Gの巻物群、回復系ポーション群）をワンタップ用にサジェストする軽量リゾルバの実装、およびプレイヤー仮名永続化ストアの実装。
+    - [x] **Step 3 完了 (`<nh-call-candidate-dialog>`)**: `What do you want to call...` プロンプトを捕捉し、GamePad（十字キー＋Aボタン）やタッチ操作で候補リストから即座に仮名を選択・送信できるダイアログコンポーネントの実装、および `InputCoordinator` 連携。
 
 
 

@@ -21,7 +21,9 @@ export class KeyHandler {
     toggleSidePanel,
     getKnowledgeDetailModal,
     onOpenKnowledgeInspector,
-    onOpenDiscoveryCodex
+    onOpenDiscoveryCodex,
+    getCallCandidateDialog,
+    onOpenCallDialog
   }) {
     this.getCore = getCore || (() => null);
     this.getModalManager = getModalManager || (() => null);
@@ -30,12 +32,14 @@ export class KeyHandler {
     this.getCharacterStatusModal = getCharacterStatusModal || (() => null);
     this.getCodexModal = getCodexModal || (() => null);
     this.getKnowledgeDetailModal = getKnowledgeDetailModal || (() => null);
+    this.getCallCandidateDialog = getCallCandidateDialog || (() => null);
     this.getMinimapRenderer = getMinimapRenderer || (() => null);
     this.getMessageHistoryDrawer = getMessageHistoryDrawer || (() => null);
     this.getUIConfigStore = getUIConfigStore || (() => null);
     this.toggleSidePanel = toggleSidePanel || (() => null);
     this.onOpenKnowledgeInspector = onOpenKnowledgeInspector || (() => null);
     this.onOpenDiscoveryCodex = onOpenDiscoveryCodex || (() => null);
+    this.onOpenCallDialog = onOpenCallDialog || (() => null);
 
     this.modalStack = new ModalStackController();
     this.inputCoordinator = new InputCoordinator({ modalStack: this.modalStack });
@@ -155,6 +159,21 @@ export class KeyHandler {
       }
     });
 
+    // 命名アシストダイアログ (<nh-call-candidate-dialog>)
+    this.modalStack.registerModal('callCandidateDialog', {
+      priority: 40,
+      isOpen: () => {
+        const dialog = (this.getCallCandidateDialog && this.getCallCandidateDialog()) || 
+                       (typeof document !== 'undefined' ? document.getElementById('nh-call-candidate-dialog') : null);
+        return Boolean(dialog && dialog.open);
+      },
+      close: () => {
+        const dialog = (this.getCallCandidateDialog && this.getCallCandidateDialog()) || 
+                       (typeof document !== 'undefined' ? document.getElementById('nh-call-candidate-dialog') : null);
+        if (dialog) dialog.close();
+      }
+    });
+
     // DOM 上の <nh-modal> インスタンスがあれば modalStack を直接注入
     if (typeof document !== 'undefined' && typeof document.querySelectorAll === 'function') {
       const nhModals = document.querySelectorAll('nh-modal');
@@ -244,6 +263,11 @@ export class KeyHandler {
       case ROUTE_ACTIONS.OPEN_DISCOVERY_CODEX:
         e.preventDefault();
         this.onOpenDiscoveryCodex();
+        return;
+
+      case ROUTE_ACTIONS.OPEN_CALL_DIALOG:
+        e.preventDefault();
+        this.onOpenCallDialog();
         return;
 
       case ROUTE_ACTIONS.TRAP_FOCUS:

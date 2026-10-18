@@ -69,10 +69,22 @@ export function createMockNode(tagName = 'div') {
       listeners.set(event, list);
     }),
 
-    dispatchEvent: vi.fn((event) => {
+    dispatchEvent: vi.fn(function(event) {
+      try {
+        if (!event.target) {
+          Object.defineProperty(event, 'target', { value: node, configurable: true });
+        }
+      } catch (_) {}
       const handlers = listeners.get(event.type) || [];
       for (const h of handlers) {
         h(event);
+      }
+      if (event.bubbles) {
+        if (node.parentNode && typeof node.parentNode.dispatchEvent === 'function') {
+          node.parentNode.dispatchEvent(event);
+        } else if (globalThis.document && typeof globalThis.document.dispatchEvent === 'function' && node !== globalThis.document.body) {
+          globalThis.document.dispatchEvent(event);
+        }
       }
       return true;
     }),
@@ -93,6 +105,9 @@ export function createMockNode(tagName = 'div') {
       const handlers = listeners.get('click') || [];
       for (const h of handlers) {
         h({ type: 'click', target: node });
+      }
+      if (typeof node.onclick === 'function') {
+        node.onclick({ type: 'click', target: node, stopPropagation: () => {} });
       }
     }
   };
@@ -252,7 +267,8 @@ function matchesSelector(node, selector) {
 
   // ID セレクタ (#modal-id)
   if (selector.startsWith('#')) {
-    return node.id === selector.slice(1);
+    const id = selector.slice(1);
+    return node.id === id || (typeof node.getAttribute === 'function' && node.getAttribute('id') === id);
   }
   // クラスセレクタ (.btn, .filer-item-card.risk)
   if (selector.startsWith('.')) {
@@ -295,9 +311,35 @@ export function setupMockDom() {
 
   const bodyNode = createMockNode('body');
 
+  const docListeners = new Map();
+
   globalThis.document = {
     body: bodyNode,
-    createElement: (tag) => createMockNode(tag),
+    addEventListener: vi.fn((event, handler) => {
+      if (!docListeners.has(event)) docListeners.set(event, []);
+      docListeners.get(event).push(handler);
+    }),
+    removeEventListener: vi.fn((event, handler) => {
+      if (!docListeners.has(event)) return;
+      docListeners.set(event, docListeners.get(event).filter(h => h !== handler));
+    }),
+    dispatchEvent: vi.fn((event) => {
+      const handlers = docListeners.get(event.type) || [];
+      for (const h of handlers) {
+        h(event);
+      }
+      return true;
+    }),
+    createElement: (tag) => {
+      const Cls = registry.get(tag);
+      if (Cls) {
+        try {
+          const instance = new Cls();
+          return instance;
+        } catch (_) {}
+      }
+      return createMockNode(tag);
+    },
     getElementById: (id) => findMatchingNode(bodyNode, `#${id}`),
     querySelector: (sel) => findMatchingNode(bodyNode, sel),
     querySelectorAll: (sel) => {
@@ -307,6 +349,7 @@ export function setupMockDom() {
     },
     activeElement: null
   };
+  bodyNode.parentNode = globalThis.document;
 
   globalThis.customElements = {
     define: vi.fn((tag, cls) => registry.set(tag, cls)),

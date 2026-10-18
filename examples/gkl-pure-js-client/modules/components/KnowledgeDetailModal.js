@@ -1,4 +1,5 @@
 import { getAdaptiveItemSpecs } from "../../../../src/core/knowledge/presenters/ItemSpecPresenter.js";
+import { ItemCandidateResolver } from "../../../../src/core/knowledge/engines/ItemCandidateResolver.js";
 
 const ATTACK_TYPE_LABELS = {
   ja: {
@@ -202,6 +203,12 @@ export class KnowledgeDetailModal {
 
     this._boundKeyDown = (e) => {
       if (this.isVisible) {
+        // 最前面に命名ダイアログ等が開いている場合は親モーダル側のキー処理を抑制
+        const callDialog = typeof document !== 'undefined' ? document.getElementById('nh-call-candidate-dialog') : null;
+        if (callDialog && callDialog.open) {
+          return;
+        }
+
         const isInputFocused = e.target && e.target.tagName === 'INPUT';
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -225,12 +232,113 @@ export class KnowledgeDetailModal {
             e.preventDefault();
             e.stopPropagation();
             this.togglePeekWisdom();
+          } else if (e.key === 'c' || e.key === 'C') {
+            if (this._canCallItem()) {
+              e.preventDefault();
+              e.stopPropagation();
+              this.triggerCallItem();
+            }
+          } else if (e.key === 'n' || e.key === 'N') {
+            if (this._canNameArtifactItem()) {
+              e.preventDefault();
+              e.stopPropagation();
+              this.triggerNameItem();
+            }
           }
         }
       }
     };
 
     this._ensureDom();
+  }
+
+  /**
+   * 未鑑定アイテムで仮名（Call）がつけられる状態か判定（インベントリアイテム限定）
+   * @returns {boolean}
+   */
+  _canCallItem() {
+    const data = this.currentTarget;
+    if (!data) return false;
+    const isMonster = data.category === 'MONSTER' || Boolean(data.dangerLevel);
+    const isTerrain = data.category === 'TERRAIN' || Boolean(data.isTerrain);
+    if (isMonster || isTerrain) return false;
+
+    // 床アイテム等（インベントリレターがないもの）は命名不可
+    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
+    if (!letter) return false;
+
+    const id = data.identification || {};
+    return Boolean(data.isUnidentified || id.isUnidentified || data.knowledge?.isUnidentified);
+  }
+
+  /**
+   * 識別済みかつアーティファクト元アイテム（Name候補が存在する）状態か判定（インベントリアイテム限定）
+   * @returns {boolean}
+   */
+  _canNameArtifactItem() {
+    const data = this.currentTarget;
+    if (!data) return false;
+    const isMonster = data.category === 'MONSTER' || Boolean(data.dangerLevel);
+    const isTerrain = data.category === 'TERRAIN' || Boolean(data.isTerrain);
+    if (isMonster || isTerrain) return false;
+
+    // 床アイテム等（インベントリレターがないもの）は命名不可
+    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
+    if (!letter) return false;
+
+    const id = data.identification || {};
+    const isUnidentified = Boolean(data.isUnidentified || id.isUnidentified || data.knowledge?.isUnidentified);
+    if (isUnidentified) return false;
+
+    const onum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
+      (data.identification && typeof data.identification.onum === 'number') ? data.identification.onum :
+      (data.knowledge && typeof data.knowledge.onum === 'number') ? data.knowledge.onum : undefined;
+
+    const baseName = data.oc_name || data.nameEn || data.trueName || data.english || data.rawName || data.name;
+
+    return ItemCandidateResolver.hasArtifactCandidates({ onum, baseName });
+  }
+
+  /**
+   * 仮名（Call）ダイアログ起動イベントを発火
+   */
+  triggerCallItem() {
+    if (!this.currentTarget || !this.elModal) return;
+    const targetData = this.currentTarget;
+    const modalEl = this.elModal;
+    this.close();
+    modalEl.dispatchEvent(new CustomEvent('nh-knowledge-call-item', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        targetData,
+        mode: 'call',
+        onUpdate: (updated) => {
+          this.currentTarget = updated;
+        }
+      }
+    }));
+  }
+
+  /**
+   * アーティファクト個別命名（Name）ダイアログ起動イベントを発火
+   */
+  triggerNameItem() {
+    if (!this.currentTarget || !this.elModal) return;
+    const targetData = this.currentTarget;
+    const modalEl = this.elModal;
+    this.close();
+    modalEl.dispatchEvent(new CustomEvent('nh-knowledge-name-item', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        targetData,
+        mode: 'artifact_name',
+        onUpdate: (updated) => {
+          this.currentTarget = updated;
+        }
+      }
+    }));
   }
 
   togglePeekWisdom() {
@@ -462,6 +570,9 @@ export class KnowledgeDetailModal {
       if (resolved) {
         return {
           ...resolved,
+          identification: target.identification || resolved.identification,
+          calledName: target.calledName || target.identification?.calledName || resolved.calledName,
+          onum: (typeof target.onum === 'number' && target.onum >= 0) ? target.onum : resolved.onum,
           rawText: target.rawText || resolved.rawText,
           isWielded: target.isWielded ?? resolved.isWielded,
           isOffhand: target.isOffhand ?? resolved.isOffhand,
@@ -480,6 +591,7 @@ export class KnowledgeDetailModal {
         ...target.knowledge,
         rawText: target.rawText || target.knowledge.rawText,
         identification: target.identification || target.knowledge.identification,
+        calledName: target.calledName || target.identification?.calledName || target.knowledge.calledName,
         bucStatus: target.bucStatus || target.knowledge.bucStatus,
         isPile: isPile || Boolean(target.knowledge.isPile),
         extraPileCount: target.extraPileCount ?? target.knowledge.extraPileCount,
@@ -552,22 +664,51 @@ export class KnowledgeDetailModal {
     const trueNameRevealed = data.wisdomTrueName || data.trueName || (isEn ? (nameEn || data.name) : (nameJa || nameEn || data.name));
     const trueNameRevealedJa = data.wisdomTrueNameJa || data.trueNameJa || nameJa || trueNameRevealed;
 
+    const core = this.getCore();
+    const dsm = core?.gkl?.discoveryStateManager || null;
+    const targetOnum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
+      (id && typeof id.onum === 'number' && id.onum >= 0) ? id.onum :
+      (typeof target.onum === 'number' && target.onum >= 0) ? target.onum :
+      (target.knowledge && typeof target.knowledge.onum === 'number') ? target.knowledge.onum : -1;
+
+    const called = id.calledName || data.calledName || target.calledName ||
+      (dsm && targetOnum >= 0 && typeof dsm.getCalledName === 'function' ? dsm.getCalledName(targetOnum) : null) ||
+      (dsm && appNameEn && typeof dsm.getCalledName === 'function' ? dsm.getCalledName(appNameEn) : null) || null;
+
+    if (called) {
+      data.calledName = called;
+      target.calledName = called;
+      if (data.identification) {
+        data.identification.calledName = called;
+      }
+      if (target.identification) {
+        target.identification.calledName = called;
+      }
+    }
+
     let headerTitle = '';
     if (isUnid && !isWisdom) {
-      // 🕵️ 未識別（ネタバレ防止ガード）: 外見名のみ表示
-      if (!isEn) {
-        headerTitle = appearanceName || nameJa || data.name || '未鑑定のアイテム';
+      // 🕵️ 未識別（ネタバレ防止ガード）: 外見名 (+ 仮名) を表示
+      const baseTitle = !isEn ? (appearanceName || nameJa || data.name || '未鑑定のアイテム') : (appearanceName || nameEn || data.name || 'Unidentified Item');
+      if (called) {
+        headerTitle = !isEn ? `${baseTitle} [仮名: ${called}]` : `${baseTitle} called ${called}`;
       } else {
-        headerTitle = appearanceName || nameEn || data.name || 'Unidentified Item';
+        headerTitle = baseTitle;
       }
     } else if (isUnid && isWisdom) {
-      // 🧙 賢者の知恵モード / オンデマンド透視: 外見名 [真名] 併記
+      // 🧙 賢者の知恵モード / オンデマンド透視: 外見名 [真名] 併記 (+ 仮名)
       const dispTrue = (!isEn && trueNameRevealedJa) ? trueNameRevealedJa : trueNameRevealed;
       const baseApp = appearanceName || (!isEn ? (nameJa || data.name) : (nameEn || data.name));
+      let mainTitle = '';
       if (baseApp && dispTrue && baseApp.toLowerCase() !== dispTrue.toLowerCase()) {
-        headerTitle = `${baseApp} [${dispTrue}]`;
+        mainTitle = `${baseApp} [${dispTrue}]`;
       } else {
-        headerTitle = dispTrue || baseApp || (isEn ? 'Revealed Item' : '透視されたアイテム');
+        mainTitle = dispTrue || baseApp || (isEn ? 'Revealed Item' : '透視されたアイテム');
+      }
+      if (called) {
+        headerTitle = !isEn ? `${mainTitle} [仮名: ${called}]` : `${mainTitle} called ${called}`;
+      } else {
+        headerTitle = mainTitle;
       }
     } else {
       // 識別済みアイテムまたはモンスター/地形
@@ -716,10 +857,6 @@ export class KnowledgeDetailModal {
     const hasPile = isPile || extraPileCount > 0;
 
     let peekButtonHtml = '';
-    const targetOnum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
-      (data.identification && typeof data.identification.onum === 'number' && data.identification.onum >= 0) ? data.identification.onum :
-      (typeof target.onum === 'number' && target.onum >= 0) ? target.onum : -1;
-
     if (isUnid || isWisdom) {
       const core = this.getCore();
       const alm = core?.gkl?.adventureLogManager || core?.adventureLogManager;
@@ -739,6 +876,21 @@ export class KnowledgeDetailModal {
       }
     }
 
+    let callButtonHtml = '';
+    if (this._canCallItem()) {
+      callButtonHtml = `
+        <button id="btn-modal-call-item" style="background: rgba(168, 85, 247, 0.18); border: 1px solid rgba(192, 132, 252, 0.5); color: #c084fc; border-radius: 4px; padding: 3px 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; font-family: inherit;" title="${isEn ? 'Call / Add Note [c]' : '仮名をつける [c]'}">
+          🏷️ ${isEn ? 'Call' : '仮名'} <span style="font-size: 0.68rem; opacity: 0.8;">[c]</span>
+        </button>
+      `;
+    } else if (this._canNameArtifactItem()) {
+      callButtonHtml = `
+        <button id="btn-modal-name-item" style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(251, 191, 36, 0.5); color: #fbbf24; border-radius: 4px; padding: 3px 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; font-family: inherit;" title="${isEn ? 'Engrave Artifact Name [n]' : 'アーティファクト銘をつける [n]'}">
+          🗡️ ${isEn ? 'Name' : '銘をつける'} <span style="font-size: 0.68rem; opacity: 0.8;">[n]</span>
+        </button>
+      `;
+    }
+
     this.elModal.innerHTML = `
       <div class="knowledge-modal-dialog" role="dialog" aria-modal="true">
         <div class="knowledge-modal-header">
@@ -752,6 +904,7 @@ export class KnowledgeDetailModal {
             </div>
           </div>
           <div class="knowledge-header-right" style="display: flex; align-items: center; gap: 8px;">
+            ${callButtonHtml}
             ${peekButtonHtml}
             <button class="knowledge-modal-close" id="btn-knowledge-modal-close" title="${isEn ? 'Close [Esc / q]' : '閉じる [Esc / q]'}">×</button>
           </div>
@@ -802,6 +955,26 @@ export class KnowledgeDetailModal {
         e.stopPropagation();
         this.togglePeekWisdom();
       };
+    }
+
+    const btnCall = this.elModal.querySelector('#btn-modal-call-item');
+    if (btnCall) {
+      const handleCall = (e) => {
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+        this.triggerCallItem();
+      };
+      btnCall.onclick = handleCall;
+      btnCall.addEventListener('click', handleCall);
+    }
+
+    const btnName = this.elModal.querySelector('#btn-modal-name-item');
+    if (btnName) {
+      const handleName = (e) => {
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+        this.triggerNameItem();
+      };
+      btnName.onclick = handleName;
+      btnName.addEventListener('click', handleName);
     }
 
     // 検索入力イベント結線

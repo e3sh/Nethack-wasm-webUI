@@ -593,6 +593,141 @@ describe('NhKnowledgeCard (<nh-knowledge-card>)', () => {
     expect(card.isPeekRevealed).toBe(true);
     expect(card.shadowRoot.innerHTML).toContain('ルビー色の薬 [回復の薬]');
   });
+
+  it('未識別アイテムに仮名 (calledName) が設定されている場合、タイトルおよびスペック欄に仮名が表示されること', () => {
+    const card = new NhKnowledgeCard();
+    card.connectedCallback();
+
+    card.setTarget({
+      name: 'red potion',
+      appearanceName: 'red potion',
+      category: 'POTION',
+      isUnidentified: true,
+      calledName: 'healing?'
+    });
+
+    const html = card.shadowRoot.innerHTML;
+    expect(html).toContain('called "healing?"');
+    expect(html).toContain('プレイヤー命名 (仮名)');
+  });
+
+  describe('命名アシスト＆個別命名ボタン連携 (ROADMAP §2.1)', () => {
+    it('未鑑定アイテムの場合に [仮名] ボタンが表示され、クリックで nh-knowledge-call-item を発火すること', () => {
+      const card = new NhKnowledgeCard();
+      card.connectedCallback();
+
+      const callSpy = vi.fn();
+      card.addEventListener('nh-knowledge-call-item', callSpy);
+
+      card.setTarget({
+        name: 'scroll labeled ZELGO MER',
+        appearanceName: 'scroll labeled ZELGO MER',
+        category: 'SCROLL',
+        letter: 'a',
+        isUnidentified: true
+      });
+
+      const callBtn = card.shadowRoot.querySelector('#callItemBtn');
+      expect(callBtn).toBeTruthy();
+      expect(callBtn.textContent).toContain('仮名');
+
+      callBtn.click();
+      expect(callSpy).toHaveBeenCalledTimes(1);
+      expect(callSpy.mock.calls[0][0].detail.mode).toBe('call');
+      expect(callSpy.mock.calls[0][0].detail.targetData.name).toBe('scroll labeled ZELGO MER');
+    });
+
+    it('未鑑定アイテムで c キーを押下したときに nh-knowledge-call-item が発火すること', () => {
+      const card = new NhKnowledgeCard();
+      card.connectedCallback();
+
+      const callSpy = vi.fn();
+      card.addEventListener('nh-knowledge-call-item', callSpy);
+
+      card.setTarget({
+        name: 'smoky potion',
+        category: 'POTION',
+        letter: 'b',
+        isUnidentified: true
+      });
+
+      card._handleKeyDown({ key: 'c', preventDefault: vi.fn(), stopPropagation: vi.fn() });
+      expect(callSpy).toHaveBeenCalledTimes(1);
+      expect(callSpy.mock.calls[0][0].detail.mode).toBe('call');
+    });
+
+    it('アーティファクト元アイテム（識別済み long sword）の場合に [銘をつける] ボタンが表示され、クリックで nh-knowledge-name-item を発火すること', () => {
+      const card = new NhKnowledgeCard();
+      card.connectedCallback();
+
+      const nameSpy = vi.fn();
+      card.addEventListener('nh-knowledge-name-item', nameSpy);
+
+      card.setTarget({
+        name: 'long sword',
+        onum: 54,
+        category: 'WEAPON',
+        letter: 'c',
+        isUnidentified: false
+      });
+
+      const nameBtn = card.shadowRoot.querySelector('#nameItemBtn');
+      expect(nameBtn).toBeTruthy();
+      expect(nameBtn.textContent).toContain('銘');
+
+      // 仮名ボタンは表示されない
+      expect(card.shadowRoot.querySelector('#callItemBtn')).toBeNull();
+
+      nameBtn.click();
+      expect(nameSpy).toHaveBeenCalledTimes(1);
+      expect(nameSpy.mock.calls[0][0].detail.mode).toBe('artifact_name');
+      expect(nameSpy.mock.calls[0][0].detail.targetData.name).toBe('long sword');
+    });
+
+    it('アーティファクト元アイテムで n キーを押下したときに nh-knowledge-name-item が発火すること', () => {
+      const card = new NhKnowledgeCard();
+      card.connectedCallback();
+
+      const nameSpy = vi.fn();
+      card.addEventListener('nh-knowledge-name-item', nameSpy);
+
+      card.setTarget({
+        name: 'athame',
+        category: 'WEAPON',
+        letter: 'd',
+        isUnidentified: false
+      });
+
+      card._handleKeyDown({ key: 'n', preventDefault: vi.fn(), stopPropagation: vi.fn() });
+      expect(nameSpy).toHaveBeenCalledTimes(1);
+      expect(nameSpy.mock.calls[0][0].detail.mode).toBe('artifact_name');
+    });
+
+    it('アーティファクト候補が存在しない通常アイテムやモンスターでは命名ボタンが表示されないこと', () => {
+      const card = new NhKnowledgeCard();
+      card.connectedCallback();
+
+      // 通常アイテム（food ration）
+      card.setTarget({
+        name: 'food ration',
+        category: 'FOOD',
+        letter: 'e',
+        isUnidentified: false
+      });
+      expect(card.shadowRoot.querySelector('#callItemBtn')).toBeNull();
+      expect(card.shadowRoot.querySelector('#nameItemBtn')).toBeNull();
+
+      // モンスター
+      card.setTarget({
+        name: 'jackal',
+        category: 'MONSTER',
+        dangerLevel: 'LOW'
+      });
+      expect(card.shadowRoot.querySelector('#callItemBtn')).toBeNull();
+      expect(card.shadowRoot.querySelector('#nameItemBtn')).toBeNull();
+    });
+  });
 });
+
 
 

@@ -25,6 +25,7 @@ export const ROUTE_ACTIONS = {
   TEXT_WINDOW_DISMISS: 'TEXT_WINDOW_DISMISS',
   OPEN_KNOWLEDGE_INSPECTOR: 'OPEN_KNOWLEDGE_INSPECTOR',
   OPEN_DISCOVERY_CODEX: 'OPEN_DISCOVERY_CODEX',
+  OPEN_CALL_DIALOG: 'OPEN_CALL_DIALOG',
   PASSTHROUGH_GAME_KEY: 'PASSTHROUGH_GAME_KEY'
 };
 
@@ -147,7 +148,7 @@ export class InputCoordinator {
     }
 
     // 10. 📚 標準操作プログレッシブ拡張 (Phase 7: Native Command Progressive Enhancement)
-    // 通常プレイ中（モーダル/メニュー/テキスト入力非表示時）の '/' (What is this?) および '\' (Known objects)
+    // 通常プレイ中（モーダル/メニュー/テキスト入力非表示時）の '/' (What is this?), '\' (Known objects)
     if (!context.bypassEnhancedSignals && !ctrlKey && !altKey) {
       if (key === '/') {
         return { action: ROUTE_ACTIONS.OPEN_KNOWLEDGE_INSPECTOR };

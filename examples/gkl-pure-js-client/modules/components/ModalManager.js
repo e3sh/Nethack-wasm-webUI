@@ -6,6 +6,8 @@ import { GenocideService, GENOCIDE_PRESETS, MONSTER_CLASS_DEFINITIONS } from "..
 import { PolymorphService } from "../../../../src/core/knowledge/services/PolymorphService.js";
 import { WriteService } from "../../../../src/core/knowledge/services/WriteService.js";
 import { PostMortemKnowledgeResolver } from "../../../../src/core/knowledge/services/PostMortemKnowledgeResolver.js";
+import { ItemCandidateResolver } from "../../../../src/core/knowledge/engines/ItemCandidateResolver.js";
+import { CustomNameStore } from "../../../../src/core/knowledge/state/CustomNameStore.js";
 import { CharacterIntroModal } from "./CharacterIntroModal.js";
 
 export class ModalManager {
@@ -88,6 +90,8 @@ export class ModalManager {
     this.isDirectionPromptActive = false;
     this.activeMenuFocusIndex = 0;
     this.selectableMenuButtons = [];
+
+    this._initKnowledgeCardNamingListeners();
   }
 
   setLanguage(lang) {
@@ -179,7 +183,7 @@ export class ModalManager {
     if (this.isGameExited) return;
 
     const category = data.category || data.promptCategory || 'OTHER';
-    const rawPrompt = data.prompt || data.message || data.question || '';
+    const rawPrompt = data.rawPrompt || data.prompt || data.promptText || data.message || data.question || '';
     const items = data.menuItems || data.items || [];
     const textLines = data.lines || [];
     const core = this.getCore();
@@ -545,6 +549,10 @@ export class ModalManager {
     if (this.elGenocideModal) this.elGenocideModal.classList.add('hidden');
     if (this.elPolymorphModal) this.elPolymorphModal.classList.add('hidden');
     if (this.elWriteModal) this.elWriteModal.classList.add('hidden');
+    const callDialog = typeof document !== 'undefined' ? document.getElementById('nh-call-candidate-dialog') : null;
+    if (callDialog && callDialog.open) {
+      callDialog.close();
+    }
     const suggestDropdown = document.getElementById('wish-suggest-dropdown');
     if (suggestDropdown) suggestDropdown.classList.remove('active');
     const genocideSuggest = document.getElementById('genocide-suggest-dropdown');
@@ -553,6 +561,318 @@ export class ModalManager {
     if (polySuggest) polySuggest.style.display = 'none';
     this.isTextWindowMode = false;
   }
+
+  /**
+   * ナレッジカード（<nh-knowledge-card>）およびナレッジ詳細モーダルからの命名イベントリスナーの初期化
+   * (ROADMAP §2.1 ナレッジUIからの直接命名起動)
+   */
+  _initKnowledgeCardNamingListeners() {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+
+    // 1. 仮名をつける (Call)
+    document.addEventListener('nh-knowledge-call-item', (e) => {
+      const targetData = e.detail?.targetData;
+      if (!targetData) return;
+      this.openDirectCallDialog(targetData, e.target, e.detail?.onUpdate);
+    });
+
+    // 2. アーティファクト個別命名 (Name)
+    document.addEventListener('nh-knowledge-name-item', (e) => {
+      const targetData = e.detail?.targetData;
+      if (!targetData) return;
+      this.openDirectArtifactNameDialog(targetData, e.target, e.detail?.onUpdate);
+    });
+  }
+
+  /**
+   * ナレッジダイアログからの直接仮名ダイアログ起動
+   * @param {Object} targetData 
+   * @param {HTMLElement} [cardEl] 
+   * @param {Function} [onUpdate] 
+   */
+  openDirectCallDialog(targetData, cardEl = null, onUpdate = null) {
+    const core = this.getCore();
+    const discoveryStateManager = core?.gkl?.discoveryStateManager || null;
+
+    const category = ItemCandidateResolver.resolveCategory(targetData) || targetData.category || 'OBJECT';
+    const appearance = targetData.appearanceName || targetData.appearance || targetData.name || '';
+    const targetName = targetData.name || appearance;
+
+    // 候補アイテムの算出 (未識別優先、価格帯、直前効果メッセージヒント)
+    const result = ItemCandidateResolver.resolveCandidates({
+      category,
+      appearance,
+      onum: targetData.onum,
+      discoveryStateManager,
+      excludeDiscovered: true
+    });
+
+    let dialog = typeof document !== 'undefined' ? document.getElementById('nh-call-candidate-dialog') : null;
+    if (!dialog && typeof document !== 'undefined') {
+      dialog = document.createElement('nh-call-candidate-dialog');
+      dialog.id = 'nh-call-candidate-dialog';
+      document.body.appendChild(dialog);
+    }
+    if (!dialog) return;
+
+    const currentCall = targetData.calledName || targetData.identification?.calledName || '';
+
+    dialog.setData({
+      targetName,
+      targetCategory: category,
+      candidates: result.candidates,
+      shorthands: result.shorthands,
+      currentCall,
+      mode: 'call'
+    });
+
+    const onSubmit = (e) => {
+      dialog.removeEventListener('nh-call-submit', onSubmit);
+      dialog.removeEventListener('nh-call-cancel', onCancel);
+      dialog.close();
+      const chosenName = e.detail?.name || '';
+
+      // 仮名ストアおよび DiscoveryStateManager / WasmDirectBindingService への即時反映
+      const onum = (typeof targetData.onum === 'number' && targetData.onum >= 0) ? targetData.onum :
+        (targetData.identification && typeof targetData.identification.onum === 'number') ? targetData.identification.onum :
+        (targetData.knowledge && typeof targetData.knowledge.onum === 'number') ? targetData.knowledge.onum : -1;
+      const wasmDirectBindingService = core?.gkl?.wasmDirectBindingService || null;
+
+      try {
+        const store = CustomNameStore.getInstance({ discoveryStateManager });
+        const targetKey = targetData.name || appearance;
+        store.setCustomName(targetKey, chosenName, { category });
+        if (appearance && appearance !== targetKey) {
+          store.setCustomName(appearance, chosenName, { category });
+        }
+        if (discoveryStateManager && typeof discoveryStateManager.setCalledName === 'function') {
+          discoveryStateManager.setCalledName(targetKey, chosenName);
+          if (appearance) {
+            discoveryStateManager.setCalledName(appearance, chosenName);
+          }
+          if (onum >= 0) {
+            discoveryStateManager.setCalledName(`onum:${onum}`, chosenName);
+          }
+        }
+        if (wasmDirectBindingService && typeof wasmDirectBindingService.setCachedObjectUname === 'function' && onum >= 0) {
+          wasmDirectBindingService.setCachedObjectUname(onum, chosenName || null);
+        }
+      } catch (_) {}
+
+      // 開いているカード・モーダルの表示を即時更新
+      targetData.calledName = chosenName;
+      if (targetData.identification) {
+        targetData.identification.calledName = chosenName;
+      }
+      if (typeof onUpdate === 'function') {
+        onUpdate(targetData);
+      }
+      if (cardEl && typeof cardEl.setTarget === 'function') {
+        cardEl.setTarget(targetData);
+      }
+
+      // Cコア（NetHack）仕様: 空文字での getlin 応答はキャンセル扱いになるため、リセット時はスペース1文字を送出する
+      const coreNameToSend = chosenName ? chosenName.trim() : ' ';
+
+      // Cコアへの能動的コマンドシーケンス送信またはプロンプト応答
+      if (core && core.currentPrompt) {
+        core.respond(coreNameToSend);
+      } else if (core) {
+        const letter = targetData.letter || targetData.invlet || targetData.item?.letter || targetData.item?.invlet;
+        if (letter) {
+          const seq = ['C', 'o', letter, coreNameToSend];
+          if (typeof core.executeSequence === 'function') {
+            core.executeSequence(seq);
+          } else if (typeof core.sendKeySequence === 'function') {
+            core.sendKeySequence(seq);
+          }
+        }
+      }
+
+      // 即時同期および C コア非同期反映後の追従再描画
+      const triggerInventorySync = async () => {
+        if (wasmDirectBindingService && typeof wasmDirectBindingService.syncFromWorkerBridge === 'function') {
+          try {
+            await wasmDirectBindingService.syncFromWorkerBridge({
+              syncInventory: true,
+              syncDiscoveries: true,
+              extraUnameOnums: onum >= 0 ? [onum] : []
+            });
+          } catch (_) {}
+        }
+        if (discoveryStateManager && typeof discoveryStateManager.syncWithLiveMemory === 'function' && wasmDirectBindingService) {
+          discoveryStateManager.syncWithLiveMemory(wasmDirectBindingService);
+        }
+        if (core?.gkl?.inventoryStateManager) {
+          core.gkl.inventoryStateManager.isSynced = false;
+          if (typeof core.gkl.inventoryStateManager.syncFromDirectBinding === 'function') {
+            core.gkl.inventoryStateManager.syncFromDirectBinding();
+          }
+        }
+        if (core && typeof core.emit === 'function') {
+          core.emit('inventoryStateUpdated', core.gkl?.inventoryStateManager);
+          core.emit('displayUpdate');
+        }
+      };
+
+      // 即座にインベントリ同期とUI通知を実行
+      if (core?.gkl?.inventoryStateManager) {
+        core.gkl.inventoryStateManager.isSynced = false;
+        if (typeof core.gkl.inventoryStateManager.syncFromDirectBinding === 'function') {
+          core.gkl.inventoryStateManager.syncFromDirectBinding();
+        }
+      }
+      if (core && typeof core.emit === 'function') {
+        core.emit('inventoryStateUpdated', core.gkl?.inventoryStateManager);
+        core.emit('displayUpdate');
+      }
+
+      // C コア側の非同期処理完了に合わせた追従同期
+      if (typeof setTimeout !== 'undefined') {
+        setTimeout(triggerInventorySync, 60);
+        setTimeout(triggerInventorySync, 200);
+      }
+    };
+
+    const onCancel = () => {
+      dialog.removeEventListener('nh-call-submit', onSubmit);
+      dialog.removeEventListener('nh-call-cancel', onCancel);
+      dialog.close();
+    };
+
+    dialog.addEventListener('nh-call-submit', onSubmit);
+    dialog.addEventListener('nh-call-cancel', onCancel);
+    dialog.open = true;
+  }
+
+  /**
+   * ナレッジダイアログからの直接アーティファクト個別命名ダイアログ起動
+   * @param {Object} targetData 
+   * @param {HTMLElement} [cardEl] 
+   * @param {Function} [onUpdate] 
+   */
+  openDirectArtifactNameDialog(targetData, cardEl = null, onUpdate = null) {
+    const core = this.getCore();
+    const discoveryStateManager = core?.gkl?.discoveryStateManager || null;
+
+    const onum = (typeof targetData.onum === 'number' && targetData.onum >= 0) ? targetData.onum :
+      (targetData.identification && typeof targetData.identification.onum === 'number') ? targetData.identification.onum :
+      (targetData.knowledge && typeof targetData.knowledge.onum === 'number') ? targetData.knowledge.onum : undefined;
+
+    const baseName = targetData.oc_name || targetData.nameEn || targetData.trueName || targetData.english || targetData.rawName || targetData.name || '';
+    const role = core?.gkl?.statusAccessor?.role || null;
+    const alignment = core?.gkl?.statusAccessor?.alignment || null;
+
+    const candidates = ItemCandidateResolver.resolveArtifactCandidates({
+      onum,
+      baseName,
+      role,
+      alignment
+    });
+
+    let dialog = typeof document !== 'undefined' ? document.getElementById('nh-call-candidate-dialog') : null;
+    if (!dialog && typeof document !== 'undefined') {
+      dialog = document.createElement('nh-call-candidate-dialog');
+      dialog.id = 'nh-call-candidate-dialog';
+      document.body.appendChild(dialog);
+    }
+    if (!dialog) return;
+
+    const currentCall = targetData.customName || targetData.artifactName || targetData.calledName || '';
+
+    dialog.setData({
+      targetName: targetData.name || baseName,
+      targetCategory: targetData.category || 'WEAPON',
+      candidates,
+      shorthands: candidates.map(c => c.name),
+      currentCall,
+      mode: 'artifact_name'
+    });
+
+    const onSubmit = (e) => {
+      dialog.removeEventListener('nh-call-submit', onSubmit);
+      dialog.removeEventListener('nh-call-cancel', onCancel);
+      dialog.close();
+      const chosenName = e.detail?.name || '';
+
+      // 個別名ストアおよび DiscoveryStateManager への即時反映
+      try {
+        const store = CustomNameStore.getInstance({ discoveryStateManager });
+        const targetKey = targetData.name || baseName;
+        store.setCustomName(targetKey, chosenName, { category: targetData.category });
+        if (discoveryStateManager && typeof discoveryStateManager.setCalledName === 'function') {
+          discoveryStateManager.setCalledName(targetKey, chosenName);
+          if (typeof targetData.onum === 'number' && targetData.onum >= 0) {
+            discoveryStateManager.setCalledName(`onum:${targetData.onum}`, chosenName);
+          }
+        }
+      } catch (_) {}
+
+      // 開いているカード・モーダルの表示を即時更新
+      targetData.customName = chosenName;
+      targetData.artifactName = chosenName;
+      if (chosenName) {
+        targetData.calledName = chosenName;
+      } else {
+        delete targetData.calledName;
+      }
+      if (typeof onUpdate === 'function') {
+        onUpdate(targetData);
+      }
+      if (cardEl && typeof cardEl.setTarget === 'function') {
+        cardEl.setTarget(targetData);
+      }
+
+      // Cコア（NetHack）仕様: 空文字での getlin 応答はキャンセル扱いになるため、リセット時はスペース1文字を送出する
+      const coreNameToSend = chosenName ? chosenName.trim() : ' ';
+
+      // Cコアへの能動的コマンドシーケンス送信またはプロンプト応答
+      if (core && core.currentPrompt) {
+        core.respond(coreNameToSend);
+      } else if (core) {
+        const letter = targetData.letter || targetData.invlet || targetData.item?.letter || targetData.item?.invlet;
+        if (letter) {
+          const seq = ['C', 'i', letter, coreNameToSend];
+          if (typeof core.executeSequence === 'function') {
+            core.executeSequence(seq);
+          } else if (typeof core.sendKeySequence === 'function') {
+            core.sendKeySequence(seq);
+          }
+        }
+      }
+
+      // 即時同期および C コア非同期反映後の追従再描画
+      const triggerInventorySync = () => {
+        if (core?.gkl?.inventoryStateManager) {
+          core.gkl.inventoryStateManager.isSynced = false;
+          if (typeof core.gkl.inventoryStateManager.syncFromDirectBinding === 'function') {
+            core.gkl.inventoryStateManager.syncFromDirectBinding();
+          }
+        }
+        if (core && typeof core.emit === 'function') {
+          core.emit('inventoryStateUpdated');
+          core.emit('displayUpdate');
+        }
+      };
+
+      triggerInventorySync();
+      if (typeof setTimeout !== 'undefined') {
+        setTimeout(triggerInventorySync, 50);
+        setTimeout(triggerInventorySync, 200);
+      }
+    };
+
+    const onCancel = () => {
+      dialog.removeEventListener('nh-call-submit', onSubmit);
+      dialog.removeEventListener('nh-call-cancel', onCancel);
+      dialog.close();
+    };
+
+    dialog.addEventListener('nh-call-submit', onSubmit);
+    dialog.addEventListener('nh-call-cancel', onCancel);
+    dialog.open = true;
+  }
+
 
   showWishModal(data) {
     if (!this.elWishModal) return;

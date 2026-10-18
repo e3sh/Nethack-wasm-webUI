@@ -294,6 +294,41 @@ export class WasmSyncCoordinator {
                             // ignore shim call errors in fallback/unsupported scenarios
                         }
                     }
+
+                    // 5-d. 所持品アイテム（および指定onum）のプレイヤー仮名 (GET_OBJECT_UNAME) 同期
+                    if (discovery && typeof discovery.setCachedObjectUname === 'function') {
+                        const onumsToSync = new Set();
+                        if (inventory && Array.isArray(inventory.cachedInventory)) {
+                            for (const it of inventory.cachedInventory) {
+                                if (typeof it.onum === 'number' && it.onum >= 0) {
+                                    onumsToSync.add(it.onum);
+                                }
+                            }
+                        }
+                        if (Array.isArray(options.extraUnameOnums)) {
+                            for (const o of options.extraUnameOnums) {
+                                if (typeof o === 'number' && o >= 0) {
+                                    onumsToSync.add(o);
+                                }
+                            }
+                        }
+                        if (onumsToSync.size > 0) {
+                            await Promise.all([...onumsToSync].map(async (onum) => {
+                                try {
+                                    const uRes = await bridge.callShim(SHIM_CMD.GET_OBJECT_UNAME, onum, 0, 128, 'string');
+                                    if (isStale()) return;
+                                    if (uRes && uRes.result === 1 && typeof uRes.buffer === 'string' && uRes.buffer.trim().length > 0) {
+                                        discovery.setCachedObjectUname(onum, uRes.buffer.trim());
+                                    } else {
+                                        discovery.setCachedObjectUname(onum, null);
+                                    }
+                                } catch (e) {
+                                    // ignore shim call errors
+                                }
+                            }));
+                            if (isStale()) return false;
+                        }
+                    }
                 }
 
                 // 6. 足元 (x, y) の床アイテム一覧同期 (Stage 8.2-C / Stage 8.3-B)
@@ -532,13 +567,19 @@ export class WasmSyncCoordinator {
      * @param {boolean} hasLiveMemory
      * @param {Object} discoveryAdapter
      * @param {Object} memory
+     * @param {Array<number>} [extraOnums=[]]
      * @returns {Promise<boolean>}
      */
-    async syncDiscoveriesOnDemand(bridge, isAvailable, hasLiveMemory, discoveryAdapter, memory) {
+    async syncDiscoveriesOnDemand(bridge, isAvailable, hasLiveMemory, discoveryAdapter, memory, extraOnums = []) {
         if (!isAvailable) return false;
         if (hasLiveMemory && discoveryAdapter) {
             discoveryAdapter.getDiscoveries(memory, isAvailable, hasLiveMemory);
             discoveryAdapter.getDescrIndexes(memory, isAvailable, hasLiveMemory);
+            if (Array.isArray(extraOnums)) {
+                for (const onum of extraOnums) {
+                    discoveryAdapter.getObjectUname(onum, memory, isAvailable, hasLiveMemory);
+                }
+            }
             return true;
         }
         if (bridge && typeof bridge.callShim === 'function') {
@@ -551,6 +592,18 @@ export class WasmSyncCoordinator {
                 if (descrRes && typeof descrRes.result === 'number' && descrRes.result > 0 && Array.isArray(descrRes.buffer) && discoveryAdapter) {
                     const count = Math.min(descrRes.buffer.length, descrRes.result + 1);
                     discoveryAdapter.cachedDescrIndexes = new Int32Array(descrRes.buffer.slice(0, count));
+                }
+                if (Array.isArray(extraOnums) && extraOnums.length > 0 && discoveryAdapter && typeof discoveryAdapter.setCachedObjectUname === 'function') {
+                    await Promise.all(extraOnums.map(async (onum) => {
+                        try {
+                            const uRes = await bridge.callShim(SHIM_CMD.GET_OBJECT_UNAME, onum, 0, 128, 'string');
+                            if (uRes && uRes.result === 1 && typeof uRes.buffer === 'string' && uRes.buffer.trim().length > 0) {
+                                discoveryAdapter.setCachedObjectUname(onum, uRes.buffer.trim());
+                            } else {
+                                discoveryAdapter.setCachedObjectUname(onum, null);
+                            }
+                        } catch (e) {}
+                    }));
                 }
                 return true;
             } catch (e) {

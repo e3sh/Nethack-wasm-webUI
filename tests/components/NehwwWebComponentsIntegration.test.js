@@ -15,7 +15,7 @@ import { PaperdollModal } from '../../examples/gkl-pure-js-client/modules/compon
 import { ContainerModal } from '../../examples/gkl-pure-js-client/modules/components/ContainerModal.js';
 import { KeyHandler } from '../../examples/gkl-pure-js-client/modules/handlers/KeyHandler.js';
 import { UIConfigStore, PRESETS, ModalStackController } from '../../src/ui-controller/index.js';
-import { NhFloatingHud, NhModal, NhUiConfig } from '../../src/components/index.js';
+import { NhFloatingHud, NhModal, NhUiConfig, NhCallCandidateDialog } from '../../src/components/index.js';
 
 describe('Nehww Web Components Integration (Step 4 逆輸入連携)', () => {
   let restoreDom;
@@ -147,5 +147,28 @@ describe('Nehww Web Components Integration (Step 4 逆輸入連携)', () => {
     const keyHandler = new KeyHandler({});
     expect(nhModal.setModalStack).toHaveBeenCalledWith(keyHandler.modalStack);
     expect(keyHandler.modalStack.modals.has('settings')).toBe(true);
+  });
+
+  it('6. KeyHandler と <nh-call-candidate-dialog> の命名アシスト連携が動作すること', () => {
+    const dialog = new NhCallCandidateDialog();
+    const onOpenCallDialogSpy = vi.fn();
+
+    const keyHandler = new KeyHandler({
+      getCallCandidateDialog: () => dialog,
+      onOpenCallDialog: onOpenCallDialogSpy
+    });
+
+    // ダイアログが開いている状態で Escape を押すと最前面モーダルとして閉じられること
+    dialog.open = true;
+    expect(dialog.open).toBe(true);
+    expect(keyHandler.modalStack.getTopModal()?.id).toBe('callCandidateDialog');
+
+    keyHandler.handleGlobalKeyDown({
+      key: 'Escape',
+      code: 'Escape',
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    });
+    expect(dialog.open).toBe(false);
   });
 });

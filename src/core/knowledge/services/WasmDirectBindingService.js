@@ -294,6 +294,15 @@ export class WasmDirectBindingService {
     }
 
     /**
+     * テスト用 / Worker 受信用 プレイヤー仮名キャッシュ設定
+     * @param {number} onum
+     * @param {string|null} uname
+     */
+    setCachedObjectUname(onum, uname) {
+        this.discoveryAdapter.setCachedObjectUname(onum, uname);
+    }
+
+    /**
      * 全アイテムの現在の外見インデックス (objects[i].oc_descr_idx) 配列を取得
      * @returns {Int32Array|null} 各 onum の現在の外見インデックス (appearanceOnum)
      */
@@ -408,15 +417,25 @@ export class WasmDirectBindingService {
 
     /**
      * 発見状態 (DUMP_DISCOVERIES / DUMP_DESCR_INDEXES) のオンデマンド同期 (開くときトリガー)
+     * @param {Array<number>} [extraOnums=[]]
      * @returns {Promise<boolean>}
      */
-    async syncDiscoveriesOnDemand() {
+    async syncDiscoveriesOnDemand(extraOnums = []) {
+        const onums = new Set(Array.isArray(extraOnums) ? extraOnums : []);
+        if (this._cachedInventory && Array.isArray(this._cachedInventory)) {
+            for (const it of this._cachedInventory) {
+                if (typeof it.onum === 'number' && it.onum >= 0) {
+                    onums.add(it.onum);
+                }
+            }
+        }
         return await this.syncCoordinator.syncDiscoveriesOnDemand(
             this.bridge,
             this.isAvailable(),
             this.hasLiveMemory,
             this.discoveryAdapter,
-            this.memory
+            this.memory,
+            [...onums]
         );
     }
 

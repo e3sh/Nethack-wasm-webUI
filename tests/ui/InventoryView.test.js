@@ -267,6 +267,23 @@ describe('InventoryView - アイテム操作・サブメニュー・ナレッジ
     expect(gridElement.innerHTML).toContain('>🧙</span>');
     expect(gridElement.innerHTML).not.toContain('badge-buc-unid');
   });
+
+  it('仮名（calledName）が設定されているアイテムのホバー時にツールチップに仮名バッジが表示されること', () => {
+    const itemCalled = {
+      letter: 'c',
+      name: 'ruby potion',
+      rawText: 'a ruby potion called healing?',
+      identification: { isUnidentified: true, calledName: 'healing?' }
+    };
+    const tooltipTags = { innerHTML: '' };
+    inventoryView.elGklTtTags = tooltipTags;
+    inventoryView.renderGklInventory({ items: [itemCalled] });
+
+    const slotC = mockSlots['c'];
+    slotC.onmouseenter();
+
+    expect(tooltipTags.innerHTML).toContain('🏷️ 仮名: healing?');
+  });
 });
 
 

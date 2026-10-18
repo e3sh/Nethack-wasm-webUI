@@ -138,6 +138,15 @@ describe('InputCoordinator (Headless Input Routing)', () => {
     expect(resQuestion.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
     expect(resQuestion.payload?.key).toBe('?');
 
+    // 'C' (Call) キーは NetHack のゲームコマンドとして C コアへパススルーされること
+    const resCall = coordinator.evaluateKeyDown({ key: 'C', code: 'KeyC', shiftKey: true });
+    expect(resCall.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
+    expect(resCall.payload?.key).toBe('C');
+
+    // 小文字 'c' は close コマンドなので PASSTHROUGH_GAME_KEY になること
+    const resClose = coordinator.evaluateKeyDown({ key: 'c', code: 'KeyC', shiftKey: false });
+    expect(resClose.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
+
     // Shift + Backslash ('|') は PASSTHROUGH_GAME_KEY になること
     const resPipe = coordinator.evaluateKeyDown({ key: '|', code: 'Backslash', shiftKey: true });
     expect(resPipe.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);

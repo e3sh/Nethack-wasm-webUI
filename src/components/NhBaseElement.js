@@ -44,6 +44,8 @@ const BaseClass = typeof HTMLElement !== 'undefined'
         }
         return this.shadowRoot;
       }
+      get id() { return this.getAttribute('id') || ''; }
+      set id(val) { this.setAttribute('id', val); }
       getAttribute(name) { return this.attributes.get(name) || null; }
       setAttribute(name, val) {
         const old = this.attributes.get(name);
@@ -61,8 +63,20 @@ const BaseClass = typeof HTMLElement !== 'undefined'
       }
       hasAttribute(name) { return this.attributes.has(name); }
       dispatchEvent(ev) {
+        try {
+          if (!ev.target) {
+            Object.defineProperty(ev, 'target', { value: this, configurable: true });
+          }
+        } catch (_) {}
         const handlers = this._listeners.get(ev.type) || [];
         for (const h of handlers) h(ev);
+        if (ev.bubbles) {
+          if (this.parentNode && typeof this.parentNode.dispatchEvent === 'function') {
+            this.parentNode.dispatchEvent(ev);
+          } else if (typeof document !== 'undefined' && typeof document.dispatchEvent === 'function') {
+            document.dispatchEvent(ev);
+          }
+        }
         return true;
       }
       addEventListener(evt, h) {

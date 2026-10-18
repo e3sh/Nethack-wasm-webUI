@@ -385,12 +385,12 @@ Phase 8 の C 構造体メモリ直結（`SHIM_DIRECT`）が有効な場合、�
 
 ## ⑦ ギャップ分析と解消状況 (Capability Gaps & Resolution Status)
 
-初期監査で抽出された 4 大ギャップのうち、**ギャップ 1・3・4 は Phase 7 にて実装完了**、さらに **床アイテムの覗き見知恵（Peek Wisdom）も Stage 8.5 にて完全実装** されました。残る **ギャップ 2（命名アシスト）** も Phase 8 完遂により前提条件がすべて整い、着手可能（Ready）となっています。
+初期監査で抽出された 4 大ギャップ（ギャップ 1: ディスカバリー図鑑、ギャップ 2: 命名アシスト、ギャップ 3: WASM動的文学引用、ギャップ 4: 冒険手帳ダッシュボード）および床アイテム覗き見知恵（Peek Wisdom）は、**すべて 100% 実装完了** しました。
 
 | ギャップ項目 | 状態 | 実装・解決内容 |
 | :--- | :---: | :--- |
 | **ギャップ 1: `\` コマンド（ディスカバリー）の図鑑UI連携** | **✅ 実装完了**<br>*(Phase 7-1)* | `<nh-discovery-codex>` により、ゲーム内で発見済みアイテムの「真名 ⇄ 外見」対照表・基本価格・カテゴリ絞り込みを即時閲覧可能。さらに Stage 8.2-C の `SHIM_CMD_DUMP_DESCR_INDEXES` でメモリ直結化も完了。 |
-| **ギャップ 2: アイテム候補逆引きからの命名支援 ＆ GamePad候補選択** | **⏸️ 着手可能 (Ready)**<br>*(Phase 7-3 / ROADMAP 2.3)* | Phase 8 完遂（`SHIM_CMD_GET_OBJECT_AT` / `DUMP_ALL_INVENT` による価格・オブジェクト情報直結）により、テキストパース不要で `ItemCandidateResolver` ＋ `<nh-call-candidate-dialog>` を実装可能。次期フォーカス候補。 |
+| **ギャップ 2: アイテム候補逆引きからの命名支援 ＆ GamePad候補選択** | **✅ 実装完了**<br>*(Phase 7-3 / ROADMAP §2.1)* | `ItemCandidateResolver.js` (価格帯・効果・既知除外) ＋ `CustomNameStore.js` ＋ `<nh-call-candidate-dialog>` ＋ `InputCoordinator` 連携により、テキストパース不要でキーボード・ゲームパッドからワンタップで候補仮名を選択・命名可能。 |
 | **ギャップ 3: WASM 動的文学引用（`data.base`）のオンデマンド閲覧 UI** | **✅ 実装完了**<br>*(Phase 7-1)* | `OnDemandLookupService.js` および `<nh-knowledge-card>` の第3層「文学・伝承引用」セクションとして完全接続済み（LRUキャッシュ＋日本語対訳対応）。 |
 | **ギャップ 4: セッション横断の図鑑収集率（知のメタ進行）ダッシュボード** | **✅ 実装完了**<br>*(Phase 7-2)* | `AdventureLogManager.js`、`<nh-codex-grid>`、および独立ツール `tools/adventure_log.html` / `tools/scoreboard.html` として完全実装済み。 |
 | **【追加】床アイテム覗き見知恵 (Peek Wisdom) 統合** | **✅ 実装完了**<br>*(Phase 8 Stage 8.5)* | `SHIM_CMD_GET_OBJECT_AT` から `ItemSpecPresenter` へ接続し、床に置かれたアイテムの数量、強化値、残チャージ、対象生物種別、BUC を動的バッジ化。 |
@@ -399,5 +399,5 @@ Phase 8 の C 構造体メモリ直結（`SHIM_DIRECT`）が有効な場合、�
 
 ## 8. まとめ
 
-NetHack WASM WebUI は、「通信・同期（Phase 8 Direct Binding + IRC）」「状態解析」「データ・伝承」「UI調停（Headless UI + Web Components）」「マルチドライバ音響（Phase 6）」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャ（全149スイート・1,811テスト 100% PASS）を保有しています。  
-Phase 8 が完遂された現在、新規に車輪を再発明することなく、**本カタログに記載された現有能力と Phase 8 メモリ直結基盤を活用して、命名アシストやセマンティックUI等のモダンなプレイヤー体験を迅速に構築すること** が最短かつ最も堅牢な進化ルートとなります。
+NetHack WASM WebUI は、「通信・同期（Phase 8 Direct Binding + IRC）」「状態解析」「データ・伝承」「UI調停（Headless UI + Web Components）」「マルチドライバ音響（Phase 6）」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャ（全158スイート・1,984テスト 100% PASS）を保有しています。  
+初期の全ギャップおよび Phase 8 メモリ直結基盤が完遂された現在、**強固な土台の上でセマンティックUIやモダンインベントリダイアログ等の次期構想へ安心して邁進できる状態** が整いました。

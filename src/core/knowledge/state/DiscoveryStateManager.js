@@ -14,7 +14,7 @@
 import { OBJECT_TILEMAP_NAMES } from "../data/tilemappings_data.js";
 import { OBJECT_KNOWLEDGE_MAP } from "../data/OBJECT_KNOWLEDGE_FULL.js";
 import { DISCOVERY_MESSAGE_MAP } from "../data/DISCOVERY_MESSAGE_MAP.js";
-import { APPEARANCE_PATTERNS } from "../engines/ItemIdentificationResolver.js";
+import { APPEARANCE_PATTERNS, ItemIdentificationResolver } from "../engines/ItemIdentificationResolver.js";
 import { setDescrIndexesForTileMapping } from "../../../driver/tileMapping.js";
 
 // 初回から真名が自明な非ランダム外見カテゴリ（食料、基本道具など）
@@ -49,6 +49,8 @@ export class DiscoveryStateManager {
         this.calledNamesMap = new Map();
         // 翻訳エンジン (TranslationEngine)
         this.translator = options.translator || options.translationEngine || null;
+        // WasmDirectBindingService (Cコア真値直読用)
+        this.wasmDirectBindingService = options.wasmDirectBindingService || null;
         // インベントリマネージャー (InventoryStateManager)
         this.inventoryStateManager = options.inventoryStateManager || null;
         // 冒険手帳マネージャー (AdventureLogManager)
@@ -68,6 +70,14 @@ export class DiscoveryStateManager {
      */
     setTranslationEngine(translator) {
         this.translator = translator;
+    }
+
+    /**
+     * WasmDirectBindingService の設定・更新 (Stage 8.2)
+     * @param {Object} service 
+     */
+    setWasmDirectBindingService(service) {
+        this.wasmDirectBindingService = service;
     }
 
     /**
@@ -207,6 +217,8 @@ export class DiscoveryStateManager {
 
         const newDiscoveredOnums = [];
 
+        this.wasmDirectBindingService = wasmDirectBindingService;
+
         for (let onum = 0; onum < discoveries.length; onum++) {
             if (discoveries[onum] === 1) {
                 if (!this.discoveredOnums.has(onum)) {
@@ -214,18 +226,38 @@ export class DiscoveryStateManager {
                     newDiscoveredOnums.push(onum);
                 }
             }
-            // プレイヤー命名 (oc_uname) があれば同期
+            // プレイヤー命名 (oc_uname) があれば同期、クリアされていれば削除
             if (typeof wasmDirectBindingService.getObjectUname === 'function') {
                 const uname = wasmDirectBindingService.getObjectUname(onum);
+                const item = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
+                const dyn = this.dynamicAppearanceByOnum.get(onum);
+                const descr = dyn?.descr || item?.descr || item?.appearance;
+                const formattedApp = (descr && item?.category)
+                    ? ItemIdentificationResolver.formatAppearanceName(descr, item.category, 'en').toLowerCase()
+                    : null;
+
                 if (uname) {
-                    const item = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
                     if (item && item.name) {
                         this.calledNamesMap.set(item.name.toLowerCase(), uname);
                     }
-                    const dyn = this.dynamicAppearanceByOnum.get(onum);
-                    if (dyn && dyn.descr) {
-                        this.calledNamesMap.set(dyn.descr.toLowerCase(), uname);
+                    if (descr) {
+                        this.calledNamesMap.set(descr.toLowerCase(), uname);
                     }
+                    if (formattedApp) {
+                        this.calledNamesMap.set(formattedApp, uname);
+                    }
+                    this.calledNamesMap.set(`onum:${onum}`, uname);
+                } else {
+                    if (item && item.name) {
+                        this.calledNamesMap.delete(item.name.toLowerCase());
+                    }
+                    if (descr) {
+                        this.calledNamesMap.delete(descr.toLowerCase());
+                    }
+                    if (formattedApp) {
+                        this.calledNamesMap.delete(formattedApp);
+                    }
+                    this.calledNamesMap.delete(`onum:${onum}`);
                 }
             }
         }
@@ -489,13 +521,34 @@ export class DiscoveryStateManager {
      */
     getCalledName(onumOrName) {
         if (typeof onumOrName === 'number') {
+            // 1. Cコア真値 (WasmDirectBindingService) を最優先で参照
+            if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.getObjectUname === 'function') {
+                const liveUname = this.wasmDirectBindingService.getObjectUname(onumOrName);
+                if (liveUname) return liveUname;
+            }
+            // 2. onum 直登録キーのチェック
+            if (this.calledNamesMap.has(`onum:${onumOrName}`)) {
+                return this.calledNamesMap.get(`onum:${onumOrName}`);
+            }
+            // 3. 真名からの逆引き
             const item = OBJECT_KNOWLEDGE_MAP ? OBJECT_KNOWLEDGE_MAP.get(onumOrName) : null;
             if (item && item.name && this.calledNamesMap.has(item.name.toLowerCase())) {
                 return this.calledNamesMap.get(item.name.toLowerCase());
             }
+            // 4. 動的/固定外見名からの逆引き
             const dyn = this.dynamicAppearanceByOnum.get(onumOrName);
-            if (dyn && dyn.descr && this.calledNamesMap.has(dyn.descr.toLowerCase())) {
-                return this.calledNamesMap.get(dyn.descr.toLowerCase());
+            const descr = dyn?.descr || item?.descr || item?.appearance;
+            if (descr) {
+                const descrLower = descr.toLowerCase();
+                if (this.calledNamesMap.has(descrLower)) {
+                    return this.calledNamesMap.get(descrLower);
+                }
+                if (item && item.category) {
+                    const formattedApp = ItemIdentificationResolver.formatAppearanceName(descr, item.category, 'en').toLowerCase();
+                    if (this.calledNamesMap.has(formattedApp)) {
+                        return this.calledNamesMap.get(formattedApp);
+                    }
+                }
             }
             return null;
         }
@@ -504,6 +557,21 @@ export class DiscoveryStateManager {
             return this.calledNamesMap.get(lower) || null;
         }
         return null;
+    }
+
+    /**
+     * 仮名（called name）を登録・更新・削除
+     * @param {string} nameOrAppearance 
+     * @param {string} calledName 
+     */
+    setCalledName(nameOrAppearance, calledName) {
+        if (!nameOrAppearance || typeof nameOrAppearance !== 'string') return;
+        const lower = nameOrAppearance.trim().toLowerCase();
+        if (calledName) {
+            this.calledNamesMap.set(lower, calledName);
+        } else {
+            this.calledNamesMap.delete(lower);
+        }
     }
 
     /**

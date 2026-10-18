@@ -11,11 +11,13 @@ export class DiscoveryWasmAdapter {
     constructor() {
         this._cachedDiscoveries = null;
         this._cachedDescrIndexes = null;
+        this._cachedUnames = new Map();
     }
 
     clearDiscoveryCaches() {
         this._cachedDiscoveries = null;
         this._cachedDescrIndexes = null;
+        this._cachedUnames.clear();
     }
 
     resetCache() {
@@ -36,6 +38,20 @@ export class DiscoveryWasmAdapter {
 
     set cachedDescrIndexes(val) {
         this.setCachedDescrIndexes(val);
+    }
+
+    /**
+     * テスト用 / Worker 受信用 プレイヤー仮名キャッシュ設定
+     * @param {number} onum
+     * @param {string|null} uname
+     */
+    setCachedObjectUname(onum, uname) {
+        if (typeof onum !== 'number' || onum < 0) return;
+        if (uname && typeof uname === 'string' && uname.trim().length > 0) {
+            this._cachedUnames.set(onum, uname.trim());
+        } else {
+            this._cachedUnames.delete(onum);
+        }
     }
 
     /**
@@ -77,22 +93,30 @@ export class DiscoveryWasmAdapter {
      * @returns {string|null}
      */
     getObjectUname(onum, memory, isAvailable, hasLiveMemory) {
-        if (!isAvailable || !hasLiveMemory || !memory || typeof onum !== 'number' || onum < 0) return null;
+        if (!isAvailable || typeof onum !== 'number' || onum < 0) return null;
 
-        const bufSize = 128;
-        const bufPtr = memory.allocateBuffer(bufSize);
-        if (!bufPtr) return null;
+        if (hasLiveMemory && memory) {
+            const bufSize = 128;
+            const bufPtr = memory.allocateBuffer(bufSize);
+            if (!bufPtr) return null;
 
-        try {
-            const res = memory.bridgeCall(SHIM_CMD.GET_OBJECT_UNAME, onum, 0, bufPtr, bufSize);
-            if (res === 1) {
-                const str = memory.readString(bufPtr, bufSize);
-                return str ? str.trim() : null;
+            try {
+                const res = memory.bridgeCall(SHIM_CMD.GET_OBJECT_UNAME, onum, 0, bufPtr, bufSize);
+                if (res === 1) {
+                    const str = memory.readString(bufPtr, bufSize);
+                    const cleanStr = str ? str.trim() : null;
+                    this.setCachedObjectUname(onum, cleanStr);
+                    return cleanStr;
+                } else {
+                    this.setCachedObjectUname(onum, null);
+                }
+            } finally {
+                memory.freeBuffer(bufPtr);
             }
-        } finally {
-            memory.freeBuffer(bufPtr);
+            return null;
         }
-        return null;
+
+        return this._cachedUnames.get(onum) || null;
     }
 
     /**

@@ -16,6 +16,7 @@ export { NhUiConfig } from './NhUiConfig.js';
 export { NhKnowledgeCard } from './NhKnowledgeCard.js';
 export { NhDiscoveryCodex } from './NhDiscoveryCodex.js';
 export { NhCodexGrid } from './NhCodexGrid.js';
+export { NhCallCandidateDialog } from './NhCallCandidateDialog.js';
 
 import { NhFloatingHud } from './NhFloatingHud.js';
 import { NhModal } from './NhModal.js';
@@ -25,6 +26,7 @@ import { NhUiConfig } from './NhUiConfig.js';
 import { NhKnowledgeCard } from './NhKnowledgeCard.js';
 import { NhDiscoveryCodex } from './NhDiscoveryCodex.js';
 import { NhCodexGrid } from './NhCodexGrid.js';
+import { NhCallCandidateDialog } from './NhCallCandidateDialog.js';
 
 export const COMPONENT_MAP = {
   'nh-floating-hud': NhFloatingHud,
@@ -34,7 +36,8 @@ export const COMPONENT_MAP = {
   'nh-ui-config': NhUiConfig,
   'nh-knowledge-card': NhKnowledgeCard,
   'nh-discovery-codex': NhDiscoveryCodex,
-  'nh-codex-grid': NhCodexGrid
+  'nh-codex-grid': NhCodexGrid,
+  'nh-call-candidate-dialog': NhCallCandidateDialog
 };
 
 /**

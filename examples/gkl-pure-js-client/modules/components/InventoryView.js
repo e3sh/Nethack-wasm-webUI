@@ -218,6 +218,15 @@ export class InventoryView {
               if (item.isQuivered) this.elGklTtTags.innerHTML += `<span class="tag" style="background:#2a9d8f;color:#fff;font-weight:bold;">${isEn ? 'Quiver' : '矢筒'}</span>`;
               if (item.isWorn) this.elGklTtTags.innerHTML += `<span class="tag" style="background:#9d4edd;color:#fff;font-weight:bold;">${isEn ? 'Worn' : '着用中'}</span>`;
 
+              const calledName = item.identification?.calledName || item.calledName ||
+                (core?.gkl?.discoveryStateManager && typeof core.gkl.discoveryStateManager.getCalledName === 'function' ? (
+                  (typeof item.onum === 'number' && item.onum >= 0 ? core.gkl.discoveryStateManager.getCalledName(item.onum) : null) ||
+                  (item.name ? core.gkl.discoveryStateManager.getCalledName(item.name) : null)
+                ) : null);
+              if (calledName) {
+                this.elGklTtTags.innerHTML += `<span class="tag" style="background:rgba(168,85,247,0.25);color:#e9d5ff;border:1px solid rgba(168,85,247,0.5);font-weight:bold;">${isEn ? `🏷️ Called: ${calledName}` : `🏷️ 仮名: ${calledName}`}</span>`;
+              }
+
               const tapAction = item.knowledge?.actionLabel || item.defaultActionLabel;
               if (tapAction && item.defaultVerb) {
                 this.elGklTtTags.innerHTML += `<span class="tag" style="background:#2a9d8f;color:#ffffff;font-weight:bold;">${isEn ? 'One-Tap:' : 'ワンタップ:'} ${tapAction}</span>`;
@@ -259,7 +268,11 @@ export class InventoryView {
             }
 
             if (typeof this.onInspectItem === 'function') {
-              this.onInspectItem(item);
+              const currentInv = (core?.gkl && typeof core.gkl.getInventory === 'function')
+                ? core.gkl.getInventory()
+                : (inventory || (core?.inventory?.items || core?.inventory || []));
+              const latestItem = (Array.isArray(currentInv) ? currentInv.find(it => it.letter === item.letter) : null) || item;
+              this.onInspectItem(latestItem);
             }
           };
 

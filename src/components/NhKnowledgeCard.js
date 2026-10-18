@@ -13,6 +13,7 @@ import { NhBaseElement } from './NhBaseElement.js';
 import { findLoreForEntity } from '../core/knowledge/lore/LoreEntityCrossReference.js';
 import { GlyphHelper } from '../core/renderers/GlyphHelper.js';
 import { GLYPH_OFFSETS } from '../core/knowledge/engines/glyphClassifier.js';
+import { ItemCandidateResolver } from '../core/knowledge/engines/ItemCandidateResolver.js';
 
 const CARD_CSS = `
 :host {
@@ -132,6 +133,49 @@ const CARD_CSS = `
   border-color: rgba(148, 163, 184, 0.4);
   color: #94a3b8;
 }
+
+.btn-call-item {
+  background: rgba(168, 85, 247, 0.18);
+  border: 1px solid rgba(192, 132, 252, 0.5);
+  color: #c084fc;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-call-item:hover {
+  background: rgba(168, 85, 247, 0.35);
+  border-color: #c084fc;
+  color: #fff;
+}
+
+.btn-name-item {
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  color: #38bdf8;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-name-item:hover {
+  background: rgba(56, 189, 248, 0.35);
+  border-color: #38bdf8;
+  color: #fff;
+}
+
 
 .card-close-btn {
   background: transparent;
@@ -624,7 +668,7 @@ export class NhKnowledgeCard extends NhBaseElement {
   }
 
   /**
-   * ESC または q で閉じる、1/2/3 でタブ切替、w で賢者の知恵透視
+   * ESC または q で閉じる、1/2/3 でタブ切替、w で賢者の知恵透視、c で仮名、n でアーティファクト命名
    * @private
    */
   _handleKeyDown(e) {
@@ -648,7 +692,95 @@ export class NhKnowledgeCard extends NhBaseElement {
       e.preventDefault();
       e.stopPropagation();
       this.togglePeekWisdom();
+    } else if (e.key === 'c' || e.key === 'C') {
+      if (this._canCallItem()) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.triggerCallItem();
+      } else if (this._canNameArtifactItem()) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.triggerNameItem();
+      }
+    } else if (e.key === 'n' || e.key === 'N') {
+      if (this._canNameArtifactItem()) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.triggerNameItem();
+      }
     }
+  }
+
+  /**
+   * 未鑑定アイテムで仮名（Call）がつけられる状態か判定
+   * @returns {boolean}
+   * @private
+   */
+  _canCallItem() {
+    const data = this.targetData;
+    if (!data) return false;
+    const isMonster = data.category === 'MONSTER' || Boolean(data.dangerLevel);
+    const isTerrain = data.category === 'TERRAIN' || Boolean(data.isTerrain);
+    if (isMonster || isTerrain) return false;
+
+    // 床アイテム等（インベントリレターがないもの）は命名不可
+    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
+    if (!letter) return false;
+
+    return Boolean(data.isUnidentified || data.identification?.isUnidentified || data.knowledge?.isUnidentified);
+  }
+
+  /**
+   * 識別済みかつアーティファクト元アイテム（Name候補が存在する）状態か判定
+   * @returns {boolean}
+   * @private
+   */
+  _canNameArtifactItem() {
+    const data = this.targetData;
+    if (!data) return false;
+    const isMonster = data.category === 'MONSTER' || Boolean(data.dangerLevel);
+    const isTerrain = data.category === 'TERRAIN' || Boolean(data.isTerrain);
+    if (isMonster || isTerrain) return false;
+
+    // 床アイテム等（インベントリレターがないもの）は命名不可
+    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
+    if (!letter) return false;
+
+    // 未鑑定の場合は仮名（Call）を優先
+    const isUnidentified = Boolean(data.isUnidentified || data.identification?.isUnidentified || data.knowledge?.isUnidentified);
+    if (isUnidentified) return false;
+
+    const onum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
+      (data.identification && typeof data.identification.onum === 'number') ? data.identification.onum :
+      (data.knowledge && typeof data.knowledge.onum === 'number') ? data.knowledge.onum : undefined;
+
+    const baseName = data.oc_name || data.nameEn || data.trueName || data.english || data.rawName || data.name;
+
+    return ItemCandidateResolver.hasArtifactCandidates({ onum, baseName });
+  }
+
+  /**
+   * 未鑑定アイテムの仮名ダイアログ起動イベントを発火
+   */
+  triggerCallItem() {
+    if (!this.targetData) return;
+    this.dispatchEvent(new CustomEvent('nh-knowledge-call-item', {
+      bubbles: true,
+      composed: true,
+      detail: { targetData: this.targetData, mode: 'call' }
+    }));
+  }
+
+  /**
+   * アーティファクト個別命名ダイアログ起動イベントを発火
+   */
+  triggerNameItem() {
+    if (!this.targetData) return;
+    this.dispatchEvent(new CustomEvent('nh-knowledge-name-item', {
+      bubbles: true,
+      composed: true,
+      detail: { targetData: this.targetData, mode: 'artifact_name' }
+    }));
   }
 
   /**
@@ -785,7 +917,8 @@ export class NhKnowledgeCard extends NhBaseElement {
     if (isUnidentified) {
       // 通常モードの未識別アイテム: 外見名（または仮名）のみ表示
       const appName = data.appearanceName || data.name || (isEn ? 'Unidentified Item' : '未鑑定アイテム');
-      const called = data.calledName ? ` (called ${data.calledName})` : '';
+      const calledVal = data.calledName || data.identification?.calledName;
+      const called = calledVal ? ` (called "${calledVal}")` : '';
       title = `${appName}${called}`;
       subtitle = isEn ? `Unidentified ${category}` : `未鑑定の${this._translateCategory(category)}`;
     } else if (isWisdom) {
@@ -874,6 +1007,13 @@ export class NhKnowledgeCard extends NhBaseElement {
       }
     }
 
+    let callButtonHtml = '';
+    if (this._canCallItem()) {
+      callButtonHtml = `<button class="btn-call-item" id="callItemBtn" title="${isEn ? 'Call / Add Note (c)' : '仮名をつける (c)'}">🏷️ ${isEn ? 'Call' : '仮名'}</button>`;
+    } else if (this._canNameArtifactItem()) {
+      callButtonHtml = `<button class="btn-name-item" id="nameItemBtn" title="${isEn ? 'Engrave Artifact Name (n)' : 'アーティファクト銘をつける (n)'}">🗡️ ${isEn ? 'Name' : '銘をつける'}</button>`;
+    }
+
     this.shadowRoot.innerHTML = `
       <div class="knowledge-card" role="dialog" aria-modal="true" aria-label="${title}">
         <!-- ヘッダー -->
@@ -891,6 +1031,7 @@ export class NhKnowledgeCard extends NhBaseElement {
             ${data.dangerLevel ? `<span class="badge ${this._getDangerClass(data.dangerLevel)}">${data.dangerLevel}</span>` : ''}
             ${isWisdom ? `<span class="badge badge-wisdom">${isEn ? "🧙 Sage's Wisdom" : '🧙 賢者の知恵'}</span>` : ''}
             ${isUnidentified ? `<span class="badge badge-unidentified">${isEn ? 'Unidentified' : '未識別'}</span>` : ''}
+            ${callButtonHtml}
             ${peekButtonHtml}
             <button class="card-close-btn" id="closeBtn" title="${isEn ? 'Close (Esc / q)' : '閉じる (Esc / q)'}">✕</button>
           </div>
@@ -920,6 +1061,8 @@ export class NhKnowledgeCard extends NhBaseElement {
         <div class="card-footer">
           <div class="footer-nav-hint">
             <span>${showOfficial ? '<span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span>' : '<span class="kbd">1</span><span class="kbd">2</span>'} ${isEn ? 'Switch Tab' : 'タブ切替'}</span>
+            ${this._canCallItem() ? `<span><span class="kbd">c</span> ${isEn ? 'Call' : '仮名'}</span>` : ''}
+            ${this._canNameArtifactItem() ? `<span><span class="kbd">n</span> ${isEn ? 'Name' : '銘をつける'}</span>` : ''}
             <span><span class="kbd">Esc</span> / <span class="kbd">q</span> ${isEn ? 'Close' : '閉じる'}</span>
           </div>
           <div>NetHack WebUI Knowledge Integration</div>
@@ -996,6 +1139,10 @@ export class NhKnowledgeCard extends NhBaseElement {
           <div class="spec-section-title">🎭 ${isEn ? 'Appearance' : 'ゲーム内での外見'}</div>
           <div style="font-size: 0.85rem; color: #f8fafc;">${data.appearance}</div>
         ` : ''}
+        ${(data.calledName || data.identification?.calledName) ? `
+          <div class="spec-section-title">🏷️ ${isEn ? 'Called Name (Player Note)' : 'プレイヤー命名 (仮名)'}</div>
+          <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">called "${data.calledName || data.identification?.calledName}"</div>
+        ` : ''}
         <div class="tactical-advice">💡 ${effectText}</div>
       `;
     }
@@ -1054,6 +1201,10 @@ export class NhKnowledgeCard extends NhBaseElement {
       ${data.appearance ? `
         <div class="spec-section-title">🎭 ${isEn ? 'Appearance' : 'ゲーム内での外見'}</div>
         <div style="font-size: 0.85rem; color: #f8fafc;">${data.appearance}</div>
+      ` : ''}
+      ${(data.calledName || data.identification?.calledName) ? `
+        <div class="spec-section-title">🏷️ ${isEn ? 'Called Name (Player Note)' : 'プレイヤー命名 (仮名)'}</div>
+        <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">called "${data.calledName || data.identification?.calledName}"</div>
       ` : ''}
       ${wisdomEffect ? `
         <div class="tactical-advice">💡 ${wisdomEffect}</div>
@@ -1183,6 +1334,18 @@ export class NhKnowledgeCard extends NhBaseElement {
     const peekBtn = this.shadowRoot.querySelector('#peekWisdomBtn');
     if (peekBtn && !peekBtn.disabled) {
       peekBtn.addEventListener('click', () => this.togglePeekWisdom());
+    }
+
+    // 仮名ボタン
+    const callBtn = this.shadowRoot.querySelector('#callItemBtn');
+    if (callBtn) {
+      callBtn.addEventListener('click', () => this.triggerCallItem());
+    }
+
+    // アーティファクト銘ボタン
+    const nameBtn = this.shadowRoot.querySelector('#nameItemBtn');
+    if (nameBtn) {
+      nameBtn.addEventListener('click', () => this.triggerNameItem());
     }
 
     // タブ切り替えボタン

@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-10-16
+last_updated: 2026-10-17
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -33,30 +33,30 @@ last_updated: 2026-10-16
 ## 🔥 1. 現在実施中・最優先フォーカス (Active Focus: 次期着手スロット)
 
 > [!NOTE]
-> **Phase 8（公式Shim構造化バインディング ＆ ゼロオーバーヘッド・メモリ直結）完遂後の棚卸し・現実化（Step 1）が完了しました！**  
-> 既存の設計書群を実コードと突き合わせて監査した結果、Phase 8 基盤によって不要となった旧構想4件をアーカイブ退避し、**§2 の着手待ちタスク群はいずれも基盤層の 50%〜75% がすでに実装済み**であることが確認されました。
+> **Phase 7 Phase 3 ＆ Gap 2「命名アシスト ＆ GamePad候補選択」が 100% 完結しました！**  
+> これにより、旧構想から棚卸しされた §2 の着手待ち（Ready）タスク群（事後ナレッジ連携、キャラクター詳細ダイアログ＆Quick Dock、床落ちPeek Wisdom、命名アシスト）は**すべて完遂**となり、現行仕様（Living Specs）へ移行しました。
 
-Now, **「事後ナレッジ連携 (`PostMortemKnowledgeResolver`)」**、**「キャラクター詳細ダイアログ ＆ Quick Dock ＆ キー透過調停 (Phase 1〜4)」**、および **「床落ちアイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵 (Peek Wisdom / 旧 §2.6)」** が 100% 完結し、残る着手可能（Ready）タスクは以下の 1 件となります。
+現在、すべての着手待ちタスクが実装済みです。次期フォーカス候補は §3 のバックログ構想（セマンティック・メッセージトークン化、またはモダン総合インベントリダイアログ）となります。
 
-| 候補 | 対象タスク | 残作業スコープ（実態監査後） | 進捗・前提状況 |
+| 候補 | 対象タスク | 実装内容 / スコープ | ステータス |
 | :--- | :--- | :--- | :--- |
-| **候補 C** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | 未鑑定アイテムの価格帯・知識照合コア（`ItemCandidateResolver.js`）＋候補選択ダイアログ（`<nh-call-candidate-dialog>`） | **Step 1 完了 (50%完了)**<br>`DiscoveryStateManager` の `0x60`/`0x61`/`0x62` 直結は実装済。Step 2 & 3 のみ |
+| **完遂** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | `ItemCandidateResolver.js` (価格帯・効果・既知除外) ＋ `CustomNameStore.js` ＋ `<nh-call-candidate-dialog>` ＋ `InputCoordinator` 連携 | **🟢 完遂 (100% 完了)**<br>全158スイート・1,984テスト PASS |
 
 ---
 
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
 仕様・設計が完了しており、基盤部分の実装も進んでいて残作業が明確化されているタスク群です。  
-※なお、**旧2.1 (命名アシスト以外), 2.2 (事後ナレッジ連携), 2.3 (キャラクター詳細ダイアログ＆Quick Dock), 2.5, 2.6 (床落ちアイテム・コンテナ・Peek Wisdom), 2.7 (ASCII純化)** は完遂し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
+※なお、**旧2.1〜2.7（命名アシスト、事後ナレッジ連携、キャラクター詳細ダイアログ＆Quick Dock、床落ちアイテム・コンテナ・Peek Wisdom、ASCII純化）はすべて完遂**し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
 
 ### 2.1 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
-- **ステータス**: `⏸️ pending (Ready: 50%完了)` (Step 1 実装済み・Step 2〜3 着手可能)
+- **ステータス**: `🟢 implemented` (全ステップ完遂)
 - **設計書**: [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)
-- **現状**: `DiscoveryStateManager.js` における Direct Binding（`0x60`/`0x61`/`0x62`）とメッセージ確定昇格は実装完了。さらに `InventoryStateManager` で買値・売値・外見がメモリ直結取得できるため、画面テキストパース不要で Step 2・3 をシンプルに実装可能。
+- **現状**: `ItemCandidateResolver.js` による未識別アイテムの価格帯・効果からの真名候補逆引き・ショートハンド生成、`CustomNameStore.js` によるプレイヤー仮名の永続管理、およびキーボード/ゲームパッド対応の `<nh-call-candidate-dialog>` によるワンタップ命名支援を完全実装。
 - **ステップ**:
   - [x] Step 1: `DiscoveryStateManager.js` への Phase 8 発見状態メモリ直結 (`syncWithLiveMemory` 実装済み)
-  - [ ] Step 2: `ItemCandidateResolver.js` によるワンタップ候補サジェストコア（価格帯・識別済み除外フィルタ）
-  - [ ] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`) ＆ `CustomNameStore` 連携
+  - [x] Step 2: `ItemCandidateResolver.js` によるワンタップ候補サジェストコア（価格帯・識別済み除外フィルタ）＆ `CustomNameStore.js` 実装
+  - [x] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`) ＆ `InputCoordinator` / プロンプト捕捉連携
 
 ---
 
@@ -158,8 +158,9 @@ Now, **「事後ナレッジ連携 (`PostMortemKnowledgeResolver`)」**、**「�
 | **Core / UI** | [Interactive_Request_Controller_Architecture_and_Roadmap.md](./2_client_ui/Interactive_Request_Controller_Architecture_and_Roadmap.md) | `src/core/request/` | `🟢 implemented` | **連続リクエストコントローラ (IRC) ＆ 制御シグナル同定基盤** |
 | **Core / UI** | [WebUICore_Usage_Guide.md](./2_client_ui/WebUICore_Usage_Guide.md) | `src/core/WebUICore.js` | `🟢 implemented` | **WebUICore 利用ガイド** |
 | **UI / Lifecycle** | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) | `examples/gkl-pure-js-client/`<br>`CharacterStatusModal.js`<br>`InputCoordinator.js`<br>`UIConfigStore.js` | `🟢 implemented` | **Direct Binding 同期ライフサイクル ＆ WebUI パイプライン刷新**<br>オンデマンド取得型キャラクター詳細モーダル・Quick Dock・キー透過調停（Phase 1〜4 完全完遂） |
+| **GKL / UI** | [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md) | `ItemCandidateResolver.js`<br>`CustomNameStore.js`<br>`NhCallCandidateDialog.js`<br>`InputCoordinator.js` | `🟢 implemented` | **命名アシスト ＆ GamePad候補選択 (Phase 7 Phase 3 / Gap 2)**<br>未識別アイテムの価格帯・効果からの真名候補逆引き・ショートハンド生成、仮名永続管理、キー/ゲームパッド対応候補選択ダイアログ |
 | **Driver** | [driver_core_spec.md](./1_driver/driver_core_spec.md) | `src/driver/NetHackWasmDriver.js` | `🟢 implemented` | **Web Worker WASM コア駆動ドライバ** |
-| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全152スイート・1,891テスト 100% PASS)** |
+| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全158スイート・1,984テスト 100% PASS)** |
 | **Translation** | [DICTIONARY_OPERATION.md](./9_translation/DICTIONARY_OPERATION.md) | `dictionary.csv`, `tools/` | `🟢 implemented` | **翻訳辞書・CSV相互変換運用ガイド** |
 
 ---

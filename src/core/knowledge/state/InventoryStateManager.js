@@ -483,6 +483,12 @@ export class InventoryStateManager {
             let baseName = '';
             let customNameJa = '';
 
+            // Cコア真値 (getObjectUname) を最優先で参照
+            const liveUname = (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.getObjectUname === 'function')
+                ? this.wasmDirectBindingService.getObjectUname(onum)
+                : null;
+            const called = liveUname || (typeof this.discoveryStateManager?.getCalledName === 'function' ? this.discoveryStateManager.getCalledName(onum) : null);
+
             // 💀 死体 (265)・像 (476)・缶詰 (296) の専用名称合成 (rawText は 100% 英語 ASCII に純化)
             if (onum === 265 && corpsenm >= 0) {
                 const mon = MONSTER_KNOWLEDGE_MAP.get(corpsenm);
@@ -511,31 +517,31 @@ export class InventoryStateManager {
                         if (mon?.nameJa) customNameJa = `${mon.nameJa}の缶詰`;
                     }
                 }
-            } else if (isIdentified || (objInfo && objInfo.canBeUnidentified === false)) {
-                baseName = objInfo ? (objInfo.name || `item #${onum}`) : `item #${onum}`;
-                if (objInfo?.nameJa) customNameJa = objInfo.nameJa;
             } else {
-                // 未鑑定アイテム: 動的シャッフル外見名 (getAppearance) を最優先で参照しフォーマット
-                const dynDescr = this.discoveryStateManager ? this.discoveryStateManager.getAppearance(onum) : null;
-                const descr = dynDescr || prevItem?.appearance || objInfo?.descr || objInfo?.appearance || '';
-                const cat = objInfo?.category || '';
-                const appName = (descr && cat)
-                    ? ItemIdentificationResolver.formatAppearanceName(descr, cat, 'en')
-                    : (descr || (cat ? cat.toLowerCase() : `item #${onum}`));
+                if (isIdentified || (objInfo && objInfo.canBeUnidentified === false)) {
+                    baseName = objInfo ? (objInfo.name || `item #${onum}`) : `item #${onum}`;
+                    if (objInfo?.nameJa) customNameJa = objInfo.nameJa;
+                    // NetHack Cコア xname() 仕様: 識別済みアイテムには種類仮名 (called) は付与しない (真名表示優先)
+                } else {
+                    // 未鑑定アイテム: 動的シャッフル外見名 (getAppearance) を最優先で参照しフォーマット
+                    const dynDescr = this.discoveryStateManager ? this.discoveryStateManager.getAppearance(onum) : null;
+                    const descr = dynDescr || prevItem?.appearance || objInfo?.descr || objInfo?.appearance || '';
+                    const cat = objInfo?.category || '';
+                    const appName = (descr && cat)
+                        ? ItemIdentificationResolver.formatAppearanceName(descr, cat, 'en')
+                        : (descr || (cat ? cat.toLowerCase() : `item #${onum}`));
 
-                const called = (this.discoveryStateManager ? this.discoveryStateManager.getCalledName(onum) : null)
-                    || prevItem?.identification?.calledName;
+                    baseName = appName;
+                    if (called) {
+                        baseName += ` called ${called}`;
+                    }
 
-                baseName = appName;
-                if (called) {
-                    baseName += ` called ${called}`;
-                }
-
-                // 🧙 賢者の知恵モード時のみ真名を併記 (rawText は英語真名)
-                if (this.sagesWisdomMode && objInfo?.name) {
-                    baseName += ` [${objInfo.name}]`;
-                    if (objInfo.nameJa) {
-                        customNameJa = `${objInfo.nameJa}`;
+                    // 🧙 賢者の知恵モード時のみ真名を併記 (rawText は英語真名)
+                    if (this.sagesWisdomMode && objInfo?.name) {
+                        baseName += ` [${objInfo.name}]`;
+                        if (objInfo.nameJa) {
+                            customNameJa = `${objInfo.nameJa}`;
+                        }
                     }
                 }
             }
@@ -597,6 +603,9 @@ export class InventoryStateManager {
                 sagesWisdomMode: this.sagesWisdomMode,
                 language: lang
             });
+            if (!isIdentified && called && !identification.calledName) {
+                identification.calledName = called;
+            }
 
             // ナレッジの付与
             let knowledge = null;

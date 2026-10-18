@@ -143,7 +143,7 @@ export class GKLEventRouter {
                             syncInventory: true,
                             syncPlayerProps: isInitialSync,
                             syncProfile: isInitialSync || !p.attributeStateManager?.isProfileDirectBound,
-                            syncDiscoveries: isInitialSync,
+                            syncDiscoveries: true,
                             syncSkills: isInitialSync,
                             syncSpells: isInitialSync || !p.spellStateManager?.isSynced,
                             syncFloorObjects: true,
