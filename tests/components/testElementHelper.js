@@ -265,6 +265,11 @@ function matchesSelector(node, selector) {
   if (!node || !selector) return false;
   selector = selector.trim();
 
+  // カンマ区切りセレクタリスト対応 (.a, .b)
+  if (selector.includes(',')) {
+    return selector.split(',').some(s => matchesSelector(node, s.trim()));
+  }
+
   // ID セレクタ (#modal-id)
   if (selector.startsWith('#')) {
     const id = selector.slice(1);

@@ -592,7 +592,8 @@ export class NhCallCandidateDialog extends NhBaseElement {
         if (!root) return;
 
         const items = root.querySelectorAll('.candidate-item, .shorthand-chip, .custom-input');
-        items.forEach((el, idx) => {
+        items.forEach((el) => {
+            const idx = parseInt(el.getAttribute('data-idx'), 10);
             if (idx === this._focusedIndex) {
                 el.classList.add('is-focused');
                 if (typeof el.scrollIntoView === 'function') {
@@ -772,15 +773,6 @@ export class NhCallCandidateDialog extends NhBaseElement {
                         </div>
                         ` : ''}
 
-                        <!-- 自由テキスト入力 -->
-                        <div class="custom-input-box">
-                            <input type="text" class="custom-input ${inputIdx === this._focusedIndex ? 'is-focused' : ''}" 
-                                   data-idx="${inputIdx}"
-                                   placeholder="${placeholderText}" 
-                                   value="${this.currentCall || ''}" />
-                            <button type="button" class="custom-submit-btn">決定</button>
-                        </div>
-
                         <!-- 候補リスト -->
                         <div class="candidates-list-section">
                             <div class="candidate-item candidate-clear-item ${clearIdx === this._focusedIndex ? 'is-focused' : ''}" data-idx="${clearIdx}">
@@ -790,6 +782,15 @@ export class NhCallCandidateDialog extends NhBaseElement {
                                 </div>
                             </div>
                             ${candidateItemsHtml}
+                        </div>
+
+                        <!-- 自由テキスト入力 -->
+                        <div class="custom-input-box">
+                            <input type="text" class="custom-input ${inputIdx === this._focusedIndex ? 'is-focused' : ''}" 
+                                   data-idx="${inputIdx}"
+                                   placeholder="${placeholderText}" 
+                                   value="${this.currentCall || ''}" />
+                            <button type="button" class="custom-submit-btn">決定</button>
                         </div>
                     </div>
 
@@ -838,6 +839,9 @@ export class NhCallCandidateDialog extends NhBaseElement {
                 if (val) this.submit(val);
             });
             chip.addEventListener('mouseenter', () => {
+                if (this._isCustomInputFocused()) {
+                    this._blurCustomInput();
+                }
                 const idx = parseInt(chip.getAttribute('data-idx') || '0', 10);
                 this._focusedIndex = idx;
                 this._updateFocusVisual();
@@ -853,11 +857,26 @@ export class NhCallCandidateDialog extends NhBaseElement {
                 this._activateCurrentFocus();
             });
             el.addEventListener('mouseenter', () => {
+                if (this._isCustomInputFocused()) {
+                    this._blurCustomInput();
+                }
                 const idx = parseInt(el.getAttribute('data-idx') || '0', 10);
                 this._focusedIndex = idx;
                 this._updateFocusVisual();
             });
         });
+
+        // 自由テキスト入力欄
+        const customInput = root.querySelector('.custom-input');
+        if (customInput) {
+            const syncInputFocus = () => {
+                const idx = parseInt(customInput.getAttribute('data-idx') || '0', 10);
+                this._focusedIndex = idx;
+                this._updateFocusVisual();
+            };
+            customInput.addEventListener('focus', syncInputFocus);
+            customInput.addEventListener('mouseenter', syncInputFocus);
+        }
 
         // 自由テキスト入力決定ボタン
         const submitBtn = root.querySelector('.custom-submit-btn');

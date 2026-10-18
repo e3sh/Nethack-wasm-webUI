@@ -261,6 +261,81 @@ describe('ItemCandidateResolver - 未識別アイテム候補逆引き＆命名�
             expect(ItemCandidateResolver.hasArtifactCandidates({})).toBe(false);
         });
     });
+
+    describe('6. 価格情報抽出と自動候補絞り込み (extractPriceInfo & auto resolveCandidates)', () => {
+        it('店主未払い・販売テキストから買値（shopPrice）を抽出できること', () => {
+            const info1 = ItemCandidateResolver.extractPriceInfo('(unpaid, 133 zorkmids)');
+            expect(info1).toEqual(expect.objectContaining({
+                shopPrice: 133,
+                priceType: 'buy'
+            }));
+
+            const info2 = ItemCandidateResolver.extractPriceInfo('a scroll labeled FOO (for sale, 100 a piece)');
+            expect(info2).toEqual(expect.objectContaining({
+                shopPrice: 100,
+                priceType: 'buy'
+            }));
+
+            const info3 = ItemCandidateResolver.extractPriceInfo({ rawText: 'potion of clear water (unpaid, 67 zm)' });
+            expect(info3).toEqual(expect.objectContaining({
+                shopPrice: 67,
+                priceType: 'buy'
+            }));
+        });
+
+        it('仮名文字列（100 zm, 133G, 100?等）から適切に baseCost または shopPrice を抽出できること', () => {
+            // 標準基礎価格 100 ZM に一致する場合
+            const info100 = ItemCandidateResolver.extractPriceInfo('100 zm');
+            expect(info100).toEqual(expect.objectContaining({
+                baseCost: 100,
+                shopPrice: 100
+            }));
+
+            // 店頭端数 133G (基礎100の買値)
+            const info133 = ItemCandidateResolver.extractPriceInfo('133G');
+            expect(info133).toEqual(expect.objectContaining({
+                shopPrice: 133
+            }));
+
+            // 純粋な数値仮名 "100" または "100?"
+            const infoNum = ItemCandidateResolver.extractPriceInfo('100?');
+            expect(infoNum).toEqual(expect.objectContaining({
+                baseCost: 100
+            }));
+        });
+
+        it('resolveCandidates: calledName や rawText から自動的に価格帯を特定し候補を絞り込めること', () => {
+            // "100 zm" の巻物 -> 基礎価格 100 の巻物（teleportation, create monster等）のみに絞り込まれる
+            const res100 = ItemCandidateResolver.resolveCandidates({
+                category: 'SCROLL',
+                calledName: '100 zm'
+            });
+            expect(res100.matchedCosts).toContain(100);
+            expect(res100.candidates.length).toBeGreaterThan(0);
+            expect(res100.candidates.every(c => c.cost === 100)).toBe(true);
+            expect(res100.candidates.some(c => c.name === 'scroll of teleportation')).toBe(true);
+            // 20G の identify は除外されていること
+            expect(res100.candidates.some(c => c.name === 'scroll of identify')).toBe(false);
+
+            // 店頭価格 133G の巻物 -> 逆算により基礎価格 100 の巻物に絞り込まれる
+            const res133 = ItemCandidateResolver.resolveCandidates({
+                category: 'SCROLL',
+                calledName: '133G'
+            });
+            expect(res133.matchedCosts).toContain(100);
+            expect(res133.candidates.every(c => c.cost === 100)).toBe(true);
+
+            // rawText "(unpaid, 67 zorkmids)" のポーション -> 逆算により基礎価格 50 のポーションに絞り込まれる
+            const resShop = ItemCandidateResolver.resolveCandidates({
+                targetData: {
+                    category: 'POTION',
+                    rawText: 'a ruby potion (unpaid, 67 zorkmids)'
+                }
+            });
+            expect(resShop.matchedCosts).toContain(50);
+            expect(resShop.candidates.every(c => c.cost === 50)).toBe(true);
+        });
+    });
 });
 
 

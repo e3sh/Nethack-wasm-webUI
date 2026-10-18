@@ -699,8 +699,8 @@ export class DiscoveryStateManager {
         for (const [app, trueName] of this.appearanceMap.entries()) {
             const cleanTrueName = (trueName || '').replace(/^[\*\-\+\s]+/, '').trim();
             const lowerName = cleanTrueName.toLowerCase();
-            const called = this.calledNamesMap.get(app) || this.calledNamesMap.get(lowerName) || null;
             const onum = this.lookupOnum(cleanTrueName);
+            const called = this.calledNamesMap.get(app) || this.calledNamesMap.get(lowerName) || (onum !== null && onum !== undefined ? this.calledNamesMap.get(`onum:${onum}`) : null) || null;
             const k = (onum !== null && onum !== undefined && OBJECT_KNOWLEDGE_MAP) ? OBJECT_KNOWLEDGE_MAP.get(onum) : null;
             seenNames.add(lowerName);
 
@@ -729,7 +729,7 @@ export class DiscoveryStateManager {
                 const lowerName = name.toLowerCase();
                 if (lowerName && !seenNames.has(lowerName)) {
                     seenNames.add(lowerName);
-                    const called = this.calledNamesMap.get(lowerName) || null;
+                    const called = this.calledNamesMap.get(lowerName) || this.calledNamesMap.get(`onum:${onum}`) || null;
                     const nameJa = k.nameJa || this._translateText(name) || null;
                     const dynApp = this.getAppearance(onum) || '';
                     const appJa = dynApp ? this._translateText(dynApp) : null;
@@ -750,6 +750,10 @@ export class DiscoveryStateManager {
 
         // 3. calledNamesMap だけに存在する仮名アイテム
         for (const [key, called] of this.calledNamesMap.entries()) {
+            // "onum:XX" 内部キーは単独アイテム行としては出力しない
+            if (typeof key === 'string' && key.startsWith('onum:')) {
+                continue;
+            }
             if (!seenNames.has(key)) {
                 seenNames.add(key);
                 const onum = this.lookupOnum(key);
@@ -765,7 +769,8 @@ export class DiscoveryStateManager {
                     calledName: called,
                     category: (k?.category ? k.category.toLowerCase() : this._inferCategory(key, '')),
                     knowledge: null,
-                    isDiscovered: false
+                    isDiscovered: false,
+                    isUnidentified: true
                 });
             }
         }
@@ -788,6 +793,8 @@ export class DiscoveryStateManager {
                 const candidateTrueName = iden?.trueName || iden?.coreName || k?.name || item.name || item.rawText || '';
                 const cleanTrue = candidateTrueName.replace(/^[\*\-\+\s]+/, '').trim();
                 const lowerName = cleanTrue.toLowerCase();
+                const itemLetter = item.letter || item.invlet || item.selector || null;
+                const itemRawText = item.rawText || item.str || null;
 
                 // A. 識別済みインベントリアイテム (真名が判明しているアイテム)
                 const isActuallyIdentified = (onum !== null && onum !== undefined)
@@ -808,7 +815,9 @@ export class DiscoveryStateManager {
                         calledName: iden.calledName || null,
                         category: (k?.category ? k.category.toLowerCase() : this._inferCategory(cleanTrue, app)),
                         knowledge: k || null,
-                        isDiscovered: true
+                        isDiscovered: true,
+                        letter: itemLetter,
+                        rawText: itemRawText
                     });
                 }
                 // B. 仮名付きインベントリアイテム (未識別だが仮名が付いているアイテム)
@@ -828,8 +837,42 @@ export class DiscoveryStateManager {
                             calledName: iden.calledName,
                             category: (k?.category ? k.category.toLowerCase() : this._inferCategory(appKey, '')),
                             knowledge: null,
-                            isDiscovered: false
+                            isDiscovered: false,
+                            isUnidentified: true,
+                            letter: itemLetter,
+                            rawText: itemRawText
                         });
+                    }
+                }
+            }
+
+            // 5. 既存エントリ（1〜3で作成されたアイテム）に対して、所持品内の同一アイテム情報（letter, rawText等）を紐付け
+            for (const entry of items) {
+                if (entry.letter && entry.rawText) continue;
+                const matchedInv = invItems.find(inv => {
+                    if (!inv) return false;
+                    if (entry.onum !== null && entry.onum !== undefined && typeof inv.onum === 'number' && inv.onum === entry.onum) {
+                        return true;
+                    }
+                    const invApp = (inv.identification?.appearanceName || inv.identification?.appearance || '').toLowerCase();
+                    if (entry.appearance && invApp && entry.appearance.toLowerCase() === invApp) {
+                        return true;
+                    }
+                    const invName = (inv.name || inv.rawText || '').toLowerCase();
+                    if (entry.trueName && invName.includes(entry.trueName.toLowerCase())) {
+                        return true;
+                    }
+                    return false;
+                });
+
+                if (matchedInv) {
+                    if (!entry.letter) entry.letter = matchedInv.letter || matchedInv.invlet || matchedInv.selector || null;
+                    if (!entry.rawText) entry.rawText = matchedInv.rawText || matchedInv.str || null;
+                    if (!entry.calledName && matchedInv.identification?.calledName) {
+                        entry.calledName = matchedInv.identification.calledName;
+                    }
+                    if ((entry.onum === null || entry.onum === undefined) && typeof matchedInv.onum === 'number' && matchedInv.onum >= 0) {
+                        entry.onum = matchedInv.onum;
                     }
                 }
             }

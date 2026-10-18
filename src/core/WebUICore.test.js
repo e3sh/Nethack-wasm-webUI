@@ -580,6 +580,106 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(inputRequiredListener).toHaveBeenCalledTimes(1);
         });
 
+        it('sendInput による q -> a の連続キー入力後でも isItemUsingActive が保持され、auto_memo が確実に発動すること', () => {
+            let inputRequiredHandler = null;
+            let putstrHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                    if (event === 'putstr') putstrHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.KEY)
+            };
+
+            const core = new WebUICore({ driver: mockDriver, itemNamingMode: 'auto_memo' });
+            const mockResolver = { respond: vi.fn() };
+            const autoMemoListener = vi.fn();
+            core.on('itemNamingAutoMemo', autoMemoListener);
+
+            // 1. 'q' (飲用キー) を入力
+            core.activeResolver = { respond: vi.fn() };
+            core.respond('q', { force: true });
+            expect(core.isItemUsingActive).toBe(true);
+
+            // 2. 'a' (インベントリレター) を入力
+            core.activeResolver = { respond: vi.fn() };
+            core.respond('a', { force: true });
+            // 入力後も docall 判定のために isItemUsingActive は保持されていること
+            expect(core.isItemUsingActive).toBe(true);
+            expect(core.lastUsedItemLetter).toBe('a');
+
+            // 3. 効果メッセージを受信
+            putstrHandler({ windowId: 1, text: 'This tastes like fruit juice!' });
+
+            // 4. docall プロンプトを受信
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.TEXT,
+                context: 'getlin',
+                prompt: 'Call a smoky potion:',
+                rawPrompt: 'Call a smoky potion:',
+                resolver: mockResolver
+            });
+
+            // auto_memo により直前メッセージが自動命名されること (24文字上限に安全に切り詰められる)
+            expect(mockResolver.respond).toHaveBeenCalledWith('This tastes like fruit j');
+            expect(autoMemoListener).toHaveBeenCalledTimes(1);
+
+            // 5. ターン終了・通常待機(isTopLevelTurn)復帰時にリセットされること
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.POSKEY,
+                category: PROMPT_CATEGORY.POSKEY,
+                isTopLevelTurn: true,
+                choices: '',
+                resolver: { respond: vi.fn() }
+            });
+            expect(core.isItemUsingActive).toBe(false);
+        });
+
+        it('sendInput による r -> b の連続キー入力後でも isItemUsingActive が保持され、skip が確実に発動すること', () => {
+            let inputRequiredHandler = null;
+            let putstrHandler = null;
+            const mockDriver = {
+                on: vi.fn((event, handler) => {
+                    if (event === 'inputRequired') inputRequiredHandler = handler;
+                    if (event === 'putstr') putstrHandler = handler;
+                }),
+                emit: vi.fn(),
+                queueSequence: vi.fn(),
+                getPromptCategory: vi.fn().mockReturnValue(PROMPT_CATEGORY.KEY)
+            };
+
+            const core = new WebUICore({ driver: mockDriver, itemNamingMode: 'skip' });
+            const mockResolver = { respond: vi.fn() };
+            const skipListener = vi.fn();
+            core.on('itemNamingSkipped', skipListener);
+
+            // 1. 'r' (読むキー) を入力
+            core.activeResolver = { respond: vi.fn() };
+            core.respond('r', { force: true });
+            expect(core.isItemUsingActive).toBe(true);
+
+            // 2. 'b' (インベントリレター) を入力
+            core.activeResolver = { respond: vi.fn() };
+            core.respond('b', { force: true });
+            expect(core.isItemUsingActive).toBe(true);
+            expect(core.lastUsedItemLetter).toBe('b');
+
+            // 3. docall プロンプトを受信
+            inputRequiredHandler({
+                promptCategory: PROMPT_CATEGORY.TEXT,
+                context: 'getlin',
+                prompt: 'Call a scroll labeled ELAM EBOW:',
+                rawPrompt: 'Call a scroll labeled ELAM EBOW:',
+                resolver: mockResolver
+            });
+
+            // skip により空文字で即座に応答されること
+            expect(mockResolver.respond).toHaveBeenCalledWith('');
+            expect(skipListener).toHaveBeenCalledTimes(1);
+        });
+
         it('手動で #call 拡張コマンドを実行した場合は、docall プロンプトであっても自動スキップされないこと', async () => {
             let inputRequiredHandler = null;
             const mockDriver = {

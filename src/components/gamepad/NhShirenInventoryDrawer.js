@@ -686,9 +686,22 @@ export class NhShirenInventoryDrawer extends NhBaseElement {
             actions.push({ id: 'APPLY', label: '使う', key: 'a', letter });
         }
 
-        // 共通アクション (投げる、置く、調べる)
+        // 共通アクション (投げる、置く、名前をつける)
         actions.push({ id: 'THROW', label: '投げる', key: 't', letter });
         actions.push({ id: 'DROP', label: '置く', key: 'd', letter });
+
+        // 未識別アイテムの場合は名前をつける（仮名）アクションを追加
+        const id = item.identification || {};
+        const isUnid = Boolean(
+            item.isUnidentified ||
+            id.isUnidentified ||
+            item.knowledge?.isUnidentified ||
+            item.isDiscovered === false ||
+            (id.idLevel && (id.idLevel === 'UNIDENTIFIED' || id.idLevel === 'BUC_KNOWN' || id.idLevel === 'NAMED'))
+        );
+        if (isUnid && letter) {
+            actions.push({ id: 'CALL', label: '名前をつける', key: 'C', letter, mode: 'call' });
+        }
 
         return actions;
     }
@@ -713,6 +726,15 @@ export class NhShirenInventoryDrawer extends NhBaseElement {
             bubbles: true,
             composed: true
         }));
+
+        if (act.id === 'CALL') {
+            this.dispatchEvent(new CustomEvent('nh-knowledge-call-item', {
+                bubbles: true,
+                composed: true,
+                detail: { targetData: item, mode: 'call' }
+            }));
+            return;
+        }
 
         if (this.core) {
             // NetHack へのコマンド送信 (例: 'q' + 'a' 等)

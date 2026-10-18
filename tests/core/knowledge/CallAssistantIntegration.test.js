@@ -549,5 +549,79 @@ describe('CallAssistantIntegration - 直接命名起動＆Cコア能動コマン
         expect(spear.baseName).not.toContain('called');
         expect(spear.identification?.calledName).toBeNull();
     });
+
+    it('14. ディスカバリー図鑑（値段付き未識別アイテム）-> 個別ナレッジ -> 価格連動候補絞り込み＆仮名登録の統合フロー', () => {
+        const mockCore = {
+            gkl: {
+                discoveryStateManager: discoveryStateManager,
+                wasmDirectBindingService: null,
+                inventoryStateManager: { isSynced: true, syncFromDirectBinding: vi.fn() }
+            },
+            currentPrompt: null,
+            executeSequence: vi.fn(),
+            emit: vi.fn()
+        };
+
+        const modalManager = new ModalManager({
+            getCore: () => mockCore
+        });
+
+        // 1. DiscoveryStateManager に仮名（"133G"）および内部キー "onum:300" を設定
+        discoveryStateManager.setCalledName('scroll labeled FOO', '133G');
+        discoveryStateManager.setCalledName('onum:300', '133G');
+
+        // インベントリ内に同一外見の巻物を所持
+        const mockInventoryStateManager = {
+            getItems: () => [
+                {
+                    letter: 'd',
+                    rawText: 'a scroll labeled FOO (unpaid, 133 zorkmids)',
+                    name: 'scroll labeled FOO',
+                    identification: {
+                        appearanceName: 'scroll labeled FOO',
+                        calledName: '133G',
+                        isUnidentified: true
+                    }
+                }
+            ]
+        };
+        discoveryStateManager.inventoryStateManager = mockInventoryStateManager;
+
+        // 2. getDiscoveredItems の検証:
+        // - "onum:300" は単体行として出力されないこと
+        // - 未識別アイテムに isUnidentified: true が付与され、所持品から letter, rawText が引き継がれていること
+        const discovered = discoveryStateManager.getDiscoveredItems();
+        expect(discovered.some(d => d.trueName === 'onum:300')).toBe(false);
+
+        const codexItem = discovered.find(d => (d.appearance || '').toLowerCase() === 'scroll labeled foo');
+        expect(codexItem).toBeDefined();
+        expect(codexItem.isUnidentified).toBe(true);
+        expect(codexItem.isDiscovered).toBe(false);
+        expect(codexItem.letter).toBe('d');
+        expect(codexItem.calledName).toBe('133G');
+        expect(codexItem.rawText).toContain('133 zorkmids');
+
+        // 3. KnowledgeDetailModal での表示と _canCallItem() の検証
+        const modal = new KnowledgeDetailModal({
+            getCore: () => mockCore,
+            language: 'ja'
+        });
+        modal.open(codexItem);
+
+        expect(modal._canCallItem()).toBe(true);
+        const modalHtml = modal.elModal.innerHTML;
+        // 価格からの推定候補セクションが表示されていること
+        expect(modalHtml).toContain('価格からの推定候補');
+        // 基礎価格 100 ZM（買値133Gからの逆算）の巻物候補（teleport? 等）が含まれていること
+        expect(modalHtml).toContain('teleport?');
+
+        // 4. クイック仮名登録（"teleport?"）の実行
+        modal.triggerQuickCallItem('teleport?');
+
+        // 5. Cコアコマンドシーケンス送信 & 仮名ストア更新の検証
+        expect(mockCore.executeSequence).toHaveBeenCalledWith(['C', 'o', 'd', 'teleport?']);
+        expect(discoveryStateManager.getCalledName('scroll labeled FOO')).toBe('teleport?');
+        expect(codexItem.calledName).toBe('teleport?');
+    });
 });
 

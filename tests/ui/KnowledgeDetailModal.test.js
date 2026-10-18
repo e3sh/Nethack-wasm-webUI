@@ -104,4 +104,31 @@ describe('KnowledgeDetailModal - Called Name in Header Title & Badges', () => {
     expect(titleEl.textContent).toContain('ルビー色の薬 [仮名: healing?]');
     expect(targetData.calledName).toBe('healing?');
   });
+
+  it('インベントリから開いた未鑑定アイテム（InventoryStateManager パース構造）で [仮名] ボタンが確実に表示されること', () => {
+    modal.setLanguage('ja');
+
+    // InventoryStateManager のパースアイテム構造（直下に category はなく categoryFlags、identification 内に isUnidentified）
+    const inventoryItem = {
+      letter: 'b',
+      rawText: 'a smoky potion',
+      onum: 300,
+      glyphId: 3748,
+      identification: {
+        idLevel: 'UNIDENTIFIED',
+        isUnidentified: true,
+        appearanceName: 'smoky potion',
+        calledName: null
+      },
+      isPotion: true,
+      itemCategory: 'POTION'
+    };
+
+    modal.open(inventoryItem);
+
+    const callBtn = modalElement.querySelector('#btn-modal-call-item');
+    expect(callBtn).not.toBeNull();
+    expect(callBtn.textContent).toContain('仮名');
+  });
 });
+

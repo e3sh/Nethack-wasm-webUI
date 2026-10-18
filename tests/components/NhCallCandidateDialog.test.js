@@ -229,5 +229,122 @@ describe('NhCallCandidateDialog (<nh-call-candidate-dialog>) (ROADMAP §2.1 / Ga
         expect(detail.onum).toBe(54);
         expect(detail.mode).toBe('artifact_name');
     });
+
+    it('9. DOM上の要素順序と data-idx の順序が上から下へ一致していること', () => {
+        const dialog = new NhCallCandidateDialog();
+        dialog.connectedCallback();
+
+        dialog.setData({
+            targetName: 'ruby potion',
+            shorthands: ['100G?', 'healing?'],
+            candidates: [
+                { onum: 310, name: 'potion of healing', cost: 100 },
+                { onum: 311, name: 'potion of extra healing', cost: 100 }
+            ]
+        });
+        dialog.show();
+
+        const root = dialog.shadowRoot;
+        // shorthand-chip (2個), candidate-clear-item (1個), candidate-item (2個), custom-input (1個)
+        const allNavElements = root.querySelectorAll('.shorthand-chip, .candidate-item, .custom-input');
+        const indices = allNavElements.map(el => parseInt(el.getAttribute('data-idx'), 10));
+
+        // 期待される順序: [0, 1, 2, 3, 4, 5]
+        expect(indices).toEqual([0, 1, 2, 3, 4, 5]);
+
+        // 各要素の種別と配置順の検証
+        expect(allNavElements[0].classList.contains('shorthand-chip')).toBe(true);
+        expect(allNavElements[1].classList.contains('shorthand-chip')).toBe(true);
+        expect(allNavElements[2].classList.contains('candidate-clear-item')).toBe(true);
+        expect(allNavElements[3].classList.contains('candidate-item')).toBe(true);
+        expect(allNavElements[4].classList.contains('candidate-item')).toBe(true);
+        expect(allNavElements[5].classList.contains('custom-input')).toBe(true);
+    });
+
+    it('10. マウスホバー（mouseenter）時に、ホバーした要素の data-idx のみに .is-focused が付与され、他の要素と二重に .is-focused が付かないこと', () => {
+        const dialog = new NhCallCandidateDialog();
+        dialog.connectedCallback();
+
+        dialog.setData({
+            targetName: 'ruby potion',
+            shorthands: ['100G?'],
+            candidates: [
+                { onum: 310, name: 'potion of healing', cost: 100 },
+                { onum: 311, name: 'potion of extra healing', cost: 100 }
+            ]
+        });
+        dialog.show();
+
+        const root = dialog.shadowRoot;
+        const allNavElements = root.querySelectorAll('.shorthand-chip, .candidate-item, .custom-input');
+
+        // 初期状態: data-idx=0 のみ is-focused
+        expect(allNavElements[0].classList.contains('is-focused')).toBe(true);
+        expect(allNavElements[1].classList.contains('is-focused')).toBe(false);
+
+        // cand1 (data-idx=2) にマウスホバー
+        allNavElements[2].dispatchEvent({ type: 'mouseenter' });
+
+        expect(dialog._focusedIndex).toBe(2);
+        // data-idx=2 の要素のみに is-focused が付与されていること
+        expect(allNavElements[2].classList.contains('is-focused')).toBe(true);
+        // 直前（1段上）のクリア項目 (data-idx=1) や先頭のショートハンド (data-idx=0) には付いていないこと
+        expect(allNavElements[1].classList.contains('is-focused')).toBe(false);
+        expect(allNavElements[0].classList.contains('is-focused')).toBe(false);
+        expect(allNavElements[3].classList.contains('is-focused')).toBe(false);
+        expect(allNavElements[4].classList.contains('is-focused')).toBe(false);
+
+        // 全体で is-focused を持つ要素がホバー要素1つだけであること（二重枠防止）
+        const focusedElements = root.querySelectorAll('.is-focused');
+        expect(focusedElements.length).toBe(1);
+        expect(focusedElements[0].getAttribute('data-idx')).toBe('2');
+    });
+
+    it('11. .custom-input へのフォーカス時に .is-focused が入力欄に移り、候補項目から外れること', () => {
+        const dialog = new NhCallCandidateDialog();
+        dialog.connectedCallback();
+
+        dialog.setData({
+            targetName: 'ruby potion',
+            shorthands: ['100G?'],
+            candidates: [
+                { onum: 310, name: 'potion of healing', cost: 100 }
+            ]
+        });
+        dialog.show();
+
+        const root = dialog.shadowRoot;
+        const input = root.querySelector('.custom-input');
+        const cand = root.querySelectorAll('.candidate-item')[1];
+
+        expect(input).not.toBeNull();
+        expect(cand).not.toBeNull();
+
+        // custom-input にフォーカス（focus イベント発火）
+        input.dispatchEvent({ type: 'focus' });
+
+        const inputIdx = parseInt(input.getAttribute('data-idx'), 10);
+        expect(dialog._focusedIndex).toBe(inputIdx);
+        expect(input.classList.contains('is-focused')).toBe(true);
+
+        // 他の要素（候補など）から is-focused が除去されていること
+        const focusedElements = root.querySelectorAll('.is-focused');
+        expect(focusedElements.length).toBe(1);
+        expect(focusedElements[0]).toBe(input);
+
+        // 次に候補アイテムに mouseenter した際、blur が呼ばれ、フォーカスが候補アイテムに移ること
+        globalThis.document.activeElement = input;
+        expect(dialog._isCustomInputFocused()).toBe(true);
+
+        const blurSpy = vi.spyOn(input, 'blur');
+        cand.dispatchEvent({ type: 'mouseenter' });
+
+        expect(blurSpy).toHaveBeenCalled();
+        const candIdx = parseInt(cand.getAttribute('data-idx'), 10);
+        expect(dialog._focusedIndex).toBe(candIdx);
+        expect(cand.classList.contains('is-focused')).toBe(true);
+        expect(input.classList.contains('is-focused')).toBe(false);
+    });
 });
+
 

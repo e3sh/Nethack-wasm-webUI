@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-10-17
+last_updated: 2026-10-18
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -34,19 +34,18 @@ last_updated: 2026-10-17
 
 > [!NOTE]
 > **Phase 7 Phase 3 ＆ Gap 2「命名アシスト ＆ GamePad候補選択」が 100% 完結しました！**  
-> これにより、旧構想から棚卸しされた §2 の着手待ち（Ready）タスク群（事後ナレッジ連携、キャラクター詳細ダイアログ＆Quick Dock、床落ちPeek Wisdom、命名アシスト）は**すべて完遂**となり、現行仕様（Living Specs）へ移行しました。
-
-現在、すべての着手待ちタスクが実装済みです。次期フォーカス候補は §3 のバックログ構想（セマンティック・メッセージトークン化、またはモダン総合インベントリダイアログ）となります。
+> これにより、旧構想から棚卸しされた §2 の着手待ち（Ready）タスク群はすべて完遂となり、現在は今後の機能拡張におけるデグレ（リグレッション）を構造的に根絶するための**「§2.2 JS層アイテムデータモデルの単一正規化（Canonical Item Schema）」**が設計完了・次期最優先候補となっています。
 
 | 候補 | 対象タスク | 実装内容 / スコープ | ステータス |
 | :--- | :--- | :--- | :--- |
-| **完遂** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | `ItemCandidateResolver.js` (価格帯・効果・既知除外) ＋ `CustomNameStore.js` ＋ `<nh-call-candidate-dialog>` ＋ `InputCoordinator` 連携 | **🟢 完遂 (100% 完了)**<br>全158スイート・1,984テスト PASS |
+| **次期最優先** | **[§2.2 JS層アイテムデータモデルの単一正規化 (Canonical Item Schema)](./3_gkl/canonical_item_schema_and_normalization_architecture.ja.md)** | `CanonicalItem` 型定義 (`index.d.ts`) ＋ `ItemNormalizer.js` ＋ 全 Producer（所持品/図鑑/床/知識）の出力統一 ＋ UI 層の多重 `\|\|` フォールバック完全撤廃 ＆ 契約テスト常設化 | **⏸️ 設計完了・着手待ち (`pending`)** |
+| **完遂** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | `ItemCandidateResolver.js` (価格帯・効果・既知除外) ＋ `CustomNameStore.js` ＋ `<nh-call-candidate-dialog>` ＋ `InputCoordinator` 連携 | **🟢 完遂 (100% 完了)**<br>全159スイート・2,009テスト PASS |
 
 ---
 
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
-仕様・設計が完了しており、基盤部分の実装も進んでいて残作業が明確化されているタスク群です。  
+仕様・設計が完了しており、実装ステップが明確化されているタスク群です。  
 ※なお、**旧2.1〜2.7（命名アシスト、事後ナレッジ連携、キャラクター詳細ダイアログ＆Quick Dock、床落ちアイテム・コンテナ・Peek Wisdom、ASCII純化）はすべて完遂**し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
 
 ### 2.1 Phase 7 Phase 3: 命名アシスト ＆ GamePad候補選択 (Gap 2 対応)
@@ -57,6 +56,20 @@ last_updated: 2026-10-17
   - [x] Step 1: `DiscoveryStateManager.js` への Phase 8 発見状態メモリ直結 (`syncWithLiveMemory` 実装済み)
   - [x] Step 2: `ItemCandidateResolver.js` によるワンタップ候補サジェストコア（価格帯・識別済み除外フィルタ）＆ `CustomNameStore.js` 実装
   - [x] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`) ＆ `InputCoordinator` / プロンプト捕捉連携
+
+### 2.2 JS層アイテムデータモデルの単一正規化（Canonical Item Schema）＆ 防御的フォールバック根絶
+- **ステータス**: `⏸️ pending` (基本設計完了・次期着手待ち)
+- **設計書**: **[canonical_item_schema_and_normalization_architecture.ja.md](./3_gkl/canonical_item_schema_and_normalization_architecture.ja.md)**
+- **背景と目的**:
+  - 生成経路（`InventoryStateManager`, `DiscoveryStateManager`, `InventoryWasmAdapter`, `StructuredKnowledgeEngine`）ごとに異なるアイテムオブジェクトのプロパティ構造（`letter` vs `invlet`, `category` vs `itemCategory` vs `onumCategory`, `isUnidentified` vs `identification.isUnidentified` vs `isDiscovered`）を単一の正規化スキーマ（`CanonicalItem`）へ完全統一する。
+  - UIコンポーネント側に散乱している `a || b || c` の防御的フォールバック（対症療法コード）を全廃し、機能更新のたびに別経路の判定が漏れてデグレが発生する構造的欠陥を根絶する。
+- **定量的削減見込み（実測値）**:
+  - コードベース内の重複プロパティ探り（`||` 連鎖）**約 438 箇所（約 800〜1,200 行）**を撤廃可能（さらに §3.3 Direct-Only 純化との合流で **最大約 2,500〜3,000 行削減**）。
+- **4段階実装ステップ**:
+  - [ ] **Phase 1**: `src/core/index.d.ts` への `CanonicalItem` 型定義追加 ＆ `src/core/knowledge/models/ItemNormalizer.js` の実装・単体検証
+  - [ ] **Phase 2**: 全 Producer（`InventoryStateManager`, `DiscoveryStateManager`, 床・コンテナ出力）の出口を `ItemNormalizer.normalize()` 経由へ統一
+  - [ ] **Phase 3**: 全 Consumer（`KnowledgeDetailModal`, `NhKnowledgeCard`, `ModalManager`, `InventoryView`, `NhShirenInventoryDrawer`, `PaperdollModal`）の純化と多重フォールバック撤廃
+  - [ ] **Phase 4**: 全 Producer の実出力に対するスキーマ適合性契約テスト（`CanonicalItemContract.test.js`）の常設化
 
 ---
 

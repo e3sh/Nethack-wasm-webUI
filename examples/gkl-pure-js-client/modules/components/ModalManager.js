@@ -582,6 +582,86 @@ export class ModalManager {
       if (!targetData) return;
       this.openDirectArtifactNameDialog(targetData, e.target, e.detail?.onUpdate);
     });
+
+    // 3. 価格推定候補からのワンクリック仮名登録 (Quick Call)
+    document.addEventListener('nh-knowledge-quick-call', (e) => {
+      const targetData = e.detail?.targetData;
+      const chosenName = e.detail?.callName;
+      if (!targetData || !chosenName) return;
+      this.applyQuickCall(targetData, chosenName, e.target, e.detail?.onUpdate);
+    });
+  }
+
+  /**
+   * 価格推定候補等からのワンクリック仮名登録
+   * @param {Object} targetData 
+   * @param {string} chosenName 
+   * @param {HTMLElement} [cardEl] 
+   * @param {Function} [onUpdate] 
+   */
+  applyQuickCall(targetData, chosenName, cardEl = null, onUpdate = null) {
+    if (!targetData || !chosenName) return;
+    const core = this.getCore();
+    const discoveryStateManager = core?.gkl?.discoveryStateManager || null;
+    const wasmDirectBindingService = core?.gkl?.wasmDirectBindingService || null;
+
+    const category = ItemCandidateResolver.resolveCategory(targetData) || targetData.category || 'OBJECT';
+    const appearance = targetData.appearanceName || targetData.appearance || targetData.name || '';
+    const onum = (typeof targetData.onum === 'number' && targetData.onum >= 0) ? targetData.onum :
+      (targetData.identification && typeof targetData.identification.onum === 'number') ? targetData.identification.onum :
+      (targetData.knowledge && typeof targetData.knowledge.onum === 'number') ? targetData.knowledge.onum : -1;
+
+    try {
+      const store = CustomNameStore.getInstance({ discoveryStateManager });
+      const targetKey = targetData.name || appearance;
+      store.setCustomName(targetKey, chosenName, { category });
+      if (appearance && appearance !== targetKey) {
+        store.setCustomName(appearance, chosenName, { category });
+      }
+      if (discoveryStateManager && typeof discoveryStateManager.setCalledName === 'function') {
+        discoveryStateManager.setCalledName(targetKey, chosenName);
+        if (appearance) {
+          discoveryStateManager.setCalledName(appearance, chosenName);
+        }
+        if (onum >= 0) {
+          discoveryStateManager.setCalledName(`onum:${onum}`, chosenName);
+        }
+      }
+      if (wasmDirectBindingService && typeof wasmDirectBindingService.setCachedObjectUname === 'function' && onum >= 0) {
+        wasmDirectBindingService.setCachedObjectUname(onum, chosenName || null);
+      }
+    } catch (_) {}
+
+    targetData.calledName = chosenName;
+    if (targetData.identification) {
+      targetData.identification.calledName = chosenName;
+    }
+    if (typeof onUpdate === 'function') {
+      onUpdate(targetData);
+    }
+    if (cardEl && typeof cardEl.setTarget === 'function') {
+      cardEl.setTarget(targetData);
+    }
+
+    const coreNameToSend = chosenName ? chosenName.trim() : ' ';
+    if (core && core.currentPrompt) {
+      core.respond(coreNameToSend);
+    } else if (core) {
+      const letter = targetData.letter || targetData.invlet || targetData.item?.letter || targetData.item?.invlet;
+      if (letter) {
+        const seq = ['C', 'o', letter, coreNameToSend];
+        if (typeof core.executeSequence === 'function') {
+          core.executeSequence(seq);
+        } else if (typeof core.sendKeySequence === 'function') {
+          core.sendKeySequence(seq);
+        }
+      }
+    }
+
+    if (core && typeof core.emit === 'function') {
+      core.emit('inventoryStateUpdated', core.gkl?.inventoryStateManager);
+      core.emit('displayUpdate');
+    }
   }
 
   /**
@@ -597,6 +677,8 @@ export class ModalManager {
     const category = ItemCandidateResolver.resolveCategory(targetData) || targetData.category || 'OBJECT';
     const appearance = targetData.appearanceName || targetData.appearance || targetData.name || '';
     const targetName = targetData.name || appearance;
+    const currentCall = targetData.calledName || targetData.identification?.calledName ||
+      (discoveryStateManager && typeof discoveryStateManager.getCalledName === 'function' ? (discoveryStateManager.getCalledName(appearance) || discoveryStateManager.getCalledName(targetData.name)) : '') || '';
 
     // 候補アイテムの算出 (未識別優先、価格帯、直前効果メッセージヒント)
     const result = ItemCandidateResolver.resolveCandidates({
@@ -604,7 +686,11 @@ export class ModalManager {
       appearance,
       onum: targetData.onum,
       discoveryStateManager,
-      excludeDiscovered: true
+      excludeDiscovered: true,
+      calledName: currentCall,
+      rawText: targetData.rawText || targetData.str || '',
+      lastEffectText: core?.lastRawMessageText || '',
+      targetData
     });
 
     let dialog = typeof document !== 'undefined' ? document.getElementById('nh-call-candidate-dialog') : null;
@@ -615,14 +701,13 @@ export class ModalManager {
     }
     if (!dialog) return;
 
-    const currentCall = targetData.calledName || targetData.identification?.calledName || '';
-
     dialog.setData({
       targetName,
       targetCategory: category,
       candidates: result.candidates,
       shorthands: result.shorthands,
       currentCall,
+      matchedCosts: result.matchedCosts || [],
       mode: 'call'
     });
 

@@ -762,12 +762,12 @@ export class WebUICore {
             this.emit('userActionSent', { sequence: [inputStr] });
 
             // アイテム使用コマンドおよび手動命名コマンドの追跡
-            const itemUseKeys = new Set(['r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
-            if (itemUseKeys.has(inputStr)) {
-                this.isItemUsingActive = true;
-            } else if (this.isItemUsingActive && /^[a-zA-Z]$/.test(inputStr)) {
+            const itemUseKeys = new Set(['w', 'r', 'q', 'z', 'P', 'e', 'a', 't', 'f', 'W', 'T', 'R', 'u']);
+            if (this.isItemUsingActive && /^[a-zA-Z]$/.test(inputStr)) {
                 this.lastUsedItemLetter = inputStr;
-                this.isItemUsingActive = false;
+                // isItemUsingActive は docall プロンプトの auto_memo / skip 判定、またはターン待機復帰(isTopLevelTurn)まで保持する
+            } else if (itemUseKeys.has(inputStr)) {
+                this.isItemUsingActive = true;
             }
             if (inputStr === 'C' || inputStr === '#name' || inputStr === '#call') {
                 this.isManualNamingActive = true;

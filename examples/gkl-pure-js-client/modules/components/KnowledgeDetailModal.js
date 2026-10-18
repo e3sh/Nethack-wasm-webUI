@@ -253,22 +253,40 @@ export class KnowledgeDetailModal {
   }
 
   /**
-   * 未鑑定アイテムで仮名（Call）がつけられる状態か判定（インベントリアイテム限定）
+   * 未鑑定アイテムで仮名（Call）がつけられる状態か判定（インベントリアイテムおよびディスカバリー図鑑未識別アイテム）
    * @returns {boolean}
    */
   _canCallItem() {
-    const data = this.currentTarget;
-    if (!data) return false;
-    const isMonster = data.category === 'MONSTER' || Boolean(data.dangerLevel);
-    const isTerrain = data.category === 'TERRAIN' || Boolean(data.isTerrain);
+    const rawTarget = this.currentTarget;
+    if (!rawTarget) return false;
+    const resolved = (typeof this._resolveData === 'function') ? this._resolveData() : null;
+    const data = resolved || rawTarget;
+
+    const category = String(data.category || rawTarget.category || data.itemCategory || rawTarget.itemCategory || '').toUpperCase();
+    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel || rawTarget.dangerLevel);
+    const isTerrain = category === 'TERRAIN' || Boolean(data.isTerrain || rawTarget.isTerrain);
     if (isMonster || isTerrain) return false;
 
-    // 床アイテム等（インベントリレターがないもの）は命名不可
-    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
-    if (!letter) return false;
+    const id = data.identification || rawTarget.identification || {};
+    const idLevel = id.idLevel || rawTarget.idLevel;
+    const isUnid = Boolean(
+      data.isUnidentified ||
+      rawTarget.isUnidentified ||
+      id.isUnidentified ||
+      data.knowledge?.isUnidentified ||
+      rawTarget.knowledge?.isUnidentified ||
+      data.isDiscovered === false ||
+      rawTarget.isDiscovered === false ||
+      (idLevel && (idLevel === 'UNIDENTIFIED' || idLevel === 'BUC_KNOWN' || idLevel === 'NAMED'))
+    );
+    if (!isUnid) return false;
 
-    const id = data.identification || {};
-    return Boolean(data.isUnidentified || id.isUnidentified || data.knowledge?.isUnidentified);
+    const letter = data.letter || data.invlet || rawTarget.letter || rawTarget.invlet ||
+      data.item?.letter || data.item?.invlet || rawTarget.item?.letter || rawTarget.item?.invlet;
+    const isCodexUnid = (data.isDiscovered === false || rawTarget.isDiscovered === false ||
+      data.isCodexItem || rawTarget.isCodexItem ||
+      Boolean(data.appearance || rawTarget.appearance || id.appearanceName));
+    return Boolean(letter || isCodexUnid);
   }
 
   /**
@@ -276,27 +294,67 @@ export class KnowledgeDetailModal {
    * @returns {boolean}
    */
   _canNameArtifactItem() {
-    const data = this.currentTarget;
-    if (!data) return false;
-    const isMonster = data.category === 'MONSTER' || Boolean(data.dangerLevel);
-    const isTerrain = data.category === 'TERRAIN' || Boolean(data.isTerrain);
+    const rawTarget = this.currentTarget;
+    if (!rawTarget) return false;
+    const resolved = (typeof this._resolveData === 'function') ? this._resolveData() : null;
+    const data = resolved || rawTarget;
+
+    const category = String(data.category || rawTarget.category || data.itemCategory || rawTarget.itemCategory || '').toUpperCase();
+    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel || rawTarget.dangerLevel);
+    const isTerrain = category === 'TERRAIN' || Boolean(data.isTerrain || rawTarget.isTerrain);
     if (isMonster || isTerrain) return false;
 
     // 床アイテム等（インベントリレターがないもの）は命名不可
-    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
+    const letter = data.letter || data.invlet || rawTarget.letter || rawTarget.invlet ||
+      data.item?.letter || data.item?.invlet || rawTarget.item?.letter || rawTarget.item?.invlet;
     if (!letter) return false;
 
-    const id = data.identification || {};
-    const isUnidentified = Boolean(data.isUnidentified || id.isUnidentified || data.knowledge?.isUnidentified);
+    const id = data.identification || rawTarget.identification || {};
+    const idLevel = id.idLevel || rawTarget.idLevel;
+    const isUnidentified = Boolean(
+      data.isUnidentified ||
+      rawTarget.isUnidentified ||
+      id.isUnidentified ||
+      data.knowledge?.isUnidentified ||
+      rawTarget.knowledge?.isUnidentified ||
+      (idLevel && (idLevel === 'UNIDENTIFIED' || idLevel === 'BUC_KNOWN' || idLevel === 'NAMED'))
+    );
     if (isUnidentified) return false;
 
     const onum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
-      (data.identification && typeof data.identification.onum === 'number') ? data.identification.onum :
+      (typeof rawTarget.onum === 'number' && rawTarget.onum >= 0) ? rawTarget.onum :
+      (id && typeof id.onum === 'number') ? id.onum :
       (data.knowledge && typeof data.knowledge.onum === 'number') ? data.knowledge.onum : undefined;
 
-    const baseName = data.oc_name || data.nameEn || data.trueName || data.english || data.rawName || data.name;
+    const baseName = data.oc_name || data.nameEn || data.trueName || data.english || data.rawName || data.name ||
+      rawTarget.oc_name || rawTarget.nameEn || rawTarget.trueName || rawTarget.english || rawTarget.rawName || rawTarget.name;
 
     return ItemCandidateResolver.hasArtifactCandidates({ onum, baseName });
+  }
+
+  /**
+   * 価格推定候補等からのワンクリック仮名登録イベントを発火
+   * @param {string} callName 
+   */
+  triggerQuickCallItem(callName) {
+    if (!this.currentTarget || !this.elModal || !callName) return;
+    const targetData = this.currentTarget;
+    const modalEl = this.elModal;
+    modalEl.dispatchEvent(new CustomEvent('nh-knowledge-quick-call', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        targetData,
+        callName,
+        onUpdate: (updated) => {
+          this.currentTarget = updated;
+          if (this.isVisible) this.render();
+        }
+      }
+    }));
+    targetData.calledName = callName;
+    if (targetData.identification) targetData.identification.calledName = callName;
+    this.render();
   }
 
   /**
@@ -977,6 +1035,18 @@ export class KnowledgeDetailModal {
       btnName.addEventListener('click', handleName);
     }
 
+    // 価格推定候補バッジクリックイベント結線
+    const priceCandidateBadges = this.elModal.querySelectorAll('.kn-price-candidate-badge');
+    priceCandidateBadges.forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const callName = btn.getAttribute('data-call-name');
+        if (callName) {
+          this.triggerQuickCallItem(callName);
+        }
+      };
+    });
+
     // 検索入力イベント結線
     const searchInput = this.elModal.querySelector('#kn-search-input');
     const searchBtn = this.elModal.querySelector('#kn-search-btn');
@@ -1274,6 +1344,57 @@ export class KnowledgeDetailModal {
       `;
     }
 
+    // 価格からの推定候補セクション (未識別アイテムで金額情報がある場合)
+    let priceCandidatesHtml = '';
+    const dsm = core?.gkl?.discoveryStateManager || null;
+    const hasPrice = Boolean(
+      ItemCandidateResolver.extractPriceInfo(data) ||
+      ItemCandidateResolver.extractPriceInfo(this.currentTarget)
+    );
+    if (isUnid && hasPrice) {
+      const callRes = ItemCandidateResolver.resolveCandidates({
+        targetData: data,
+        category: data.category,
+        calledName: data.calledName || this.currentTarget?.calledName || '',
+        rawText: data.rawText || this.currentTarget?.rawText || '',
+        discoveryStateManager: dsm,
+        excludeDiscovered: true
+      });
+
+      if (callRes && callRes.candidates && callRes.candidates.length > 0) {
+        const costStr = callRes.matchedCosts && callRes.matchedCosts.length > 0
+          ? `${callRes.matchedCosts.join('/')} ZM`
+          : '';
+        const titleText = isEn
+          ? `💰 Estimated Candidates from Price ${costStr ? `(Est. Base: ${costStr})` : ''}`
+          : `💰 価格からの推定候補 ${costStr ? `(基礎価格: ${costStr} 推定)` : ''}`;
+
+        const topCandidates = callRes.candidates.slice(0, 8);
+        const badgesHtml = topCandidates.map(c => {
+          const label = isEn ? c.name : (c.nameJa || c.name);
+          const short = c.shorthand || `${c.name}?`;
+          return `
+            <button class="kn-price-candidate-badge" data-call-name="${short}" title="${isEn ? `Click to call '${short}'` : `クリックして仮名 '${short}' を登録`}" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.45); color: #fef08a; padding: 3px 8px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; font-family: inherit;">
+              <span>🏷️ ${label}</span>
+              <span style="opacity: 0.7; font-size: 0.7rem;">(${short})</span>
+            </button>
+          `;
+        }).join('');
+
+        priceCandidatesHtml = `
+          <div class="kn-section-box kn-price-candidates-box" style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(234, 179, 8, 0.4); padding: 10px 12px; border-radius: 8px; margin-bottom: 10px;">
+            <div style="color: #facc15; font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+              <span>${titleText}</span>
+              <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 400;">${isEn ? 'Click badge to Call' : 'クリックで即座に仮名設定'}</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              ${badgesHtml}
+            </div>
+          </div>
+        `;
+      }
+    }
+
     // 死体・食用情報 (CORPSE / FOOD)
     let corpseHtml = '';
     const cs = data.corpseInfo || data.corpseSafety;
@@ -1364,6 +1485,7 @@ export class KnowledgeDetailModal {
         ` : ''}
 
         ${wisdomNoticeHtml}
+        ${priceCandidatesHtml}
         ${specsHtml}
         ${corpseHtml}
         ${effectSummaryHtml}

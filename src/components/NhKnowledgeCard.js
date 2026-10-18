@@ -712,22 +712,54 @@ export class NhKnowledgeCard extends NhBaseElement {
   }
 
   /**
-   * 未鑑定アイテムで仮名（Call）がつけられる状態か判定
+   * 未鑑定アイテムで仮名（Call）がつけられる状態か判定（インベントリアイテムおよびディスカバリー図鑑未識別アイテム）
    * @returns {boolean}
    * @private
    */
   _canCallItem() {
     const data = this.targetData;
     if (!data) return false;
-    const isMonster = data.category === 'MONSTER' || Boolean(data.dangerLevel);
-    const isTerrain = data.category === 'TERRAIN' || Boolean(data.isTerrain);
+    const category = String(data.category || data.itemCategory || '').toUpperCase();
+    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel);
+    const isTerrain = category === 'TERRAIN' || Boolean(data.isTerrain);
     if (isMonster || isTerrain) return false;
 
-    // 床アイテム等（インベントリレターがないもの）は命名不可
-    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
-    if (!letter) return false;
+    const id = data.identification || {};
+    const idLevel = id.idLevel || data.idLevel;
+    const isUnid = Boolean(
+      data.isUnidentified ||
+      id.isUnidentified ||
+      data.knowledge?.isUnidentified ||
+      data.isDiscovered === false ||
+      (idLevel && (idLevel === 'UNIDENTIFIED' || idLevel === 'BUC_KNOWN' || idLevel === 'NAMED'))
+    );
+    if (!isUnid) return false;
 
-    return Boolean(data.isUnidentified || data.identification?.isUnidentified || data.knowledge?.isUnidentified);
+    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
+    const isCodexUnid = (data.isDiscovered === false || data.isCodexItem || Boolean(data.appearance || id.appearanceName));
+    return Boolean(letter || isCodexUnid);
+  }
+
+  /**
+   * 価格推定候補等からのワンクリック仮名登録イベントを発火
+   * @param {string} callName 
+   */
+  triggerQuickCallItem(callName) {
+    if (!this.targetData || !callName) return;
+    this.dispatchEvent(new CustomEvent('nh-knowledge-quick-call', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        targetData: this.targetData,
+        callName,
+        onUpdate: (updated) => {
+          this.setTarget(updated);
+        }
+      }
+    }));
+    this.targetData.calledName = callName;
+    if (this.targetData.identification) this.targetData.identification.calledName = callName;
+    this.render();
   }
 
   /**
@@ -738,20 +770,27 @@ export class NhKnowledgeCard extends NhBaseElement {
   _canNameArtifactItem() {
     const data = this.targetData;
     if (!data) return false;
-    const isMonster = data.category === 'MONSTER' || Boolean(data.dangerLevel);
-    const isTerrain = data.category === 'TERRAIN' || Boolean(data.isTerrain);
+    const category = String(data.category || data.itemCategory || '').toUpperCase();
+    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel);
+    const isTerrain = category === 'TERRAIN' || Boolean(data.isTerrain);
     if (isMonster || isTerrain) return false;
 
     // 床アイテム等（インベントリレターがないもの）は命名不可
     const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
     if (!letter) return false;
 
-    // 未鑑定の場合は仮名（Call）を優先
-    const isUnidentified = Boolean(data.isUnidentified || data.identification?.isUnidentified || data.knowledge?.isUnidentified);
+    const id = data.identification || {};
+    const idLevel = id.idLevel || data.idLevel;
+    const isUnidentified = Boolean(
+      data.isUnidentified ||
+      id.isUnidentified ||
+      data.knowledge?.isUnidentified ||
+      (idLevel && (idLevel === 'UNIDENTIFIED' || idLevel === 'BUC_KNOWN' || idLevel === 'NAMED'))
+    );
     if (isUnidentified) return false;
 
     const onum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
-      (data.identification && typeof data.identification.onum === 'number') ? data.identification.onum :
+      (id && typeof id.onum === 'number') ? id.onum :
       (data.knowledge && typeof data.knowledge.onum === 'number') ? data.knowledge.onum : undefined;
 
     const baseName = data.oc_name || data.nameEn || data.trueName || data.english || data.rawName || data.name;
@@ -1143,6 +1182,46 @@ export class NhKnowledgeCard extends NhBaseElement {
           <div class="spec-section-title">🏷️ ${isEn ? 'Called Name (Player Note)' : 'プレイヤー命名 (仮名)'}</div>
           <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">called "${data.calledName || data.identification?.calledName}"</div>
         ` : ''}
+        ${(() => {
+          const hasPrice = Boolean(ItemCandidateResolver.extractPriceInfo(data));
+          if (!hasPrice) return '';
+          const callRes = ItemCandidateResolver.resolveCandidates({
+            targetData: data,
+            category: data.category,
+            calledName: data.calledName || data.identification?.calledName || '',
+            rawText: data.rawText || '',
+            excludeDiscovered: true
+          });
+          if (!callRes || !callRes.candidates || callRes.candidates.length === 0) return '';
+          const costStr = callRes.matchedCosts && callRes.matchedCosts.length > 0
+            ? `${callRes.matchedCosts.join('/')} ZM`
+            : '';
+          const titleText = isEn
+            ? `💰 Estimated Candidates from Price ${costStr ? `(Est. Base: ${costStr})` : ''}`
+            : `💰 価格からの推定候補 ${costStr ? `(基礎価格: ${costStr} 推定)` : ''}`;
+          const topCandidates = callRes.candidates.slice(0, 8);
+          const badgesHtml = topCandidates.map(c => {
+            const label = isEn ? c.name : (c.nameJa || c.name);
+            const short = c.shorthand || `${c.name}?`;
+            return `
+              <button class="kn-price-candidate-badge" data-call-name="${short}" title="${isEn ? `Click to call '${short}'` : `クリックして仮名 '${short}' を登録`}" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.45); color: #fef08a; padding: 3px 8px; border-radius: 6px; font-size: 0.74rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; font-family: inherit;">
+                <span>🏷️ ${label}</span>
+                <span style="opacity: 0.7; font-size: 0.68rem;">(${short})</span>
+              </button>
+            `;
+          }).join('');
+          return `
+            <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(234, 179, 8, 0.4); padding: 8px 10px; border-radius: 6px; margin: 8px 0;">
+              <div style="color: #facc15; font-weight: 700; font-size: 0.8rem; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                <span>${titleText}</span>
+                <span style="font-size: 0.68rem; color: #94a3b8; font-weight: 400;">${isEn ? 'Click badge to Call' : 'クリックで即座に仮名設定'}</span>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                ${badgesHtml}
+              </div>
+            </div>
+          `;
+        })()}
         <div class="tactical-advice">💡 ${effectText}</div>
       `;
     }
@@ -1341,6 +1420,18 @@ export class NhKnowledgeCard extends NhBaseElement {
     if (callBtn) {
       callBtn.addEventListener('click', () => this.triggerCallItem());
     }
+
+    // 価格推定候補バッジクリックイベント
+    const priceBadges = this.shadowRoot.querySelectorAll('.kn-price-candidate-badge');
+    priceBadges.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const callName = btn.getAttribute('data-call-name');
+        if (callName) {
+          this.triggerQuickCallItem(callName);
+        }
+      });
+    });
 
     // アーティファクト銘ボタン
     const nameBtn = this.shadowRoot.querySelector('#nameItemBtn');

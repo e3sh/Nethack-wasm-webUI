@@ -94,4 +94,36 @@ describe('NhShirenInventoryDrawer ユニットテスト', () => {
         expect(drawer.isOpen).toBe(false);
         expect(mockCore.sendKey).toHaveBeenCalledWith('q');
     });
+
+    it('未識別アイテムの場合、サブメニューに「名前をつける」アクションが追加され、実行で nh-knowledge-call-item が発火すること', () => {
+        const callSpy = vi.fn();
+        drawer.addEventListener('nh-knowledge-call-item', callSpy);
+
+        const unidentifiedPotion = {
+            id: 10,
+            name: 'smoky potion',
+            category: 'POTION',
+            letter: 'p',
+            identification: { isUnidentified: true }
+        };
+        drawer.setItems([unidentifiedPotion]);
+        drawer.open();
+
+        // 1回目 select: サブメニュー開く
+        drawer.handleGamepadNav({ type: 'select' });
+        expect(drawer.isSubmenuOpen).toBe(true);
+
+        const callAction = drawer.activeActions.find(act => act.id === 'CALL');
+        expect(callAction).toBeDefined();
+        expect(callAction.label).toBe('名前をつける');
+
+        // CALLアクションを選択して実行
+        drawer.selectedSubmenuIndex = drawer.activeActions.indexOf(callAction);
+        drawer.handleGamepadNav({ type: 'select' });
+
+        expect(drawer.isOpen).toBe(false);
+        expect(callSpy).toHaveBeenCalledTimes(1);
+        expect(callSpy.mock.calls[0][0].detail.mode).toBe('call');
+        expect(callSpy.mock.calls[0][0].detail.targetData.letter).toBe('p');
+    });
 });

@@ -233,6 +233,89 @@ export class ItemCandidateResolver {
     }
 
     /**
+     * アイテムオブジェクトまたは文字列（calledName, rawText, name 等）から価格情報を抽出
+     * @param {Object|string} targetOrText 
+     * @returns {{ baseCost?: number, shopPrice?: number, priceType?: 'buy'|'sell', rawMatch?: string } | null}
+     */
+    static extractPriceInfo(targetOrText) {
+        if (!targetOrText) return null;
+
+        const stringsToTest = [];
+        if (typeof targetOrText === 'string') {
+            stringsToTest.push(targetOrText);
+        } else if (typeof targetOrText === 'object') {
+            if (targetOrText.calledName) stringsToTest.push(targetOrText.calledName);
+            if (targetOrText.call) stringsToTest.push(targetOrText.call);
+            if (targetOrText.rawText) stringsToTest.push(targetOrText.rawText);
+            if (targetOrText.name) stringsToTest.push(targetOrText.name);
+            if (targetOrText.str) stringsToTest.push(targetOrText.str);
+        }
+
+        for (const str of stringsToTest) {
+            if (!str || typeof str !== 'string') continue;
+
+            // 1. 店主見積もり・未払い・販売中パターン (例: "unpaid, 133 zorkmids", "for sale, 100 a piece")
+            const shopMatch = str.match(/(?:unpaid,\s*|for sale,\s*)(\d+)\s*(?:zorkmids?|zm|a piece|each|gold)?/i);
+            if (shopMatch) {
+                const price = parseInt(shopMatch[1], 10);
+                if (!isNaN(price) && price > 0) {
+                    return {
+                        shopPrice: price,
+                        priceType: 'buy',
+                        rawMatch: shopMatch[0]
+                    };
+                }
+            }
+
+            // 2. 金額単位付きの表記 (例: "100 zm", "133G", "200gp", "50 gold")
+            const unitMatch = str.match(/\b(\d+)\s*(?:zm|zorkmids?|g|gp|gold)\b/i);
+            if (unitMatch) {
+                const price = parseInt(unitMatch[1], 10);
+                if (!isNaN(price) && price > 0) {
+                    if (STANDARD_BASE_COSTS.includes(price)) {
+                        return {
+                            baseCost: price,
+                            shopPrice: price,
+                            priceType: 'buy',
+                            rawMatch: unitMatch[0]
+                        };
+                    } else {
+                        return {
+                            shopPrice: price,
+                            priceType: 'buy',
+                            rawMatch: unitMatch[0]
+                        };
+                    }
+                }
+            }
+
+            // 3. 純粋な数値仮名または末尾クエスチョン (例: "100", "133", "100?", "67?")
+            const numMatch = str.trim().match(/^(\d+)\??$/);
+            if (numMatch) {
+                const price = parseInt(numMatch[1], 10);
+                if (!isNaN(price) && price > 0) {
+                    if (STANDARD_BASE_COSTS.includes(price)) {
+                        return {
+                            baseCost: price,
+                            shopPrice: price,
+                            priceType: 'buy',
+                            rawMatch: numMatch[0]
+                        };
+                    } else {
+                        return {
+                            shopPrice: price,
+                            priceType: 'buy',
+                            rawMatch: numMatch[0]
+                        };
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * カテゴリ内のアイテムを価格帯（baseCost）ごとにグルーピングして取得
      * @param {string} category 
      * @param {Object} [options={}]
@@ -278,7 +361,7 @@ export class ItemCandidateResolver {
      * 未識別アイテムの候補真名リストを総合解決
      * 
      * @param {Object} options
-     * @param {string} options.category - アイテムカテゴリ ('SCROLL', 'POTION', 'WAND', 'RING' 等)
+     * @param {string} [options.category] - アイテムカテゴリ ('SCROLL', 'POTION', 'WAND', 'RING' 等)
      * @param {number} [options.baseCost] - 基礎価格（既知または推定値）
      * @param {number} [options.shopPrice] - 店頭価格
      * @param {'buy'|'sell'} [options.shopPriceType='buy'] - 店頭価格の種別
@@ -287,7 +370,10 @@ export class ItemCandidateResolver {
      * @param {Object} [options.discoveryStateManager] - DiscoveryStateManager インスタンス
      * @param {boolean} [options.excludeDiscovered=true] - 識別済みアイテムを除外するか
      * @param {string} [options.lastEffectText] - 直前に発生した効果メッセージ（ヒント用）
-     * @returns {Object} { candidates, priceGroups, shorthands, recommendedCandidate }
+     * @param {string} [options.calledName] - 仮名メモ
+     * @param {string} [options.rawText] - アイテム原文
+     * @param {Object} [options.targetData] - 対象アイテムオブジェクト
+     * @returns {Object} { candidates, priceGroups, shorthands, recommendedCandidate, matchedCosts }
      */
     static resolveCandidates(options = {}) {
         const {
@@ -299,25 +385,43 @@ export class ItemCandidateResolver {
             appearance,
             discoveryStateManager = null,
             excludeDiscovered = true,
-            lastEffectText = ''
+            lastEffectText = '',
+            calledName = '',
+            rawText = '',
+            targetData = null
         } = options;
 
-        const normCat = this.normalizeCategory(category);
+        const rawCategory = category || (targetData ? this.resolveCategory(targetData) : '');
+        const normCat = this.normalizeCategory(rawCategory);
         if (!normCat) {
             return {
                 candidates: [],
                 priceGroups: [],
                 shorthands: [],
-                recommendedCandidate: null
+                recommendedCandidate: null,
+                matchedCosts: []
             };
         }
 
         // 1. 基礎価格の特定または推定
+        let effectiveBaseCost = baseCost;
+        let effectiveShopPrice = shopPrice;
+        let effectiveShopPriceType = shopPriceType;
+
+        if (effectiveBaseCost === undefined && effectiveShopPrice === undefined) {
+            const priceInfo = this.extractPriceInfo(targetData || calledName || rawText || options);
+            if (priceInfo) {
+                effectiveBaseCost = priceInfo.baseCost;
+                effectiveShopPrice = priceInfo.shopPrice;
+                if (priceInfo.priceType) effectiveShopPriceType = priceInfo.priceType;
+            }
+        }
+
         let targetCosts = [];
-        if (typeof baseCost === 'number' && baseCost > 0) {
-            targetCosts = [baseCost];
-        } else if (typeof shopPrice === 'number' && shopPrice > 0) {
-            targetCosts = this.estimateBaseCostsFromShopPrice(shopPrice, shopPriceType);
+        if (typeof effectiveBaseCost === 'number' && effectiveBaseCost > 0) {
+            targetCosts = [effectiveBaseCost];
+        } else if (typeof effectiveShopPrice === 'number' && effectiveShopPrice > 0) {
+            targetCosts = this.estimateBaseCostsFromShopPrice(effectiveShopPrice, effectiveShopPriceType);
         }
 
         // 2. 効果メッセージによる特定ヒントのチェック
@@ -436,7 +540,8 @@ export class ItemCandidateResolver {
             candidates,
             priceGroups,
             shorthands,
-            recommendedCandidate
+            recommendedCandidate,
+            matchedCosts: targetCosts
         };
     }
 
