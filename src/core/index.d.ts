@@ -322,6 +322,7 @@ export interface CanonicalItem {
   readonly _canonical: true;          // 正規化済みマーカー
   source: ItemSourceType;             // 発生源 ('INVENTORY' | 'FLOOR' | 'CONTAINER' | 'CODEX' | 'VIRTUAL')
   letter: string | null;              // インベントリレター ('a'〜'z', 'A'〜'Z', '$' 等。非所持時は null)
+  identifier?: number;                // メニュー同定・Cコア項目ID用ポインタ (0 または未定義時は非同定)
   onum: number;                       // Cコアオブジェクト番号 (0〜480, 不明時は -1)
   glyphId: number;                    // 描画グリフID (不明時は -1)
   rawObjPtr: number;                  // Cコア struct obj* ポインタ (非実体時は 0)
@@ -353,6 +354,7 @@ export interface CanonicalItem {
 
   // --- 5. 数量・スペック・装備状態 ---
   quan: number;                       // 個数 (デフォルト 1)
+  count?: number;                     // 互換用個数エイリアス (quan と同値)
   spe: number | null;                 // 強化値またはチャージ数 (不明時は null)
   weight: number;                     // 重量 (不明時は 0)
   equipSlot: string | null;           // 装備中スロット ('weapon', 'suit', 'ring_left' 等。非装備時は null)
@@ -390,6 +392,7 @@ export interface CanonicalItem {
   isTouchstone?: boolean;
   isDigWand?: boolean;
   isGem?: boolean;
+  isGold?: boolean;
   actionRecipe?: any;
   recharged?: number;
 }

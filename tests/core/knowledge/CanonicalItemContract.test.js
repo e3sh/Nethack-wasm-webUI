@@ -184,4 +184,52 @@ describe('CanonicalItemContract - スキーマ契約テスト (Schema Contract T
             expect(corpse.corpsenm).toBe(105);
         });
     });
+
+    describe('4. ItemNormalizer の identifier / isGold / quan 保持契約 (Container Gold & Menu pointer)', () => {
+        it('rawItem.identifier または rawObjPtr が CanonicalItem.identifier として確実に保持されること', () => {
+            const rawItemWithId = {
+                identifier: 0x4567,
+                letter: '$',
+                rawText: '250 gold pieces',
+                count: 250,
+                isGold: true
+            };
+
+            const canonical = ItemNormalizer.normalize(rawItemWithId, { source: 'CONTAINER' });
+            expect(ItemNormalizer.assertCanonicalItem(canonical)).toBe(true);
+            expect(canonical._canonical).toBe(true);
+            expect(canonical.identifier).toBe(0x4567);
+            expect(canonical.isGold).toBe(true);
+            expect(canonical.category).toBe('GOLD');
+            expect(canonical.quan).toBe(250);
+            expect(canonical.count).toBe(250);
+
+            // ポインタのみの場合も identifier として解決されること
+            const rawItemWithPtr = {
+                rawObjPtr: 0x89ab,
+                letter: 'a',
+                rawText: 'a +0 dagger',
+                quan: 1
+            };
+            const canonicalFromPtr = ItemNormalizer.normalize(rawItemWithPtr, { source: 'INVENTORY' });
+            expect(canonicalFromPtr.identifier).toBe(0x89ab);
+        });
+
+        it('正規化済み CanonicalItem を再正規化（クローン）しても identifier / isGold / quan が欠落しないこと', () => {
+            const initial = ItemNormalizer.normalize({
+                identifier: 8888,
+                letter: '$',
+                rawText: '100 gold pieces',
+                quan: 100,
+                isGold: true
+            }, { source: 'CONTAINER' });
+
+            const cloned = ItemNormalizer.normalize(initial, { source: 'CONTAINER' });
+            expect(cloned._canonical).toBe(true);
+            expect(cloned.identifier).toBe(8888);
+            expect(cloned.isGold).toBe(true);
+            expect(cloned.quan).toBe(100);
+            expect(cloned.count).toBe(100);
+        });
+    });
 });

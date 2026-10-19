@@ -505,12 +505,25 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
       expect(modalEl.innerHTML).toContain('150枚の金貨');
       expect(modalEl.innerHTML).toContain('$)');
 
-      // 金貨アイテムの投入実行
-      const goldItem = {
+      // プレイヤー所持金が CanonicalItem として完全正規化されていること
+      const renderedPlayerGold = modal.playerItems ? modal.playerItems[0] : null;
+      if (renderedPlayerGold) {
+        expect(renderedPlayerGold._canonical).toBe(true);
+        expect(renderedPlayerGold.letter).toBe('$');
+        expect(renderedPlayerGold.category).toBe('GOLD');
+        expect(renderedPlayerGold.isGold).toBe(true);
+        expect(renderedPlayerGold.quan).toBe(150);
+      }
+
+      // 金貨アイテムの投入実行 (quan を保持して transferItem に渡ること)
+      const goldItem = renderedPlayerGold || {
+        _canonical: true,
         letter: '$',
         invlet: '$',
         isGold: true,
+        category: 'GOLD',
         rawText: '150枚の金貨',
+        quan: 150,
         count: 150
       };
 
@@ -518,22 +531,22 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
 
       expect(mockCore.containerController.transferItem).toHaveBeenCalledWith(expect.objectContaining({
         direction: 'in',
-        item: expect.objectContaining({ isGold: true, letter: '$' }),
+        item: expect.objectContaining({ isGold: true, letter: '$', quan: 150 }),
         count: 50
       }));
     });
 
-    it('コンテナ内に金貨が存在する場合、右パネルに金貨が表示され取り出せること', async () => {
+    it('コンテナ内に金貨が存在する場合、右パネルに金貨が表示され identifier を保持して取り出せること', async () => {
+      const rawGoldItem = { identifier: 3333, letter: '$', name: '200 gold pieces', rawText: '200 gold pieces', count: 200, isGold: true };
       modal.show({
         containerName: 'the chest',
-        contents: [
-          { identifier: 3333, letter: '$', name: '200 gold pieces', rawText: '200 gold pieces', count: 200, isGold: true }
-        ],
+        contents: [rawGoldItem],
       });
 
       // 右パネルに金貨が表示されること
       expect(modalEl.innerHTML).toContain('200枚の金貨');
 
+      // コンテナ中身の金貨アイテムが identifier と quan を保持した状態で取り出せること
       const goldItem = modal.containerItems[0];
       await modal.executeTakeOut(goldItem, -1);
 
@@ -541,6 +554,24 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
         direction: 'out',
         item: expect.objectContaining({ identifier: 3333, isGold: true }),
         count: -1
+      }));
+    });
+
+    it('コンテナ内の金貨をダブルクリックまたはD&Dで取り出す際、正規化後も identifier が損なわれないこと', async () => {
+      const rawGold = { identifier: 7777, letter: '$', name: '500 gold pieces', rawText: '500 gold pieces', count: 500, isGold: true };
+      modal.show({
+        containerName: 'the chest',
+        contents: [rawGold],
+      });
+
+      // ItemNormalizer.normalize を通した CanonicalItem でも identifier が保持されることの直接検証
+      const normalized = modal.containerItems[0];
+      await modal.executeTakeOut(normalized, 100);
+
+      expect(mockCore.containerController.transferItem).toHaveBeenCalledWith(expect.objectContaining({
+        direction: 'out',
+        item: expect.objectContaining({ identifier: 7777, isGold: true }),
+        count: 100
       }));
     });
 

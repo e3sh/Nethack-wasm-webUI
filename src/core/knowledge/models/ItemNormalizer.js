@@ -245,8 +245,10 @@ export class ItemNormalizer {
 
         // すでに正規化済みかつ上書き不要な場合は安全なクローンを返す
         if (rawItem._canonical === true && (!options.source || rawItem.source === options.source) && !options.sagesWisdomMode) {
+            const resolvedId = (typeof rawItem.identifier === 'number') ? rawItem.identifier : (rawItem.rawObjPtr > 0 ? rawItem.rawObjPtr : undefined);
             return {
                 ...rawItem,
+                ...(resolvedId !== undefined ? { identifier: resolvedId } : {}),
                 identification: { ...(rawItem.identification || {}) },
                 alternativeActions: Array.isArray(rawItem.alternativeActions) ? rawItem.alternativeActions.map(a => ({ ...a })) : [],
                 defaultSequence: Array.isArray(rawItem.defaultSequence) ? [...rawItem.defaultSequence] : []
@@ -265,6 +267,7 @@ export class ItemNormalizer {
         const onum = this._resolveOnum(rawItem, parsedFromText);
         const glyphId = (typeof rawItem.glyphId === 'number') ? rawItem.glyphId : (typeof rawItem.glyph === 'number' ? rawItem.glyph : -1);
         const rawObjPtr = rawItem.rawObjPtr || rawItem.ptr || rawItem.directObject?.rawObjPtr || rawItem.directObject?.ptr || (typeof rawItem.identifier === 'number' && rawItem.identifier > 0 ? rawItem.identifier : 0);
+        const identifier = (typeof rawItem.identifier === 'number') ? rawItem.identifier : (rawObjPtr > 0 ? rawObjPtr : undefined);
         const o_id = rawItem.o_id || rawItem.directObject?.o_id || 0;
         const corpsenm = (rawItem.corpsenm !== undefined && rawItem.corpsenm !== null) ? Number(rawItem.corpsenm) : -1;
 
@@ -390,6 +393,7 @@ export class ItemNormalizer {
             _canonical: true,
             source,
             letter,
+            ...(identifier !== undefined ? { identifier } : {}),
             onum,
             glyphId,
             rawObjPtr,
@@ -420,6 +424,7 @@ export class ItemNormalizer {
             displayName,
             displayNameJa,
             quan,
+            count: quan,
             spe,
             recharged,
             weight,
@@ -438,6 +443,7 @@ export class ItemNormalizer {
             isTouchstone: Boolean(rawItem.isTouchstone || master?.isTouchstone),
             isDigWand: Boolean(rawItem.isDigWand),
             isGem: Boolean(rawItem.isGem || category === 'GEM'),
+            isGold: Boolean(rawItem.isGold || category === 'GOLD' || onum === 438 || parsedFromText?.isGold),
             actionRecipe: rawItem.actionRecipe || null,
             defaultVerb,
             defaultSequence,
@@ -644,6 +650,7 @@ export class ItemNormalizer {
         if (typeof item.displayNameJa !== 'string') return false;
         if (item.letter !== null && typeof item.letter !== 'string') return false;
         if (typeof item.quan !== 'number' || isNaN(item.quan)) return false;
+        if (item.identifier !== undefined && typeof item.identifier !== 'number') return false;
         return true;
     }
 
@@ -1287,6 +1294,7 @@ export class ItemNormalizer {
             displayName: '',
             displayNameJa: '',
             quan: 1,
+            count: 1,
             spe: null,
             recharged: 0,
             weight: 0,
@@ -1296,6 +1304,7 @@ export class ItemNormalizer {
             isOffhand: false,
             isQuivered: false,
             isWorn: false,
+            isGold: false,
             defaultVerb: null,
             defaultSequence: [],
             defaultActionLabel: null,

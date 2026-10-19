@@ -332,20 +332,21 @@ export class ContainerModal {
     }
 
     if (playerGoldAmount > 0) {
-      const goldText = isEn ? `${playerGoldAmount} gold pieces` : `${playerGoldAmount}枚の金貨`;
-      playerItems.unshift({
+      const rawGoldText = `${playerGoldAmount} gold pieces`;
+      const goldItem = ItemNormalizer.normalize({
         letter: '$',
         invlet: '$',
         accelerator: '$',
-        rawText: goldText,
-        name: isEn ? 'gold pieces' : '金貨',
-        str: goldText,
+        rawText: rawGoldText,
+        name: 'gold pieces',
+        str: rawGoldText,
         glyphId: 3886,
         isGold: true,
-        count: playerGoldAmount,
-        quantity: playerGoldAmount,
-        category: 'GOLD'
-      });
+        category: 'GOLD',
+        quan: playerGoldAmount,
+        count: playerGoldAmount
+      }, { source: 'INVENTORY' });
+      playerItems.unshift(goldItem);
     }
 
     // コンテナ中身リストの取得 (contentsManager SSOT を優先。空の場合は show() 等で渡されたアイテムを維持)
@@ -917,8 +918,10 @@ export class ContainerModal {
     const rightRows = this.elContainerModal.querySelectorAll('#list-container-contents .container-item-row');
     rightRows.forEach(row => {
       const idx = parseInt(row.dataset.index, 10);
-      const item = this.containerItems[idx];
-      if (!item) return;
+      const rawItem = this.containerItems[idx];
+      if (!rawItem) return;
+      const translator = (core && typeof core.translate === 'function') ? core : null;
+      const item = rawItem._canonical === true ? rawItem : ItemNormalizer.normalize(rawItem, { source: 'CONTAINER', translator });
 
       // クリックで選択 (処理中は不可)
       row.onclick = () => {
@@ -949,7 +952,7 @@ export class ContainerModal {
           side: 'right',
           index: idx,
           identifier: item.identifier,
-          rawText: item.rawStr || item.str,
+          rawText: item.rawText || item.rawStr || item.str,
         }));
       };
 
@@ -1045,8 +1048,10 @@ export class ContainerModal {
         try {
           const data = JSON.parse(e.dataTransfer.getData('text/plain'));
           if (data && data.side === 'right') {
-            const item = this.containerItems[data.index];
-            if (item) {
+            const rawItem = this.containerItems[data.index];
+            if (rawItem) {
+              const translator = (core && typeof core.translate === 'function') ? core : null;
+              const item = rawItem._canonical === true ? rawItem : ItemNormalizer.normalize(rawItem, { source: 'CONTAINER', translator });
               this.executeTakeOut(item, this.specifiedQuantity);
             }
           }

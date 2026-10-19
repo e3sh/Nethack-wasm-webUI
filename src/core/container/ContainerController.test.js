@@ -15,6 +15,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ContainerController } from './ContainerController.js';
 import { ContainerSafetyGuard } from './ContainerSafetyGuard.js';
 import { ContainerContentsManager } from './ContainerContentsManager.js';
+import { ItemNormalizer } from '../knowledge/models/ItemNormalizer.js';
 
 describe('ContainerController (IRC & Signal-Driven)', () => {
     let controller;
@@ -460,6 +461,80 @@ describe('ContainerController (IRC & Signal-Driven)', () => {
             // contentsManager に金貨が追加されたこと
             const contents = contentsManager.getItems();
             expect(contents.some(it => it.isGold && it.count === 100)).toBe(true);
+        });
+
+        it('CanonicalItem として正規化された金貨 (quan 保持) を投入した際、正常に投入処理が完了すること', async () => {
+            const canonicalGold = ItemNormalizer.normalize({
+                letter: '$',
+                name: 'gold pieces',
+                rawText: '300 gold pieces',
+                quan: 300,
+                isGold: true,
+                category: 'GOLD',
+            }, { source: 'INVENTORY' });
+
+            expect(canonicalGold._canonical).toBe(true);
+            expect(canonicalGold.quan).toBe(300);
+            expect(canonicalGold.isGold).toBe(true);
+
+            let capturedSelections = null;
+            mockInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                const handler = recipe.handlers.find(h => h.match.subCategory === 'CONTAINER_ITEM_SELECT');
+                const ctx = {
+                    menuItems: [
+                        { identifier: 0, str: 'Coins' },
+                        { identifier: 9988, accelerator: 36, ch: 36, str: '300 gold pieces', glyph: 3886 },
+                    ],
+                };
+                capturedSelections = handler.action(ctx);
+                return { success: true };
+            });
+
+            const result = await controller.transferItem({
+                direction: 'in',
+                item: canonicalGold,
+                count: 150,
+            });
+
+            expect(result.success).toBe(true);
+            expect(capturedSelections).toEqual([{ identifier: 9988, count: 150 }]);
+        });
+
+        it('コンテナ内の金貨が ItemNormalizer で正規化された後も identifier を保持し、正常に取り出せること', async () => {
+            contentsManager.updateFromMenuItems([
+                { identifier: 5555, accelerator: 36, ch: 36, str: '450 gold pieces', count: 450, glyph: 3886 }
+            ]);
+
+            const rawItem = contentsManager.getItems()[0];
+            const canonicalGold = ItemNormalizer.normalize(rawItem, { source: 'CONTAINER' });
+
+            expect(canonicalGold._canonical).toBe(true);
+            expect(canonicalGold.identifier).toBe(5555);
+            expect(canonicalGold.isGold).toBe(true);
+            expect(canonicalGold.quan).toBe(450);
+
+            let capturedSelections = null;
+            mockInteractive.querySequenceSilent = vi.fn(async (recipe) => {
+                const handler = recipe.handlers.find(h => h.match.subCategory === 'CONTAINER_ITEM_SELECT');
+                const ctx = {
+                    menuItems: [
+                        { identifier: 0, str: 'Coins' },
+                        { identifier: 5555, accelerator: 36, ch: 36, str: '450 gold pieces', glyph: 3886 },
+                    ],
+                };
+                capturedSelections = handler.action(ctx);
+                return { success: true };
+            });
+
+            const result = await controller.transferItem({
+                direction: 'out',
+                item: canonicalGold,
+                count: -1,
+            });
+
+            expect(result.success).toBe(true);
+            expect(capturedSelections).toEqual([{ identifier: 5555, count: -1 }]);
+            expect(contentsManager.getItems().length).toBe(0);
         });
     });
 
