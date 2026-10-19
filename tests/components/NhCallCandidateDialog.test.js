@@ -345,6 +345,85 @@ describe('NhCallCandidateDialog (<nh-call-candidate-dialog>) (ROADMAP §2.1 / Ga
         expect(cand.classList.contains('is-focused')).toBe(true);
         expect(input.classList.contains('is-focused')).toBe(false);
     });
+
+    it('12. setLanguage / lang 属性による英語モード表示への切り替えが動作すること', () => {
+        const dialog = new NhCallCandidateDialog();
+        dialog.connectedCallback();
+
+        dialog.setData({
+            targetName: 'ruby potion',
+            shorthands: ['100G?'],
+            candidates: [
+                { onum: 310, name: 'potion of healing', nameJa: '治癒のポーション', cost: 100 }
+            ],
+            language: 'en'
+        });
+        dialog.show();
+
+        expect(dialog.currentLanguage).toBe('en');
+        let html = dialog.shadowRoot.innerHTML;
+        expect(html).toContain('🏷️ Call Item Assistant');
+        expect(html).toContain('Quick Presets (One-tap)');
+        expect(html).toContain('❌ Clear Name (Reset)');
+        expect(html).toContain('Clear called name and revert to unnamed');
+        expect(html).toContain('Enter custom name (Enter to submit)...');
+        expect(html).toContain('Submit');
+        expect(html).toContain('Select');
+        expect(html).toContain('Back');
+        // 英語モードでは日本語名 (治癒のポーション) が表示されないこと
+        expect(html).not.toContain('治癒のポーション');
+
+        // アーティファクトモードでの英語表示
+        dialog.setData({
+            mode: 'artifact_name',
+            targetName: 'long sword',
+            candidates: [
+                {
+                    name: 'Excalibur',
+                    nameJa: 'エクスカリバー',
+                    descEn: 'extra physical damage',
+                    descJa: '追加物理ダメージ',
+                    isRecommended: true
+                }
+            ],
+            language: 'en'
+        });
+        html = dialog.shadowRoot.innerHTML;
+        expect(html).toContain('🗡️ Name Item / Artifact Inscription');
+        expect(html).toContain('❌ Clear Inscription (Reset)');
+        expect(html).toContain('Clear custom name and revert to base item');
+        expect(html).toContain('Enter custom name/inscription (Enter to submit)...');
+        expect(html).toContain('REC');
+        expect(html).toContain('extra physical damage');
+        expect(html).not.toContain('エクスカリバー');
+    });
+
+    it('13. setLanguage("ja") で日本語表示に切り替わり、日本語名・推奨バッジ・操作ガイドが復元されること', () => {
+        const dialog = new NhCallCandidateDialog();
+        dialog.connectedCallback();
+
+        dialog.setData({
+            targetName: 'ruby potion',
+            candidates: [
+                { onum: 310, name: 'potion of healing', nameJa: '治癒のポーション', cost: 100 }
+            ],
+            language: 'en'
+        });
+        dialog.show();
+        expect(dialog.shadowRoot.innerHTML).toContain('Call Item Assistant');
+
+        // 言語切替
+        dialog.setLanguage('ja');
+        expect(dialog.currentLanguage).toBe('ja');
+
+        const html = dialog.shadowRoot.innerHTML;
+        expect(html).toContain('🏷️ 命名アシスト (Call Item)');
+        expect(html).toContain('治癒のポーション');
+        expect(html).toContain('❌ 命名を解除 (クリア)');
+        expect(html).toContain('決定');
+        expect(html).toContain('選択');
+        expect(html).toContain('戻る');
+    });
 });
 
 

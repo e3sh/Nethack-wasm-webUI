@@ -579,3 +579,174 @@ describe('ModalManager - ゲームオーバー＆スコアボードレンダリ�
   });
 });
 
+describe('ModalManager - メニュー描画 (category === "MENU") & インベントリ/サブメニュー分離テスト', () => {
+  let modalManager;
+  let mockElements;
+  let mockCore;
+  let mockInvManager;
+
+  beforeEach(() => {
+    mockElements = {
+      elMenuModal: createMockElement('menu-modal'),
+      elMenuTitle: createMockElement('menu-title'),
+      elMenuItemsContainer: createMockElement('menu-items-container'),
+      elBtnCancelMenu: createMockElement('btn-cancel-menu'),
+    };
+
+    globalThis.document = {
+      getElementById: (id) => mockElements[id] || (mockElements[id] = createMockElement(id)),
+      createElement: (tag) => createMockElement('', tag),
+    };
+
+    const swordItem = {
+      _canonical: true,
+      letter: 'a',
+      name: 'short sword',
+      cleanName: 'short sword',
+      nameJa: 'ショートソード',
+      displayNameJa: 'ショートソード',
+      rawText: 'an uncursed +1 short sword (weapon in right hand)',
+      isWielded: true,
+      bucStatus: 'UNCURSED',
+      spe: 1,
+      glyphId: 100,
+    };
+
+    const foodItem = {
+      _canonical: true,
+      letter: 'i',
+      name: 'food ration',
+      cleanName: 'food ration',
+      nameJa: '食料の配給',
+      displayNameJa: '食料の配給',
+      rawText: 'an uncursed food ration',
+      bucStatus: 'UNCURSED',
+      glyphId: 101,
+    };
+
+    mockInvManager = {
+      getItemByLetter: vi.fn((letter) => {
+        if (letter === 'a') return swordItem;
+        if (letter === 'i') return foodItem;
+        return null;
+      }),
+    };
+
+    mockCore = {
+      respond: vi.fn(),
+      sendKey: vi.fn(),
+      translate: vi.fn((text) => {
+        if (text === 'put something in') return '何かを入れる';
+        if (text === 'take something out') return '何かを取り出す';
+        if (text === 'Look inside the sack') return '中身を見る';
+        if (text === 'wield it') return '装備する';
+        if (text === 'drop it') return '落とす';
+        return text;
+      }),
+      getGlyphHtml: vi.fn((glyphId) => `<img src="tile_${glyphId}.png" />`),
+      gkl: {
+        inventoryStateManager: mockInvManager,
+      },
+    };
+
+    modalManager = new ModalManager({
+      ...mockElements,
+      getCore: () => mockCore,
+      getLoadedTileImagePath: () => 'tiles.png',
+    });
+  });
+
+  it('標準インベントリメニュー（i）では、一致するアイテム行が CanonicalItem プレゼンタ経由でリッチに描画されること', () => {
+    modalManager.currentLanguage = 'ja';
+    const data = {
+      category: 'MENU',
+      rawPrompt: 'Inventory',
+      menuItems: [
+        { str: 'a - an uncursed +1 short sword (weapon in right hand)', ch: 97, charStr: 'a' }
+      ]
+    };
+
+    modalManager.handleInputRequired(data);
+
+    expect(mockElements.elMenuItemsContainer.children.length).toBe(1);
+    const btn = mockElements.elMenuItemsContainer.children[0];
+    // 和名ショートソードとレターバッジ、装備状態が含まれること
+    expect(btn.innerHTML).toContain('ショートソード');
+    expect(btn.innerHTML).toContain('a)');
+    expect(btn.innerHTML).toContain('badge-wielded');
+  });
+
+  it('アクション選択サブメニュー（What do you want to do with...）では、手持ちアイテム名が紛れ込まずアクション名として描画されること', () => {
+    modalManager.currentLanguage = 'ja';
+    const data = {
+      category: 'MENU',
+      rawPrompt: 'What do you want to do with the +1 short sword?',
+      menuItems: [
+        { str: 'wield it', ch: 97, charStr: 'a' },
+        { str: 'drop it', ch: 98, charStr: 'b' }
+      ]
+    };
+
+    modalManager.handleInputRequired(data);
+
+    expect(mockElements.elMenuItemsContainer.children.length).toBe(2);
+    const btn1 = mockElements.elMenuItemsContainer.children[0];
+    const btn2 = mockElements.elMenuItemsContainer.children[1];
+
+    // a) ボタンにインベントリのショートソードが化けて紛れ込まず、アクション（装備する / wield it）が表示されること
+    expect(btn1.innerHTML).not.toContain('ショートソード');
+    expect(btn1.innerHTML).toContain('装備する');
+    expect(btn1.innerHTML).toContain('a)');
+
+    // b) ボタンもドロップアクションが表示されること
+    expect(btn2.innerHTML).toContain('落とす');
+    expect(btn2.innerHTML).toContain('b)');
+  });
+
+  it('サック（袋）のサブメニューで accelerator が "i" であっても、インベントリの食料に化けず「何かを入れる」と描画されること', () => {
+    modalManager.currentLanguage = 'ja';
+    const data = {
+      category: 'MENU',
+      rawPrompt: 'What do you want to do with the sack?',
+      menuItems: [
+        { str: 'Look inside the sack', ch: 58, charStr: ':' },
+        { str: 'put something in', ch: 105, charStr: 'i' }
+      ]
+    };
+
+    modalManager.handleInputRequired(data);
+
+    expect(mockElements.elMenuItemsContainer.children.length).toBe(2);
+    const btn1 = mockElements.elMenuItemsContainer.children[0];
+    const btn2 = mockElements.elMenuItemsContainer.children[1];
+
+    expect(btn1.innerHTML).toContain('中身を見る');
+    expect(btn1.innerHTML).toContain(':)');
+
+    // i) ボタンに食料の配給が化けて紛れ込まず、「何かを入れる」が表示されること
+    expect(btn2.innerHTML).not.toContain('食料の配給');
+    expect(btn2.innerHTML).toContain('何かを入れる');
+    expect(btn2.innerHTML).toContain('i)');
+  });
+
+  it('キャラ作成やカテゴリ選択など非アイテムメニューで accelerator が "a" であっても、インベントリアイテムに化けないこと', () => {
+    modalManager.currentLanguage = 'ja';
+    const data = {
+      category: 'MENU',
+      rawPrompt: 'Choose a role',
+      menuItems: [
+        { str: 'Archeologist', ch: 97, charStr: 'a' }
+      ]
+    };
+
+    modalManager.handleInputRequired(data);
+
+    expect(mockElements.elMenuItemsContainer.children.length).toBe(1);
+    const btn = mockElements.elMenuItemsContainer.children[0];
+    expect(btn.innerHTML).not.toContain('ショートソード');
+    expect(btn.innerHTML).toContain('Archeologist');
+    expect(btn.innerHTML).toContain('a)');
+  });
+});
+
+

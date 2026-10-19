@@ -14,6 +14,7 @@ import { findLoreForEntity } from '../core/knowledge/lore/LoreEntityCrossReferen
 import { GlyphHelper } from '../core/renderers/GlyphHelper.js';
 import { GLYPH_OFFSETS } from '../core/knowledge/engines/glyphClassifier.js';
 import { ItemCandidateResolver } from '../core/knowledge/engines/ItemCandidateResolver.js';
+import { ItemNormalizer } from '../core/knowledge/models/ItemNormalizer.js';
 
 const CARD_CSS = `
 :host {
@@ -717,27 +718,16 @@ export class NhKnowledgeCard extends NhBaseElement {
    * @private
    */
   _canCallItem() {
-    const data = this.targetData;
-    if (!data) return false;
-    const category = String(data.category || data.itemCategory || '').toUpperCase();
-    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel);
-    const isTerrain = category === 'TERRAIN' || Boolean(data.isTerrain);
-    if (isMonster || isTerrain) return false;
+    const rawTarget = this.targetData;
+    if (!rawTarget || typeof rawTarget !== 'object') return false;
+    const category = String(rawTarget.category || '').toUpperCase();
+    if (category === 'MONSTER' || category === 'TERRAIN' || rawTarget.dangerLevel || rawTarget.isTerrain) return false;
 
-    const id = data.identification || {};
-    const idLevel = id.idLevel || data.idLevel;
-    const isUnid = Boolean(
-      data.isUnidentified ||
-      id.isUnidentified ||
-      data.knowledge?.isUnidentified ||
-      data.isDiscovered === false ||
-      (idLevel && (idLevel === 'UNIDENTIFIED' || idLevel === 'BUC_KNOWN' || idLevel === 'NAMED'))
-    );
-    if (!isUnid) return false;
+    const item = rawTarget._canonical ? rawTarget : ItemNormalizer.normalize(rawTarget);
+    if (!item.isUnidentified) return false;
 
-    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
-    const isCodexUnid = (data.isDiscovered === false || data.isCodexItem || Boolean(data.appearance || id.appearanceName));
-    return Boolean(letter || isCodexUnid);
+    // 設計書準拠: 所持品レターがあるか、またはディスカバリー図鑑アイテムの場合のみ Call 可能（床落ちアイテムは不可）
+    return Boolean(item.letter || item.source === 'CODEX' || item.isCodexItem);
   }
 
   /**
@@ -757,8 +747,7 @@ export class NhKnowledgeCard extends NhBaseElement {
         }
       }
     }));
-    this.targetData.calledName = callName;
-    if (this.targetData.identification) this.targetData.identification.calledName = callName;
+    this.targetData = ItemNormalizer.withCalledName(this.targetData, callName);
     this.render();
   }
 
@@ -768,32 +757,17 @@ export class NhKnowledgeCard extends NhBaseElement {
    * @private
    */
   _canNameArtifactItem() {
-    const data = this.targetData;
-    if (!data) return false;
-    const category = String(data.category || data.itemCategory || '').toUpperCase();
-    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel);
-    const isTerrain = category === 'TERRAIN' || Boolean(data.isTerrain);
-    if (isMonster || isTerrain) return false;
+    const rawTarget = this.targetData;
+    if (!rawTarget || typeof rawTarget !== 'object') return false;
+    const category = String(rawTarget.category || '').toUpperCase();
+    if (category === 'MONSTER' || category === 'TERRAIN' || rawTarget.dangerLevel || rawTarget.isTerrain) return false;
 
-    // 床アイテム等（インベントリレターがないもの）は命名不可
-    const letter = data.letter || data.invlet || data.item?.letter || data.item?.invlet;
-    if (!letter) return false;
+    const item = rawTarget._canonical ? rawTarget : ItemNormalizer.normalize(rawTarget);
+    // インベントリ所持品でない（letter がない）場合、または未識別の場合は命名不可
+    if (!item.letter || item.isUnidentified) return false;
 
-    const id = data.identification || {};
-    const idLevel = id.idLevel || data.idLevel;
-    const isUnidentified = Boolean(
-      data.isUnidentified ||
-      id.isUnidentified ||
-      data.knowledge?.isUnidentified ||
-      (idLevel && (idLevel === 'UNIDENTIFIED' || idLevel === 'BUC_KNOWN' || idLevel === 'NAMED'))
-    );
-    if (isUnidentified) return false;
-
-    const onum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
-      (id && typeof id.onum === 'number') ? id.onum :
-      (data.knowledge && typeof data.knowledge.onum === 'number') ? data.knowledge.onum : undefined;
-
-    const baseName = data.oc_name || data.nameEn || data.trueName || data.english || data.rawName || data.name;
+    const onum = (typeof item.onum === 'number' && item.onum >= 0) ? item.onum : undefined;
+    const baseName = item.trueName || item.name || item.baseName;
 
     return ItemCandidateResolver.hasArtifactCandidates({ onum, baseName });
   }
@@ -953,31 +927,38 @@ export class NhKnowledgeCard extends NhBaseElement {
     let title = '';
     let subtitle = '';
 
+    const calledVal = data.calledName || data.identification?.calledName;
+    const namedVal = data.namedInstance || data.identification?.namedInstance;
+    const called = calledVal ? (isEn ? ` called "${calledVal}"` : ` [仮名: ${calledVal}]`) : '';
+    const named = namedVal ? (isEn ? ` named "${namedVal}"` : ` [銘: ${namedVal}]`) : '';
+
     if (isUnidentified) {
-      // 通常モードの未識別アイテム: 外見名（または仮名）のみ表示
-      const appName = data.appearanceName || data.name || (isEn ? 'Unidentified Item' : '未鑑定アイテム');
-      const calledVal = data.calledName || data.identification?.calledName;
-      const called = calledVal ? ` (called "${calledVal}")` : '';
-      title = `${appName}${called}`;
+      // 通常モードの未識別アイテム: 外見名（または仮名/銘）のみ表示
+      const appName = (!isEn && data.appearanceNameJa) ? data.appearanceNameJa : (data.appearanceName || data.name || (isEn ? 'Unidentified Item' : '未鑑定アイテム'));
+      title = `${appName}${called}${named}`;
       subtitle = isEn ? `Unidentified ${category}` : `未鑑定の${this._translateCategory(category)}`;
     } else if (isWisdom) {
       // 🧙 賢者の知恵モード: 外見名と真名の両方を併記
-      const appName = data.appearanceName || data.appearance || '';
+      const appName = (!isEn && data.appearanceNameJa) ? data.appearanceNameJa : (data.appearanceName || data.appearance || '');
       const trueNameEn = data.wisdomTrueName || data.trueName || data.name || '';
       const trueNameJa = data.wisdomTrueNameJa || data.nameJa || data.japaneseName || '';
       const trueNameDisplay = (!isEn && trueNameJa) ? trueNameJa : trueNameEn;
 
       if (appName && trueNameDisplay && appName.toLowerCase() !== trueNameDisplay.toLowerCase()) {
-        title = `${appName} [${trueNameDisplay}]`;
+        title = `${appName} [${trueNameDisplay}]${called}${named}`;
       } else {
-        title = trueNameDisplay || appName || (isEn ? 'Revealed Item' : '透視されたアイテム');
+        title = `${trueNameDisplay || appName || (isEn ? 'Revealed Item' : '透視されたアイテム')}${called}${named}`;
       }
       subtitle = isEn ? `Sage's Wisdom: ${category}` : `🧙 賢者の知恵: ${this._translateCategory(category)}`;
     } else {
       // 通常の識別済みアイテムまたはモンスター
       const nameJa = data.nameJa || data.knowledge?.nameJa || data.japanese || data.japaneseName;
       const nameEn = data.nameEn || data.trueName || data.name || data.knowledge?.name;
-      title = (!isEn && nameJa) ? `${nameJa}${nameEn ? ` (${nameEn})` : ''}` : (nameEn || data.name || (isEn ? 'Unknown Entity' : '未知の対象'));
+      const isEnchVisible = typeof data.spe === 'number' && (category === 'WEAPON' || category === 'ARMOR' || data.isWeptool || category === 'RING');
+      const enchStr = isEnchVisible ? `${data.spe >= 0 ? `+${data.spe} ` : `${data.spe} `}` : '';
+      const chargeStr = (category === 'WAND' && typeof data.spe === 'number') ? ` (${data.recharged || 0}:${data.spe})` : '';
+
+      title = (!isEn && nameJa) ? `${enchStr}${nameJa}${named}${chargeStr}${nameEn ? ` (${nameEn})` : ''}` : `${enchStr}${nameEn || data.name || (isEn ? 'Unknown Entity' : '未知の対象')}${named}${chargeStr}`;
       subtitle = data.subtitle || data.japaneseName || (isEn ? category : this._translateCategory(category));
     }
     const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel);
@@ -1182,6 +1163,10 @@ export class NhKnowledgeCard extends NhBaseElement {
           <div class="spec-section-title">🏷️ ${isEn ? 'Called Name (Player Note)' : 'プレイヤー命名 (仮名)'}</div>
           <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">called "${data.calledName || data.identification?.calledName}"</div>
         ` : ''}
+        ${(data.namedInstance || data.identification?.namedInstance) ? `
+          <div class="spec-section-title">🗡️ ${isEn ? 'Named Instance (Artifact/Inscription)' : '個別銘 (アーティファクト/刻印)'}</div>
+          <div style="font-size: 0.85rem; color: #60a5fa; font-weight: 600;">[銘: ${data.namedInstance || data.identification?.namedInstance}]</div>
+        ` : ''}
         ${(() => {
           const hasPrice = Boolean(ItemCandidateResolver.extractPriceInfo(data));
           if (!hasPrice) return '';
@@ -1284,6 +1269,10 @@ export class NhKnowledgeCard extends NhBaseElement {
       ${(data.calledName || data.identification?.calledName) ? `
         <div class="spec-section-title">🏷️ ${isEn ? 'Called Name (Player Note)' : 'プレイヤー命名 (仮名)'}</div>
         <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">called "${data.calledName || data.identification?.calledName}"</div>
+      ` : ''}
+      ${(data.namedInstance || data.identification?.namedInstance) ? `
+        <div class="spec-section-title">🗡️ ${isEn ? 'Named Instance (Artifact/Inscription)' : '個別銘 (アーティファクト/刻印)'}</div>
+        <div style="font-size: 0.85rem; color: #60a5fa; font-weight: 600;">[銘: ${data.namedInstance || data.identification?.namedInstance}]</div>
       ` : ''}
       ${wisdomEffect ? `
         <div class="tactical-advice">💡 ${wisdomEffect}</div>

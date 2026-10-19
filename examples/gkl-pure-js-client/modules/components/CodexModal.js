@@ -10,6 +10,7 @@
 import { GlyphHelper } from '../../../../src/core/renderers/GlyphHelper.js';
 import { AdventureLogManager } from '../../../../src/core/knowledge/lore/AdventureLogManager.js';
 import { LORE_MASTER } from '../../../../src/core/knowledge/lore/data/LoreMasterData.js';
+import { ItemDisplayPresenter } from '../../../../src/core/knowledge/presenters/ItemDisplayPresenter.js';
 
 // 多言語リソース辞書 (i18n)
 const CODEX_I18N = {
@@ -1047,14 +1048,14 @@ export class CodexModal {
             } else if (this.currentObjFilter === 'PEEKED') {
                 items = items.filter(i => i.isPeeked);
             } else if (this.currentObjFilter !== 'ALL') {
-                items = items.filter(i => i.itemCategory === this.currentObjFilter);
+                items = items.filter(i => i.category === this.currentObjFilter);
             }
 
             if (q) {
                 items = items.filter(i => {
                     const name = (i.name || '').toLowerCase();
                     const nameJa = (i.nameJa || '').toLowerCase();
-                    const cat = (i.itemCategory || '').toLowerCase();
+                    const cat = (i.category || '').toLowerCase();
                     return name.includes(q) || nameJa.includes(q) || cat.includes(q);
                 });
             }
@@ -1192,8 +1193,8 @@ export class CodexModal {
             if (item.category === 'monster') {
                 const sym = item.symbol ? ` [${item.symbol}]` : '';
                 badgeHtml = `<span class="codex-item-badge badge-monster">${t.badgeMonster}${sym}</span>`;
-            } else if (item.category === 'object') {
-                const catStr = item.itemCategory || '';
+            } else if (item.category === 'object' || item.onum !== undefined) {
+                const catStr = item.category !== 'object' ? item.category : '';
                 badgeHtml = `<span class="codex-item-badge badge-object">${catStr || t.badgeObject}</span>`;
             } else if (item.category === 'RUMOR' || item.isTrue !== undefined) {
                 badgeHtml = item.isTrue
@@ -1216,9 +1217,20 @@ export class CodexModal {
             if (item.category === 'monster') {
                 mainTitle = isLocked ? `No.${item.monOffset} ???` : (isEn ? item.name : (item.nameJa || item.name));
                 subTitle = isLocked ? '???' : (isEn ? (item.nameJa || '') : item.name);
-            } else if (item.category === 'object') {
-                mainTitle = isLocked ? `No.${item.onum} ???` : (isEn ? item.name : (item.nameJa || item.name));
-                subTitle = isLocked ? '???' : (isEn ? (item.nameJa || '') : item.name);
+            } else if (item.category === 'object' || item.entityType === 'object' || item.onum !== undefined) {
+                if (isLocked) {
+                    mainTitle = `No.${item.onum} ???`;
+                    subTitle = '???';
+                } else {
+                    const objData = item.data || item;
+                    mainTitle = ItemDisplayPresenter.getFormattedTitle(objData, {
+                        language: isEn ? 'en' : 'ja',
+                        sagesWisdomMode: Boolean(item.isPeeked),
+                        includeLetter: false,
+                        includeBilingualSubname: false
+                    });
+                    subTitle = isEn ? (objData.nameJa || '') : (objData.name || '');
+                }
             } else if (item.category === 'ORACLE') {
                 const oracleNum = (item.id || '').replace(/^oracle_/, '');
                 mainTitle = isLocked ? `No.${oracleNum || idx + 1} 🔒 ???` : (item.title || item.text || '');
@@ -1304,7 +1316,7 @@ export class CodexModal {
         }
 
         // 2. アイテム詳細
-        if (item.category === 'object') {
+        if (item.category === 'object' || item.entityType === 'object' || item.onum !== undefined) {
             this._renderObjectDetail(item, cardEl, isEn, t);
             return;
         }
@@ -1496,10 +1508,10 @@ export class CodexModal {
      * アイテム詳細カードのレンダリング
      * @private
      */
-    _renderObjectDetail(item, cardEl, isEn, t) {
+    _renderObjectDetail(item, cardEl, isEn = (this.currentLanguage === 'en'), t = CODEX_I18N[this.currentLanguage || 'ja']) {
         const isLocked = item.isUnlocked === false;
         const alm = this.getAdventureLogManager();
-        const obj = item.data || {};
+        const obj = item.data || item;
 
         // アバタータイル
         let avatarInner = '';
@@ -1546,8 +1558,14 @@ export class CodexModal {
         }
 
         // 解禁済みアイテム
-        const mainName = isEn ? obj.name : (obj.nameJa || obj.name);
-        const subName = isEn ? (obj.nameJa || '') : obj.name;
+        const mainName = ItemDisplayPresenter.getFormattedTitle(obj, {
+            language: isEn ? 'en' : 'ja',
+            sagesWisdomMode: Boolean(item.isPeeked),
+            includeLetter: false,
+            includeBilingualSubname: false
+        });
+        const subName = isEn ? (obj.nameJa || '') : (obj.name || '');
+        const calledTag = ItemDisplayPresenter.getCalledTagHtml(obj, { language: isEn ? 'en' : 'ja' });
         const category = obj.category || 'TOOL';
         const cost = obj.cost !== undefined ? `$${obj.cost}` : '--';
         const weight = obj.weight !== undefined ? `${obj.weight}` : '--';
@@ -1571,6 +1589,7 @@ export class CodexModal {
                             <span>${this.escapeHtml(mainName)}</span>
                             <span class="codex-item-badge badge-object" style="font-size:11px;">[${this.escapeHtml(category)}]</span>
                             ${item.isPeeked ? `<span class="codex-item-badge badge-peek" style="font-size:11px; margin-left:4px;">👁️${isEn ? ' Peek Wisdom' : ' 賢者の知恵'}</span>` : ''}
+                            ${calledTag ? `<span style="margin-left:6px;">${calledTag}</span>` : ''}
                         </div>
                         <div class="codex-entry-name-sub">${this.escapeHtml(subName)}</div>
                         <div class="codex-entry-id-badge" style="${item.isPeeked ? 'color:#c084fc;' : ''}">No.${item.onum} | ${item.isPeeked ? t.statusPeeked : t.statusUnlocked}</div>

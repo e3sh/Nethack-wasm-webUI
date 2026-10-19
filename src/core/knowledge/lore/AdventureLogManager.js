@@ -674,7 +674,7 @@ export class AdventureLogManager {
         if (category === 'monster') {
             const off = this._resolveMonsterOffset(identifier);
             if (off !== null && this.newMonsters.delete(off)) changed = true;
-        } else if (category === 'object') {
+        } else if (category === 'object' || (category !== 'monster' && category !== 'rumor' && category !== 'oracle')) {
             const onum = this._resolveObjectOnum(identifier);
             if (onum !== null && this.newObjects.delete(onum)) changed = true;
         } else if (category === 'rumor') {
@@ -798,10 +798,10 @@ export class AdventureLogManager {
             const isPeeked = this.peekedObjects.has(onum);
             list.push({
                 id: obj.id || `obj_${onum}`,
-                category: 'object',
+                category: obj.category,
+                entityType: 'object',
                 onum: onum,
                 glyphId: GLYPH_OFFSET_OBJECT + onum,
-                itemCategory: obj.category,
                 name: isUnlocked ? obj.name : '???',
                 nameJa: isUnlocked ? (obj.nameJa || obj.name) : '???',
                 isUnlocked,

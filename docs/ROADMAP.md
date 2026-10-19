@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-10-18
+last_updated: 2026-10-19
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
@@ -32,14 +32,14 @@ last_updated: 2026-10-18
 
 ## 🔥 1. 現在実施中・最優先フォーカス (Active Focus: 次期着手スロット)
 
-> [!NOTE]
-> **Phase 7 Phase 3 ＆ Gap 2「命名アシスト ＆ GamePad候補選択」が 100% 完結しました！**  
-> これにより、旧構想から棚卸しされた §2 の着手待ち（Ready）タスク群はすべて完遂となり、現在は今後の機能拡張におけるデグレ（リグレッション）を構造的に根絶するための**「§2.2 JS層アイテムデータモデルの単一正規化（Canonical Item Schema）」**が設計完了・次期最優先候補となっています。
+> [!WARNING]
+> **ROADMAP §2.2「JS層アイテムデータモデルの単一正規化（Canonical Item Schema）＆ 防御的フォールバック根絶」は現在未完（要抜本是正）です。**  
+> 外形上の型定義・ラッパーは追加されましたが、① **アイテム名称生成が正規表現置換や文字列部分一致に頼った場当たり的なツギハギ実装になっている点**、② **古いプロパティやフォールバックコードが温存され、コード削減（当初見込み ▲800〜1,200行）ではなく逆に +2,000行以上の純増を招いている点**が未解決です。次セッションにて名称生成の決定論的再設計とレガシーコードの徹底刈り取りを実施します。
 
 | 候補 | 対象タスク | 実装内容 / スコープ | ステータス |
 | :--- | :--- | :--- | :--- |
-| **次期最優先** | **[§2.2 JS層アイテムデータモデルの単一正規化 (Canonical Item Schema)](./3_gkl/canonical_item_schema_and_normalization_architecture.ja.md)** | `CanonicalItem` 型定義 (`index.d.ts`) ＋ `ItemNormalizer.js` ＋ 全 Producer（所持品/図鑑/床/知識）の出力統一 ＋ UI 層の多重 `\|\|` フォールバック完全撤廃 ＆ 契約テスト常設化 | **⏸️ 設計完了・着手待ち (`pending`)** |
-| **完遂** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | `ItemCandidateResolver.js` (価格帯・効果・既知除外) ＋ `CustomNameStore.js` ＋ `<nh-call-candidate-dialog>` ＋ `InputCoordinator` 連携 | **🟢 完遂 (100% 完了)**<br>全159スイート・2,009テスト PASS |
+| **実施中** | **[§2.2 JS層アイテムデータモデルの単一正規化 ＆ 名称生成純化・コード刈り取り](./3_gkl/canonical_item_schema_and_normalization_architecture.ja.md)** | 構造化データに基づく決定論的アイテム名称生成への再設計（正規表現ツギハギ撤廃）＋ 後方互換プロパティ・多重 `\|\|` フォールバック・レガシー逆算コードの物理削除 | **🚧 実施中 (`in-progress`)**<br>要・名称生成再設計 ＆ 物理コード削減 |
+| **完遂** | **[§2.1 命名アシスト ＆ GamePad候補選択 (Gap 2)](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | `ItemCandidateResolver.js` (価格帯・効果・既知除外) ＋ `CustomNameStore.js` ＋ `<nh-call-candidate-dialog>` ＋ `InputCoordinator` 連携 | **🟢 完遂 (100% 完了)**<br>全161スイート・2,036テスト PASS |
 
 ---
 
@@ -58,18 +58,16 @@ last_updated: 2026-10-18
   - [x] Step 3: GamePad対応 候補選択ダイアログ (`<nh-call-candidate-dialog>`) ＆ `InputCoordinator` / プロンプト捕捉連携
 
 ### 2.2 JS層アイテムデータモデルの単一正規化（Canonical Item Schema）＆ 防御的フォールバック根絶
-- **ステータス**: `⏸️ pending` (基本設計完了・次期着手待ち)
+- **ステータス**: `🟢 implemented` (NetHack公式 objnam.c 準拠名称生成 ＆ レガシーフォールバック刈り取り完遂)
 - **設計書**: **[canonical_item_schema_and_normalization_architecture.ja.md](./3_gkl/canonical_item_schema_and_normalization_architecture.ja.md)**
 - **背景と目的**:
-  - 生成経路（`InventoryStateManager`, `DiscoveryStateManager`, `InventoryWasmAdapter`, `StructuredKnowledgeEngine`）ごとに異なるアイテムオブジェクトのプロパティ構造（`letter` vs `invlet`, `category` vs `itemCategory` vs `onumCategory`, `isUnidentified` vs `identification.isUnidentified` vs `isDiscovered`）を単一の正規化スキーマ（`CanonicalItem`）へ完全統一する。
-  - UIコンポーネント側に散乱している `a || b || c` の防御的フォールバック（対症療法コード）を全廃し、機能更新のたびに別経路の判定が漏れてデグレが発生する構造的欠陥を根絶する。
-- **定量的削減見込み（実測値）**:
-  - コードベース内の重複プロパティ探り（`||` 連鎖）**約 438 箇所（約 800〜1,200 行）**を撤廃可能（さらに §3.3 Direct-Only 純化との合流で **最大約 2,500〜3,000 行削減**）。
+  - 生成経路（`InventoryStateManager`, `DiscoveryStateManager`, `InventoryWasmAdapter`, `StructuredKnowledgeEngine`）ごとに異なるアイテムオブジェクトのプロパティ構造（`letter` vs `invlet`, `category` vs `itemCategory` vs `onumCategory`, `isUnidentified` vs `identification.isUnidentified` vs `isDiscovered`）を単一の正規化スキーマ（`CanonicalItem`）へ完全統一。
+  - UIコンポーネント側に散乱していた `a || b || c` の防御的フォールバック（対症療法コード）を全廃し、NetHack 公式 `src/objnam.c`（`xname_flags` / `doname_base`）に忠実な決定論的名称生成エンジン（`ItemNormalizer`）を構築。
 - **4段階実装ステップ**:
-  - [ ] **Phase 1**: `src/core/index.d.ts` への `CanonicalItem` 型定義追加 ＆ `src/core/knowledge/models/ItemNormalizer.js` の実装・単体検証
-  - [ ] **Phase 2**: 全 Producer（`InventoryStateManager`, `DiscoveryStateManager`, 床・コンテナ出力）の出口を `ItemNormalizer.normalize()` 経由へ統一
-  - [ ] **Phase 3**: 全 Consumer（`KnowledgeDetailModal`, `NhKnowledgeCard`, `ModalManager`, `InventoryView`, `NhShirenInventoryDrawer`, `PaperdollModal`）の純化と多重フォールバック撤廃
-  - [ ] **Phase 4**: 全 Producer の実出力に対するスキーマ適合性契約テスト（`CanonicalItemContract.test.js`）の常設化
+  - [x] **Phase 1**: `src/core/index.d.ts` への `CanonicalItem` 型定義追加
+  - [x] **Phase 2**: `ItemNormalizer` / `ItemDisplayPresenter` における NetHack 公式 `src/objnam.c` 準拠の決定論的名称生成エンジンの再実装（正規表現による文字列削り・文字コード判定の 100% 全廃）
+  - [x] **Phase 3**: 全 Producer / Consumer（WebComponents 含む）からの旧プロパティ・多重 `||` フォールバック・レガシー逆算コードの徹底的な物理削除（刈り取り）
+  - [x] **Phase 4**: スキーマ適合性契約テスト ＆ 公式 objnam.c 決定論的網羅テスト (`ObjnamItemNaming.test.js`) の全 PASS (2,076/2,076 PASS)
 
 ---
 
@@ -88,9 +86,6 @@ last_updated: 2026-10-18
     - [modern_inventory_dialog_and_weight_analytics_architecture.ja.md](./7_futures/modern_inventory_dialog_and_weight_analytics_architecture.ja.md)
     - [floor_pile_filer_and_dialog_navigation_architecture.ja.md](./7_futures/floor_pile_filer_and_dialog_navigation_architecture.ja.md)
   - 概要: Phase 8 の真の重量・BUC・床スタック直結（`SHIM_CMD_GET_OBJECT_AT`）を活かし、クラス別重量構成比バー付き2ペイン所持品コックピット（`i`）および足元山積み二画面ファイラー（`,` 拾う ⇄ `d` 置く）を実現。**※両構想とも、全ダイアログ共通の2ペイン・キーボード／ゲームパッド操作骨格（[`modal_interaction_and_navigation_guide.ja.md`](./2_client_ui/modal_interaction_and_navigation_guide.ja.md) 準拠）を共通基盤として実装する。**
-- **コンテキスト連動型・岩盤（STONE）可視化 ＆ 掘削アシストレンダリング構想**:
-  - 設計書: [context_aware_stone_and_digging_rendering_concept.ja.md](./7_futures/context_aware_stone_and_digging_rendering_concept.ja.md)
-  - 概要: 普段は通路・部屋の構造がくっきり見やすい「黒抜き」を維持しつつ、つるはし・穴掘りの杖等で `ContextActions` に「掘る」指示が出るときや自キャラの周辺狭域視野（トーチライト範囲）に限り、通路脇の観測済み岩盤（`STONE`: `glyph 3917` / `typ 0`）を浮かび上がらせるスマート描画拡張。
 
 ### 3.2 独立した長期構想群
 - **外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想**:
@@ -117,11 +112,12 @@ last_updated: 2026-10-18
 
 ## 🟢 4. 実装完了コア機能・現行仕様 (Living Specs) <a id="living-specs"></a>
 
-すでに実装が完了し、テストが通過（**全153スイート・1,912テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
+すでに実装が完了し、テストが通過（**全162スイート・2,058テスト 100% PASS**）しており、現在の動作の正解（Single Source of Truth）となっている機能群です。
 
 | ドメイン | 機能・仕様書 | 主要ソースコード | 状態 | 概要 |
 | :--- | :--- | :--- | :---: | :--- |
 | **全体・横断** | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `src/` 全体 | `🟢 implemented` | **システム現有能力カタログ＆責務境界・統廃合・ギャップ分析**<br>通信・同期、状態解析、データ・伝承、UI調停、基本憲法、重複整理、未接続パイプラインの公式総合カタログ |
+| **画面・描画 / 掘削** | [context_aware_stone_and_digging_rendering_spec.ja.md](./2_client_ui/context_aware_stone_and_digging_rendering_spec.ja.md) | `src/core/knowledge/state/AreaStateManager.js`<br>`src/ui-controller/UIConfigStore.js`<br>`examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js`<br>`examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js`<br>`examples/gkl-pure-js-client/modules/renderers/hd2d/hd2dFxOverlay.js`<br>`src/components/NhUiConfig.js`<br>`examples/gkl-pure-js-client/modules/layout/LayoutController.js` | `🟢 implemented` | **コンテキスト連動型スマート岩盤可視化 ＆ 掘削アシスト・マップ上コマンド数バッジ (2026-10-19)**<br>観測済み岩盤（`isObservedStone`）の識別・保持、3つの表示モード（`smart`/`minimal`/`classic_tile`）、掘削アクション（`hasDig`）連動のアンバー枠ハイライト＆3D壁インスタンス投影、マップ上 ContextActions コマンド数ミニバッジ（`mapActionIndicator`）完備 |
 | **GKL・床/知恵** | [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) | `src/driver/shim/shim_bridge.c`<br>`InventoryWasmAdapter.js`<br>`AdventureLogManager.js`<br>`StructuredKnowledgeEngine.js`<br>`ItemSpecPresenter.js`<br>`KnowledgeDetailModal.js`<br>`NhKnowledgeCard.js`<br>`FloatingContextActions.js`<br>`MainViewportRenderer.js`<br>`WebGPUHD2DRenderer.js` | `🟢 implemented` | **床落ちアイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵 (Peek Wisdom) (Phase 1〜4 完遂: 2026-10-16)**<br>Cシム層 `0x42` 12ワード拡張（箱フラグ・`nexthere` 床スタック走査）、冒険手帳 3段階支援モード（`STOIC`/`VETERAN`/`SAGE_GUIDE`）＆ `peekedObjects` 昇格、遠距離 `dknown==0` ネタバレ防止マスク、UI層の View 純化 ＆ `👁️` ボタン・`w` キー復元、マップ・カード・ポップアップの `[+1]`〜`[+9]` / `📚 山積み (+N)` バッジ表示完備 |
 | **GKL・ASCII純化 (旧2.7)** | [gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/gkl_multibyte_removal_and_ascii_purification_plan.ja.md) | `InventoryStateManager.js`<br>`ItemIdentificationResolver.js`<br>`EquipmentRules.js`<br>`EquipmentDependencyAnalyzer.js` | `🟢 implemented` | **GKL/装備判定ロジックからの日本語正規表現完全削除 ＆ ASCII純化 (Stage 8.5: 2026-10-15)**<br>`rawText` への和名合成汚染を解消し 100% 英語 ASCII に純化（和名は `nameJa`/`customNameJa` へ分離）。判定バグリスクを根絶 |
 | **GKL・探索同期** | [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)<br>[nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md) | `PlayerWasmAdapter.js`<br>`BindingConstants.js`<br>`AreaStateManager.js`<br>`AttributeStateManager.js`<br>`GKLEventRouter.js` | `🟢 implemented` | **ブランチ同定・お祈りタイマー・プレイヤー耐性直結 (Stage 8.4: 2026-10-15)**<br>`dnum` による全9ブランチ 100% 確定同定 ＆ `branch:dlvl` キャッシュ分離、新エリア突入バナー演出（`AREA_ENTERED`）、`ublesscnt` / `ugangr`（推測誤差ゼロお祈り判定）、`uprops` 69要素耐性配列 SSOT 直結 |
@@ -173,7 +169,7 @@ last_updated: 2026-10-18
 | **UI / Lifecycle** | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) | `examples/gkl-pure-js-client/`<br>`CharacterStatusModal.js`<br>`InputCoordinator.js`<br>`UIConfigStore.js` | `🟢 implemented` | **Direct Binding 同期ライフサイクル ＆ WebUI パイプライン刷新**<br>オンデマンド取得型キャラクター詳細モーダル・Quick Dock・キー透過調停（Phase 1〜4 完全完遂） |
 | **GKL / UI** | [native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md) | `ItemCandidateResolver.js`<br>`CustomNameStore.js`<br>`NhCallCandidateDialog.js`<br>`InputCoordinator.js` | `🟢 implemented` | **命名アシスト ＆ GamePad候補選択 (Phase 7 Phase 3 / Gap 2)**<br>未識別アイテムの価格帯・効果からの真名候補逆引き・ショートハンド生成、仮名永続管理、キー/ゲームパッド対応候補選択ダイアログ |
 | **Driver** | [driver_core_spec.md](./1_driver/driver_core_spec.md) | `src/driver/NetHackWasmDriver.js` | `🟢 implemented` | **Web Worker WASM コア駆動ドライバ** |
-| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全158スイート・1,984テスト 100% PASS)** |
+| **Testing** | [README.md (テストガイド)](./8_testing/README.md) | `tests/` | `🟢 implemented` | **Vitest 全自動テスト基盤 (全162スイート・2,058テスト 100% PASS)** |
 | **Translation** | [DICTIONARY_OPERATION.md](./9_translation/DICTIONARY_OPERATION.md) | `dictionary.csv`, `tools/` | `🟢 implemented` | **翻訳辞書・CSV相互変換運用ガイド** |
 
 ---

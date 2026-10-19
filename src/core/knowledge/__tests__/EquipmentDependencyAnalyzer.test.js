@@ -16,7 +16,6 @@ describe('EquipmentRules', () => {
     it('resolveEligibleSlots: 装身具・武器・矢筒の適合スロットを解決できること', () => {
         expect(resolveEligibleSlots({ category: 'RING', name: 'ring of regeneration' })).toEqual(['left_ring', 'right_ring']);
         expect(resolveEligibleSlots({ category: 'AMULET', name: 'amulet of ESP' })).toEqual(['amulet']);
-        expect(resolveEligibleSlots({ itemCategory: 'AMULET', name: 'amulet of ESP' })).toEqual(['amulet']);
         expect(resolveEligibleSlots({ name: 'circular amulet' })).toEqual(['amulet']);
         expect(resolveEligibleSlots({ name: 'Amulet of Yendor' })).toEqual(['amulet']);
         expect(resolveEligibleSlots({ name: 'amulet of life saving' })).toEqual(['amulet']);

@@ -21,7 +21,7 @@ export const CHEMISTRY_INTERACTIONS = [
         terrain: 'sink',
         trigger: {
             terrainType: 'sink',
-            itemCategory: 'RING',
+            category: 'RING',
             requiresUnidentified: true
         },
         action: {

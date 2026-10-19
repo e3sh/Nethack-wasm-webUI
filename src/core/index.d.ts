@@ -247,13 +247,151 @@ export class InventoryStateManager {
     constructor();
     updateFromMessage(messageText: string): void;
     updateFromLines(lines: string[]): void;
-    getItems(): any[];
+    getItems(): CanonicalItem[];
+}
+
+export class ItemNormalizer {
+    static normalize(rawItem: any, options?: { source?: ItemSourceType; defaultSource?: ItemSourceType }): CanonicalItem;
+    static assertCanonicalItem(item: any): boolean;
+    static withCalledName(canonicalItem: CanonicalItem, newCalledName: string | null): CanonicalItem;
+    static normalizeCategory(rawCategory: any, oclass?: number): ItemCategory;
+    static normalizeLetter(rawItem: any): string | null;
+    static normalizeBuc(rawBuc: any, flags?: any): BucStatusType;
 }
 
 export class SituationCache {
     constructor(statusAccessor: StatusAccessor, inventoryStateManager: InventoryStateManager, areaStateManager: AreaStateManager, contextActionEngine?: any);
     getSituation(): any;
     queryAction(query: any): any;
+}
+
+/**
+ * 正規化アイテムカテゴリ（全レイヤー共通・大文字固定）
+ */
+export type ItemCategory =
+  | 'WEAPON'
+  | 'ARMOR'
+  | 'RING'
+  | 'AMULET'
+  | 'TOOL'
+  | 'FOOD'
+  | 'POTION'
+  | 'SCROLL'
+  | 'SPELLBOOK'
+  | 'WAND'
+  | 'GOLD'
+  | 'GEM'
+  | 'ROCK'
+  | 'BALL'
+  | 'CHAIN'
+  | 'VENOM'
+  | 'CORPSE'
+  | 'STATUE'
+  | 'OTHER';
+
+/**
+ * アイテムデータの発生源（コンテキスト）
+ */
+export type ItemSourceType =
+  | 'INVENTORY'   // プレイヤー所持品
+  | 'FLOOR'       // 足元・マップ上の床落ちアイテム
+  | 'CONTAINER'   // 箱・袋の中身
+  | 'CODEX'       // ディスカバリー図鑑・知識カタログ
+  | 'VIRTUAL';    // 検索・静的辞書参照
+
+/**
+ * BUC（祝福・呪い）ステータス
+ */
+export type BucStatusType = 'BLESSED' | 'UNCURSED' | 'CURSED' | 'UNKNOWN';
+
+/**
+ * 識別段階レベル
+ */
+export type IdentificationLevelType =
+  | 'UNIDENTIFIED'      // Lv.0: 完全未識別
+  | 'BUC_KNOWN'         // Lv.1: BUCのみ判明
+  | 'NAMED'             // Lv.2: プレイヤー仮名付与済み
+  | 'TYPE_IDENTIFIED'   // Lv.3: 種別（真名）識別済み
+  | 'FULLY_IDENTIFIED'; // Lv.4: 強化値・チャージ含め完全識別済み
+
+/**
+ * 単一正規化アイテムデータモデル (Canonical Item Schema)
+ */
+export interface CanonicalItem {
+  // --- 1. 識別子・出所 ---
+  readonly _canonical: true;          // 正規化済みマーカー
+  source: ItemSourceType;             // 発生源 ('INVENTORY' | 'FLOOR' | 'CONTAINER' | 'CODEX' | 'VIRTUAL')
+  letter: string | null;              // インベントリレター ('a'〜'z', 'A'〜'Z', '$' 等。非所持時は null)
+  onum: number;                       // Cコアオブジェクト番号 (0〜480, 不明時は -1)
+  glyphId: number;                    // 描画グリフID (不明時は -1)
+  rawObjPtr: number;                  // Cコア struct obj* ポインタ (非実体時は 0)
+  o_id: number;                       // Cコア固有オブジェクトID (非実体時は 0)
+  corpsenm: number;                   // 死体・像・缶詰のモンスター番号 (非該当時は -1)
+
+  // --- 2. カテゴリ・分類 ---
+  category: ItemCategory;             // 正規化カテゴリ（必ず大文字。例: 'POTION', 'WEAPON'）
+  oclass: number;                     // Cコア oclass 数値 (不明時は 0)
+
+  // --- 3. 識別・命名状態（トップレベル保証） ---
+  isUnidentified: boolean;            // 未鑑定かどうか（真名未判明なら必ず true）
+  isDiscovered: boolean;              // 種別識別済みかどうか（!isUnidentified と一致）
+  idLevel: IdentificationLevelType;   // 5段階識別レベル
+  bucStatus: BucStatusType;           // 'BLESSED' | 'UNCURSED' | 'CURSED' | 'UNKNOWN'
+  calledName: string | null;          // プレイヤー種別仮名 (oc_uname / called "...")
+  namedInstance: string | null;       // 個別銘・アーティファクト名 (ONAME / named "...")
+
+  // --- 4. 名称・テキスト（ASCII真値と多言語表示の分離） ---
+  rawText: string;                    // 100% 英語 ASCII インベントリ表記
+  name: string;                       // 現在の基準英語名（未識別時は外見名、識別済時は真名）
+  nameJa: string;                     // 現在の基準日本語名
+  appearanceName: string | null;      // 英語外見名 (例: "smoky potion")
+  appearanceNameJa: string | null;    // 日本語外見名 (例: "煙った薬")
+  trueName: string | null;            // 英語真名 (未識別かつ非透視時は null でネタバレ保護)
+  trueNameJa: string | null;          // 日本語真名 (未識別かつ非透視時は null)
+  displayName: string;                // 安全な表示用英語フルテキスト
+  displayNameJa: string;              // 安全な表示用日本語フルテキスト
+
+  // --- 5. 数量・スペック・装備状態 ---
+  quan: number;                       // 個数 (デフォルト 1)
+  spe: number | null;                 // 強化値またはチャージ数 (不明時は null)
+  weight: number;                     // 重量 (不明時は 0)
+  equipSlot: string | null;           // 装備中スロット ('weapon', 'suit', 'ring_left' 等。非装備時は null)
+  isEquipped: boolean;                // いずれかのスロットに装備中か
+  isWielded: boolean;                 // メイン武器装備中か
+  isOffhand: boolean;                 // 副武器装備中か
+  isQuivered: boolean;                // 矢筒セット中か
+  isWorn: boolean;                    // 防具・装身具着用中か
+
+  // --- 6. アクション・詳細構造（既存互換＆拡張） ---
+  defaultVerb: string | null;         // 推奨主アクションキー ('q', 'r', 'w' 等)
+  defaultSequence: string[];          // 推奨実行シーケンス (['q', 'a'] 等)
+  defaultActionLabel: string | null;  // 英語アクションラベル
+  defaultActionLabelJa: string | null;// 日本語アクションラベル
+  alternativeActions: Array<{
+    verb: string;
+    sequence: string[];
+    labelJa: string;
+    isDefault?: boolean;
+  }>;
+  identification: Record<string, any>;// 詳細識別オブジェクト（トップレベル属性と完全同期）
+  knowledge: Record<string, any> | null; // 静的・動的マスタ知識
+  skillBadge: Record<string, any> | null;// 武器熟練度バッジ情報
+
+  // --- 7. 付加メタデータ・フラグ ---
+  cobjPtr?: number;
+  ptr?: number;
+  flags?: Record<string, any>;
+  isAmmo?: boolean;
+  isLauncher?: boolean;
+  isCanOpener?: boolean;
+  isTin?: boolean;
+  isBox?: boolean;
+  isBag?: boolean;
+  isTouchstone?: boolean;
+  isDigWand?: boolean;
+  isGem?: boolean;
+  actionRecipe?: any;
+  recharged?: number;
 }
 
 export interface MonsterKnowledge {

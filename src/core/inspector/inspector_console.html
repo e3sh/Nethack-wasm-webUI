@@ -1104,7 +1104,7 @@
             const defaultVerb = item.defaultVerb || k.defaultVerb || '-';
             const verbKey = item.defaultVerbKey || item.verbKey || k.verbKey || item.verb || '-';
             const actionLabelJa = item.defaultActionLabelJa || item.actionLabelJa || k.actionLabelJa || '-';
-            const itemCategory = item.itemCategory || k.category || item.onumCategory || 'OTHER';
+            const categoryName = item.category || k.category || 'OTHER';
 
             // 1. 識別・BUC・仮名バッジの生成
             const idBadges = [];
@@ -1239,7 +1239,7 @@
 
                     <!-- 識別・属性・カテゴリバッジ -->
                     <div class="k-badge-row">
-                        <span class="k-badge k-badge-cat">📦 ${itemCategory} (onum: ${onum})</span>
+                        <span class="k-badge k-badge-cat">📦 ${categoryName} (onum: ${onum})</span>
                         ${idBadges.join('')}
                     </div>
 
@@ -1327,7 +1327,7 @@
             } else {
                 container.innerHTML = `
                     <div style="margin-bottom:8px; font-weight:bold; color:var(--accent-color);">🎒 ナレッジ検索結果:</div>
-                    ${createRichItemKnowledgeCard({ knowledge: res, name: res.name, onum: res.onum, itemCategory: res.category, defaultVerb: res.defaultVerb, verbKey: res.verbKey, actionLabelJa: res.actionLabelJa }, true)}
+                    ${createRichItemKnowledgeCard({ knowledge: res, name: res.name, onum: res.onum, category: res.category, defaultVerb: res.defaultVerb, verbKey: res.verbKey, actionLabelJa: res.actionLabelJa }, true)}
                 `;
             }
         }

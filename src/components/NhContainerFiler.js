@@ -296,8 +296,11 @@ export class NhContainerFiler extends NhBaseElement {
         const isRisk = this.controller.checkExplosionRisk(item);
         const card = document.createElement('div');
         card.className = 'filer-item-card' + (isRisk ? ' risk' : '');
-        const countStr = (item.count && item.count > 1) ? `(${item.count}) ` : '';
-        const nameStr = item.name || item.text || item.rawText || '不明なアイテム';
+        const itemCount = (typeof item.quan === 'number' && item.quan > 0)
+          ? item.quan
+          : ((typeof item.count === 'number' && item.count > 0) ? item.count : (typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1));
+        const countStr = itemCount > 1 ? `(${itemCount}) ` : '';
+        const nameStr = item.displayNameJa || item.displayName || item.name || item.text || item.rawText || '不明なアイテム';
 
         card.innerHTML = `
           <div class="filer-item-left">
@@ -332,8 +335,11 @@ export class NhContainerFiler extends NhBaseElement {
       for (const item of this._containerItems) {
         const card = document.createElement('div');
         card.className = 'filer-item-card';
-        const countStr = (item.count && item.count > 1) ? `(${item.count}) ` : '';
-        const nameStr = item.name || item.text || item.rawText || '不明なアイテム';
+        const itemCount = (typeof item.quan === 'number' && item.quan > 0)
+          ? item.quan
+          : ((typeof item.count === 'number' && item.count > 0) ? item.count : (typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1));
+        const countStr = itemCount > 1 ? `(${itemCount}) ` : '';
+        const nameStr = item.displayNameJa || item.displayName || item.name || item.text || item.rawText || '不明なアイテム';
 
         card.innerHTML = `
           <div class="filer-item-left">

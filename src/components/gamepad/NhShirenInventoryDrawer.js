@@ -8,6 +8,8 @@
  */
 
 import { NhBaseElement } from '../NhBaseElement.js';
+import { ItemNormalizer } from '../../core/knowledge/models/ItemNormalizer.js';
+import { ItemDisplayPresenter } from '../../core/knowledge/presenters/ItemDisplayPresenter.js';
 
 const DRAWER_CSS = `
 :host {
@@ -658,9 +660,9 @@ export class NhShirenInventoryDrawer extends NhBaseElement {
      * アイテムに対する実行可能アクション一覧を生成
      */
     _getActionsForItem(item) {
-        const cat = (item.category || item.type || '').toUpperCase();
-        const letter = item.letter || item.invlet || item.charStr || '';
-        const isEquipped = !!(item.equipped || item.isEquipped);
+        const cat = item.category || '';
+        const letter = item.letter || '';
+        const isEquipped = Boolean(item.isEquipped);
 
         const actions = [];
 
@@ -788,13 +790,15 @@ export class NhShirenInventoryDrawer extends NhBaseElement {
   <div class="item-list-container" id="item-list">
     ${filtered.length === 0 ? `
       <div class="empty-message">所持品はありません</div>
-    ` : filtered.map((item, idx) => {
+    ` : filtered.map((rawItem, idx) => {
+        const item = rawItem._canonical ? rawItem : ItemNormalizer.normalize(rawItem);
         const isSel = idx === this.selectedIndex;
         const icon = this._getItemIcon(item);
-        const name = item.translatedName || item.jpName || item.name || item.str || '???';
-        const letter = item.letter || item.invlet || item.charStr || '-';
-        const isEquipped = !!(item.equipped || item.isEquipped);
-        const isQuiver = !!(item.quiver || item.isQuiver);
+        const name = ItemDisplayPresenter.getFormattedTitle(item, { language: 'ja', includeLetter: false }) || item.displayNameJa || item.displayName || '???';
+        const letter = item.letter || '-';
+        const isEquipped = Boolean(item.isEquipped);
+        const isQuiver = Boolean(item.isQuivered);
+        const bucBadge = ItemDisplayPresenter.getBucBadgeHtml(item, { language: 'ja', format: 'pill' });
 
         return `
         <div class="item-row ${isSel ? 'selected' : ''}" data-index="${idx}">
@@ -804,6 +808,7 @@ export class NhShirenInventoryDrawer extends NhBaseElement {
           <div class="item-info">
             <div class="item-name">${name}</div>
             <div class="item-badges">
+              ${bucBadge}
               ${isEquipped ? '<span class="badge-equipped">[装備中]</span>' : ''}
               ${isQuiver ? '<span class="badge-quiver">[矢筒]</span>' : ''}
             </div>
@@ -823,12 +828,16 @@ export class NhShirenInventoryDrawer extends NhBaseElement {
   </div>
 
   <!-- サブメニュー (ポップアップ) -->
-  ${this.isSubmenuOpen && filtered[this.selectedIndex] ? `
+  ${this.isSubmenuOpen && filtered[this.selectedIndex] ? (() => {
+    const rawSel = filtered[this.selectedIndex];
+    const selItem = rawSel._canonical ? rawSel : ItemNormalizer.normalize(rawSel);
+    const selTitle = ItemDisplayPresenter.getFormattedTitle(selItem, { language: 'ja', includeLetter: false }) || selItem.displayNameJa || selItem.displayName || '???';
+    return `
     <div class="submenu-overlay" id="submenu-overlay">
       <div class="submenu-card">
         <div class="submenu-header">
-          <span>${this._getItemIcon(filtered[this.selectedIndex])}</span>
-          <span class="submenu-title">${filtered[this.selectedIndex].translatedName || filtered[this.selectedIndex].name}</span>
+          <span>${this._getItemIcon(selItem)}</span>
+          <span class="submenu-title">${selTitle}</span>
         </div>
         <div class="submenu-list">
           ${this.activeActions.map((act, actIdx) => `
@@ -843,7 +852,8 @@ export class NhShirenInventoryDrawer extends NhBaseElement {
         </div>
       </div>
     </div>
-  ` : ''}
+    `;
+  })() : ''}
 </div>
         `;
 

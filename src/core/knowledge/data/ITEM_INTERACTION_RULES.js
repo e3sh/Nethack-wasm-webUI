@@ -504,10 +504,10 @@ function isItemUnidentified(item) {
         const cat = trigger.hasUnidentifiedItemCategory.toUpperCase();
         matchedUnidentifiedItem = items.find(i => {
             const raw = (i.rawText || i.name || '').toLowerCase();
-            const isCat = (cat === 'WAND' && (i.isWand || raw.includes('wand') || raw.includes('杖'))) ||
-                          (cat === 'RING' && (i.isRing || raw.includes('ring') || raw.includes('指輪'))) ||
-                          (cat === 'POTION' && (i.isPotion || raw.includes('potion') || raw.includes('薬'))) ||
-                          (cat === 'SCROLL' && (i.isScroll || raw.includes('scroll') || raw.includes('巻物')));
+            const isCat = (cat === 'WAND' && (i.category === 'WAND' || raw.includes('wand') || raw.includes('杖'))) ||
+                          (cat === 'RING' && (i.category === 'RING' || raw.includes('ring') || raw.includes('指輪'))) ||
+                          (cat === 'POTION' && (i.category === 'POTION' || raw.includes('potion') || raw.includes('薬'))) ||
+                          (cat === 'SCROLL' && (i.category === 'SCROLL' || raw.includes('scroll') || raw.includes('巻物')));
             return isCat && isItemUnidentified(i);
         });
         if (!matchedUnidentifiedItem) return null;
@@ -521,7 +521,7 @@ function isItemUnidentified(item) {
 
     // 7. 特殊アイテム組み合わせ条件
     if (trigger.hasUnidentifiedOrPoisonPotion) {
-        const potion = items.find(i => i.isPotion || (i.rawText || '').toLowerCase().includes('potion'));
+        const potion = items.find(i => i.category === 'POTION' || (i.rawText || '').toLowerCase().includes('potion'));
         if (!potion) return null;
     }
 
@@ -547,7 +547,7 @@ function isItemUnidentified(item) {
     }
 
     if (trigger.hasDippablePotionOrLongSword) {
-        const dippable = items.find(i => i.isPotion || (i.rawText || '').toLowerCase().includes('long sword'));
+        const dippable = items.find(i => i.category === 'POTION' || (i.rawText || '').toLowerCase().includes('long sword'));
         if (!dippable) return null;
     }
 
@@ -561,7 +561,7 @@ function isItemUnidentified(item) {
         wandLetter: matchedUnidentifiedItem?.letter || 'a',
         ringLetter: matchedUnidentifiedItem?.letter || 'a',
         hornLetter: matchedSourceItem?.letter || 'a',
-        potionLetter: items.find(i => i.isPotion)?.letter || 'b',
+        potionLetter: items.find(i => i.category === 'POTION' || (i.rawText || i.name || '').toLowerCase().includes('potion'))?.letter || 'b',
         stoneLetter: matchedSourceItem?.letter || 'a',
         openerLetter: matchedSourceItem?.letter || 'a',
         markerLetter: matchedSourceItem?.letter || 'a'

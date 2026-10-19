@@ -81,7 +81,7 @@ Rings:
         expect(rubyItem).toBeDefined();
         expect(rubyItem.appearance).toBe('ruby');
         expect(rubyItem.isDiscovered).toBe(true);
-        expect(rubyItem.category).toBe('potion');
+        expect(rubyItem.category).toBe('POTION');
 
         const extraItem = items.find(it => it.trueName === 'potion of extra healing');
         expect(extraItem).toBeDefined();
@@ -99,7 +99,7 @@ Rings:
         const items = manager.getDiscoveredItems();
         const ringMail = items.find(it => it.trueName === 'ring mail');
         expect(ringMail).toBeDefined();
-        expect(ringMail.category).toBe('armor'); // ❌ 'ring' ではなく 'armor' であること！
+        expect(ringMail.category).toBe('ARMOR'); // ❌ 'RING' ではなく 'ARMOR' であること！
         expect(ringMail.nameJa).toBe('リングメイル'); // ナレッジマスターから公式日本語名が引けること
     });
 
@@ -330,12 +330,12 @@ Weapons:
 
             const shuriken = items.find(it => it.trueName === 'shuriken');
             expect(shuriken).toBeDefined();
-            expect(shuriken.category).toBe('weapon');
+            expect(shuriken.category).toBe('WEAPON');
             expect(shuriken.appearance).toBe('throwing star');
 
             const healing = items.find(it => it.trueName === 'potion of healing');
             expect(healing).toBeDefined();
-            expect(healing.category).toBe('potion');
+            expect(healing.category).toBe('POTION');
             expect(healing.appearance).toBe('pink');
         });
 

@@ -18,6 +18,7 @@ import { EquipmentActionPlanner } from "../../../../src/core/knowledge/equipment
 import { OBJECT_JP_MAP } from "../../../../src/core/knowledge/data/OBJECT_JP_MAP.js";
 import { PROMPT_CATEGORY } from '../../../../src/core/types.js';
 import { PaperdollPresenter } from '../../../../src/ui-controller/index.js';
+import { ItemDisplayPresenter } from "../../../../src/core/knowledge/presenters/ItemDisplayPresenter.js";
 
 export class PaperdollModal {
   /**
@@ -100,76 +101,15 @@ export class PaperdollModal {
    */
   _getItemDisplayName(item) {
     if (!item) return '';
-    const isEn = this.currentLanguage === 'en';
-
-    // 1. 英語表示の場合
-    if (isEn) {
-      if (item.name) return item.name;
-      return (item.rawText || '')
-        .replace(/^[a-zA-Z]\s*-\s*/, '')
-        .replace(/\s*[(（][^()（）]*[)）]$/, '')
-        .trim();
-    }
-
-    // 2. 日本語表示の場合
-    // (a) 明示的な和名プロパティがあれば最優先
-    if (item.japaneseName) return item.japaneseName;
-    if (item.knowledge && item.knowledge.japaneseName) return item.knowledge.japaneseName;
-
-    // (b) core.translate または core.translator.translate による動的翻訳
     const core = this.getCore();
-    const translateFn = (core && typeof core.translate === 'function')
-      ? core.translate.bind(core)
-      : (core && core.translator && typeof core.translator.translate === 'function'
-          ? core.translator.translate.bind(core.translator)
-          : null);
-
-    if (translateFn) {
-      // rawText がある場合はまず構文分解翻訳を試行
-      if (item.rawText) {
-        try {
-          const translatedRaw = translateFn(item.rawText);
-          if (translatedRaw && translatedRaw !== item.rawText) {
-            return translatedRaw
-              .replace(/^[a-zA-Z]\s*-\s*/, '')
-              .replace(/\s*[(（][^()（）]*[)）]$/, '')
-              .trim();
-          }
-        } catch (e) {}
-      }
-      // item.name の翻訳を試行
-      if (item.name) {
-        try {
-          const translatedName = translateFn(item.name);
-          if (translatedName && translatedName !== item.name) {
-            return translatedName;
-          }
-        } catch (e) {}
-      }
-    }
-
-    // (c) OBJECT_JP_MAP 辞書引き (SSOT)
-    if (OBJECT_JP_MAP && OBJECT_JP_MAP.objects) {
-      const cleanKey = (item.name || item.rawText || '')
-        .replace(/^[a-zA-Z]\s*-\s*/, '')
-        .replace(/^(a|an|the|\+\d+|-\d+)\s+/, '')
-        .replace(/\s*[(（][^()（）]*[)）]$/, '')
-        .trim();
-
-      if (OBJECT_JP_MAP.objects[cleanKey]) {
-        return OBJECT_JP_MAP.objects[cleanKey];
-      }
-
-      const lowerKey = cleanKey.toLowerCase();
-      for (const [k, v] of Object.entries(OBJECT_JP_MAP.objects)) {
-        if (k.toLowerCase() === lowerKey) {
-          return v;
-        }
-      }
-    }
-
-    // (d) フォールバック
-    return item.name || (item.rawText || '').replace(/^[a-zA-Z]\s*-\s*/, '').replace(/\s*[(（][^()（）]*[)）]$/, '').trim();
+    const isWisdom = Boolean(item.isWisdomRevealed || core?.gkl?.inventoryStateManager?.sagesWisdomMode);
+    return ItemDisplayPresenter.getFormattedTitle(item, {
+      language: this.currentLanguage,
+      includeLetter: false,
+      includeBilingualSubname: false,
+      includeCalled: true,
+      sagesWisdomMode: isWisdom
+    });
   }
 
   show() {
@@ -458,17 +398,14 @@ export class PaperdollModal {
     let cursedClass = '';
 
     if (item) {
+      const isWisdom = Boolean(item.isWisdomRevealed || this.getCore()?.gkl?.inventoryStateManager?.sagesWisdomMode);
       letterTagHtml = `<span class="slot-letter-tag">${item.letter || ''}</span>`;
-
-      if (item.isCursed) {
+      bucTagHtml = ItemDisplayPresenter.getBucBadgeHtml(item, { language: this.currentLanguage, format: 'symbol', sagesWisdomMode: isWisdom });
+      if (item.bucStatus === 'CURSED' || item.isCursed) {
         cursedClass = 'is-cursed';
-        bucTagHtml = `<span class="slot-buc-tag buc-cursed">-</span>`;
-      } else if (item.isBlessed) {
-        bucTagHtml = `<span class="slot-buc-tag buc-blessed">+</span>`;
-      } else if (item.isUncursed) {
-        bucTagHtml = `<span class="slot-buc-tag buc-uncursed">u</span>`;
       }
     }
+
 
     const itemName = item ? this._getItemDisplayName(item) : (isEn ? def.labelEn : def.labelJa);
     const itemShortName = itemName.length > 9 ? itemName.slice(0, 8) + '…' : itemName;
@@ -519,15 +456,13 @@ export class PaperdollModal {
     let bucTag = '';
     let cursedClass = '';
     if (item) {
-      if (item.isCursed) {
+      const isWisdom = Boolean(item.isWisdomRevealed || this.getCore()?.gkl?.inventoryStateManager?.sagesWisdomMode);
+      bucTag = ItemDisplayPresenter.getBucBadgeHtml(item, { language: this.currentLanguage, format: 'symbol', sagesWisdomMode: isWisdom });
+      if (item.bucStatus === 'CURSED' || item.isCursed) {
         cursedClass = 'is-cursed';
-        bucTag = `<span class="slot-buc-tag buc-cursed">-</span>`;
-      } else if (item.isBlessed) {
-        bucTag = `<span class="slot-buc-tag buc-blessed">+</span>`;
-      } else if (item.isUncursed) {
-        bucTag = `<span class="slot-buc-tag buc-uncursed">u</span>`;
       }
     }
+
 
     const itemName = item ? `${item.letter ? item.letter + ' - ' : ''}${this._getItemDisplayName(item)}` : (isEn ? `Empty (${def.labelEn})` : `未着用 (${def.labelJa})`);
 

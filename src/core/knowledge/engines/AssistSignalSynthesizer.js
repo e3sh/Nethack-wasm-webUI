@@ -106,14 +106,14 @@ export class AssistSignalSynthesizer {
             if (!i) return false;
             const k = this._resolveObjectKnowledge(i);
             const cat = i.category || k?.category;
-            return cat === 'POTION' || i.isPotion === true;
+            return cat === 'POTION';
         };
 
         const isScrollItem = (i) => {
             if (!i) return false;
             const k = this._resolveObjectKnowledge(i);
             const cat = i.category || k?.category;
-            return cat === 'SCROLL' || i.isScroll === true;
+            return cat === 'SCROLL';
         };
 
         const healingPotion = inventoryItems.find(i => {
@@ -174,7 +174,7 @@ export class AssistSignalSynthesizer {
         // --- A. 石化進行 (Petrifying / Stone) ---
         if (hasCondition('stone') || hasCondition('petrifying')) {
             if (lizardCorpse) {
-                const invlet = lizardCorpse.invlet || lizardCorpse.letter || 'a';
+                const invlet = lizardCorpse.letter || lizardCorpse.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '🦎',
@@ -199,7 +199,7 @@ export class AssistSignalSynthesizer {
         // --- B. スライム化 (Sliming / Slimed) ---
         if (hasCondition('slimed') || hasCondition('sliming')) {
             if (fireSource) {
-                const invlet = fireSource.invlet || fireSource.letter || 'a';
+                const invlet = fireSource.letter || fireSource.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '🔥',
@@ -224,7 +224,7 @@ export class AssistSignalSynthesizer {
         // --- C. 病気・食中毒 (Sick / Ill / FoodPois) ---
         if (hasCondition('ill') || hasCondition('sick') || hasCondition('foodpois')) {
             if (unicornHorn) {
-                const invlet = unicornHorn.invlet || unicornHorn.letter || 'a';
+                const invlet = unicornHorn.letter || unicornHorn.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '🦄',
@@ -236,7 +236,7 @@ export class AssistSignalSynthesizer {
                 candidateSignals.push(createAssistSignal('SIGNAL_SICK_HORN', { invlet }));
             } else if (extraHealingPotion || healingPotion) {
                 const pot = extraHealingPotion || healingPotion;
-                const invlet = pot.invlet || pot.letter || 'a';
+                const invlet = pot.letter || pot.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '💊',
@@ -255,7 +255,7 @@ export class AssistSignalSynthesizer {
         if (hp.percent > 0 && hp.percent < 0.3) {
             if (healingPotion || extraHealingPotion) {
                 const pot = extraHealingPotion || healingPotion;
-                const invlet = pot.invlet || pot.letter || 'a';
+                const invlet = pot.letter || pot.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '💊',
@@ -290,7 +290,7 @@ export class AssistSignalSynthesizer {
             // HP 警戒域 (30〜50%)
             if (healingPotion || extraHealingPotion) {
                 const pot = extraHealingPotion || healingPotion;
-                const invlet = pot.invlet || pot.letter || 'a';
+                const invlet = pot.letter || pot.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'warning',
                     icon: '💊',
@@ -306,7 +306,7 @@ export class AssistSignalSynthesizer {
         // --- E. 混乱 (Confused / Conf) ---
         if (hasCondition('conf') || hasCondition('confused')) {
             if (unicornHorn) {
-                const invlet = unicornHorn.invlet || unicornHorn.letter || 'a';
+                const invlet = unicornHorn.letter || unicornHorn.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'info',
                     icon: '🦄',
@@ -330,7 +330,7 @@ export class AssistSignalSynthesizer {
         // --- F. 盲目 (Blind) ---
         if (hasCondition('blind')) {
             if (unicornHorn) {
-                const invlet = unicornHorn.invlet || unicornHorn.letter || 'a';
+                const invlet = unicornHorn.letter || unicornHorn.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'info',
                     icon: '🦄',
@@ -364,7 +364,7 @@ export class AssistSignalSynthesizer {
         // --- I. 呪縛 (Cursed items - SSOT: bflag, isCursed, buc) ---
         if (hasCondition('cursed') || (inventoryItems.some(i => i.isWorn && (i.bflag === 2 || i.isCursed || i.buc === 'CURSED')))) {
             if (uncurseScroll) {
-                const invlet = uncurseScroll.invlet || uncurseScroll.letter || 'a';
+                const invlet = uncurseScroll.letter || uncurseScroll.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'info',
                     icon: '📜',
@@ -404,7 +404,7 @@ export class AssistSignalSynthesizer {
             });
 
             if (blindfold) {
-                const invlet = blindfold.invlet || blindfold.letter || 'a';
+                const invlet = blindfold.letter || blindfold.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'info',
                     icon: '🙈',
@@ -431,12 +431,12 @@ export class AssistSignalSynthesizer {
                 if (i.isWorn) return false;
                 const k = this._resolveObjectKnowledge(i);
                 const isSilver = i.isSilver || k?.isSilver || i.material === 'silver' || k?.material === 'silver';
-                const isWeapon = i.isWeapon || i.category === 'WEAPON' || k?.category === 'WEAPON';
+                const isWeapon = i.category === 'WEAPON' || k?.category === 'WEAPON';
                 return isSilver && isWeapon;
             });
 
             if (silverWeapon) {
-                const invlet = silverWeapon.invlet || silverWeapon.letter || 'a';
+                const invlet = silverWeapon.letter || silverWeapon.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'success',
                     icon: '✨',
@@ -478,7 +478,7 @@ export class AssistSignalSynthesizer {
         // 攻撃の杖所持判定 (SSOT: isWand, isOffensive)
         const attackWand = inventoryItems.find(i => {
             const k = this._resolveObjectKnowledge(i);
-            const isWand = i.isWand || i.category === 'WAND' || k?.category === 'WAND';
+            const isWand = i.category === 'WAND' || k?.category === 'WAND';
             if (!isWand) return false;
             const eff = { ...(k?.effects || {}), ...(i.effects || {}) };
             return Boolean(eff.isOffensive);
@@ -506,7 +506,7 @@ export class AssistSignalSynthesizer {
 
         if (hasMetallicArmor && highFailCount > 0) {
             if (attackWand) {
-                const invlet = attackWand.invlet || attackWand.letter || 'a';
+                const invlet = attackWand.letter || attackWand.invlet || 'a';
                 slotBadges[invlet] = {
                     type: 'success',
                     icon: '🪄',
@@ -517,9 +517,9 @@ export class AssistSignalSynthesizer {
                 };
             }
             candidateSignals.push(createAssistSignal('SIGNAL_ARMOR_MAGIC_PENALTY', {
-                actionKeySequence: attackWand ? ['z', attackWand.invlet || 'a'] : ['z'],
-                actionLabelJa: attackWand ? `攻撃の杖を振る (z -> ${attackWand.invlet || 'a'})` : '杖を振る (z)',
-                actionLabelEn: attackWand ? `Zap wand (z -> ${attackWand.invlet || 'a'})` : 'Zap wand (z)'
+                actionKeySequence: attackWand ? ['z', attackWand.letter || attackWand.invlet || 'a'] : ['z'],
+                actionLabelJa: attackWand ? `攻撃の杖を振る (z -> ${attackWand.letter || attackWand.invlet || 'a'})` : '杖を振る (z)',
+                actionLabelEn: attackWand ? `Zap wand (z -> ${attackWand.letter || attackWand.invlet || 'a'})` : 'Zap wand (z)'
             }));
         }
     }
@@ -536,8 +536,8 @@ export class AssistSignalSynthesizer {
         const isRingItem = (i) => {
             if (!i) return false;
             const k = this._resolveObjectKnowledge(i);
-            const cat = i.category || i.itemCategory || i.onumCategory || k?.category;
-            return cat === 'RING' || i.isRing === true;
+            const cat = i.category || k?.category;
+            return cat === 'RING';
         };
 
         const hasUnidentifiedRing = inventoryItems.some(i => {

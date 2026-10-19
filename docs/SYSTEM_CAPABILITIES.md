@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI システム現有能力カタログ
 status: implemented
-last_updated: 2026-10-15
+last_updated: 2026-10-19
 ---
 
 # 🧭 NetHack WASM WebUI システム現有能力カタログ (SYSTEM_CAPABILITIES.md)
@@ -26,7 +26,10 @@ last_updated: 2026-10-15
    - [2.6 事後ナレッジ解析 ＆ 冒険手帳メタ進行 (PostMortemKnowledgeResolver / AdventureLogManager)](#26-事後ナレッジ解析--冒険手帳メタ進行-postmortemknowledgeresolver--adventurelogmanager)
    - [2.7 ゲームライフサイクル状態マシン (GameLifecycleManager)](#27-ゲームライフサイクル状態マシン-gamelifecyclemanager)
 3. [③ データ・伝承資産 (Data & Lore Assets)](#③-データ伝承資産-data--lore-assets)
-4. [④ UI制御・操作調停 (UIController & Web Components)](#④-ui制御操作調停-uicontroller--web-components)
+4. [④ UI制御・操作調停・盤面描画 (UIController & Web Components & Renderers)](#④-ui制御操作調停盤面描画-uicontroller--web-components--renderers)
+   - [4.1 キー・ゲームパッド入力調停 (InputCoordinator / GamepadInputController / ModalStackController)](#41-キーゲームパッド入力調停-inputcoordinator--gamepadinputcontroller--modalstackcontroller)
+   - [4.2 共通 Web Components (<nh-*>)](#42-共通-web-components-nh-)
+   - [4.3 コンテキスト連動型岩盤可視化 ＆ 掘削アシスト・マップ上コマンド数バッジ (Renderers & Overlays)](#43-コンテキスト連動型岩盤可視化--掘削アシストマップ上コマンド数バッジ-renderers--overlays)
 5. [⑤ アーキテクチャの基本憲法（設計判断ルール）](#⑤-アーキテクチャの基本憲法設計判断ルール)
 6. [⑥ 機能重複およびレガシー文字列パースの統廃合・退役候補 (Consolidation & Retirement Candidates)](#⑥-機能重複およびレガシー文字列パースの統廃合退役候補-consolidation--retirement-candidates)
 7. [⑦ ギャップ分析と解消状況 (Capability Gaps & Resolution Status)](#⑦-ギャップ分析と解消状況-capability-gaps--resolution-status)
@@ -211,6 +214,7 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
   - `getAreaState(cx, cy, radius)` / `getFocusCameraTiles(radiusX, radiusY, options)`
 * **できること**:
   - **4層空間モデル＆差分追跡**: 単一グリフから `bottom`（地形）、`middle`（アイテム/岩）、`top`（生物/墓石）、`effect`（演出）を復元管理し、描画差分（`dirtyCells`）のみをレンダラーへ高速供給。
+  - **観測済み岩盤 (`isObservedStone`) の識別保持**: 受信グリフが `0` または `3929` の場合、空白文字（`' '`）であっても完全未踏領域（`glyph >= 9622`）と明確に区別し、Direct Binding の真の地形（`typ: 0`）とともに `isObservedStone: true` を保持（スマート岩盤可視化の基盤）。
   - **Phase 8 メモリ直結同期**: `dumpLevelTerrain()` による 80×21 フロア全域の真の地形・階段一括確定、および `syncPlayerFeetFloor()` による足元の真の床・罠・床アイテムBUCのゼロ遅延確定（未踏領域ネタバレ防止ガード付き）。
   - **ランドマーク台帳**: 階段・祭壇・泉・玉座・シンク・店舗（店主同定）を自動抽出・永続化（`landmarkCache`）。
 
@@ -307,6 +311,20 @@ flowchart TD
   - `<nh-knowledge-card>`: 3層構造（基本スペック・公式攻撃ダイス・`data.base` 文学引用/伝承）を凝縮した超軽量統合ナレッジカード。
   - `<nh-discovery-codex>` / `<nh-codex-grid>`: ゲーム内 `\` 発見済みアイテム対照図鑑およびシルエット解禁対応の冒険手帳グリッド。
   - `<nh-radial-palette-hud>` / `<nh-shiren-inventory-drawer>` / `<nh-gamepad-guide-bar>` / `<nh-context-hint-pill>`: ゲームパッド・コンソール操作向け UI コンポーネント群。
+
+### 4.3 コンテキスト連動型岩盤可視化 ＆ 掘削アシスト・マップ上コマンド数バッジ (`Renderers & Overlays`)
+
+* **主要クラス / モジュール**:
+  - `src/ui-controller/UIConfigStore.js` (`stoneRenderingMode`, `mapActionIndicator`)
+  - `examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js` (2D Canvas レンダラー)
+  - `examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js` (WebGPU 3D ジオラマレンダラー)
+  - `examples/gkl-pure-js-client/modules/renderers/hd2d/hd2dFxOverlay.js` (3D 空間 2D オーバーレイ)
+  - 詳細仕様書: [context_aware_stone_and_digging_rendering_spec.ja.md](./2_client_ui/context_aware_stone_and_digging_rendering_spec.ja.md)
+* **できること**:
+  - **スマート岩盤可視化 (`stoneRenderingMode: 'smart'`)**: 普段は部屋・通路のネットワーク構造がくっきり見える「黒抜き」を維持しつつ、つるはし等の掘削アクション（`hasDig`）が発生したときのみ、隣接する観測済み岩盤（`isObservedStone` / `3929`）を浮かび上がらせてアンバー枠（`#fbbf24`）で強調描画。
+  - **3大描画モード切替**: `smart`（既定）、`minimal`（常時完全黒抜き）、`classic_tile`（観測済み岩盤の常時クッキリ描画）を `<nh-ui-config>` からオンデマンド切替・LocalStorage 永続化。
+  - **HD-2D 3D 壁インスタンス動的投影**: WebGPU 3D モードにおいて、掘削可能岩盤を立体的な壁天面および前面インスタンス（不透明度 0.85）として動的に立ち上げ。
+  - **マップ上 ContextActions コマンド数ミニバッジ (`mapActionIndicator`)**: 自キャラ周囲（隣接8方向＋足元）のマス上に、GKL の推奨固有アクション数をピル型ミニバッジ（および控えめなガイド枠）としてオーバーレイ描画。盤面クリックにより `FloatingContextActions` を直接起動可能。
 
 ---
 

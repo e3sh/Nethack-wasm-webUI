@@ -120,8 +120,7 @@ describe('KnowledgeDetailModal - Called Name in Header Title & Badges', () => {
         appearanceName: 'smoky potion',
         calledName: null
       },
-      isPotion: true,
-      itemCategory: 'POTION'
+      category: 'POTION'
     };
 
     modal.open(inventoryItem);

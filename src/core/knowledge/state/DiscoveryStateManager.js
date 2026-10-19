@@ -16,6 +16,7 @@ import { OBJECT_KNOWLEDGE_MAP } from "../data/OBJECT_KNOWLEDGE_FULL.js";
 import { DISCOVERY_MESSAGE_MAP } from "../data/DISCOVERY_MESSAGE_MAP.js";
 import { APPEARANCE_PATTERNS, ItemIdentificationResolver } from "../engines/ItemIdentificationResolver.js";
 import { setDescrIndexesForTileMapping } from "../../../driver/tileMapping.js";
+import { ItemNormalizer } from "../models/ItemNormalizer.js";
 
 // 初回から真名が自明な非ランダム外見カテゴリ（食料、基本道具など）
 export const INTRINSICALLY_KNOWN_CATEGORIES = new Set(['FOOD', 'TOOL', 'CONTAINER']);
@@ -878,7 +879,7 @@ export class DiscoveryStateManager {
             }
         }
 
-        return items;
+        return items.map(entry => ItemNormalizer.normalize(entry, { source: 'CODEX' }));
     }
 
     _inferCategory(trueName, app) {

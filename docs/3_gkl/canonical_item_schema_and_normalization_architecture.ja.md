@@ -1,7 +1,8 @@
 ---
 title: JS層アイテムデータモデルの単一正規化（Canonical Item Schema）および防御的フォールバック根絶設計書
-status: pending
+status: in-progress
 created: 2026-10-18
+updated: 2026-10-19
 author: Antigravity
 ---
 
@@ -258,30 +259,40 @@ _canCallItem() {
 既存機能への影響（デグレ）をゼロに抑えつつ確実に移行するため、以下の 4 フェーズで段階的に実施します。
 
 ### Phase 1: `CanonicalItem` 型定義と `ItemNormalizer.js` 基盤の実装
-- [ ] `src/core/index.d.ts` に `ItemCategory`, `ItemSourceType`, `CanonicalItem` インターフェースを追加。
-- [ ] `src/core/knowledge/models/ItemNormalizer.js` を実装（全 Producer パターンの入力から `CanonicalItem` への変換、および不変条件バリデータ `assertCanonicalItem()` の実装）。
-- [ ] `tests/core/knowledge/ItemNormalizer.test.js` を作成し、テキストパース・Direct Binding・床アイテム・図鑑エントリ・未識別・仮名付き等の全パターン変換を 100% 検証。
+- [x] `src/core/index.d.ts` に `ItemCategory`, `ItemSourceType`, `CanonicalItem` インターフェースを追加。
+- [x] `src/core/knowledge/models/ItemNormalizer.js` を実装（全 Producer パターンの入力から `CanonicalItem` への変換、および不変条件バリデータ `assertCanonicalItem()` の実装）。
+- [x] `tests/core/knowledge/ItemNormalizer.test.js` を作成し、テキストパース・Direct Binding・床アイテム・図鑑エントリ・未識別・仮名付き等の全パターン変換を 100% 検証。
 
 ### Phase 2: Producer（データ生成層）の出口統一
-- [ ] `InventoryStateManager.js` (`updateFromMenuItems`, `syncFromDirectBinding`):
+- [x] `InventoryStateManager.js` (`updateFromMenuItems`, `syncFromDirectBinding`):
   - 生成される各アイテムを `ItemNormalizer.normalize(rawItem, { source: 'INVENTORY' })` 経由に統一。
   - トップレベルに `category`（大文字）、`isUnidentified`、`calledName` が常に存在する状態を保証。
-- [ ] `DiscoveryStateManager.js` (`getDiscoveredItems`):
+- [x] `DiscoveryStateManager.js` (`getDiscoveredItems`):
   - 出力エントリを `ItemNormalizer.normalize(entry, { source: 'CODEX' })` 経由に統一（`category` の小文字混在を解消）。
-- [ ] `AreaStateManager.js` / `InventoryWasmAdapter.js` / `ContainerModal`:
-  - 床アイテム・コンテナ内アイテムの出力を `ItemNormalizer` 経由に統一。
+- [x] `AreaStateManager.js` / `InventoryWasmAdapter.js` / `ContainerModal` / `ModalManager` (標準メニュー結合):
+  - `AreaStateManager` 床アイテム、`ContainerModal` の左右パネル、および `ModalManager` の実インベントリ `i` メニュー行描画において `CanonicalItem` 結合＆ `ItemDisplayPresenter` 適用を完了。
+  - ※ `StructuredKnowledgeEngine.js` 内部のレガシー推論フォールバック等の物理的撤廃は、次期マイルストーン「ROADMAP §3.3 Direct-Only アーキテクチャ純化」へ統合。
 
-### Phase 3: Consumer（UI・モーダル・カード層）の純化とフォールバック撤廃
-- [ ] `KnowledgeDetailModal.js` & `NhKnowledgeCard.js`:
-  - `open()` / `setTarget()` の入口で `ItemNormalizer.normalize()` を適用し、内部の `_canCallItem()`, `_canNameArtifactItem()`, `_buildItemDetailHtml()` から多重 `||` フォールバックを撤廃。
-- [ ] `ModalManager.js` (`openDirectCallDialog`, `applyQuickCall`):
-  - `CanonicalItem` の統一プロパティ（`item.category`, `item.letter`, `item.calledName`, `item.appearanceName`）のみを参照するよう純化。
-- [ ] `InventoryView.js`, `NhShirenInventoryDrawer.js`, `PaperdollModal.js`:
-  - `item.invlet` や `item.onumCategory` 等の重複参照を `item.letter`, `item.category`, `item.isUnidentified` へ統一。
+### Phase 3: Consumer（UI・モーダル・カード層）の純化とフォールバック撤廃・描画統一
+- [x] `src/core/knowledge/presenters/ItemDisplayPresenter.js` を新設し、UI層共通のアイテム表示ロジック（表示タイトル・英和フォーマット・BUCバッジ・装備状態バッジ・仮名タグ・強化値・アイテムメニュー行HTML）を単一責務として集約。
+- [x] `ModalManager.js` (`handleInputRequired` の MENU 描画):
+  - 標準 `i` メニュー等のアイテム行描画において、`invlet` から `InventoryStateManager` の `CanonicalItem` を解決し、`ItemDisplayPresenter.getItemMenuRowContentHtml()` を適用してリッチバッジ（BUC、装備状態、和名・仮名）を表示。
+- [x] `ContainerModal.js`:
+  - 左右パネル（インベントリ ⇄ コンテナ中身）のアイテム描画を `ItemDisplayPresenter` に統一。BUC バッジや和名・仮名が左右対称・同一フォーマットで描画されるよう改修。
+- [x] `InventoryView.js`:
+  - ツールチップの英語決め打ちを撤廃し、`ItemDisplayPresenter.getFormattedTitle()` および `getCalledTagHtml()` に統一。スロット内の装備・BUCバッジ描画も統一。
+- [x] `PaperdollModal.js`:
+  - 70行以上に及ぶ自前の正規表現置換や `OBJECT_JP_MAP` 手動走査を全廃。`ItemDisplayPresenter` による描画および `ItemNormalizer` の和名自動解決へ集約。
+- [x] `KnowledgeDetailModal.js`:
+  - `_resolveData()` 出口で `ItemNormalizer.normalize()` を適用。ヘッダータイトルの文字列合成を `ItemDisplayPresenter.getFormattedTitle()` に集約。
+- [x] `CodexModal.js`:
+  - オブジェクトタブ一覧および詳細カードでのタイトル生成を `ItemDisplayPresenter` に統一。
+- [-] 未使用 WebComponents (`<nh-container-filer>`, `<nh-paperdoll>`, `<nh-knowledge-card>`, `<nh-discovery-codex>`, `<nh-shiren-inventory-drawer>`):
+  - 現在のクライアント（Nehww）で使用されていないため、将来の実装調整時（使用時）に対応する方針。
 
 ### Phase 4: スキーマ契約テスト（Schema Contract Tests）の常設化
-- [ ] `tests/core/knowledge/CanonicalItemContract.test.js` を新設。
-- [ ] `InventoryStateManager`、`DiscoveryStateManager`、`StructuredKnowledgeEngine` の各実出力に対して `assertCanonicalItem(item)` を走らせる自動契約テストを CI / テストスイートに組み込み、**将来いかなる変更が行われてもスキーマ違反があれば即座にテストが落ちる仕組み（防波堤）**を確立する。
+- [x] `tests/core/knowledge/CanonicalItemContract.test.js` を新設。
+- [x] `tests/core/knowledge/ItemDisplayPresenter.test.js` を新設し、各ステータス・フォーマット出力契約を検証。
 
 ---
 

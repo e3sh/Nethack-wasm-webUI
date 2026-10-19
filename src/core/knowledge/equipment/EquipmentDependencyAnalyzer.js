@@ -91,7 +91,7 @@ export class EquipmentDependencyAnalyzer {
 
         if (item.isWorn || /\b(being worn|on left hand|on right hand|around neck|on head|on feet|on hands|embedded in shield)\b/i.test(raw)) {
             // 装身具: AMULET クラスは首スロット以外に装備されない (1対1対応)
-            if (item.category === 'AMULET' || item.itemCategory === 'AMULET' || item.onumCategory === 'AMULET' || item.knowledge?.category === 'AMULET' || /amulet/i.test(raw)) {
+            if (item.category === 'AMULET' || item.knowledge?.category === 'AMULET' || /amulet/i.test(raw)) {
                 return EQUIP_SLOTS.AMULET;
             }
             if (/on left hand|on left finger/i.test(raw)) return EQUIP_SLOTS.LEFT_RING;

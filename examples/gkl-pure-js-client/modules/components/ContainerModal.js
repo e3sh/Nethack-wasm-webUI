@@ -7,6 +7,8 @@
  */
 
 import { ContainerDraftController } from '../../../../src/ui-controller/index.js';
+import { ItemNormalizer } from '../../../../src/core/knowledge/models/ItemNormalizer.js';
+import { ItemDisplayPresenter } from '../../../../src/core/knowledge/presenters/ItemDisplayPresenter.js';
 
 export class ContainerModal {
   /**
@@ -69,6 +71,26 @@ export class ContainerModal {
       this.nhModal.addEventListener('nh-modal-close', () => {
         if (this.isVisible) this.close();
       });
+    }
+
+    this._isCoreListenerAttached = false;
+    this._attachCoreListeners();
+  }
+
+  /**
+   * WebUICore からのインベントリ更新イベントを購読 (左ペイン即時同期)
+   * @private
+   */
+  _attachCoreListeners() {
+    if (this._isCoreListenerAttached) return;
+    const core = this.getCore();
+    if (core && typeof core.on === 'function') {
+      core.on('inventoryStateUpdated', () => {
+        if (this.isVisible) {
+          this.render();
+        }
+      });
+      this._isCoreListenerAttached = true;
     }
   }
 
@@ -193,19 +215,6 @@ export class ContainerModal {
   }
 
   /**
-   * テキストを翻訳 (日本語設定時)
-   * @private
-   */
-  _getTranslatedName(rawText, isEn) {
-    if (isEn || !rawText) return rawText;
-    const core = this.getCore();
-    if (core && typeof core.translate === 'function') {
-      return core.translate(rawText);
-    }
-    return rawText;
-  }
-
-  /**
    * DOM構造の確保（index.html に存在しない場合は自動生成）
    * @private
    */
@@ -223,6 +232,7 @@ export class ContainerModal {
    * @param {Object} data
    */
   show(data = {}) {
+    this._attachCoreListeners();
     this.isProcessing = false;
     this.containerName = data.containerName || 'Container';
     this.containerType = data.containerType || 'UNKNOWN';
@@ -430,7 +440,7 @@ export class ContainerModal {
         <div class="container-modal-header">
           <div class="container-modal-title-box">
             <h3 class="container-modal-title">
-              📦 <span>${this._getTranslatedName(this.containerName, isEn)}</span>
+              📦 <span>${ItemDisplayPresenter.getFormattedTitle(this.containerName, { language: isEn ? 'en' : 'ja' })}</span>
               ${this.isProcessing ? `<span style="font-size: 12px; font-weight: normal; color: #f9e2af; margin-left: 8px;">⏳ ${isEn ? 'Processing...' : '処理中...'}</span>` : ''}
             </h3>
             ${safetyBadgeHtml}
@@ -577,9 +587,14 @@ export class ContainerModal {
         dangerBadge = `<span class="boh-danger-badge suspicious" title="${isEn ? 'Unidentified wand/bag - Caution!' : '未識別の杖/袋 - 要注意'}">❓ ${isEn ? 'Unid' : '未識別'}</span>`;
       }
 
-      const letter = item.letter || item.invlet || '';
-      const rawText = item.rawText || item.name || '';
-      const displayName = this._getTranslatedName(rawText, isEn);
+      const core = this.getCore();
+      const isWisdom = Boolean(item.isWisdomRevealed || core?.gkl?.inventoryStateManager?.sagesWisdomMode);
+      const letter = item.letter || '';
+      const displayName = ItemDisplayPresenter.getFormattedTitle(item, {
+        language: isEn ? 'en' : 'ja',
+        includeLetter: false,
+        sagesWisdomMode: isWisdom
+      });
       const iconHtml = this._getItemIconHtml(item);
       const canDrag = !isInvalid && !isCritical && !this.isProcessing;
       const itemId = item.identifier || item.onum || item.letter || idx;
@@ -613,15 +628,22 @@ export class ContainerModal {
       return `<div class="container-empty-hint">${isEn ? 'Container is empty' : 'コンテナの中身は空です'}</div>`;
     }
 
-    return items.map((item, idx) => {
+    const core = this.getCore();
+    const translator = (core && typeof core.translate === 'function') ? core : null;
+    return items.map((rawItem, idx) => {
+      const item = rawItem._canonical === true ? rawItem : ItemNormalizer.normalize(rawItem, { source: 'CONTAINER', translator });
       const isSelected = (this.selectedRightIndex === idx);
 
       const rowClasses = ['container-item-row'];
       if (isSelected) rowClasses.push('selected');
 
-      const letter = item.accelerator || item.letter || item.charStr || (item.ch ? String.fromCharCode(item.ch) : '');
-      const rawText = item.rawStr || item.str || item.name || '';
-      const displayName = this._getTranslatedName(rawText, isEn);
+      const isWisdom = Boolean(item.isWisdomRevealed || core?.gkl?.inventoryStateManager?.sagesWisdomMode);
+      const letter = item.letter || item.accelerator || item.charStr || (item.ch ? String.fromCharCode(item.ch) : '');
+      const displayName = ItemDisplayPresenter.getFormattedTitle(item, {
+        language: isEn ? 'en' : 'ja',
+        includeLetter: false,
+        sagesWisdomMode: isWisdom
+      });
       const iconHtml = this._getItemIconHtml(item);
       const itemId = item.identifier || item.onum || item.letter || idx;
 
@@ -672,14 +694,8 @@ export class ContainerModal {
       let equipBadge = '';
       if (isSelfContainer) {
         equipBadge = `<span class="slot-badge badge-self-container" title="${isEn ? 'Current container' : '開いている鞄'}">🚫</span>`;
-      } else if (item.isWielded) {
-        equipBadge = `<span class="slot-badge badge-wielded" title="${isEn ? 'Main weapon' : 'メイン武器'}">${isEn ? 'W' : '手'}</span>`;
-      } else if (item.isOffhand) {
-        equipBadge = `<span class="slot-badge badge-offhand" title="${isEn ? 'Off-hand weapon' : '副武器'}">${isEn ? 'O' : '副'}</span>`;
-      } else if (item.isQuivered) {
-        equipBadge = `<span class="slot-badge badge-quivered" title="${isEn ? 'Quiver' : '矢筒'}">${isEn ? 'Q' : '筒'}</span>`;
-      } else if (item.isWorn || isEquipped) {
-        equipBadge = `<span class="slot-badge badge-worn" title="${isEn ? 'Worn armor' : '着用防具'}">${isEn ? 'A' : '着'}</span>`;
+      } else {
+        equipBadge = ItemDisplayPresenter.getEquipBadgeHtml(item, { language: isEn ? 'en' : 'ja' });
       }
 
       // 危険バッジ
@@ -691,24 +707,16 @@ export class ContainerModal {
       }
 
       // BUCバッジ
-      const id = item.identification || (item.knowledge && item.knowledge.identification) || {};
-      const bucStatus = id.bucStatus || item.bucStatus || 'UNKNOWN';
-      let bucBadge = '';
-      if (id.isUnidentified) {
-        bucBadge = `<span class="slot-badge badge-buc-unid" title="${isEn ? 'Unidentified' : '未識別'}">?</span>`;
-      } else if (bucStatus === 'CURSED') {
-        bucBadge = `<span class="slot-badge badge-buc-cursed" title="${isEn ? 'Cursed' : '呪い'}">-</span>`;
-      } else if (bucStatus === 'BLESSED') {
-        bucBadge = `<span class="slot-badge badge-buc-blessed" title="${isEn ? 'Blessed' : '祝福'}">+</span>`;
-      }
+      const core = this.getCore();
+      const isWisdom = Boolean(item.isWisdomRevealed || core?.gkl?.inventoryStateManager?.sagesWisdomMode);
+      const bucBadge = ItemDisplayPresenter.getBucBadgeHtml(item, { language: isEn ? 'en' : 'ja', format: 'symbol', sagesWisdomMode: isWisdom });
 
       const letter = item.letter || item.invlet || '';
-      const rawText = item.rawText || item.name || '';
-      const displayName = this._getTranslatedName(rawText, isEn);
+      const displayName = ItemDisplayPresenter.getFormattedTitle(item, { language: isEn ? 'en' : 'ja', includeLetter: false, sagesWisdomMode: isWisdom });
       const iconHtml = this._getItemIconHtml(item, 32);
       const canDrag = !isInvalid && !isCritical && !this.isProcessing;
       const itemId = item.identifier || item.onum || item.letter || idx;
-      const count = this._getItemCount(item);
+      const count = item.quan || this._getItemCount(item);
 
       return `
         <div class="${slotClasses.join(' ')}" 
@@ -741,18 +749,22 @@ export class ContainerModal {
       return `<div class="container-empty-hint">${isEn ? 'Container is empty' : 'コンテナの中身は空です'}</div>`;
     }
 
-    return items.map((item, idx) => {
+    const core = this.getCore();
+    const translator = (core && typeof core.translate === 'function') ? core : null;
+    return items.map((rawItem, idx) => {
+      const item = rawItem._canonical === true ? rawItem : ItemNormalizer.normalize(rawItem, { source: 'CONTAINER', translator });
       const isSelected = (this.selectedRightIndex === idx);
 
       const slotClasses = ['container-item-row', 'container-item-slot'];
       if (isSelected) slotClasses.push('selected');
 
-      const letter = item.accelerator || item.letter || item.charStr || (item.ch ? String.fromCharCode(item.ch) : '');
-      const rawText = item.rawStr || item.str || item.name || '';
-      const displayName = this._getTranslatedName(rawText, isEn);
+      const isWisdom = Boolean(item.isWisdomRevealed || core?.gkl?.inventoryStateManager?.sagesWisdomMode);
+      const letter = item.letter || item.accelerator || item.charStr || (item.ch ? String.fromCharCode(item.ch) : '');
+      const displayName = ItemDisplayPresenter.getFormattedTitle(item, { language: isEn ? 'en' : 'ja', includeLetter: false, sagesWisdomMode: isWisdom });
       const iconHtml = this._getItemIconHtml(item, 32);
       const itemId = item.identifier || item.onum || item.letter || idx;
-      const count = this._getItemCount(item);
+      const count = item.quan || this._getItemCount(item);
+      const bucBadge = ItemDisplayPresenter.getBucBadgeHtml(item, { language: isEn ? 'en' : 'ja', format: 'symbol', sagesWisdomMode: isWisdom });
 
       return `
         <div class="${slotClasses.join(' ')}" 
@@ -765,10 +777,14 @@ export class ContainerModal {
           <span class="slot-letter">${letter}</span>
           <div class="slot-icon-box">${iconHtml}</div>
           ${count > 1 ? `<span class="slot-count-badge">${count > 999 ? Math.floor(count / 1000) + 'k' : count}</span>` : ''}
+          <div class="slot-badges-box">
+            ${bucBadge}
+          </div>
         </div>
       `;
     }).join('');
   }
+
 
   /**
    * アイテム転送の共通実行 (ctrl.transferItem 優先, core.executeContainerTransfer フォールバック)

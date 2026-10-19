@@ -18,6 +18,7 @@ import {
     parseFloorLevel
 } from "./area/DungeonLandmarkRegistry.js";
 import { ViewportTileProjector } from "./area/ViewportTileProjector.js";
+import { ItemNormalizer } from "../models/ItemNormalizer.js";
 
 export {
     DEFAULT_INFERRED_FLOOR_GLYPH,
@@ -634,8 +635,9 @@ export class AreaStateManager {
             return false;
         }
 
-        const floorObjs = this.directBindingService.getObjectsAt(x, y);
-        if (!Array.isArray(floorObjs)) return false;
+        const rawFloorObjs = this.directBindingService.getObjectsAt(x, y);
+        if (!Array.isArray(rawFloorObjs)) return false;
+        const floorObjs = rawFloorObjs.map(obj => ItemNormalizer.normalize(obj, { source: 'FLOOR' }));
 
         const cell = this.grid[y] && this.grid[y][x];
         if (!cell) return false;

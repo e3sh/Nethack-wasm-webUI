@@ -73,7 +73,7 @@ export class ItemCandidateResolver {
         }
 
         // 1. 直接指定された具象カテゴリ
-        const directCat = target.category || target.onumCategory || target.itemCategory;
+        const directCat = target.category;
         if (directCat && directCat !== 'OBJECT' && directCat !== 'OTHER') {
             const norm = this.normalizeCategory(directCat);
             if (norm && norm !== 'OBJECT' && norm !== 'OTHER') return norm;

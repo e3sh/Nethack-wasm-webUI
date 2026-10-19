@@ -333,9 +333,52 @@ const DIALOG_CSS = `
 }
 `;
 
+const CALL_DIALOG_I18N = {
+  ja: {
+    titleCall: '🏷️ 命名アシスト (Call Item)',
+    titleArtifact: '🗡️ 個別命名 / アーティファクト銘 (Name Item)',
+    fallbackArtifactTarget: 'ベースアイテム',
+    fallbackCallTarget: '未識別アイテム',
+    currentArtifactName: '現在の銘:',
+    currentCallName: '現在の仮名:',
+    quickCandidates: 'クイック候補 (One-tap)',
+    clearArtifactTitle: '❌ 個別銘を解除 (クリア)',
+    clearArtifactSub: '名前を消去して通常のベースアイテムに戻す',
+    clearCallTitle: '❌ 命名を解除 (クリア)',
+    clearCallSub: '名前を消去して未命名に戻す',
+    placeholderArtifact: '愛称・銘を入力 (Enterで決定)...',
+    placeholderCall: '自由に入力 (Enterで決定)...',
+    submitBtn: '決定',
+    badgeRec: '推奨',
+    guideSelect: '選択',
+    guideSubmit: '決定',
+    guideBack: '戻る'
+  },
+  en: {
+    titleCall: '🏷️ Call Item Assistant',
+    titleArtifact: '🗡️ Name Item / Artifact Inscription',
+    fallbackArtifactTarget: 'Base Item',
+    fallbackCallTarget: 'Unidentified Item',
+    currentArtifactName: 'Current Name:',
+    currentCallName: 'Current Call:',
+    quickCandidates: 'Quick Presets (One-tap)',
+    clearArtifactTitle: '❌ Clear Inscription (Reset)',
+    clearArtifactSub: 'Clear custom name and revert to base item',
+    clearCallTitle: '❌ Clear Name (Reset)',
+    clearCallSub: 'Clear called name and revert to unnamed',
+    placeholderArtifact: 'Enter custom name/inscription (Enter to submit)...',
+    placeholderCall: 'Enter custom name (Enter to submit)...',
+    submitBtn: 'Submit',
+    badgeRec: 'REC',
+    guideSelect: 'Select',
+    guideSubmit: 'Submit',
+    guideBack: 'Back'
+  }
+};
+
 export class NhCallCandidateDialog extends NhBaseElement {
     static get observedAttributes() {
-        return ['open', 'target-name', 'target-category', 'current-call', 'mode'];
+        return ['open', 'target-name', 'target-category', 'current-call', 'mode', 'lang'];
     }
 
     constructor() {
@@ -345,6 +388,7 @@ export class NhCallCandidateDialog extends NhBaseElement {
         this._shorthands = [];
         this._focusedIndex = 0;
         this._navItems = []; // 選択可能なアイテム（クリア + 候補 + 自由入力）
+        this._currentLanguage = 'ja';
 
         this._boundKeyDown = this._handleKeyDown.bind(this);
     }
@@ -365,6 +409,9 @@ export class NhCallCandidateDialog extends NhBaseElement {
 
     attributeChangedCallback(name, oldValue, newValue) {
         if (oldValue === newValue) return;
+        if (name === 'lang') {
+            this._currentLanguage = newValue === 'en' ? 'en' : 'ja';
+        }
         this.render();
     }
 
@@ -414,6 +461,31 @@ export class NhCallCandidateDialog extends NhBaseElement {
         this.setAttribute('current-call', val || '');
     }
 
+    get currentLanguage() {
+        return this._currentLanguage || (this.getAttribute('lang') === 'en' ? 'en' : 'ja');
+    }
+
+    set currentLanguage(val) {
+        const lang = val === 'en' ? 'en' : 'ja';
+        this._currentLanguage = lang;
+        if (this.getAttribute('lang') !== lang) {
+            this.setAttribute('lang', lang);
+        }
+        this.render();
+    }
+
+    get language() {
+        return this.currentLanguage;
+    }
+
+    set language(val) {
+        this.currentLanguage = val;
+    }
+
+    setLanguage(lang) {
+        this.currentLanguage = lang;
+    }
+
     /**
      * 候補データのセット
      * @param {Object} data 
@@ -423,6 +495,8 @@ export class NhCallCandidateDialog extends NhBaseElement {
      * @param {string} [data.targetCategory]
      * @param {string} [data.currentCall]
      * @param {string} [data.mode]
+     * @param {string} [data.language]
+     * @param {string} [data.currentLanguage]
      */
     setData(data = {}) {
         if (data.candidates) this._candidates = data.candidates;
@@ -431,6 +505,9 @@ export class NhCallCandidateDialog extends NhBaseElement {
         if (data.targetCategory) this.targetCategory = data.targetCategory;
         if (data.currentCall !== undefined) this.currentCall = data.currentCall;
         if (data.mode) this.mode = data.mode;
+        if (data.language || data.currentLanguage) {
+            this.currentLanguage = data.language || data.currentLanguage;
+        }
 
         this._focusedIndex = 0;
         this.render();
@@ -665,6 +742,9 @@ export class NhCallCandidateDialog extends NhBaseElement {
             return;
         }
 
+        const isEn = this.currentLanguage === 'en';
+        const t = isEn ? CALL_DIALOG_I18N.en : CALL_DIALOG_I18N.ja;
+
         // ナビゲーション対象項目の再構築
         this._navItems = [];
 
@@ -694,7 +774,7 @@ export class NhCallCandidateDialog extends NhBaseElement {
             if (isArtifactMode) {
                 const badges = [];
                 if (cand.isRecommended) {
-                    badges.push('<span class="candidate-badge badge-rec">推奨</span>');
+                    badges.push(`<span class="candidate-badge badge-rec">${t.badgeRec}</span>`);
                 }
                 if (cand.alignment) {
                     badges.push(`<span class="candidate-badge badge-align-${cand.alignment.toLowerCase()}">${cand.alignment}</span>`);
@@ -711,14 +791,16 @@ export class NhCallCandidateDialog extends NhBaseElement {
                 rightBadgesHtml = costBadge;
             }
 
-            const effectStr = isArtifactMode ? (cand.attackEffect || cand.defenseEffect || '') : '';
+            const effectStr = isArtifactMode
+                ? (isEn ? (cand.descEn || cand.attackEffect || cand.defenseEffect || '') : (cand.descJa || cand.attackEffect || cand.defenseEffect || ''))
+                : '';
 
             return `
                 <div class="candidate-item ${itemIdx === this._focusedIndex ? 'is-focused' : ''}" data-idx="${itemIdx}">
                     <div class="candidate-left">
                         <div>
                             <span class="candidate-name">${cand.name}</span>
-                            ${cand.nameJa ? `<span class="candidate-sub"> (${cand.nameJa})</span>` : ''}
+                            ${(!isEn && cand.nameJa) ? `<span class="candidate-sub"> (${cand.nameJa})</span>` : ''}
                         </div>
                         ${effectStr ? `<div class="candidate-effect">${effectStr}</div>` : ''}
                     </div>
@@ -733,15 +815,12 @@ export class NhCallCandidateDialog extends NhBaseElement {
         const inputIdx = this._navItems.length;
         this._navItems.push({ type: 'input', index: inputIdx });
 
-        const titleText = isArtifactMode
-            ? '🗡️ 個別命名 / アーティファクト銘 (Name Item)'
-            : '🏷️ 命名アシスト (Call Item)';
-        const callLabel = isArtifactMode ? '現在の銘:' : '現在の仮名:';
-        const placeholderText = isArtifactMode
-            ? '愛称・銘を入力 (Enterで決定)...'
-            : '自由に入力 (Enterで決定)...';
-        const clearTitle = isArtifactMode ? '❌ 個別銘を解除 (クリア)' : '❌ 命名を解除 (クリア)';
-        const clearSub = isArtifactMode ? '名前を消去して通常のベースアイテムに戻す' : '名前を消去して未命名に戻す';
+        const titleText = isArtifactMode ? t.titleArtifact : t.titleCall;
+        const callLabel = isArtifactMode ? t.currentArtifactName : t.currentCallName;
+        const placeholderText = isArtifactMode ? t.placeholderArtifact : t.placeholderCall;
+        const clearTitle = isArtifactMode ? t.clearArtifactTitle : t.clearCallTitle;
+        const clearSub = isArtifactMode ? t.clearArtifactSub : t.clearCallSub;
+        const fallbackTargetName = isArtifactMode ? t.fallbackArtifactTarget : t.fallbackCallTarget;
 
         root.innerHTML = `
             <div class="dialog-overlay">
@@ -757,7 +836,7 @@ export class NhCallCandidateDialog extends NhBaseElement {
                         <!-- 対象アイテム情報 -->
                         <div class="target-info-bar">
                             <div>
-                                <span class="target-info-name">${this.targetName || (isArtifactMode ? 'ベースアイテム' : '未識別アイテム')}</span>
+                                <span class="target-info-name">${this.targetName || fallbackTargetName}</span>
                                 ${this.targetCategory ? `<span class="target-info-meta">(${this.targetCategory})</span>` : ''}
                             </div>
                             ${this.currentCall ? `<span class="target-info-meta">${callLabel} <strong>${this.currentCall}</strong></span>` : ''}
@@ -766,7 +845,7 @@ export class NhCallCandidateDialog extends NhBaseElement {
                         <!-- ショートハンド -->
                         ${this._shorthands.length > 0 ? `
                         <div class="shorthand-section">
-                            <span class="shorthand-label">クイック候補 (One-tap)</span>
+                            <span class="shorthand-label">${t.quickCandidates}</span>
                             <div class="shorthand-chips">
                                 ${shorthandHtml}
                             </div>
@@ -790,20 +869,20 @@ export class NhCallCandidateDialog extends NhBaseElement {
                                    data-idx="${inputIdx}"
                                    placeholder="${placeholderText}" 
                                    value="${this.currentCall || ''}" />
-                            <button type="button" class="custom-submit-btn">決定</button>
+                            <button type="button" class="custom-submit-btn">${t.submitBtn}</button>
                         </div>
                     </div>
 
                     <!-- フッター ガイドバー -->
                     <div class="dialog-footer">
                         <div class="guide-pill">
-                            <kbd>↑↓</kbd> / <kbd>j k</kbd> / <kbd>D-Pad</kbd> 選択
+                            <kbd>↑↓</kbd> / <kbd>j k</kbd> / <kbd>D-Pad</kbd> ${t.guideSelect}
                         </div>
                         <div class="guide-pill">
-                            <kbd>Enter</kbd> / <kbd>A</kbd> 決定
+                            <kbd>Enter</kbd> / <kbd>A</kbd> ${t.guideSubmit}
                         </div>
                         <div class="guide-pill">
-                            <kbd>ESC</kbd> / <kbd>B</kbd> 戻る
+                            <kbd>ESC</kbd> / <kbd>B</kbd> ${t.guideBack}
                         </div>
                     </div>
                 </div>

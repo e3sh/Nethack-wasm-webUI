@@ -591,6 +591,10 @@ export class InteractiveRequestController {
     _matchesRule(match, payload, ctx) {
         if (!match) return true;
 
+        if (typeof match === 'function') {
+            return Boolean(match(payload, ctx));
+        }
+
         // ifState 判定
         if (match.ifState && ctx.state !== match.ifState) {
             return false;

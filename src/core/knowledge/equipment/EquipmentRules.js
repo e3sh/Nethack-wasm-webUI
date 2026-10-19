@@ -81,7 +81,7 @@ export function resolveEligibleSlots(item) {
     const raw = (item.rawText || item.name || '').toLowerCase();
     const knowledge = item.knowledge || {};
     const stats = knowledge.stats || {};
-    const cat = item.category || item.itemCategory || knowledge.category || item.onumCategory || '';
+    const cat = item.category || knowledge.category || '';
     const armorSlot = item.armorSlot || knowledge.armorSlot || stats.armorSlot;
 
     // 0. equipSlot の明示的指定がある場合の優先判定
@@ -123,12 +123,10 @@ export function resolveEligibleSlots(item) {
 
     // 2. 装身具 (RING, AMULET)
     // ※ NetHack において首に装備できるものは AMULET のみ、かつ AMULET は首にしか装備できない (1対1)
-    if (cat === 'AMULET' || item.itemCategory === 'AMULET' || item.equipSlot === 'amulet' ||
-        /amulet/i.test(raw)) {
+    if (cat === 'AMULET' || item.equipSlot === 'amulet' || /amulet/i.test(raw)) {
         return ['amulet'];
     }
-    if (cat === 'RING' || item.itemCategory === 'RING' || item.equipSlot === 'ring_left' || item.equipSlot === 'ring_right' ||
-        /\brings?\b/i.test(raw)) {
+    if (cat === 'RING' || item.equipSlot === 'ring_left' || item.equipSlot === 'ring_right' || /\brings?\b/i.test(raw)) {
         return ['left_ring', 'right_ring'];
     }
 
@@ -250,7 +248,7 @@ export function isEquippableForAdvice(item) {
     if (isCockatriceCorpse(item)) return true;
 
     const raw = (item.rawText || item.name || '').toLowerCase();
-    const cat = item.category || item.itemCategory || item.knowledge?.category || item.onumCategory || '';
+    const cat = item.category || item.knowledge?.category || '';
 
     // 明示的に非装備・消耗品カテゴリであるものは除外
     if (
@@ -272,10 +270,7 @@ export function isEquippableForAdvice(item) {
     }
 
     // 2. 武器・防具・装身具カテゴリ
-    if (
-        cat === 'WEAPON' || cat === 'ARMOR' || cat === 'RING' || cat === 'AMULET' ||
-        item.isWeapon || item.isArmor || item.isRing || item.isAmulet
-    ) {
+    if (cat === 'WEAPON' || cat === 'ARMOR' || cat === 'RING' || cat === 'AMULET') {
         return true;
     }
 

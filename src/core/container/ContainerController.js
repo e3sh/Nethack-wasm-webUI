@@ -517,6 +517,10 @@ export class ContainerController {
                 console.warn('[ContainerController] Initial fetch finished with warnings:', result.error);
             }
 
+            if (this.core && typeof this.core.emit === 'function') {
+                this.core.emit('renderRequired', { reason: 'containerOpen' });
+            }
+
             this._emitSessionOpen();
             return true;
         } catch (e) {
@@ -696,6 +700,13 @@ export class ContainerController {
                 await this.core.gkl.syncInventorySilent({ force: true });
             }
 
+            // 🎯 画面描画とダイアログの表示ズレ解消:
+            // Cコアが turn_ready に着地したため、WebUICore のオンデマンド画面再描画を明示的にトリガー
+            if (this.core && typeof this.core.emit === 'function') {
+                this.core.emit('renderRequired', { reason: 'containerTransfer' });
+                this.core.emit('turn_ready', { moves: this.core.turnCount || 0 });
+            }
+
             this._emitSessionUpdate();
             return { success: true };
         } catch (e) {
@@ -726,6 +737,8 @@ export class ContainerController {
         this.emit('containerTransaction', eventData);
         if (this.core && typeof this.core.emit === 'function') {
             this.core.emit('containerTransaction', eventData);
+            this.core.emit('renderRequired', { reason: 'containerClose' });
+            this.core.emit('turn_ready', { moves: this.core.turnCount || 0 });
         }
     }
 

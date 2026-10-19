@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI ドキュメントポータル
 status: living-document
-last_updated: 2026-10-11
+last_updated: 2026-10-19
 ---
 
 # 📚 NetHack WASM WebUI ドキュメントポータル
@@ -107,6 +107,7 @@ WASM Cコアをバックグラウンド Web Worker で駆動し、Phase 8 単一
 
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
+| **[context_aware_stone_and_digging_rendering_spec.ja.md](./2_client_ui/context_aware_stone_and_digging_rendering_spec.ja.md)** | `🟢 implemented` | `AreaStateManager.js`<br>`UIConfigStore.js`<br>`MainViewportRenderer.js`<br>`WebGPUHD2DRenderer.js`<br>`hd2dFxOverlay.js` | コンテキスト連動型スマート岩盤可視化 ＆ 掘削アシスト・マップ上コマンド数バッジ仕様書 |
 | **[shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)** | `🟢 implemented` | `AreaStateManager.js`<br>`VirtualDungeonScreen.js` | Shim-Driven 確定同期型レンダリング・パイプライン刷新設計書 (Stage 8.3-B) |
 | **[ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)** | `🟢 implemented` | `src/ui-controller/`<br>`src/components/`<br>`<nh-*>` | UIController (Headless UI) アーキテクチャ設計仕様書（Model/View完全分離・Web Components共通基盤・Phase E） |
 | **[immersive_hud_message_window_specification.ja.md](./2_client_ui/immersive_hud_message_window_specification.ja.md)** | `🟢 implemented` | `FloatingMessageHud.js`<br>`MessageHistoryDrawer.js` | イマーシブHUD ＆ 過去ログドロワーメッセージウィンドウ仕様書 (Phase D) |
@@ -185,12 +186,12 @@ docs/
 ├── SYSTEM_CAPABILITIES.md          # システム現有能力カタログ＆アーキテクチャ6大原則
 ├── FAQ_and_Configuration_Guide.md  # 逆引き設定・セーブデータ管理 FAQ / 開発者ガイド
 ├── 1_driver/                       # WASM Driver & Phase 8 Direct Binding 仕様書 (直下6本 + archive/)
-├── 2_client_ui/                    # UI / WebUICore / レンダラー仕様書 (直下10本 + archive/)
+├── 2_client_ui/                    # UI / WebUICore / レンダラー仕様書 (直下11本 + archive/)
 ├── 3_gkl/                          # GKL 総合・戦術・空間・装備・コンテナ仕様書 (直下16本 + archive/)
 ├── 4_sound/                        # 音響コーディネーター & 動的シンセシス仕様書 (直下2本 + archive/)
 ├── 5_gamedata/                     # ゲームリファレンスデータ群 (直下9本 + archive/)
 ├── 6_project_reports/              # 最新再評価レポート(1008版) & プロジェクト報告書 (直下1本 + archive/)
-├── 7_futures/                      # 次世代構想・Phase 7 (直下9本 + gamepad/ + archive/)
+├── 7_futures/                      # 次世代構想・Phase 7 (直下8本 + gamepad/ + archive/)
 ├── 8_testing/                      # テストガイド & プロトコル/シナリオ検証仕様書 (直下3本 + archive/)
 └── 9_translation/                  # 辞書運用マニュアル & ハイブリッド翻訳構想 (直下2本 + archive/)
 ```

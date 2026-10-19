@@ -559,7 +559,9 @@ export class ContainerContentsManager {
             return;
         }
 
-        const count = typeof item.count === 'number' ? item.count : (item.quantity > 0 ? item.quantity : -1);
+        const count = (typeof item.quan === 'number' && item.quan > 0)
+            ? item.quan
+            : ((typeof item.count === 'number' && item.count > 0) ? item.count : (item.quantity > 0 ? item.quantity : -1));
         this.items.push({
             letter: isGoldItem ? '$' : targetLetter,
             accelerator: isGoldItem ? '$' : targetLetter,

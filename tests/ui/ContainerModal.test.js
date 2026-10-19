@@ -191,9 +191,9 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
 
       expect(modal.isVisible).toBe(true);
       expect(modalEl.classList.contains('hidden')).toBe(false);
-      expect(modalEl.innerHTML).toContain('the bag of holding');
+      expect(modalEl.innerHTML).toContain('軽量化の袋');
       expect(modalEl.innerHTML).toContain('防爆セーフティ稼働中');
-      expect(modalEl.innerHTML).toContain('a potion of healing');
+      expect(modalEl.innerHTML).toContain('回復の薬');
     });
 
     it('hide() でモーダルが非表示になること', () => {
@@ -477,7 +477,7 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
       // 完了後に contentsManager から取得された最新中身が反映されていること
       expect(mockCore.containerController.contentsManager.getItems).toHaveBeenCalled();
       expect(modal.containerItems).toEqual(fsmContents);
-      expect(modalEl.innerHTML).toContain('保存食');
+      expect(modalEl.innerHTML).toContain('食料');
     });
 
     it('アイコン（タイルHTMLまたは絵文字シンボル）がアイテム行に描画されること', () => {
@@ -532,7 +532,7 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
       });
 
       // 右パネルに金貨が表示されること
-      expect(modalEl.innerHTML).toContain('200 gold pieces');
+      expect(modalEl.innerHTML).toContain('200枚の金貨');
 
       const goldItem = modal.containerItems[0];
       await modal.executeTakeOut(goldItem, -1);
@@ -542,6 +542,33 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
         item: expect.objectContaining({ identifier: 3333, isGold: true }),
         count: -1
       }));
+    });
+
+    it('inventoryStateUpdated イベントを受信したとき、可視状態のモーダルが即時再描画されること (左ペイン即時同期)', async () => {
+      let invListener = null;
+      mockCore.on = vi.fn((event, cb) => {
+        if (event === 'inventoryStateUpdated') invListener = cb;
+      });
+
+      modal = new ContainerModal({
+        elContainerModal: modalEl,
+        getCore: () => mockCore,
+        containerController: mockCore.containerController,
+        getLoadedTileImagePath: () => 'tile.png',
+      });
+
+      modal.show({
+        containerName: 'the sack',
+        contents: [],
+      });
+
+      expect(modal.isVisible).toBe(true);
+      expect(typeof invListener).toBe('function');
+
+      const renderSpy = vi.spyOn(modal, 'render');
+      invListener();
+
+      expect(renderSpy).toHaveBeenCalled();
     });
   });
 });

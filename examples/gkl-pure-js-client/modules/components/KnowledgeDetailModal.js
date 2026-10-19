@@ -1,5 +1,7 @@
 import { getAdaptiveItemSpecs } from "../../../../src/core/knowledge/presenters/ItemSpecPresenter.js";
 import { ItemCandidateResolver } from "../../../../src/core/knowledge/engines/ItemCandidateResolver.js";
+import { ItemNormalizer } from "../../../../src/core/knowledge/models/ItemNormalizer.js";
+import { ItemDisplayPresenter } from "../../../../src/core/knowledge/presenters/ItemDisplayPresenter.js";
 
 const ATTACK_TYPE_LABELS = {
   ja: {
@@ -258,35 +260,15 @@ export class KnowledgeDetailModal {
    */
   _canCallItem() {
     const rawTarget = this.currentTarget;
-    if (!rawTarget) return false;
-    const resolved = (typeof this._resolveData === 'function') ? this._resolveData() : null;
-    const data = resolved || rawTarget;
+    if (!rawTarget || typeof rawTarget !== 'object') return false;
+    const category = String(rawTarget.category || '').toUpperCase();
+    if (category === 'MONSTER' || category === 'TERRAIN' || rawTarget.dangerLevel || rawTarget.isTerrain) return false;
 
-    const category = String(data.category || rawTarget.category || data.itemCategory || rawTarget.itemCategory || '').toUpperCase();
-    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel || rawTarget.dangerLevel);
-    const isTerrain = category === 'TERRAIN' || Boolean(data.isTerrain || rawTarget.isTerrain);
-    if (isMonster || isTerrain) return false;
+    const item = rawTarget._canonical ? rawTarget : ItemNormalizer.normalize(rawTarget);
+    if (!item.isUnidentified) return false;
 
-    const id = data.identification || rawTarget.identification || {};
-    const idLevel = id.idLevel || rawTarget.idLevel;
-    const isUnid = Boolean(
-      data.isUnidentified ||
-      rawTarget.isUnidentified ||
-      id.isUnidentified ||
-      data.knowledge?.isUnidentified ||
-      rawTarget.knowledge?.isUnidentified ||
-      data.isDiscovered === false ||
-      rawTarget.isDiscovered === false ||
-      (idLevel && (idLevel === 'UNIDENTIFIED' || idLevel === 'BUC_KNOWN' || idLevel === 'NAMED'))
-    );
-    if (!isUnid) return false;
-
-    const letter = data.letter || data.invlet || rawTarget.letter || rawTarget.invlet ||
-      data.item?.letter || data.item?.invlet || rawTarget.item?.letter || rawTarget.item?.invlet;
-    const isCodexUnid = (data.isDiscovered === false || rawTarget.isDiscovered === false ||
-      data.isCodexItem || rawTarget.isCodexItem ||
-      Boolean(data.appearance || rawTarget.appearance || id.appearanceName));
-    return Boolean(letter || isCodexUnid);
+    // 設計書準拠: 所持品レターがあるか、またはディスカバリー図鑑アイテムの場合のみ Call 可能（床落ちアイテムは不可）
+    return Boolean(item.letter || item.source === 'CODEX' || item.isCodexItem);
   }
 
   /**
@@ -295,39 +277,16 @@ export class KnowledgeDetailModal {
    */
   _canNameArtifactItem() {
     const rawTarget = this.currentTarget;
-    if (!rawTarget) return false;
-    const resolved = (typeof this._resolveData === 'function') ? this._resolveData() : null;
-    const data = resolved || rawTarget;
+    if (!rawTarget || typeof rawTarget !== 'object') return false;
+    const category = String(rawTarget.category || '').toUpperCase();
+    if (category === 'MONSTER' || category === 'TERRAIN' || rawTarget.dangerLevel || rawTarget.isTerrain) return false;
 
-    const category = String(data.category || rawTarget.category || data.itemCategory || rawTarget.itemCategory || '').toUpperCase();
-    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel || rawTarget.dangerLevel);
-    const isTerrain = category === 'TERRAIN' || Boolean(data.isTerrain || rawTarget.isTerrain);
-    if (isMonster || isTerrain) return false;
+    const item = rawTarget._canonical ? rawTarget : ItemNormalizer.normalize(rawTarget);
+    // インベントリ所持品でない（letter がない）場合、または未識別の場合は命名不可
+    if (!item.letter || item.isUnidentified) return false;
 
-    // 床アイテム等（インベントリレターがないもの）は命名不可
-    const letter = data.letter || data.invlet || rawTarget.letter || rawTarget.invlet ||
-      data.item?.letter || data.item?.invlet || rawTarget.item?.letter || rawTarget.item?.invlet;
-    if (!letter) return false;
-
-    const id = data.identification || rawTarget.identification || {};
-    const idLevel = id.idLevel || rawTarget.idLevel;
-    const isUnidentified = Boolean(
-      data.isUnidentified ||
-      rawTarget.isUnidentified ||
-      id.isUnidentified ||
-      data.knowledge?.isUnidentified ||
-      rawTarget.knowledge?.isUnidentified ||
-      (idLevel && (idLevel === 'UNIDENTIFIED' || idLevel === 'BUC_KNOWN' || idLevel === 'NAMED'))
-    );
-    if (isUnidentified) return false;
-
-    const onum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
-      (typeof rawTarget.onum === 'number' && rawTarget.onum >= 0) ? rawTarget.onum :
-      (id && typeof id.onum === 'number') ? id.onum :
-      (data.knowledge && typeof data.knowledge.onum === 'number') ? data.knowledge.onum : undefined;
-
-    const baseName = data.oc_name || data.nameEn || data.trueName || data.english || data.rawName || data.name ||
-      rawTarget.oc_name || rawTarget.nameEn || rawTarget.trueName || rawTarget.english || rawTarget.rawName || rawTarget.name;
+    const onum = (typeof item.onum === 'number' && item.onum >= 0) ? item.onum : undefined;
+    const baseName = item.trueName || item.name || item.baseName;
 
     return ItemCandidateResolver.hasArtifactCandidates({ onum, baseName });
   }
@@ -354,6 +313,7 @@ export class KnowledgeDetailModal {
     }));
     targetData.calledName = callName;
     if (targetData.identification) targetData.identification.calledName = callName;
+    this.currentTarget = ItemNormalizer.withCalledName(targetData, callName);
     this.render();
   }
 
@@ -612,8 +572,8 @@ export class KnowledgeDetailModal {
       };
     }
 
-    const isPile = Boolean(target.isPile || target.glyphInfo?.isPile || target.knowledge?.isPile);
-    const isUnidentified = Boolean(target.isUnidentified || target.identification?.isUnidentified || target.knowledge?.isUnidentified);
+    const isPile = Boolean(target.isPile || target.glyphInfo?.isPile);
+    const isUnidentified = Boolean(target.isUnidentified);
 
     if (core?.gkl?.structuredKnowledge) {
       const resolved = core.gkl.structuredKnowledge.getKnowledge(target, {
@@ -626,10 +586,10 @@ export class KnowledgeDetailModal {
         sagesWisdomMode: Boolean(this.isPeekRevealed)
       });
       if (resolved) {
-        return {
+        const merged = {
           ...resolved,
           identification: target.identification || resolved.identification,
-          calledName: target.calledName || target.identification?.calledName || resolved.calledName,
+          calledName: target.calledName || resolved.calledName,
           onum: (typeof target.onum === 'number' && target.onum >= 0) ? target.onum : resolved.onum,
           rawText: target.rawText || resolved.rawText,
           isWielded: target.isWielded ?? resolved.isWielded,
@@ -641,15 +601,18 @@ export class KnowledgeDetailModal {
           directObject: target.directObject ?? resolved.directObject,
           floorObjects: target.floorObjects ?? resolved.floorObjects
         };
+        return (merged.category && merged.category !== 'MONSTER' && merged.category !== 'TERRAIN')
+          ? ItemNormalizer.normalize(merged, { source: target.source || 'VIRTUAL' })
+          : merged;
       }
     }
 
     if (target.knowledge) {
-      return {
+      const merged = {
         ...target.knowledge,
         rawText: target.rawText || target.knowledge.rawText,
         identification: target.identification || target.knowledge.identification,
-        calledName: target.calledName || target.identification?.calledName || target.knowledge.calledName,
+        calledName: target.calledName || target.knowledge.calledName,
         bucStatus: target.bucStatus || target.knowledge.bucStatus,
         isPile: isPile || Boolean(target.knowledge.isPile),
         extraPileCount: target.extraPileCount ?? target.knowledge.extraPileCount,
@@ -660,10 +623,14 @@ export class KnowledgeDetailModal {
         letter: target.letter,
         onum: (typeof target.onum === 'number' && target.onum >= 0) ? target.onum : target.knowledge.onum
       };
+      return (merged.category && merged.category !== 'MONSTER' && merged.category !== 'TERRAIN')
+        ? ItemNormalizer.normalize(merged, { source: target.source || 'VIRTUAL' })
+        : merged;
     }
 
     return target;
   }
+
 
   /**
    * モーダル内部の描画
@@ -705,10 +672,12 @@ export class KnowledgeDetailModal {
     // 未識別および賢者の知恵判定
     const id = data.identification || {};
     const isUnid = Boolean(data.isUnidentified || id.isUnidentified);
+    const core = this.getCore();
     const isWisdom = Boolean(
       data.isWisdomRevealed ||
       data.wisdomBadge ||
-      (isUnid && this.isPeekRevealed)
+      (isUnid && this.isPeekRevealed) ||
+      core?.gkl?.inventoryStateManager?.sagesWisdomMode
     );
 
     let contentHtml = '';
@@ -722,7 +691,6 @@ export class KnowledgeDetailModal {
     const trueNameRevealed = data.wisdomTrueName || data.trueName || (isEn ? (nameEn || data.name) : (nameJa || nameEn || data.name));
     const trueNameRevealedJa = data.wisdomTrueNameJa || data.trueNameJa || nameJa || trueNameRevealed;
 
-    const core = this.getCore();
     const dsm = core?.gkl?.discoveryStateManager || null;
     const targetOnum = (typeof data.onum === 'number' && data.onum >= 0) ? data.onum :
       (id && typeof id.onum === 'number' && id.onum >= 0) ? id.onum :
@@ -745,29 +713,13 @@ export class KnowledgeDetailModal {
     }
 
     let headerTitle = '';
-    if (isUnid && !isWisdom) {
-      // 🕵️ 未識別（ネタバレ防止ガード）: 外見名 (+ 仮名) を表示
-      const baseTitle = !isEn ? (appearanceName || nameJa || data.name || '未鑑定のアイテム') : (appearanceName || nameEn || data.name || 'Unidentified Item');
-      if (called) {
-        headerTitle = !isEn ? `${baseTitle} [仮名: ${called}]` : `${baseTitle} called ${called}`;
-      } else {
-        headerTitle = baseTitle;
-      }
-    } else if (isUnid && isWisdom) {
-      // 🧙 賢者の知恵モード / オンデマンド透視: 外見名 [真名] 併記 (+ 仮名)
-      const dispTrue = (!isEn && trueNameRevealedJa) ? trueNameRevealedJa : trueNameRevealed;
-      const baseApp = appearanceName || (!isEn ? (nameJa || data.name) : (nameEn || data.name));
-      let mainTitle = '';
-      if (baseApp && dispTrue && baseApp.toLowerCase() !== dispTrue.toLowerCase()) {
-        mainTitle = `${baseApp} [${dispTrue}]`;
-      } else {
-        mainTitle = dispTrue || baseApp || (isEn ? 'Revealed Item' : '透視されたアイテム');
-      }
-      if (called) {
-        headerTitle = !isEn ? `${mainTitle} [仮名: ${called}]` : `${mainTitle} called ${called}`;
-      } else {
-        headerTitle = mainTitle;
-      }
+    if (isItemType) {
+      headerTitle = ItemDisplayPresenter.getFormattedTitle(data, {
+        language: isEn ? 'en' : 'ja',
+        sagesWisdomMode: isWisdom,
+        includeLetter: false,
+        includeCalled: true
+      });
     } else {
       // 識別済みアイテムまたはモンスター/地形
       if (!isEn) {
@@ -780,6 +732,7 @@ export class KnowledgeDetailModal {
         headerTitle = nameEn || data.name || 'Knowledge Detail';
       }
     }
+
 
     let categoryBadge = String(data.category || (isMonsterType ? 'MONSTER' : (isFeatureType ? 'FEATURE' : 'ITEM'))).toUpperCase();
 
@@ -1295,6 +1248,10 @@ export class KnowledgeDetailModal {
     if (id.calledName || data.calledName) {
       const called = id.calledName || data.calledName;
       idBadges.push(`<span class="kn-status-badge kn-status-named">${isEn ? `🏷️ Called: ${called}` : `🏷️ 仮名: ${called}`}</span>`);
+    }
+    if (id.namedInstance || data.namedInstance) {
+      const named = id.namedInstance || data.namedInstance;
+      idBadges.push(`<span class="kn-status-badge kn-status-named" style="border-color:#3b82f6;color:#93c5fd;">${isEn ? `🗡️ Named: ${named}` : `🗡️ 銘: ${named}`}</span>`);
     }
 
     // 未鑑定警告ボックス (通常モード時) または 賢者の知恵透視バナー

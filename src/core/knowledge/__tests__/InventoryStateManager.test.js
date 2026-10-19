@@ -82,31 +82,31 @@ describe('InventoryStateManager', () => {
         const potion = manager.getItemByLetter('a');
         expect(potion.defaultVerb).toBe('q');
         expect(potion.defaultSequence).toEqual(['q', 'a']);
-        expect(potion.itemCategory).toBe('POTION');
+        expect(potion.category).toBe('POTION');
 
         // b: food -> e (eat)
         const food = manager.getItemByLetter('b');
         expect(food.defaultVerb).toBe('e');
         expect(food.defaultSequence).toEqual(['e', 'b']);
-        expect(food.itemCategory).toBe('FOOD');
+        expect(food.category).toBe('FOOD');
 
         // c: scroll -> r (read)
         const scroll = manager.getItemByLetter('c');
         expect(scroll.defaultVerb).toBe('r');
         expect(scroll.defaultSequence).toEqual(['r', 'c']);
-        expect(scroll.itemCategory).toBe('SCROLL');
+        expect(scroll.category).toBe('SCROLL');
 
         // d: wand -> z (zap)
         const wand = manager.getItemByLetter('d');
         expect(wand.defaultVerb).toBe('z');
         expect(wand.defaultSequence).toEqual(['z', 'd']);
-        expect(wand.itemCategory).toBe('WAND');
+        expect(wand.category).toBe('WAND');
 
         // e: towel (tool) -> a (apply)
         const towel = manager.getItemByLetter('e');
         expect(towel.defaultVerb).toBe('a');
         expect(towel.defaultSequence).toEqual(['a', 'e']);
-        expect(towel.itemCategory).toBe('TOOL');
+        expect(towel.category).toBe('TOOL');
 
         // f: unworn armor -> W (wear)
         const unwornArmor = manager.getItemByLetter('f');
@@ -216,7 +216,7 @@ describe('InventoryStateManager', () => {
         manager.updateFromLines(lines);
 
         const unknownItem = manager.getItemByLetter('x');
-        expect(unknownItem.itemCategory).toBe('OTHER');
+        expect(unknownItem.category).toBe('OTHER');
         expect(unknownItem.defaultVerb).toBe('i');
         expect(unknownItem.defaultSequence).toEqual(['i', 'x']);
     });
@@ -238,19 +238,19 @@ describe('InventoryStateManager', () => {
         // a: Potion (onum 300) -> q (quaff)
         const potion = manager.getItemByLetter('a');
         expect(potion.onum).toBe(300);
-        expect(potion.itemCategory).toBe('POTION');
+        expect(potion.category).toBe('POTION');
         expect(potion.defaultVerb).toBe('q');
 
         // b: Scroll (onum 330) -> r (read)
         const scroll = manager.getItemByLetter('b');
         expect(scroll.onum).toBe(330);
-        expect(scroll.itemCategory).toBe('SCROLL');
+        expect(scroll.category).toBe('SCROLL');
         expect(scroll.defaultVerb).toBe('r');
 
         // c: Wand of Digging (onum 428) -> z (zap) & isDigWand
         const wand = manager.getItemByLetter('c');
         expect(wand.onum).toBe(428);
-        expect(wand.itemCategory).toBe('WAND');
+        expect(wand.category).toBe('WAND');
         expect(wand.isDigWand).toBe(true);
         expect(wand.defaultVerb).toBe('z');
 
@@ -258,19 +258,19 @@ describe('InventoryStateManager', () => {
         // d: Ring (onum 180) -> P (put on)
         const ring = manager.getItemByLetter('d');
         expect(ring.onum).toBe(180);
-        expect(ring.itemCategory).toBe('RING');
+        expect(ring.category).toBe('RING');
         expect(ring.defaultVerb).toBe('P');
 
         // e: Armor (onum 121) -> W (wear)
         const armor = manager.getItemByLetter('e');
         expect(armor.onum).toBe(121);
-        expect(armor.itemCategory).toBe('ARMOR');
+        expect(armor.category).toBe('ARMOR');
         expect(armor.defaultVerb).toBe('W');
 
         // f: Weapon (onum 40) -> w (wield)
         const weapon = manager.getItemByLetter('f');
         expect(weapon.onum).toBe(40);
-        expect(weapon.itemCategory).toBe('WEAPON');
+        expect(weapon.category).toBe('WEAPON');
         expect(weapon.defaultVerb).toBe('w');
     });
 
@@ -380,7 +380,7 @@ describe('InventoryStateManager', () => {
         const ruby = manager.getItemByLetter('e');
         expect(ruby.defaultVerb).toBe('t');
         expect(ruby.defaultSequence).toEqual(['t', 'e']);
-        expect(ruby.itemCategory).toBe('GEM');
+        expect(ruby.category).toBe('GEM');
 
         // f: touchstone -> a (apply)
         const touchstone = manager.getItemByLetter('f');

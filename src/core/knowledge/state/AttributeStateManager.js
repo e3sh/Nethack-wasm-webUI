@@ -854,10 +854,10 @@ export class AttributeStateManager {
 
             // 装備中（身につけている・装備中・両手・指輪・アミュレット等）か判定
             const isEquipped = Boolean(
+                item.isEquipped || item.equipped || item.equipSlot ||
                 item.isWorn || item.isWielded || item.isQuivered ||
                 item.isAlternate || item.isSecondary ||
-                item.isWornLeft || item.isWornRight || item.isAmulet ||
-                item.isHelmet || item.isGloves || item.isBoots || item.isCloak || item.isArmor || item.isShield
+                item.isWornLeft || item.isWornRight || item.isAmulet
             );
 
             if (!isEquipped) {

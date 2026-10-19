@@ -11,6 +11,7 @@ import { MONSTER_KNOWLEDGE_MAP } from "../data/MONSTER_KNOWLEDGE_FULL.js";
 import { getSkillProficiencyBadge } from "../presenters/ItemSpecPresenter.js";
 import { ItemIdentificationResolver, IDENTIFICATION_LEVELS } from "../engines/ItemIdentificationResolver.js";
 import { ActionRecipeFactory } from "../../request/ActionRecipeFactory.js";
+import { ItemNormalizer } from "../models/ItemNormalizer.js";
 
 export class InventoryStateManager {
     constructor(options = {}) {
@@ -105,11 +106,11 @@ export class InventoryStateManager {
     }
 
     /**
-     * 所持品アイテム一覧の取得
-     * @returns {Array<Object>}
+     * 所持品アイテム一覧の取得（CanonicalItem 保証）
+     * @returns {import('../../../index').CanonicalItem[]}
      */
     getItems() {
-        return this.items || [];
+        return (this.items || []).map(it => it._canonical ? it : ItemNormalizer.normalize(it, { source: 'INVENTORY' }));
     }
 
     /**
@@ -268,6 +269,8 @@ export class InventoryStateManager {
                     quan: mi.quan !== undefined ? mi.quan : undefined,
                     spe: mi.spe !== undefined ? mi.spe : undefined,
                     oclass: mi.oclass !== undefined ? mi.oclass : undefined,
+                    cobjPtr: mi.cobjPtr !== undefined ? mi.cobjPtr : (mi.directObject?.cobjPtr || 0),
+                    o_id: mi.o_id !== undefined ? mi.o_id : (mi.directObject?.o_id || 0),
                     flags: mi.flags !== undefined ? mi.flags : undefined,
                     identification,
                     knowledge,
@@ -303,11 +306,12 @@ export class InventoryStateManager {
                     item.actionRecipe = defaultAction.defaultActionRecipe;
                 }
             });
-
-            this.items = parsedItems;
+ 
+            const canonicalItems = parsedItems.map(item => ItemNormalizer.normalize(item, { source: 'INVENTORY', sagesWisdomMode: this.sagesWisdomMode }));
+            this.items = canonicalItems;
             this.isSynced = true;
             this._lastInventorySignature = newSignature;
-            this._syncWithAdventureLog(parsedItems);
+            this._syncWithAdventureLog(canonicalItems);
             this.hasCompletedInitialSync = true;
             return true;
         } else {
@@ -482,6 +486,9 @@ export class InventoryStateManager {
             const prevItem = this.items.find(it => it.letter === letter || (rawItem.ptr && it.rawObjPtr === rawItem.ptr));
             let baseName = '';
             let customNameJa = '';
+            let appName = null;
+            let appNameJa = null;
+            let descr = null;
 
             // Cコア真値 (getObjectUname) を最優先で参照
             const liveUname = (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.getObjectUname === 'function')
@@ -525,11 +532,14 @@ export class InventoryStateManager {
                 } else {
                     // 未鑑定アイテム: 動的シャッフル外見名 (getAppearance) を最優先で参照しフォーマット
                     const dynDescr = this.discoveryStateManager ? this.discoveryStateManager.getAppearance(onum) : null;
-                    const descr = dynDescr || prevItem?.appearance || objInfo?.descr || objInfo?.appearance || '';
+                    descr = dynDescr || objInfo?.descr || objInfo?.appearance || prevItem?.appearance || '';
                     const cat = objInfo?.category || '';
-                    const appName = (descr && cat)
+                    appName = (descr && cat)
                         ? ItemIdentificationResolver.formatAppearanceName(descr, cat, 'en')
                         : (descr || (cat ? cat.toLowerCase() : `item #${onum}`));
+                    appNameJa = (descr && cat)
+                        ? ItemIdentificationResolver.formatAppearanceName(descr, cat, 'ja')
+                        : (descr || (cat ? cat.toLowerCase() : `アイテム #${onum}`));
 
                     baseName = appName;
                     if (called) {
@@ -539,11 +549,16 @@ export class InventoryStateManager {
                     // 🧙 賢者の知恵モード時のみ真名を併記 (rawText は英語真名)
                     if (this.sagesWisdomMode && objInfo?.name) {
                         baseName += ` [${objInfo.name}]`;
-                        if (objInfo.nameJa) {
-                            customNameJa = `${objInfo.nameJa}`;
+                        const trueJaPart = objInfo.nameJa || objInfo.name;
+                        customNameJa = `${appNameJa} [${trueJaPart}]`;
+                        if (called) {
+                            customNameJa += ` [仮名: ${called}]`;
                         }
+                    } else {
+                        customNameJa = called ? `${appNameJa} [仮名: ${called}]` : appNameJa;
                     }
                 }
+
             }
             let rawText = '';
 
@@ -646,7 +661,14 @@ export class InventoryStateManager {
                 letter,
                 name: baseName,
                 baseName,
-                nameJa: customNameJa || (objInfo ? (objInfo.nameJa || objInfo.japaneseName) : '') || baseName,
+                nameJa: customNameJa || (isIdentified ? (objInfo ? (objInfo.nameJa || objInfo.japaneseName) : '') : baseName) || baseName,
+                trueName: objInfo?.name || null,
+                trueNameJa: objInfo?.nameJa || objInfo?.japaneseName || null,
+                appearance: appName || descr,
+                appearanceName: appName || descr,
+                appearanceNameJa: appNameJa,
+                descr,
+                sagesWisdomMode: this.sagesWisdomMode,
                 rawText,
                 glyphId,
                 onum,
@@ -707,10 +729,11 @@ export class InventoryStateManager {
             this.lastSyncMethod = 'SHIM';
             this.shimSyncCount++;
 
-            this.items = parsedItems;
+            const canonicalItems = parsedItems.map(item => ItemNormalizer.normalize(item, { source: 'INVENTORY', sagesWisdomMode: this.sagesWisdomMode }));
+            this.items = canonicalItems;
             this.isSynced = true;
             this._lastInventorySignature = newSignature;
-            this._syncWithAdventureLog(parsedItems);
+            this._syncWithAdventureLog(canonicalItems);
             this.hasCompletedInitialSync = true;
             return true;
         } else {
@@ -919,10 +942,15 @@ export class InventoryStateManager {
      * @param {number} onum 
      * @param {number} [oclass=0] 
      * @param {string|null} [equipSlot=null] 
+    /**
+     * 🎯 Direct Binding 専用アイテム分類 (正規表現ゼロ・100%決定論的解決)
+     * @param {number} onum 
+     * @param {number} [oclass=0] 
+     * @param {string|null} [equipSlot=null] 
      * @returns {Object} カテゴリフラグ構造体
      */
     categorizeItemFromOnum(onum, oclass = 0, equipSlot = null) {
-        let onumCategory = 'OTHER';
+        let category = 'OTHER';
         let isPickAxe = false;
         let isKey = false;
         let isAxe = false;
@@ -940,7 +968,7 @@ export class InventoryStateManager {
 
         if (typeof onum === 'number' && onum >= 0) {
             const info = getItemInfoFromOnum(onum);
-            onumCategory = info.category;
+            category = info.category;
             isPickAxe = info.isPickAxe;
             isKey = info.isKey;
             isAxe = info.isAxe;
@@ -973,7 +1001,7 @@ export class InventoryStateManager {
 
         const defaultAction = this.determineDefaultAction('', {
             isPickAxe, isDigWand, isKey, isAxe, isFrostWand, isAmmo, isLauncher,
-            isCanOpener, isTin, isBox, isBag, isTouchstone, isGem, isRock, onumCategory, onum
+            isCanOpener, isTin, isBox, isBag, isTouchstone, isGem, isRock, category, onum
         }, equipState, '', Array.isArray(this.items) ? this.items : []);
 
         return {
@@ -994,7 +1022,7 @@ export class InventoryStateManager {
             isGem,
             isRock,
             onum,
-            onumCategory,
+            category,
             ...equipState,
             ...defaultAction
         };
@@ -1030,12 +1058,12 @@ export class InventoryStateManager {
         let isTouchstone = false;
         let isGem = false;
         let isRock = false;
-        let onumCategory = 'OTHER';
+        let category = 'OTHER';
 
         // 【層1】onum (オブジェクト固有番号) による確定判定
         if (onum >= 0) {
             const info = getItemInfoFromOnum(onum);
-            onumCategory = info.category;
+            category = info.category;
             isPickAxe = info.isPickAxe;
             isKey = info.isKey;
             isAxe = info.isAxe;
@@ -1052,7 +1080,7 @@ export class InventoryStateManager {
             isRock = info.isRock;
         }
 
-        // 【層2】テキストパース（onum で未特定または不一致のフォールバック）
+        // 【層2】テキストパース（onum で未特定のフォールバック）
         const cleanText = this.cleanItemText(rawText);
 
         if (!isCanOpener && (/\bcan opener\b/i.test(cleanText) || /缶切り/.test(cleanText))) {
@@ -1073,7 +1101,7 @@ export class InventoryStateManager {
         if (!isGem && !/ring|amulet|spellbook|potion|wand|scroll|book|鎧|指輪|魔よけ/i.test(cleanText) && (/\b(gem|gems|ruby|diamond|emerald|sapphire|amethyst|topaz|aquamarine|turquoise|opal|garnet|jacinth|fluorite|agate|jet|obsidian|jade)\b/i.test(cleanText) || /(宝石|ルビー|ダイヤモンド|エメラルド|サファイア)/.test(cleanText))) {
             isGem = true;
         }
-        if (onumCategory === 'RING' || onumCategory === 'AMULET' || onumCategory === 'SPELLBOOK' || onumCategory === 'POTION' || onumCategory === 'WAND' || onumCategory === 'SCROLL' || /\brings?\b|amulet|spellbook|potion|wand|scroll|指輪|魔よけ/i.test(cleanText)) {
+        if (category === 'RING' || category === 'AMULET' || category === 'SPELLBOOK' || category === 'POTION' || category === 'WAND' || category === 'SCROLL' || /\brings?\b|amulet|spellbook|potion|wand|scroll|指輪|魔よけ/i.test(cleanText)) {
             isGem = false;
         }
         if (!isRock && (/\b(rock|rocks|flint)\b/i.test(cleanText) || /(岩|石|火打ち石)/.test(cleanText))) {
@@ -1115,13 +1143,13 @@ export class InventoryStateManager {
 
         // 装備状態のパース (Wielded, Offhand, Quivered, Worn)
         const equipState = this.parseEquipState(rawText, {
-            onumCategory, isPickAxe, isAxe, isAmmo, isLauncher
+            category, isPickAxe, isAxe, isAmmo, isLauncher
         });
 
         // カテゴリ別デフォルト推奨アクションおよび副次的アクションの判定
         const defaultAction = this.determineDefaultAction(rawText, {
             isPickAxe, isDigWand, isKey, isAxe, isFrostWand, isAmmo, isLauncher,
-            isCanOpener, isTin, isBox, isBag, isTouchstone, isGem, isRock, onumCategory
+            isCanOpener, isTin, isBox, isBag, isTouchstone, isGem, isRock, category
         }, equipState, '', Array.isArray(this.items) ? this.items : []);
 
         return {
@@ -1142,7 +1170,7 @@ export class InventoryStateManager {
             isGem,
             isRock,
             onum,
-            onumCategory,
+            category,
             ...equipState,
             ...defaultAction
         };
@@ -1156,12 +1184,12 @@ export class InventoryStateManager {
      * @param {string} [letter=''] 
      * @param {Array<Object>} [allItems=[]]
      * @param {Object} [itemObj=null]
-     * @returns {Object} { defaultVerb, defaultSequence, defaultActionLabel, defaultActionLabelJa, itemCategory, alternativeActions }
+     * @returns {Object} { defaultVerb, defaultSequence, defaultActionLabel, defaultActionLabelJa, category, alternativeActions }
      */
     determineDefaultAction(rawText, categoryFlags = {}, equipState = {}, letter = '', allItems = [], itemObj = null) {
         const cleanText = this.cleanItemText(rawText);
         const { isWielded, isOffhand, isQuivered, isWorn, equipSlot } = equipState;
-        const { onumCategory = 'OTHER' } = categoryFlags;
+        const { category: catFlag = 'OTHER' } = categoryFlags;
         const itemList = Array.isArray(allItems) && allItems.length > 0 ? allItems : (Array.isArray(this.items) ? this.items : []);
 
         // itemObj / categoryFlags から knowledge または onum を解明
@@ -1178,7 +1206,7 @@ export class InventoryStateManager {
         let defaultSequence = letter ? [letter] : [];
         let defaultActionLabel = 'Select';
         let defaultActionLabelJa = '選択';
-        let itemCategory = (knowledge && knowledge.category) ? knowledge.category : (onumCategory !== 'OTHER' ? onumCategory : 'OTHER');
+        let category = (knowledge && knowledge.category) ? knowledge.category : (catFlag !== 'OTHER' ? catFlag : 'OTHER');
         let alternativeActions = [];
 
         // ヘルパー: 標準選択肢の組み立て
@@ -1211,7 +1239,7 @@ export class InventoryStateManager {
                 defaultSequence: seq,
                 defaultActionLabel: label,
                 defaultActionLabelJa: labelJa,
-                itemCategory: 'RING',
+                category: 'RING',
                 alternativeActions: [
                     makeAlt('P', seq, labelJa, true),
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1225,7 +1253,7 @@ export class InventoryStateManager {
             defaultSequence = ['w', '-'];
             defaultActionLabel = 'Unwield weapon';
             defaultActionLabelJa = '手放す (w-)';
-            itemCategory = 'WEAPON';
+            category = 'WEAPON';
             alternativeActions = [
                 makeAlt('w', ['w', '-'], '手放す (w-)', true),
                 letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
@@ -1236,7 +1264,7 @@ export class InventoryStateManager {
             defaultSequence = ['Q', '-'];
             defaultActionLabel = 'Unquiver ammo';
             defaultActionLabelJa = '装填解除 (Q-)';
-            itemCategory = 'WEAPON';
+            category = 'WEAPON';
             alternativeActions = [
                 makeAlt('Q', ['Q', '-'], '装填解除 (Q-)', true),
                 letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
@@ -1257,7 +1285,7 @@ export class InventoryStateManager {
                 }
                 defaultActionLabel = 'Remove ring/amulet';
                 defaultActionLabelJa = '外す (R)';
-                itemCategory = equipSlot === 'amulet' ? 'AMULET' : 'RING';
+                category = equipSlot === 'amulet' ? 'AMULET' : 'RING';
                 alternativeActions = [
                     makeAlt('R', defaultSequence, '外す (R)', true)
                 ];
@@ -1307,7 +1335,7 @@ export class InventoryStateManager {
                 }
                 defaultActionLabel = 'Take off armor';
                 defaultActionLabelJa = '脱ぐ (T)';
-                itemCategory = 'ARMOR';
+                category = 'ARMOR';
                 alternativeActions = [
                     makeAlt('T', defaultSequence, '脱ぐ (T)', true)
                 ];
@@ -1316,7 +1344,7 @@ export class InventoryStateManager {
             // 2. 缶切り (Can Opener) のスマート判定 (所持品に缶詰 Tin があればスマートシーケンス 'a' + letter + tinLetter)
             const isCanOpener = categoryFlags.isCanOpener || (knowledge && (knowledge.isCanOpener || knowledge.onum === 239)) || /can opener|缶切り/i.test(cleanText);
             if (isCanOpener) {
-                itemCategory = 'TOOL';
+                category = 'TOOL';
                 const tinItem = itemList.find(i => i.letter && i.letter !== letter && (i.isTin || (i.knowledge && (i.knowledge.isTin || i.knowledge.onum === 263 || i.knowledge.onum === 296)) || /tin|缶詰/i.test(i.rawText || '')));
                 if (tinItem && letter) {
                     defaultVerb = 'a';
@@ -1341,13 +1369,13 @@ export class InventoryStateManager {
                 }
             }
             // 3. 指輪 (RING) の左右装着キー構築
-            else if (itemCategory === 'RING' || (knowledge && (knowledge.category === 'RING' || knowledge.defaultVerb === 'put_on' && knowledge.category !== 'AMULET'))) {
+            else if (category === 'RING' || (knowledge && (knowledge.category === 'RING' || knowledge.defaultVerb === 'put_on' && knowledge.category !== 'AMULET'))) {
                 const ringRes = resolveRingAction();
                 defaultVerb = ringRes.defaultVerb;
                 defaultSequence = ringRes.defaultSequence;
                 defaultActionLabel = ringRes.defaultActionLabel;
                 defaultActionLabelJa = ringRes.defaultActionLabelJa;
-                itemCategory = ringRes.itemCategory;
+                category = ringRes.category;
                 alternativeActions = ringRes.alternativeActions;
             }
             // 4. ナレッジデータ駆動 (Single Source of Truth 参照)
@@ -1381,16 +1409,16 @@ export class InventoryStateManager {
                 const verbKey = knowledge.verbKey || verbKeyMap[knowledge.defaultVerb] || (typeof knowledge.defaultVerb === 'string' && knowledge.defaultVerb.length === 1 ? knowledge.defaultVerb : 'a');
                 defaultVerb = verbKey;
                 defaultSequence = letter ? [verbKey, letter] : [verbKey];
-                const catUpper = (knowledge.category || onumCategory || '').toUpperCase();
+                const catUpper = (knowledge.category || catFlag || '').toUpperCase();
                 defaultActionLabel = knowledge.actionLabel || knowledge.defaultActionLabel || (verbKey === 'r' ? 'Read' : (verbKey === 'q' ? 'Quaff' : (verbKey === 'z' ? 'Zap' : (verbKey === 'e' ? 'Eat' : (verbKey === 'P' ? 'Put on' : 'Action')))));
                 defaultActionLabelJa = knowledge.actionLabelJa || knowledge.defaultActionLabelJa || (catUpper === 'SPELLBOOK' ? '勉強する' : (catUpper === 'SCROLL' ? '読む' : (catUpper === 'POTION' ? '飲む' : (catUpper === 'WAND' ? '振る' : (catUpper === 'FOOD' ? '食べる' : '選択')))));
-                itemCategory = knowledge.category || onumCategory;
+                category = knowledge.category || catFlag;
 
                 const alts = [makeAlt(verbKey, defaultSequence, defaultActionLabelJa, true)];
                 if (letter && verbKey !== 'd') {
                     alts.push(makeAlt('d', ['d', letter], '置く/落とす (d)'));
                 }
-                if (letter && verbKey !== 't' && (itemCategory === 'WEAPON' || itemCategory === 'GEM')) {
+                if (letter && verbKey !== 't' && (category === 'WEAPON' || category === 'GEM')) {
                     alts.push(makeAlt('t', ['t', letter], '投げる (t)'));
                 }
                 alternativeActions = alts;
@@ -1401,7 +1429,7 @@ export class InventoryStateManager {
                 defaultSequence = letter ? ['d', letter] : ['d'];
                 defaultActionLabel = 'Drop container';
                 defaultActionLabelJa = '置く/落とす (d)';
-                itemCategory = 'TOOL';
+                category = 'TOOL';
                 alternativeActions = [
                     makeAlt('d', defaultSequence, '置く/落とす (d)', true),
                     letter ? makeAlt('a', ['a', letter], '開ける/使う (a)') : null
@@ -1413,7 +1441,7 @@ export class InventoryStateManager {
                 defaultSequence = letter ? ['a', letter] : ['a'];
                 defaultActionLabel = 'Look inside bag';
                 defaultActionLabelJa = '中を見る/使う (a)';
-                itemCategory = 'TOOL';
+                category = 'TOOL';
                 alternativeActions = [
                     makeAlt('a', defaultSequence, '中を見る/使う (a)', true),
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1425,7 +1453,7 @@ export class InventoryStateManager {
                 defaultSequence = letter ? ['a', letter] : ['a'];
                 defaultActionLabel = 'Apply touchstone';
                 defaultActionLabelJa = '使う/鑑定する (a)';
-                itemCategory = 'TOOL';
+                category = 'TOOL';
                 alternativeActions = [
                     makeAlt('a', defaultSequence, '使う/鑑定する (a)', true),
                     letter ? makeAlt('w', ['w', letter], '手に持つ (w)') : null,
@@ -1435,12 +1463,12 @@ export class InventoryStateManager {
             // 6. 宝石・石・鉱石 (Gem / Rock)
             else if ((categoryFlags.isGem || categoryFlags.isRock || /gem|ruby|diamond|emerald|sapphire|rock|flint|宝石|岩|石/i.test(cleanText)) &&
                      !categoryFlags.isAmmo && !categoryFlags.isLauncher &&
-                     !['SPELLBOOK', 'POTION', 'SCROLL', 'WAND', 'RING', 'AMULET', 'FOOD', 'ARMOR', 'WEAPON'].includes(onumCategory)) {
+                     !['SPELLBOOK', 'POTION', 'SCROLL', 'WAND', 'RING', 'AMULET', 'FOOD', 'ARMOR', 'WEAPON'].includes(catFlag)) {
                 defaultVerb = 't';
                 defaultSequence = letter ? ['t', letter] : ['t'];
                 defaultActionLabel = 'Throw gem/rock';
                 defaultActionLabelJa = '投げる (t)';
-                itemCategory = categoryFlags.isGem ? 'GEM' : 'OTHER';
+                category = categoryFlags.isGem ? 'GEM' : 'OTHER';
                 alternativeActions = [
                     makeAlt('t', defaultSequence, '投げる (t)', true),
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null,
@@ -1453,7 +1481,7 @@ export class InventoryStateManager {
                 defaultSequence = letter ? ['e', letter] : ['e'];
                 defaultActionLabel = 'Eat tin';
                 defaultActionLabelJa = '開けて食べる (e)';
-                itemCategory = 'FOOD';
+                category = 'FOOD';
                 alternativeActions = [
                     makeAlt('e', defaultSequence, '開けて食べる (e)', true),
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1465,15 +1493,15 @@ export class InventoryStateManager {
                 defaultSequence = letter ? ['Q', letter] : ['Q'];
                 defaultActionLabel = 'Quiver ammo';
                 defaultActionLabelJa = '装填/矢筒 (Q)';
-                itemCategory = 'WEAPON';
+                category = 'WEAPON';
                 alternativeActions = [
                     makeAlt('Q', defaultSequence, '装填/矢筒 (Q)', true),
                     letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                 ].filter(Boolean);
             }
-            // 9. onumCategory に基づく推奨アクション判定
-            else if (onumCategory === 'POTION') {
+            // 9. catFlag に基づく推奨アクション判定
+            else if (catFlag === 'POTION') {
                 defaultVerb = 'q';
                 defaultSequence = letter ? ['q', letter] : ['q'];
                 defaultActionLabel = 'Quaff potion';
@@ -1483,7 +1511,7 @@ export class InventoryStateManager {
                     letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                 ].filter(Boolean);
-            } else if (onumCategory === 'FOOD') {
+            } else if (catFlag === 'FOOD') {
                 defaultVerb = 'e';
                 defaultSequence = letter ? ['e', letter] : ['e'];
                 defaultActionLabel = 'Eat food';
@@ -1493,7 +1521,7 @@ export class InventoryStateManager {
                     letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                 ].filter(Boolean);
-            } else if (onumCategory === 'SCROLL') {
+            } else if (catFlag === 'SCROLL') {
                 defaultVerb = 'r';
                 defaultSequence = letter ? ['r', letter] : ['r'];
                 defaultActionLabel = 'Read scroll';
@@ -1502,7 +1530,7 @@ export class InventoryStateManager {
                     makeAlt('r', defaultSequence, '読む (r)', true),
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                 ].filter(Boolean);
-            } else if (onumCategory === 'SPELLBOOK') {
+            } else if (catFlag === 'SPELLBOOK') {
                 defaultVerb = 'r';
                 defaultSequence = letter ? ['r', letter] : ['r'];
                 defaultActionLabel = 'Read spellbook';
@@ -1511,7 +1539,7 @@ export class InventoryStateManager {
                     makeAlt('r', defaultSequence, '勉強する (r)', true),
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                 ].filter(Boolean);
-            } else if (onumCategory === 'WAND') {
+            } else if (catFlag === 'WAND') {
                 defaultVerb = 'z';
                 defaultSequence = letter ? ['z', letter] : ['z'];
                 defaultActionLabel = 'Zap wand';
@@ -1520,15 +1548,15 @@ export class InventoryStateManager {
                     makeAlt('z', defaultSequence, '振る (z)', true),
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                 ].filter(Boolean);
-            } else if (onumCategory === 'RING') {
+            } else if (catFlag === 'RING') {
                 const ringRes = resolveRingAction();
                 defaultVerb = ringRes.defaultVerb;
                 defaultSequence = ringRes.defaultSequence;
                 defaultActionLabel = ringRes.defaultActionLabel;
                 defaultActionLabelJa = ringRes.defaultActionLabelJa;
-                itemCategory = ringRes.itemCategory;
+                category = ringRes.category;
                 alternativeActions = ringRes.alternativeActions;
-            } else if (onumCategory === 'AMULET') {
+            } else if (catFlag === 'AMULET') {
                 defaultVerb = 'P';
                 defaultSequence = letter ? ['P', letter] : ['P'];
                 defaultActionLabel = 'Put on amulet';
@@ -1537,7 +1565,7 @@ export class InventoryStateManager {
                     makeAlt('P', defaultSequence, '首にかける (P)', true),
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                 ].filter(Boolean);
-            } else if (onumCategory === 'ARMOR') {
+            } else if (catFlag === 'ARMOR') {
                 defaultVerb = 'W';
                 defaultSequence = letter ? ['W', letter] : ['W'];
                 defaultActionLabel = 'Wear armor';
@@ -1546,7 +1574,7 @@ export class InventoryStateManager {
                     makeAlt('W', defaultSequence, '着用する (W)', true),
                     letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                 ].filter(Boolean);
-            } else if (onumCategory === 'TOOL') {
+            } else if (catFlag === 'TOOL') {
                 if (categoryFlags.isDigWand) {
                     defaultVerb = 'z';
                     defaultSequence = letter ? ['z', letter] : ['z'];
@@ -1566,7 +1594,7 @@ export class InventoryStateManager {
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
                     ].filter(Boolean);
                 }
-            } else if (onumCategory === 'WEAPON') {
+            } else if (catFlag === 'WEAPON') {
                 defaultVerb = 'w';
                 defaultSequence = letter ? ['w', letter] : ['w'];
                 defaultActionLabel = 'Wield weapon';
@@ -1583,7 +1611,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['q', letter] : ['q'];
                     defaultActionLabel = 'Quaff potion';
                     defaultActionLabelJa = '飲む (q)';
-                    itemCategory = 'POTION';
+                    category = 'POTION';
                     alternativeActions = [
                         makeAlt('q', defaultSequence, '飲む (q)', true),
                         letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
@@ -1594,7 +1622,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['e', letter] : ['e'];
                     defaultActionLabel = 'Eat food';
                     defaultActionLabelJa = '食べる (e)';
-                    itemCategory = 'FOOD';
+                    category = 'FOOD';
                     alternativeActions = [
                         makeAlt('e', defaultSequence, '食べる (e)', true),
                         letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
@@ -1605,7 +1633,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['r', letter] : ['r'];
                     defaultActionLabel = 'Read scroll';
                     defaultActionLabelJa = '読む (r)';
-                    itemCategory = 'SCROLL';
+                    category = 'SCROLL';
                     alternativeActions = [
                         makeAlt('r', defaultSequence, '読む (r)', true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1615,7 +1643,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['r', letter] : ['r'];
                     defaultActionLabel = 'Read spellbook';
                     defaultActionLabelJa = '勉強する (r)';
-                    itemCategory = 'SPELLBOOK';
+                    category = 'SPELLBOOK';
                     alternativeActions = [
                         makeAlt('r', defaultSequence, '勉強する (r)', true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1625,7 +1653,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['z', letter] : ['z'];
                     defaultActionLabel = 'Zap wand';
                     defaultActionLabelJa = '振る (z)';
-                    itemCategory = 'WAND';
+                    category = 'WAND';
                     alternativeActions = [
                         makeAlt('z', defaultSequence, '振る (z)', true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1638,7 +1666,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['P', letter, targetFinger] : ['P'];
                     defaultActionLabel = 'Put on ring';
                     defaultActionLabelJa = `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`;
-                    itemCategory = 'RING';
+                    category = 'RING';
                     alternativeActions = [
                         makeAlt('P', defaultSequence, `はめる (P:${targetFinger === 'l' ? '左手' : '右手'})`, true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1648,7 +1676,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['P', letter] : ['P'];
                     defaultActionLabel = 'Put on amulet';
                     defaultActionLabelJa = '首にかける (P)';
-                    itemCategory = 'AMULET';
+                    category = 'AMULET';
                     alternativeActions = [
                         makeAlt('P', defaultSequence, '首にかける (P)', true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1658,7 +1686,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['W', letter] : ['W'];
                     defaultActionLabel = 'Wear armor';
                     defaultActionLabelJa = '着用する (W)';
-                    itemCategory = 'ARMOR';
+                    category = 'ARMOR';
                     alternativeActions = [
                         makeAlt('W', defaultSequence, '着用する (W)', true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1668,7 +1696,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['a', letter] : ['a'];
                     defaultActionLabel = 'Apply tool';
                     defaultActionLabelJa = '使う (a)';
-                    itemCategory = 'TOOL';
+                    category = 'TOOL';
                     alternativeActions = [
                         makeAlt('a', defaultSequence, '使う (a)', true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1678,7 +1706,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['w', letter] : ['w'];
                     defaultActionLabel = 'Wield weapon';
                     defaultActionLabelJa = '手に持つ (w)';
-                    itemCategory = 'WEAPON';
+                    category = 'WEAPON';
                     alternativeActions = [
                         makeAlt('w', defaultSequence, '手に持つ (w)', true),
                         letter ? makeAlt('t', ['t', letter], '投げる (t)') : null,
@@ -1689,7 +1717,7 @@ export class InventoryStateManager {
                     defaultSequence = letter ? ['i', letter] : ['i'];
                     defaultActionLabel = 'Inventory item';
                     defaultActionLabelJa = '一覧から選択 (i)';
-                    itemCategory = 'OTHER';
+                    category = 'OTHER';
                     alternativeActions = [
                         makeAlt('i', defaultSequence, '一覧から選択 (i)', true),
                         letter ? makeAlt('d', ['d', letter], '置く/落とす (d)') : null
@@ -1720,7 +1748,7 @@ export class InventoryStateManager {
             defaultActionRecipe,
             defaultActionLabel,
             defaultActionLabelJa,
-            itemCategory,
+            category,
             alternativeActions
         };
     }
@@ -1749,7 +1777,7 @@ export class InventoryStateManager {
 
         // 武器候補判定 (categoryFlags、または武器・投擲物名キーワード)
         const isWeaponCandidate = (categoryFlags && (
-            categoryFlags.onumCategory === 'WEAPON' ||
+            categoryFlags.category === 'WEAPON' ||
             categoryFlags.isAxe ||
             categoryFlags.isPickAxe ||
             categoryFlags.isAmmo ||
@@ -1796,7 +1824,7 @@ export class InventoryStateManager {
                 if (!equipSlot) {
                     if (/on left hand|on left finger|\(左手\)|\(左手に装着\)|左手/i.test(rawText)) equipSlot = 'ring_left';
                     else if (/on right hand|on right finger|\(右手\)|\(右手に装着\)|右手/i.test(rawText)) equipSlot = 'ring_right';
-                    else if (/around neck|首/i.test(rawText) || categoryFlags?.onumCategory === 'AMULET' || /\b(amulet|necklace|pendant)\b|首飾り|護符|アミュレット/i.test(rawText)) equipSlot = 'amulet';
+                    else if (/around neck|首/i.test(rawText) || categoryFlags?.category === 'AMULET' || /\b(amulet|necklace|pendant)\b|首飾り|護符|アミュレット/i.test(rawText)) equipSlot = 'amulet';
                     else if (/shield|盾/i.test(rawText) || categoryFlags?.isShield || categoryFlags?.armorSlot === 'shield') equipSlot = 'shield';
                     else if (categoryFlags?.armorSlot) equipSlot = categoryFlags.armorSlot;
                     else equipSlot = 'worn';
@@ -1877,7 +1905,7 @@ export class InventoryStateManager {
             actionRecipe: item.actionRecipe || item.defaultActionRecipe || null,
             defaultActionLabel: item.defaultActionLabel,
             defaultActionLabelJa: item.defaultActionLabelJa,
-            itemCategory: item.itemCategory,
+            category: item.category,
             alternativeActions: item.alternativeActions || []
         };
     }

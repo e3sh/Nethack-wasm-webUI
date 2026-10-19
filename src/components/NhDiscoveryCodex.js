@@ -581,7 +581,8 @@ export class NhDiscoveryCodex extends NhBaseElement {
 
     // カテゴリ絞り込み
     if (this.selectedCategory !== 'all') {
-      result = result.filter(it => it.category === this.selectedCategory);
+      const targetCat = this.selectedCategory.toLowerCase();
+      result = result.filter(it => (it.category || '').toLowerCase() === targetCat);
     }
 
     // 検索クエリ絞り込み

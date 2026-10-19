@@ -37,8 +37,8 @@ describe('ItemCandidateResolver - 未識別アイテム候補逆引き＆命名�
         });
 
         it('多様なアイテムデータ構造からカテゴリを正確に抽出・推測できること (resolveCategory)', () => {
-            // A. onumCategory からの解決
-            expect(ItemCandidateResolver.resolveCategory({ onumCategory: 'SCROLL' })).toBe('SCROLL');
+            // A. category からの解決
+            expect(ItemCandidateResolver.resolveCategory({ category: 'SCROLL' })).toBe('SCROLL');
             // B. oclass 文字・数値からの解決
             expect(ItemCandidateResolver.resolveCategory({ oclass: '?' })).toBe('SCROLL');
             expect(ItemCandidateResolver.resolveCategory({ oclass: 8 })).toBe('POTION');

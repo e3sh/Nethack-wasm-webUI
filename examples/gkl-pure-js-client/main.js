@@ -452,6 +452,9 @@ class GklPureJSClient {
       if (this.paperdollModal && this.paperdollModal.isVisible) {
         this.paperdollModal.render();
       }
+      if (this.containerModal && this.containerModal.isVisible) {
+        this.containerModal.render();
+      }
     });
     this.core.on('attributesStateUpdated', () => this.renderGklUi());
     this.core.on('spellsStateUpdated', () => this.renderGklUi());

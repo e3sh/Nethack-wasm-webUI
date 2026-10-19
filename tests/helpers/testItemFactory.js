@@ -98,26 +98,16 @@ export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
     if (!category) {
         const lowerName = name.toLowerCase();
         if (lowerName.endsWith('corpse')) category = 'FOOD';
+        else if (lowerName.includes('potion') || lowerName.includes('薬')) category = 'POTION';
+        else if (lowerName.includes('scroll') || lowerName.includes('巻物')) category = 'SCROLL';
+        else if (lowerName.includes('wand') || lowerName.includes('杖')) category = 'WAND';
         else if (overrides.oclass === 8 || (lowerName.endsWith('ring') && !lowerName.includes('mail'))) category = 'RING';
+        else if (lowerName.includes('amulet') || lowerName.includes('魔よけ')) category = 'AMULET';
+        else if (lowerName.includes('book') || lowerName.includes('魔法書')) category = 'SPELLBOOK';
         else category = 'OTHER';
     }
 
-    // カテゴリ連動ヘルパーフラグの導出
-    const categoryFlags = {};
-    if (category === 'WAND' || name.includes('wand')) categoryFlags.isWand = true;
-    if (category === 'WEAPON') categoryFlags.isWeapon = true;
-    if (category === 'ARMOR') categoryFlags.isArmor = true;
-    if (category === 'RING') categoryFlags.isRing = true;
-    if (category === 'POTION' || name.includes('potion')) categoryFlags.isPotion = true;
-    if (category === 'SCROLL' || name.includes('scroll')) categoryFlags.isScroll = true;
-    if (category === 'FOOD' || name.endsWith('corpse')) {
-        categoryFlags.isFood = true;
-        if (name.endsWith('corpse')) categoryFlags.isCorpse = true;
-    }
-    if (category === 'TOOL') categoryFlags.isTool = true;
-
     return {
-        invlet,
         letter: invlet,
         onum,
         name,
@@ -133,7 +123,6 @@ export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
         rawText: `${invlet} - an uncursed ${name}`,
         isIdentified: true,
         count: 1,
-        ...categoryFlags,
         ...overrides
     };
 }

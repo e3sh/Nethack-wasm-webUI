@@ -319,10 +319,8 @@ export class SilentSyncCoordinator {
         // 🎯 Direct Memory Binding: Wasm メモリ直結が利用可能な場合はキー送信マクロをバイパス (DirectBinding Native)
         if (p.inventoryStateManager && p.inventoryStateManager.isDirectBindingAvailable) {
             if (p.wasmDirectBindingService && p.wasmDirectBindingService.bridge && !p.wasmDirectBindingService.hasLiveMemory) {
-                if (!p.wasmDirectBindingService._isSyncing) {
-                    const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true, syncDiscoveries: true });
-                    if (!syncOk) return false;
-                }
+                const syncOk = await p.wasmDirectBindingService.syncFromWorkerBridge({ syncInventory: true, syncDiscoveries: true, force });
+                if (!syncOk && !force) return false;
             }
             if (p.discoveryStateManager && typeof p.discoveryStateManager.syncWithLiveMemory === 'function' && p.wasmDirectBindingService) {
                 const discChanged = p.discoveryStateManager.syncWithLiveMemory(p.wasmDirectBindingService);

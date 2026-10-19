@@ -8,6 +8,8 @@ import { WriteService } from "../../../../src/core/knowledge/services/WriteServi
 import { PostMortemKnowledgeResolver } from "../../../../src/core/knowledge/services/PostMortemKnowledgeResolver.js";
 import { ItemCandidateResolver } from "../../../../src/core/knowledge/engines/ItemCandidateResolver.js";
 import { CustomNameStore } from "../../../../src/core/knowledge/state/CustomNameStore.js";
+import { ItemNormalizer } from "../../../../src/core/knowledge/models/ItemNormalizer.js";
+import { ItemDisplayPresenter } from "../../../../src/core/knowledge/presenters/ItemDisplayPresenter.js";
 import { CharacterIntroModal } from "./CharacterIntroModal.js";
 
 export class ModalManager {
@@ -114,6 +116,10 @@ export class ModalManager {
     if (this.characterCreationModal && this.characterCreationModal.isVisible) {
       this.characterCreationModal.currentLanguage = lang;
       this.characterCreationModal.render();
+    }
+    const callDialog = typeof document !== 'undefined' ? document.getElementById('nh-call-candidate-dialog') : null;
+    if (callDialog && typeof callDialog.setLanguage === 'function') {
+      callDialog.setLanguage(lang);
     }
   }
 
@@ -261,10 +267,19 @@ export class ModalManager {
     if (category === 'MENU' || (items && items.length > 0)) {
       this.isTextWindowMode = false;
       if (this.elMenuModal) this.elMenuModal.classList.remove('hidden');
-      if (this.elMenuTitle) this.elMenuTitle.textContent = rawPrompt || 'Select Item (↑↓ / Enter)';
+      const isJa = this.currentLanguage === 'ja';
+      const translatedTitle = (isJa && core && typeof core.translate === 'function')
+        ? (core.translate(rawPrompt) || rawPrompt)
+        : rawPrompt;
+      if (this.elMenuTitle) this.elMenuTitle.textContent = translatedTitle || (isJa ? 'アイテムを選択 (↑↓ / Enter)' : 'Select Item (↑↓ / Enter)');
       if (this.elMenuItemsContainer) this.elMenuItemsContainer.innerHTML = '';
       this.selectableMenuButtons = [];
       this.activeMenuFocusIndex = 0;
+
+      const invMgr = core?.gkl?.inventoryStateManager || (core?.gkl?.getInventoryStateManager ? core.gkl.getInventoryStateManager() : null);
+
+      // 🎒 アクション選択メニュー（「〜をどうしますか？」等）の判定
+      const isActionMenu = /What do you want to do with|Do what with/i.test(rawPrompt);
 
       items.forEach((item) => {
         const itemText = item.str || item.text || (typeof item === 'string' ? item : '');
@@ -272,7 +287,10 @@ export class ModalManager {
           if (this.elMenuItemsContainer) {
             const headerDiv = document.createElement('div');
             headerDiv.className = 'menu-header-item';
-            headerDiv.textContent = itemText;
+            const translatedHeader = (isJa && core && typeof core.translate === 'function')
+              ? (core.translate(itemText) || itemText)
+              : itemText;
+            headerDiv.textContent = translatedHeader;
             this.elMenuItemsContainer.appendChild(headerDiv);
           }
           return;
@@ -281,15 +299,56 @@ export class ModalManager {
         const btn = document.createElement('button');
         btn.className = 'menu-item-btn';
         const chStr = item.charStr || (item.ch ? String.fromCharCode(item.ch) : '');
-        const badgeHtml = chStr ? `<strong style="color:var(--accent-gold);">${chStr})</strong>` : '';
-        
         const glyphId = item.glyph !== undefined ? item.glyph : (item.glyphInfo ? item.glyphInfo.glyph : -1);
         const tileImgPath = this.getLoadedTileImagePath() || '../../assets/nethack_default_32.png';
-        const glyphHtml = (glyphId >= 0 && core && typeof core.getGlyphHtml === 'function')
-          ? core.getGlyphHtml(glyphId, { displaySize: 18, tileImage: tileImgPath })
-          : '';
 
-        btn.innerHTML = `${badgeHtml} ${glyphHtml} <span>${itemText}</span>`;
+        // 🎒 実インベントリとの結合判定:
+        // 1. アクションメニュー（「どうしますか？」等）でないこと
+        // 2. letter（例: 'a'）に対応する CanonicalItem が実インベントリに存在すること
+        // 3. Cコアから送られてきた itemText がそのアイテム情報（基礎名・外見名・仮名・rawText）を含んでいること（別メニューのアクセラレータキー誤爆防止）
+        let canonicalItem = null;
+        if (!isActionMenu && chStr && invMgr && typeof invMgr.getItemByLetter === 'function') {
+          const candidate = invMgr.getItemByLetter(chStr);
+          if (candidate) {
+            const targetText = itemText.toLowerCase();
+            const cleanName = candidate.cleanName ? candidate.cleanName.toLowerCase() : '';
+            const itemName = candidate.name ? candidate.name.toLowerCase() : '';
+            const rawItemText = candidate.rawText ? candidate.rawText.toLowerCase() : '';
+            const appearance = candidate.appearance ? candidate.appearance.toLowerCase() : '';
+            const calledName = candidate.calledName ? candidate.calledName.toLowerCase() : '';
+
+            const isSemanticMatch = (
+              (cleanName && targetText.includes(cleanName)) ||
+              (itemName && targetText.includes(itemName)) ||
+              (appearance && targetText.includes(appearance)) ||
+              (calledName && targetText.includes(calledName)) ||
+              (rawItemText && targetText.includes(rawItemText))
+            );
+
+            if (isSemanticMatch) {
+              canonicalItem = candidate;
+            }
+          }
+        }
+
+        if (canonicalItem) {
+          const isWisdom = Boolean(canonicalItem.isWisdomRevealed || core?.gkl?.inventoryStateManager?.sagesWisdomMode);
+          btn.innerHTML = ItemDisplayPresenter.getItemMenuRowContentHtml(canonicalItem, {
+            language: this.currentLanguage,
+            core,
+            tileImagePath: tileImgPath,
+            sagesWisdomMode: isWisdom
+          });
+        } else {
+          const badgeHtml = chStr ? `<strong style="color:var(--accent-gold);margin-right:6px;">${chStr})</strong>` : '';
+          const glyphHtml = (glyphId >= 0 && core && typeof core.getGlyphHtml === 'function')
+            ? core.getGlyphHtml(glyphId, { displaySize: 18, tileImage: tileImgPath })
+            : '';
+          const displayText = (isJa && core && typeof core.translate === 'function')
+            ? (core.translate(itemText) || itemText)
+            : itemText;
+          btn.innerHTML = `${badgeHtml} ${glyphHtml ? `<span style="display:inline-flex;align-items:center;">${glyphHtml}</span>` : ''} <span>${displayText}</span>`;
+        }
 
         btn.onclick = () => {
           const val = (item.identifier !== undefined && item.identifier !== 0) ? [{ identifier: item.identifier, count: -1 }] : (item.ch || item.accelerator || itemText);
@@ -605,15 +664,14 @@ export class ModalManager {
     const discoveryStateManager = core?.gkl?.discoveryStateManager || null;
     const wasmDirectBindingService = core?.gkl?.wasmDirectBindingService || null;
 
-    const category = ItemCandidateResolver.resolveCategory(targetData) || targetData.category || 'OBJECT';
-    const appearance = targetData.appearanceName || targetData.appearance || targetData.name || '';
-    const onum = (typeof targetData.onum === 'number' && targetData.onum >= 0) ? targetData.onum :
-      (targetData.identification && typeof targetData.identification.onum === 'number') ? targetData.identification.onum :
-      (targetData.knowledge && typeof targetData.knowledge.onum === 'number') ? targetData.knowledge.onum : -1;
+    const item = targetData._canonical ? targetData : ItemNormalizer.normalize(targetData);
+    const category = item.category;
+    const appearance = item.appearanceName || item.appearance || item.name || '';
+    const onum = item.onum;
 
     try {
       const store = CustomNameStore.getInstance({ discoveryStateManager });
-      const targetKey = targetData.name || appearance;
+      const targetKey = item.name || appearance;
       store.setCustomName(targetKey, chosenName, { category });
       if (appearance && appearance !== targetKey) {
         store.setCustomName(appearance, chosenName, { category });
@@ -632,12 +690,9 @@ export class ModalManager {
       }
     } catch (_) {}
 
-    targetData.calledName = chosenName;
-    if (targetData.identification) {
-      targetData.identification.calledName = chosenName;
-    }
+    const updatedItem = ItemNormalizer.withCalledName(targetData, chosenName);
     if (typeof onUpdate === 'function') {
-      onUpdate(targetData);
+      onUpdate(updatedItem);
     }
     if (cardEl && typeof cardEl.setTarget === 'function') {
       cardEl.setTarget(targetData);
@@ -674,23 +729,24 @@ export class ModalManager {
     const core = this.getCore();
     const discoveryStateManager = core?.gkl?.discoveryStateManager || null;
 
-    const category = ItemCandidateResolver.resolveCategory(targetData) || targetData.category || 'OBJECT';
-    const appearance = targetData.appearanceName || targetData.appearance || targetData.name || '';
-    const targetName = targetData.name || appearance;
-    const currentCall = targetData.calledName || targetData.identification?.calledName ||
-      (discoveryStateManager && typeof discoveryStateManager.getCalledName === 'function' ? (discoveryStateManager.getCalledName(appearance) || discoveryStateManager.getCalledName(targetData.name)) : '') || '';
+    const item = targetData._canonical ? targetData : ItemNormalizer.normalize(targetData);
+    const category = item.category;
+    const appearance = item.appearanceName || item.appearance || item.name || '';
+    const targetName = item.name || appearance;
+    const currentCall = item.calledName ||
+      (discoveryStateManager && typeof discoveryStateManager.getCalledName === 'function' ? (discoveryStateManager.getCalledName(appearance) || discoveryStateManager.getCalledName(item.name)) : '') || '';
 
     // 候補アイテムの算出 (未識別優先、価格帯、直前効果メッセージヒント)
     const result = ItemCandidateResolver.resolveCandidates({
       category,
       appearance,
-      onum: targetData.onum,
+      onum: item.onum,
       discoveryStateManager,
       excludeDiscovered: true,
       calledName: currentCall,
-      rawText: targetData.rawText || targetData.str || '',
+      rawText: item.rawText || '',
       lastEffectText: core?.lastRawMessageText || '',
-      targetData
+      targetData: item
     });
 
     let dialog = typeof document !== 'undefined' ? document.getElementById('nh-call-candidate-dialog') : null;
@@ -708,7 +764,8 @@ export class ModalManager {
       shorthands: result.shorthands,
       currentCall,
       matchedCosts: result.matchedCosts || [],
-      mode: 'call'
+      mode: 'call',
+      currentLanguage: this.currentLanguage
     });
 
     const onSubmit = (e) => {
@@ -718,14 +775,12 @@ export class ModalManager {
       const chosenName = e.detail?.name || '';
 
       // 仮名ストアおよび DiscoveryStateManager / WasmDirectBindingService への即時反映
-      const onum = (typeof targetData.onum === 'number' && targetData.onum >= 0) ? targetData.onum :
-        (targetData.identification && typeof targetData.identification.onum === 'number') ? targetData.identification.onum :
-        (targetData.knowledge && typeof targetData.knowledge.onum === 'number') ? targetData.knowledge.onum : -1;
+      const onum = item.onum;
       const wasmDirectBindingService = core?.gkl?.wasmDirectBindingService || null;
 
       try {
         const store = CustomNameStore.getInstance({ discoveryStateManager });
-        const targetKey = targetData.name || appearance;
+        const targetKey = item.name || appearance;
         store.setCustomName(targetKey, chosenName, { category });
         if (appearance && appearance !== targetKey) {
           store.setCustomName(appearance, chosenName, { category });
@@ -749,11 +804,12 @@ export class ModalManager {
       if (targetData.identification) {
         targetData.identification.calledName = chosenName;
       }
+      const updatedItem = ItemNormalizer.withCalledName(targetData, chosenName);
       if (typeof onUpdate === 'function') {
-        onUpdate(targetData);
+        onUpdate(updatedItem);
       }
       if (cardEl && typeof cardEl.setTarget === 'function') {
-        cardEl.setTarget(targetData);
+        cardEl.setTarget(updatedItem);
       }
 
       // Cコア（NetHack）仕様: 空文字での getlin 応答はキャンセル扱いになるため、リセット時はスペース1文字を送出する
@@ -763,7 +819,7 @@ export class ModalManager {
       if (core && core.currentPrompt) {
         core.respond(coreNameToSend);
       } else if (core) {
-        const letter = targetData.letter || targetData.invlet || targetData.item?.letter || targetData.item?.invlet;
+        const letter = item.letter;
         if (letter) {
           const seq = ['C', 'o', letter, coreNameToSend];
           if (typeof core.executeSequence === 'function') {
@@ -871,7 +927,8 @@ export class ModalManager {
       candidates,
       shorthands: candidates.map(c => c.name),
       currentCall,
-      mode: 'artifact_name'
+      mode: 'artifact_name',
+      currentLanguage: this.currentLanguage
     });
 
     const onSubmit = (e) => {

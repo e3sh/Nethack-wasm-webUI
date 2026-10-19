@@ -1,6 +1,7 @@
 import { EncumbrancePresenter } from "../../../../src/core/knowledge/presenters/EncumbrancePresenter.js";
 import { EquipmentActionPlanner } from "../../../../src/core/knowledge/equipment/EquipmentActionPlanner.js";
 import { resolveEligibleSlots, isTwoHandedWeapon, isCockatriceCorpse } from "../../../../src/core/knowledge/equipment/EquipmentRules.js";
+import { ItemDisplayPresenter } from "../../../../src/core/knowledge/presenters/ItemDisplayPresenter.js";
 
 /**
  * InventoryView - アイコン型インベントリグリッド & ツールチップ & BUCバッジ & 長押し/右クリックアクションマネージャー
@@ -110,6 +111,9 @@ export class InventoryView {
       this.renderEncumbrance(encumbrance);
     }
 
+    const core = this.getCore();
+    const isWisdom = Boolean(inventory?.sagesWisdomMode || (core?.gkl?.inventoryStateManager?.sagesWisdomMode));
+
     const newHtml = items.length === 0
       ? `<div class="gkl-empty-hint">${isEn ? 'Inventory Empty' : 'インベントリ空'}</div>`
       : items.map(item => {
@@ -133,38 +137,14 @@ export class InventoryView {
 
           const equipClassStr = equipClasses.join(' ');
 
-          let badgeHtml = '';
-          if (item.isWielded) badgeHtml = `<span class="gkl-slot-equip-badge badge-wielded" title="${isEn ? 'Main weapon' : 'メイン武器'}">${isEn ? 'Main' : '手'}</span>`;
-          else if (item.isOffhand) badgeHtml = `<span class="gkl-slot-equip-badge badge-offhand" title="${isEn ? 'Off-hand weapon' : '副武器'}">${isEn ? 'Off' : '副'}</span>`;
-          else if (item.isQuivered) badgeHtml = `<span class="gkl-slot-equip-badge badge-quivered" title="${isEn ? 'Quiver' : '矢筒'}">${isEn ? 'Quiv' : '筒'}</span>`;
-          else if (item.isWorn) badgeHtml = `<span class="gkl-slot-equip-badge badge-worn" title="${isEn ? 'Worn' : '着用中'}">${isEn ? 'Worn' : '着'}</span>`;
+          const badgeHtml = ItemDisplayPresenter.getEquipBadgeHtml(item, { language: isEn ? 'en' : 'ja' });
 
           let skillBadgeHtml = '';
           if (item.skillBadge?.isProficient || item.isRecommendedWeapon) {
             skillBadgeHtml = `<span class="gkl-slot-equip-badge" style="background:#22c55e; color:#000; font-weight:bold; right:auto; left:2px;" title="${isEn ? 'Proficient weapon' : '得意武器'} (${item.skillBadge?.label || '+'})">+</span>`;
           }
 
-          const id = item.identification || (item.knowledge && item.knowledge.identification) || {};
-          const isWisdom = Boolean(id.isWisdomRevealed || item.isWisdomRevealed);
-          const isUnidentified = !!id.isUnidentified && !isWisdom;
-          const bucStatus = id.bucStatus || item.bucStatus || 'UNKNOWN';
-
-          let bucBadgeHtml = '';
-          if (isUnidentified) {
-            bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-unid" title="${isEn ? 'Unidentified' : '未識別'}">?</span>`;
-          } else if (isWisdom) {
-            if (bucStatus === 'CURSED') {
-              bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-cursed" title="${isEn ? "Cursed (Sage's Wisdom)" : '呪い (賢者の知恵)'}">-</span>`;
-            } else if (bucStatus === 'BLESSED') {
-              bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-blessed" title="${isEn ? "Blessed (Sage's Wisdom)" : '祝福 (賢者の知恵)'}">+</span>`;
-            } else {
-              bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-wisdom" title="${isEn ? "Sage's Wisdom" : '賢者の知恵'}">🧙</span>`;
-            }
-          } else if (bucStatus === 'CURSED') {
-            bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-cursed" title="${isEn ? 'Cursed' : '呪い'}">-</span>`;
-          } else if (bucStatus === 'BLESSED') {
-            bucBadgeHtml = `<span class="gkl-slot-buc-badge badge-buc-blessed" title="${isEn ? 'Blessed' : '祝福'}">+</span>`;
-          }
+          const bucBadgeHtml = ItemDisplayPresenter.getBucBadgeHtml(item, { language: isEn ? 'en' : 'ja', format: 'symbol', sagesWisdomMode: isWisdom });
 
           return `
             <div class="gkl-item-slot ${equipClassStr}" draggable="true" data-letter="${item.letter}" data-rawtext="${encodeURIComponent(item.rawText)}">
@@ -209,7 +189,9 @@ export class InventoryView {
           };
 
           slot.onmouseenter = () => {
-            if (this.elGklTtName) this.elGklTtName.textContent = item.rawText;
+            if (this.elGklTtName) {
+              this.elGklTtName.textContent = ItemDisplayPresenter.getFormattedTitle(item, { language: isEn ? 'en' : 'ja', includeLetter: false, sagesWisdomMode: isWisdom });
+            }
             if (this.elGklTtTags) {
               this.elGklTtTags.innerHTML = '';
 
@@ -218,14 +200,15 @@ export class InventoryView {
               if (item.isQuivered) this.elGklTtTags.innerHTML += `<span class="tag" style="background:#2a9d8f;color:#fff;font-weight:bold;">${isEn ? 'Quiver' : '矢筒'}</span>`;
               if (item.isWorn) this.elGklTtTags.innerHTML += `<span class="tag" style="background:#9d4edd;color:#fff;font-weight:bold;">${isEn ? 'Worn' : '着用中'}</span>`;
 
-              const calledName = item.identification?.calledName || item.calledName ||
-                (core?.gkl?.discoveryStateManager && typeof core.gkl.discoveryStateManager.getCalledName === 'function' ? (
-                  (typeof item.onum === 'number' && item.onum >= 0 ? core.gkl.discoveryStateManager.getCalledName(item.onum) : null) ||
-                  (item.name ? core.gkl.discoveryStateManager.getCalledName(item.name) : null)
-                ) : null);
-              if (calledName) {
-                this.elGklTtTags.innerHTML += `<span class="tag" style="background:rgba(168,85,247,0.25);color:#e9d5ff;border:1px solid rgba(168,85,247,0.5);font-weight:bold;">${isEn ? `🏷️ Called: ${calledName}` : `🏷️ 仮名: ${calledName}`}</span>`;
+              const calledTag = ItemDisplayPresenter.getCalledTagHtml(item, { language: isEn ? 'en' : 'ja' });
+              if (calledTag) {
+                this.elGklTtTags.innerHTML += calledTag;
               }
+              const namedTag = ItemDisplayPresenter.getNamedTagHtml(item, { language: isEn ? 'en' : 'ja' });
+              if (namedTag) {
+                this.elGklTtTags.innerHTML += namedTag;
+              }
+
 
               const tapAction = item.knowledge?.actionLabel || item.defaultActionLabel;
               if (tapAction && item.defaultVerb) {

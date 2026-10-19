@@ -407,7 +407,7 @@ describe('CallAssistantIntegration - 直接命名起動＆Cコア能動コマン
         expect(callDialog.open).toBe(false);
     });
 
-    it('10. targetData に明示的な category プロパティがなくとも（例: onumCategory や rawText のみ）、真名候補リストおよびショートハンドがダイアログに正常生成・表示されること', () => {
+    it('10. targetData から真名候補リストおよびショートハンドがダイアログに正常生成・表示されること', () => {
         const mockCore = {
             executeSequence: vi.fn(),
             currentPrompt: null,
@@ -418,11 +418,10 @@ describe('CallAssistantIntegration - 直接命名起動＆Cコア能動コマン
             getCore: () => mockCore
         });
 
-        // category を持たず、onumCategory のみを持つインベントリアイテム構造
         modalManager.openDirectCallDialog({
             name: 'scroll labeled FOO',
             rawText: 'a scroll labeled FOO',
-            onumCategory: 'SCROLL',
+            category: 'SCROLL',
             letter: 's',
             isUnidentified: true
         });
@@ -622,6 +621,47 @@ describe('CallAssistantIntegration - 直接命名起動＆Cコア能動コマン
         expect(mockCore.executeSequence).toHaveBeenCalledWith(['C', 'o', 'd', 'teleport?']);
         expect(discoveryStateManager.getCalledName('scroll labeled FOO')).toBe('teleport?');
         expect(codexItem.calledName).toBe('teleport?');
+    });
+
+    it('15. ModalManager.setLanguage で開いている <nh-call-candidate-dialog> の言語が動的に切り替わること', () => {
+        const mockCore = {
+            executeSequence: vi.fn(),
+            currentPrompt: null,
+            gkl: { discoveryStateManager, inventoryStateManager: { isSynced: true } }
+        };
+
+        const modalManager = new ModalManager({
+            getCore: () => mockCore
+        });
+
+        // 1. 日本語でダイアログを開く
+        modalManager.currentLanguage = 'ja';
+        modalManager.openDirectCallDialog({
+            name: 'scroll labeled FOO',
+            category: 'SCROLL',
+            letter: 's',
+            isUnidentified: true
+        });
+
+        const callDialog = document.getElementById('nh-call-candidate-dialog');
+        expect(callDialog).not.toBeNull();
+        expect(callDialog.open).toBe(true);
+        expect(callDialog.currentLanguage).toBe('ja');
+        expect(callDialog.shadowRoot.innerHTML).toContain('🏷️ 命名アシスト (Call Item)');
+
+        // 2. 言語切替実行 (en)
+        modalManager.setLanguage('en');
+
+        // 3. ダイアログの表示が英語に切り替わっていること
+        expect(callDialog.currentLanguage).toBe('en');
+        expect(callDialog.shadowRoot.innerHTML).toContain('🏷️ Call Item Assistant');
+        expect(callDialog.shadowRoot.innerHTML).toContain('Quick Presets (One-tap)');
+        expect(callDialog.shadowRoot.innerHTML).toContain('❌ Clear Name (Reset)');
+
+        // 4. 言語切替実行 (ja)
+        modalManager.setLanguage('ja');
+        expect(callDialog.currentLanguage).toBe('ja');
+        expect(callDialog.shadowRoot.innerHTML).toContain('🏷️ 命名アシスト (Call Item)');
     });
 });
 

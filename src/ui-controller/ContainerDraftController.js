@@ -54,7 +54,11 @@ export class ContainerDraftController {
   stageTransfer(item, direction, count = -1) {
     if (!item) return { success: false, requiresWarning: false, draft: null };
 
-    const totalCount = typeof item.count === 'number' ? item.count : (typeof item.quantity === 'number' ? item.quantity : 1);
+    const totalCount = (typeof item.quan === 'number' && item.quan > 0)
+      ? item.quan
+      : ((typeof item.count === 'number' && item.count > 0)
+        ? item.count
+        : (typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1));
     const resolvedCount = count === -1 ? totalCount : Math.min(count, totalCount);
 
     const isRisk = direction === TRANSFER_DIRECTION.TO_CONTAINER && this.checkExplosionRisk(item);

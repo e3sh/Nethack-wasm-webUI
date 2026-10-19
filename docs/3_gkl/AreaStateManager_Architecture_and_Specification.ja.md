@@ -1,7 +1,7 @@
 ---
 title: AreaStateManager 空間状態総合オーケストレーター 仕様書 ＆ モジュール機能整理計画
 status: implemented
-last_updated: 2026-10-11
+last_updated: 2026-10-19
 domain: GKL (Spatial State / Exploration Knowledge / Rendering Bridge)
 related_code:
   - src/core/knowledge/state/AreaStateManager.js
@@ -107,6 +107,12 @@ Stage 8.2-B および Stage 8.3-A により、`AreaStateManager` / `TerrainInfer
   自キャラが乗っていることで `print_glyph` が自キャラグリフで覆い隠している足元マスについて、`SHIM_CMD_GET_CELL_INFO (0x20)` により `levl[x][y].typ`（真の地形）と先頭アイテム (`fobj`)・重なり状態 (`isPile`) を 0ms で取得し、`cell.bottom` および `cell.middle` を即時同期します。
 - **全マップ 80×21 一括地形ダンプ (`dumpLevelTerrain()`)**:
   `SHIM_CMD_DUMP_LEVEL_TERRAIN (0x62)` により、全 $80 \times 21$ セルの地形・階段を一括取得し、3D ジオラマ（`WebGPUHD2DRenderer`）等へ完全な空間データを供給します。
+
+### ④ 観測済み岩盤 (`isObservedStone`) と完全未踏領域の識別保持
+NetHack の `print_glyph` では無地の岩盤（`glyph 0` または `3929`）と完全未踏領域（`9622`）の双方が空白文字（`ch: ' '`）として届くケースがあります。
+- `glyphId === 0` または `3929 (GLYPH_CMAP_STONE_OFF)` の受信時、空白文字であっても `isObservedStone: true` を明示的に保持します。
+- DirectBinding 接続時は `getCellInfo(x, y)` から真の地形（`typ === 0: STONE`）を `cell.bottom.typ` として同期保持します。
+- これにより、レンダラー層（`MainViewportRenderer` / `WebGPUHD2DRenderer`）における「普段は黒抜き・掘削アクション連動で岩盤ハイライト」を行うスマート岩盤可視化（[仕様書](../2_client_ui/context_aware_stone_and_digging_rendering_spec.ja.md) 参照）を完全に支えています。
 
 ---
 

@@ -58,6 +58,5 @@ export { AdventureLogManager } from "./lore/AdventureLogManager.js";
 export { AdventureLogStorage } from "./lore/AdventureLogStorage.js";
 export { findLoreForEntity } from "./lore/LoreEntityCrossReference.js";
 export { LORE_MASTER, RUMORS, ORACLES, ENGRAVINGS } from "./lore/data/LoreMasterData.js";
-
-
-
+export { ItemNormalizer, VALID_CATEGORIES, OCLASS_TO_CATEGORY_MAP, CATEGORY_ALIAS_MAP } from "./models/ItemNormalizer.js";
+export { ItemDisplayPresenter } from "./presenters/ItemDisplayPresenter.js";

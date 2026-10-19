@@ -1194,10 +1194,11 @@
                     color: 'background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#f8fafc;'
                 });
             }
-            if (trigger.itemCategory) {
+            const trigCat = trigger.category || trigger.itemCategory;
+            if (trigCat) {
                 badges.push({
                     icon: '🗡️',
-                    label: isJa ? `対象種別: ${trigger.itemCategory}` : `Item Type: ${trigger.itemCategory}`,
+                    label: isJa ? `対象種別: ${trigCat}` : `Item Type: ${trigCat}`,
                     color: 'background:rgba(168,85,247,0.2); border:1px solid #a855f7; color:#f8fafc;'
                 });
             }

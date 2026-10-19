@@ -851,7 +851,7 @@ export class TacticalAdvisor {
             // 弓・クロスボウなどのランチャーは近接持ち替え比較からは除外
             if (item.isLauncher || raw.includes('crossbow') || raw.includes('bow') || raw.includes('sling')) return false;
 
-            if (item.isWeapon || item.category === 'WEAPON') return true;
+            if (item.category === 'WEAPON') return true;
             return raw.includes('sword') || raw.includes('dagger') || raw.includes('knife') ||
                    raw.includes('axe') || raw.includes('mace') || raw.includes('spear') ||
                    raw.includes('club') || raw.includes('saber') || raw.includes('scimitar') ||
