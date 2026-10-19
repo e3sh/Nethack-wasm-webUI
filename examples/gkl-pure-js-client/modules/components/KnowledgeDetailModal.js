@@ -583,9 +583,16 @@ export class KnowledgeDetailModal {
         isUnidentified,
         translate: true,
         language: this.currentLanguage,
-        sagesWisdomMode: Boolean(this.isPeekRevealed)
+        sagesWisdomMode: Boolean(this.isPeekRevealed),
+        directObject: target.directObject,
+        floorObjects: target.floorObjects,
+        extraPileCount: target.extraPileCount,
+        quan: target.quan ?? target.count ?? target.directObject?.quan,
+        count: target.quan ?? target.count ?? target.directObject?.quan
       });
       if (resolved) {
+        const quan = target.quan ?? target.count ?? target.directObject?.quan ?? resolved.quan ?? resolved.count;
+        const isGold = Boolean(target.isGold || resolved.isGold || target.category === 'GOLD' || resolved.category === 'GOLD' || target.onum === 438 || resolved.onum === 438);
         const merged = {
           ...resolved,
           identification: target.identification || resolved.identification,
@@ -599,7 +606,10 @@ export class KnowledgeDetailModal {
           letter: target.letter ?? resolved.letter,
           extraPileCount: target.extraPileCount ?? resolved.extraPileCount,
           directObject: target.directObject ?? resolved.directObject,
-          floorObjects: target.floorObjects ?? resolved.floorObjects
+          floorObjects: target.floorObjects ?? resolved.floorObjects,
+          isPile: target.isPile ?? resolved.isPile,
+          ...(quan !== undefined ? { quan, count: quan } : {}),
+          ...(isGold ? { isGold: true, category: 'GOLD' } : {})
         };
         return (merged.category && merged.category !== 'MONSTER' && merged.category !== 'TERRAIN')
           ? ItemNormalizer.normalize(merged, { source: target.source || 'VIRTUAL' })
@@ -608,6 +618,8 @@ export class KnowledgeDetailModal {
     }
 
     if (target.knowledge) {
+      const quan = target.quan ?? target.count ?? target.directObject?.quan ?? target.knowledge.quan ?? target.knowledge.count;
+      const isGold = Boolean(target.isGold || target.knowledge.isGold || target.category === 'GOLD' || target.knowledge.category === 'GOLD' || target.onum === 438 || target.knowledge.onum === 438);
       const merged = {
         ...target.knowledge,
         rawText: target.rawText || target.knowledge.rawText,
@@ -616,12 +628,16 @@ export class KnowledgeDetailModal {
         bucStatus: target.bucStatus || target.knowledge.bucStatus,
         isPile: isPile || Boolean(target.knowledge.isPile),
         extraPileCount: target.extraPileCount ?? target.knowledge.extraPileCount,
+        directObject: target.directObject ?? target.knowledge.directObject,
+        floorObjects: target.floorObjects ?? target.knowledge.floorObjects,
         isWielded: target.isWielded,
         isOffhand: target.isOffhand,
         isQuivered: target.isQuivered,
         isWorn: target.isWorn,
         letter: target.letter,
-        onum: (typeof target.onum === 'number' && target.onum >= 0) ? target.onum : target.knowledge.onum
+        onum: (typeof target.onum === 'number' && target.onum >= 0) ? target.onum : target.knowledge.onum,
+        ...(quan !== undefined ? { quan, count: quan } : {}),
+        ...(isGold ? { isGold: true, category: 'GOLD' } : {})
       };
       return (merged.category && merged.category !== 'MONSTER' && merged.category !== 'TERRAIN')
         ? ItemNormalizer.normalize(merged, { source: target.source || 'VIRTUAL' })

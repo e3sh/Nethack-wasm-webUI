@@ -395,6 +395,10 @@ export interface CanonicalItem {
   isGold?: boolean;
   actionRecipe?: any;
   recharged?: number;
+  directObject?: any;
+  floorObjects?: any[];
+  extraPileCount?: number;
+  isPile?: boolean;
 }
 
 export interface MonsterKnowledge {

@@ -310,7 +310,9 @@ export class ItemNormalizer {
             ? rawItem.quan
             : ((typeof rawItem.count === 'number' && rawItem.count > 0)
                 ? rawItem.count
-                : (parsedFromText?.quan || 1));
+                : ((typeof rawItem.directObject?.quan === 'number' && rawItem.directObject.quan > 0)
+                    ? rawItem.directObject.quan
+                    : (parsedFromText?.quan || 1)));
         const weight = (typeof rawItem.weight === 'number') ? rawItem.weight : (Number(rawItem.owt) || 0);
         const equipSlot = rawItem.equipSlot || null;
         const isEquipped = Boolean(rawItem.isEquipped || equipSlot);
@@ -452,7 +454,11 @@ export class ItemNormalizer {
             alternativeActions,
             identification,
             knowledge,
-            skillBadge
+            skillBadge,
+            directObject: rawItem.directObject || null,
+            floorObjects: rawItem.floorObjects || null,
+            extraPileCount: rawItem.extraPileCount ?? 0,
+            isPile: Boolean(rawItem.isPile)
         };
     }
 

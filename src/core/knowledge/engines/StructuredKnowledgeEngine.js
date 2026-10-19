@@ -866,8 +866,16 @@ export class StructuredKnowledgeEngine {
         const shouldTranslate = options.translate !== false;
         const lang = options.language || this.language || 'ja';
         const isWisdomMode = Boolean(options.sagesWisdomMode !== undefined ? options.sagesWisdomMode : this.sagesWisdomMode);
+        const quan = (typeof options.quan === 'number' && options.quan > 0)
+            ? options.quan
+            : ((typeof identifier === 'object' && typeof identifier?.quan === 'number' && identifier.quan > 0)
+                ? identifier.quan
+                : ((typeof identifier === 'object' && typeof identifier?.count === 'number' && identifier.count > 0)
+                    ? identifier.count
+                    : ((directObj && typeof directObj.quan === 'number' && directObj.quan > 0) ? directObj.quan : undefined)));
+
         let cacheKey = null;
-        if (shouldTranslate && !options.dynamicState && !this.discoveryStateManager && !directObj) {
+        if (shouldTranslate && !options.dynamicState && !this.discoveryStateManager && !directObj && quan === undefined) {
             if (typeof identifier === 'number' && !options.identification && !options.isUnidentified) {
                 cacheKey = `${lang}_item_num_${identifier}_${isWisdomMode ? 'w' : 'n'}`;
             } else if (typeof identifier === 'string') {
@@ -1195,6 +1203,21 @@ export class StructuredKnowledgeEngine {
         finalResult.directObject = directObj;
         finalResult.floorObjects = floorObjects;
         finalResult.extraPileCount = extraPileCount;
+        if (typeof quan === 'number') {
+            finalResult.quan = quan;
+            finalResult.count = quan;
+            if (targetOnum === 438 || finalResult.category === 'GOLD' || (typeof identifier === 'object' && identifier?.isGold)) {
+                finalResult.isGold = true;
+                finalResult.category = 'GOLD';
+                const goldEn = quan === 1 ? '1 gold piece' : `${quan} gold pieces`;
+                const goldJa = quan === 1 ? '1枚の金貨' : `${quan}枚の金貨`;
+                finalResult.nameEn = goldEn;
+                finalResult.nameJa = goldJa;
+                finalResult.name = lang === 'ja' ? goldJa : goldEn;
+                finalResult.displayName = goldEn;
+                finalResult.displayNameJa = goldJa;
+            }
+        }
         if (isPile) {
             finalResult.isPile = true;
         } else {

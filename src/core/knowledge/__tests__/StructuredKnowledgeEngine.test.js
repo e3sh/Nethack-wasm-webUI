@@ -693,6 +693,43 @@ describe('StructuredKnowledgeEngine', () => {
             expect(pileStatue.category).toBe('STATUE');
             expect(pileStatue.isPile).toBe(true);
         });
+
+        it('金貨 (GOLD / onum: 438) の数量 quan が反映され、正確な数量名称が生成されること', () => {
+            const engineJa = new StructuredKnowledgeEngine({ language: 'ja' });
+            const engineEn = new StructuredKnowledgeEngine({ language: 'en' });
+
+            // 1. 日本語モードで複数枚 (quan: 250) の金貨
+            const goldJa = engineJa.getItemKnowledge(438, { quan: 250 });
+            expect(goldJa.quan).toBe(250);
+            expect(goldJa.count).toBe(250);
+            expect(goldJa.name).toBe('250枚の金貨');
+            expect(goldJa.nameJa).toBe('250枚の金貨');
+            expect(goldJa.displayNameJa).toBe('250枚の金貨');
+
+            // 2. 英語モードで複数枚 (quan: 250) の金貨
+            const goldEn = engineEn.getItemKnowledge(438, { quan: 250 });
+            expect(goldEn.quan).toBe(250);
+            expect(goldEn.name).toBe('250 gold pieces');
+            expect(goldEn.nameEn).toBe('250 gold pieces');
+            expect(goldEn.displayName).toBe('250 gold pieces');
+
+            // 3. 1枚 (quan: 1) の金貨
+            const singleGoldJa = engineJa.getItemKnowledge(438, { quan: 1 });
+            expect(singleGoldJa.quan).toBe(1);
+            expect(singleGoldJa.name).toBe('1枚の金貨');
+
+            const singleGoldEn = engineEn.getItemKnowledge(438, { quan: 1 });
+            expect(singleGoldEn.quan).toBe(1);
+            expect(singleGoldEn.name).toBe('1 gold piece');
+
+            // 4. directObject 経由の数量反映
+            const directGold = engineJa.getItemKnowledge({
+                onum: 438,
+                directObject: { otyp: 438, quan: 500 }
+            });
+            expect(directGold.quan).toBe(500);
+            expect(directGold.name).toBe('500枚の金貨');
+        });
     });
 });
 

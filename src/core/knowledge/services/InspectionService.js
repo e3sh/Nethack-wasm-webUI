@@ -84,6 +84,10 @@ export class InspectionService {
                         cell.middle.floorObjects = floorObjs;
                         cell.middle.isPile = floorObjs.length > 1 || Boolean(cell.middle.isPile);
                         cell.middle.extraPileCount = Math.max(0, floorObjs.length - 1);
+                        if (typeof floorObjs[0].quan === 'number' && floorObjs[0].quan > 0) {
+                            cell.middle.quan = floorObjs[0].quan;
+                            cell.middle.count = floorObjs[0].quan;
+                        }
                         asm?.markDirty?.(targetPos.x, targetPos.y);
                     }
                 } catch (e) {
@@ -94,21 +98,29 @@ export class InspectionService {
             const targetEntity = cell?.middle || cell?.bottom;
             if (!targetEntity) return null;
             const isPile = Boolean(targetEntity.isPile || targetEntity.glyphInfo?.isPile);
+            const rawQuan = targetEntity.quan ?? targetEntity.count ?? targetEntity.directObject?.quan;
             const knowledge = p.structuredKnowledge.getKnowledge(targetEntity, {
                 language: p.language,
                 sagesWisdomMode: p.sagesWisdomMode,
                 isPile,
                 extraPileCount: targetEntity.extraPileCount ?? 0,
                 directObject: targetEntity.directObject,
-                floorObjects: targetEntity.floorObjects
+                floorObjects: targetEntity.floorObjects,
+                quan: rawQuan,
+                count: rawQuan
             });
             if (!knowledge) return null;
+            const finalQuan = rawQuan ?? knowledge.quan ?? knowledge.count ?? 1;
+            const isGold = Boolean(targetEntity.isGold || knowledge.isGold || targetEntity.category === 'GOLD' || knowledge.category === 'GOLD' || targetEntity.onum === 438 || knowledge.onum === 438);
             return {
                 ...knowledge,
                 ...(isPile || knowledge.isPile ? { isPile: true } : {}),
                 ...(targetEntity.extraPileCount !== undefined ? { extraPileCount: targetEntity.extraPileCount } : {}),
                 ...(targetEntity.floorObjects ? { floorObjects: targetEntity.floorObjects } : {}),
                 ...(targetEntity.directObject ? { directObject: targetEntity.directObject } : {}),
+                quan: finalQuan,
+                count: finalQuan,
+                ...(isGold ? { isGold: true, category: 'GOLD' } : {}),
                 isClickConfirmed: !options.isHover
             };
         }

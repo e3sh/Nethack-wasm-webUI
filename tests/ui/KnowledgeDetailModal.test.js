@@ -129,5 +129,77 @@ describe('KnowledgeDetailModal - Called Name in Header Title & Badges', () => {
     expect(callBtn).not.toBeNull();
     expect(callBtn.textContent).toContain('仮名');
   });
+
+  it('地面に置かれた複数枚の金貨 (quan: 250) の詳細を開いた際、正確な枚数 (250枚の金貨) が表示されること', () => {
+    modal.setLanguage('ja');
+
+    // 床オブジェクト（InspectionService / AreaStateManager 構造）
+    const floorGold = {
+      onum: 438,
+      category: 'GOLD',
+      isGold: true,
+      quan: 250,
+      count: 250,
+      directObject: {
+        otyp: 438,
+        quan: 250,
+        oclass: 5
+      }
+    };
+
+    modal.open(floorGold);
+
+    const titleEl = modalElement.querySelector('.knowledge-header-title');
+    expect(titleEl).toBeDefined();
+    expect(titleEl.textContent).toContain('250枚の金貨');
+    expect(titleEl.textContent).not.toContain('1枚の金貨');
+  });
+
+  it('地面に置かれた複数枚の金貨 (quan: 250) を英語モードで開いた際、"250 gold pieces" と表示されること', () => {
+    modal.setLanguage('en');
+
+    const floorGold = {
+      onum: 438,
+      category: 'GOLD',
+      isGold: true,
+      quan: 250,
+      count: 250,
+      directObject: {
+        otyp: 438,
+        quan: 250,
+        oclass: 5
+      }
+    };
+
+    modal.open(floorGold);
+
+    const titleEl = modalElement.querySelector('.knowledge-header-title');
+    expect(titleEl).toBeDefined();
+    expect(titleEl.textContent).toContain('250 gold pieces');
+    expect(titleEl.textContent).not.toContain('1 gold piece');
+  });
+
+  it('地面に置かれた1枚の金貨 (quan: 1) の場合は "1枚の金貨" と表示されること', () => {
+    modal.setLanguage('ja');
+
+    const floorGold = {
+      onum: 438,
+      category: 'GOLD',
+      isGold: true,
+      quan: 1,
+      directObject: {
+        otyp: 438,
+        quan: 1,
+        oclass: 5
+      }
+    };
+
+    modal.open(floorGold);
+
+    const titleEl = modalElement.querySelector('.knowledge-header-title');
+    expect(titleEl).toBeDefined();
+    expect(titleEl.textContent).toContain('1枚の金貨');
+  });
 });
+
 
