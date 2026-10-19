@@ -8,6 +8,7 @@
 import { NhBaseElement } from './NhBaseElement.js';
 import { PaperdollPresenter, SLOT_DEFINITIONS } from '../ui-controller/PaperdollPresenter.js';
 import { resolveEligibleSlots } from '../core/knowledge/equipment/EquipmentRules.js';
+import { ItemDisplayPresenter } from '../core/knowledge/presenters/ItemDisplayPresenter.js';
 
 const PAPERDOLL_CSS = `
 :host {
@@ -199,6 +200,15 @@ export class NhPaperdoll extends NhBaseElement {
     this._updateSlots();
   }
 
+  get language() {
+    return this._language || this.getAttribute('lang') || null;
+  }
+
+  set language(val) {
+    this._language = val;
+    this._updateSlots();
+  }
+
   render() {
     if (!this.shadowRoot) return;
 
@@ -245,7 +255,14 @@ export class NhPaperdoll extends NhBaseElement {
       slotCard.dataset.slotId = slotId;
 
       const layerBadge = def.layer ? `<span class="slot-layer-badge">L${def.layer}</span>` : '';
-      const itemName = currentEquipped ? (currentEquipped.name || currentEquipped.text || currentEquipped.rawText) : '<span class="slot-item-empty">なし</span>';
+      const lang = this.language || (currentEquipped?.displayNameJa || currentEquipped?.nameJa ? 'ja' : 'en');
+      const itemName = currentEquipped
+        ? (ItemDisplayPresenter.getFormattedTitle(currentEquipped, {
+            language: lang,
+            includeLetter: false,
+            includeEquip: false
+          }) || currentEquipped.displayName || currentEquipped.name || currentEquipped.text || currentEquipped.rawText)
+        : (lang === 'en' ? '<span class="slot-item-empty">Empty</span>' : '<span class="slot-item-empty">なし</span>');
 
       slotCard.innerHTML = `
         <div class="slot-header">

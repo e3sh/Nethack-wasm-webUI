@@ -76,42 +76,8 @@
   font-family: var(--font-mono);
 }
 
-/* 装備スロットバッジ */
-.gkl-slot-equip-badge {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  font-size: 9px;
-  font-weight: bold;
-  padding: 0 2px;
-  border-radius: 3px;
-  line-height: 1.1;
-  color: #ffffff;
-  pointer-events: none;
-  font-family: var(--font-sans);
-}
-
-.gkl-slot-equip-badge.badge-wielded {
-  background: var(--accent-gold, #e9c46a);
-  color: #1a1a2e;
-}
-
-.gkl-slot-equip-badge.badge-offhand {
-  background: #4ea8de;
-  color: #0f172a;
-}
-
-.gkl-slot-equip-badge.badge-quivered {
-  background: #2a9d8f;
-  color: #ffffff;
-}
-
-.gkl-slot-equip-badge.badge-worn {
-  background: #9d4edd;
-  color: #ffffff;
-}
-
-/* 右肩 BUC / 鑑定状態バッジ */
+/* 右肩 BUC / 鑑定状態バッジ (デフォルト: スロット右上配置) */
+.slot-badge,
 .gkl-slot-buc-badge {
   position: absolute;
   top: 1px;
@@ -125,31 +91,86 @@
   border-radius: 50%;
   pointer-events: none;
   font-family: var(--font-mono);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 3;
 }
 
+.slot-badge.badge-buc-unid,
 .gkl-slot-buc-badge.badge-buc-unid {
   background: #eab308;
   color: #000000;
 }
 
+.slot-badge.badge-buc-cursed,
 .gkl-slot-buc-badge.badge-buc-cursed {
   background: #ef4444;
   color: #ffffff;
 }
 
+.slot-badge.badge-buc-blessed,
 .gkl-slot-buc-badge.badge-buc-blessed {
   background: #3b82f6;
   color: #ffffff;
 }
 
+.slot-badge.badge-buc-wisdom,
 .gkl-slot-buc-badge.badge-buc-wisdom {
   background: #8b5cf6;
   color: #ffffff;
   font-size: 8px;
+}
+
+/* 装備スロットバッジ (スロット右下配置) */
+.gkl-slot-equip-badge,
+.slot-badge.badge-wielded,
+.slot-badge.badge-offhand,
+.slot-badge.badge-quivered,
+.slot-badge.badge-worn {
+  position: absolute;
+  top: auto;
+  bottom: 2px;
+  right: 2px;
+  left: auto;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 0 2px;
+  border-radius: 3px;
+  line-height: 1.1;
+  width: auto;
+  height: auto;
+  color: #ffffff;
+  pointer-events: none;
+  font-family: var(--font-sans);
+  box-shadow: none;
+  display: inline-block;
+  z-index: 2;
+}
+
+.slot-badge.badge-wielded,
+.gkl-slot-equip-badge.badge-wielded {
+  background: var(--accent-gold, #e9c46a);
+  color: #1a1a2e;
+}
+
+.slot-badge.badge-offhand,
+.gkl-slot-equip-badge.badge-offhand {
+  background: #4ea8de;
+  color: #0f172a;
+}
+
+.slot-badge.badge-quivered,
+.gkl-slot-equip-badge.badge-quivered {
+  background: #2a9d8f;
+  color: #ffffff;
+}
+
+.slot-badge.badge-worn,
+.gkl-slot-equip-badge.badge-worn {
+  background: #9d4edd;
+  color: #ffffff;
 }
 
 /* ナレッジカードのBUC & 識別状態バッジ */

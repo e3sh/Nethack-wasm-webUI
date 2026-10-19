@@ -74,23 +74,27 @@ export class ItemDisplayPresenter {
         }
 
         // 'symbol' フォーマット (スロットやグリッド内のミニバッジ)
-        if (isUnid) {
-            return `<span class="slot-badge badge-buc-unid" title="${isEn ? 'Unidentified' : '未識別'}">?</span>`;
-        }
-        if (isWisdom && canonical.isUnidentified) {
-            if (buc === 'CURSED') {
-                return `<span class="slot-badge badge-buc-cursed" title="${isEn ? "Cursed (Sage's Wisdom)" : '呪い (賢者の知恵)'}">-</span>`;
-            }
-            if (buc === 'BLESSED') {
-                return `<span class="slot-badge badge-buc-blessed" title="${isEn ? "Blessed (Sage's Wisdom)" : '祝福 (賢者の知恵)'}">+</span>`;
-            }
-            return `<span class="slot-badge badge-buc-wisdom" title="${isEn ? "Sage's Wisdom" : '賢者の知恵'}">🧙</span>`;
-        }
         if (buc === 'CURSED') {
-            return `<span class="slot-badge badge-buc-cursed" title="${isEn ? 'Cursed' : '呪い'}">-</span>`;
+            const title = isWisdom && canonical.isUnidentified
+                ? (isEn ? "Cursed (Sage's Wisdom)" : '呪い (賢者の知恵)')
+                : isUnid
+                    ? (isEn ? 'Cursed (Unidentified)' : '呪い (未識別)')
+                    : (isEn ? 'Cursed' : '呪い');
+            return `<span class="slot-badge badge-buc-cursed" title="${title}">-</span>`;
         }
         if (buc === 'BLESSED') {
-            return `<span class="slot-badge badge-buc-blessed" title="${isEn ? 'Blessed' : '祝福'}">+</span>`;
+            const title = isWisdom && canonical.isUnidentified
+                ? (isEn ? "Blessed (Sage's Wisdom)" : '祝福 (賢者の知恵)')
+                : isUnid
+                    ? (isEn ? 'Blessed (Unidentified)' : '祝福 (未識別)')
+                    : (isEn ? 'Blessed' : '祝福');
+            return `<span class="slot-badge badge-buc-blessed" title="${title}">+</span>`;
+        }
+        if (isWisdom && canonical.isUnidentified) {
+            return `<span class="slot-badge badge-buc-wisdom" title="${isEn ? "Sage's Wisdom" : '賢者の知恵'}">🧙</span>`;
+        }
+        if (isUnid && buc === 'UNKNOWN') {
+            return `<span class="slot-badge badge-buc-unid" title="${isEn ? 'Unidentified' : '未識別'}">?</span>`;
         }
         return '';
     }

@@ -7,6 +7,7 @@
 
 import { NhBaseElement } from './NhBaseElement.js';
 import { ContainerDraftController, TRANSFER_DIRECTION } from '../ui-controller/ContainerDraftController.js';
+import { ItemDisplayPresenter } from '../core/knowledge/presenters/ItemDisplayPresenter.js';
 
 const FILER_CSS = `
 :host {
@@ -212,6 +213,15 @@ export class NhContainerFiler extends NhBaseElement {
     return this.controller.getDrafts();
   }
 
+  get language() {
+    return this._language || this.getAttribute('lang') || null;
+  }
+
+  set language(val) {
+    this._language = val;
+    this._updateView();
+  }
+
   render() {
     if (!this.shadowRoot) return;
 
@@ -296,16 +306,17 @@ export class NhContainerFiler extends NhBaseElement {
         const isRisk = this.controller.checkExplosionRisk(item);
         const card = document.createElement('div');
         card.className = 'filer-item-card' + (isRisk ? ' risk' : '');
-        const itemCount = (typeof item.quan === 'number' && item.quan > 0)
-          ? item.quan
-          : ((typeof item.count === 'number' && item.count > 0) ? item.count : (typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1));
-        const countStr = itemCount > 1 ? `(${itemCount}) ` : '';
-        const nameStr = item.displayNameJa || item.displayName || item.name || item.text || item.rawText || '不明なアイテム';
+        const lang = this.language || (item.displayNameJa || item.nameJa ? 'ja' : 'en');
+        const nameStr = ItemDisplayPresenter.getFormattedTitle(item, {
+          language: lang,
+          includeLetter: false,
+          includeEquip: false
+        }) || item.displayName || item.name || item.text || item.rawText || (lang === 'en' ? 'Unknown Item' : '不明なアイテム');
 
         card.innerHTML = `
           <div class="filer-item-left">
             <span class="item-glyph">${item.glyph || '🗡️'}</span>
-            <span class="item-name">${countStr}${nameStr}</span>
+            <span class="item-name">${nameStr}</span>
           </div>
           <div>
             ${isRisk ? '<span class="nh-badge nh-badge-danger">CRITICAL 爆発</span>' : ''}
@@ -335,16 +346,17 @@ export class NhContainerFiler extends NhBaseElement {
       for (const item of this._containerItems) {
         const card = document.createElement('div');
         card.className = 'filer-item-card';
-        const itemCount = (typeof item.quan === 'number' && item.quan > 0)
-          ? item.quan
-          : ((typeof item.count === 'number' && item.count > 0) ? item.count : (typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1));
-        const countStr = itemCount > 1 ? `(${itemCount}) ` : '';
-        const nameStr = item.displayNameJa || item.displayName || item.name || item.text || item.rawText || '不明なアイテム';
+        const lang = this.language || (item.displayNameJa || item.nameJa ? 'ja' : 'en');
+        const nameStr = ItemDisplayPresenter.getFormattedTitle(item, {
+          language: lang,
+          includeLetter: false,
+          includeEquip: false
+        }) || item.displayName || item.name || item.text || item.rawText || (lang === 'en' ? 'Unknown Item' : '不明なアイテム');
 
         card.innerHTML = `
           <div class="filer-item-left">
             <span class="item-glyph">${item.glyph || '💎'}</span>
-            <span class="item-name">${countStr}${nameStr}</span>
+            <span class="item-name">${nameStr}</span>
           </div>
           <div>
             <button class="nh-btn" style="padding: 2px 6px; font-size: 0.75rem;">⬅ 取出す</button>

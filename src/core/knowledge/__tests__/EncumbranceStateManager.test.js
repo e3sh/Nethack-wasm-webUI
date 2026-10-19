@@ -5,6 +5,7 @@ import {
     parseAcurrStr,
     parseCon,
     calculateCarryingCapacity,
+    resolveBucStatus,
     detectBucStatus,
     detectContainerType,
     getContainerBaseWeight
@@ -80,22 +81,29 @@ describe('EncumbranceStateManager (GKL 重量・負荷管理コア)', () => {
             const gold250 = { letter: '$', isGold: true, count: 250 };
             expect(esm.getItemWeight(gold250)).toBe(2);
 
-            // rawText からのパース: "340 gold pieces"
-            const goldText = { letter: '$', isGold: true, rawText: '340 gold pieces' };
-            expect(esm.getItemWeight(goldText)).toBe(3);
+            // 構造化プロパティ (count/quan) による金貨計算: 340枚 -> 重量 3
+            const goldStructured = { letter: '$', isGold: true, count: 340, name: 'gold pieces' };
+            expect(esm.getItemWeight(goldStructured)).toBe(3);
+
+            // category: 'GOLD' または quan による判定
+            const goldQuan = { category: 'GOLD', quan: 580 };
+            expect(esm.getItemWeight(goldQuan)).toBe(5);
         });
 
-        it('彫像 (Statue)、巨岩 (Boulder)、死体 (Corpse) の重量がフォールバック認識されること', () => {
-            const statue = { letter: 's', rawText: 'a statue of a newt' };
+        it('彫像 (Statue)、巨岩 (Boulder)、死体 (Corpse) の重量が構造化フォールバック認識されること', () => {
+            // 彫像 (Statue): category または isStatue または onum 476
+            const statue = { letter: 's', category: 'STATUE', isStatue: true, onum: 476 };
             expect(esm.getItemWeight(statue)).toBe(2500);
 
-            const statueJa = { letter: 's', rawText: 'ニュートの像' };
-            expect(esm.getItemWeight(statueJa)).toBe(2500);
+            const statueWithCount = { isStatue: true, count: 2 };
+            expect(esm.getItemWeight(statueWithCount)).toBe(5000);
 
-            const boulder = { letter: '`', rawText: 'a boulder' };
+            // 巨岩 (Boulder): isBoulder または onum 475
+            const boulder = { letter: '`', isBoulder: true, onum: 475 };
             expect(esm.getItemWeight(boulder)).toBe(6000);
 
-            const corpse = { letter: '%', rawText: 'a goblin corpse' };
+            // 死体 (Corpse): category または isCorpse または onum 265
+            const corpse = { letter: '%', category: 'CORPSE', isCorpse: true, onum: 265 };
             expect(esm.getItemWeight(corpse)).toBe(200);
         });
     });
@@ -404,6 +412,43 @@ describe('EncumbranceStateManager (GKL 重量・負荷管理コア)', () => {
             const state = esm.getEncumbranceState();
             expect(state.hasUninspectedContainer).toBe(false);
             expect(state.totalWeight).toBe(75); // 15 + 60
+        });
+    });
+
+    describe('7. 構造化 BUC 解決 (resolveBucStatus) とコンテナ種別判定 (detectContainerType)', () => {
+        it('アイテムの構造化プロパティから言語非依存で BUC 値が解決できること', () => {
+            // bucStatus
+            expect(resolveBucStatus({ bucStatus: 'BLESSED' })).toBe(1);
+            expect(resolveBucStatus({ bucStatus: 'UNCURSED' })).toBe(0);
+            expect(resolveBucStatus({ bucStatus: 'CURSED' })).toBe(-1);
+            expect(resolveBucStatus({ bucStatus: 'UNKNOWN' })).toBe(0);
+
+            // bcursed
+            expect(resolveBucStatus({ bcursed: 1 })).toBe(1);
+            expect(resolveBucStatus({ bcursed: -1 })).toBe(-1);
+
+            // flags
+            expect(resolveBucStatus({ flags: { blessed: true } })).toBe(1);
+            expect(resolveBucStatus({ flags: { cursed: true } })).toBe(-1);
+
+            // 文字列単体
+            expect(resolveBucStatus('BLESSED')).toBe(1);
+            expect(resolveBucStatus('CURSED')).toBe(-1);
+
+            // 互換用 detectBucStatus も同様に動作
+            expect(detectBucStatus({ bucStatus: 'BLESSED' })).toBe(1);
+        });
+
+        it('onum や構造化プロパティからコンテナ種別が言語非依存で判定できること', () => {
+            expect(detectContainerType({ onum: 219 })).toBe('BAG_OF_HOLDING');
+            expect(detectContainerType({ onum: 217 })).toBe('SACK');
+            expect(detectContainerType({ onum: 218 })).toBe('OILSKIN_SACK');
+            expect(detectContainerType({ onum: 215 })).toBe('CHEST');
+            expect(detectContainerType({ onum: 214 })).toBe('LARGE_BOX');
+            expect(detectContainerType({ onum: 216 })).toBe('ICE_BOX');
+            expect(detectContainerType({ onum: 220 })).toBe('BAG_OF_TRICKS');
+            expect(detectContainerType({ isBagOfHolding: true })).toBe('BAG_OF_HOLDING');
+            expect(detectContainerType({ containerType: 'BAG_OF_HOLDING' })).toBe('BAG_OF_HOLDING');
         });
     });
 });

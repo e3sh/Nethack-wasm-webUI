@@ -15,6 +15,7 @@ import { GlyphHelper } from '../core/renderers/GlyphHelper.js';
 import { GLYPH_OFFSETS } from '../core/knowledge/engines/glyphClassifier.js';
 import { ItemCandidateResolver } from '../core/knowledge/engines/ItemCandidateResolver.js';
 import { ItemNormalizer } from '../core/knowledge/models/ItemNormalizer.js';
+import { ItemDisplayPresenter } from '../core/knowledge/presenters/ItemDisplayPresenter.js';
 
 const CARD_CSS = `
 :host {
@@ -924,44 +925,34 @@ export class NhKnowledgeCard extends NhBaseElement {
     const isWisdom = Boolean(data.isWisdomRevealed || (data.isUnidentified && this.isPeekRevealed));
     const isUnidentified = Boolean(data.isUnidentified && !isWisdom);
 
+    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel);
     let title = '';
     let subtitle = '';
 
-    const calledVal = data.calledName || data.identification?.calledName;
-    const namedVal = data.namedInstance || data.identification?.namedInstance;
-    const called = calledVal ? (isEn ? ` called "${calledVal}"` : ` [仮名: ${calledVal}]`) : '';
-    const named = namedVal ? (isEn ? ` named "${namedVal}"` : ` [銘: ${namedVal}]`) : '';
-
-    if (isUnidentified) {
-      // 通常モードの未識別アイテム: 外見名（または仮名/銘）のみ表示
-      const appName = (!isEn && data.appearanceNameJa) ? data.appearanceNameJa : (data.appearanceName || data.name || (isEn ? 'Unidentified Item' : '未鑑定アイテム'));
-      title = `${appName}${called}${named}`;
-      subtitle = isEn ? `Unidentified ${category}` : `未鑑定の${this._translateCategory(category)}`;
-    } else if (isWisdom) {
-      // 🧙 賢者の知恵モード: 外見名と真名の両方を併記
-      const appName = (!isEn && data.appearanceNameJa) ? data.appearanceNameJa : (data.appearanceName || data.appearance || '');
-      const trueNameEn = data.wisdomTrueName || data.trueName || data.name || '';
-      const trueNameJa = data.wisdomTrueNameJa || data.nameJa || data.japaneseName || '';
-      const trueNameDisplay = (!isEn && trueNameJa) ? trueNameJa : trueNameEn;
-
-      if (appName && trueNameDisplay && appName.toLowerCase() !== trueNameDisplay.toLowerCase()) {
-        title = `${appName} [${trueNameDisplay}]${called}${named}`;
+    if (!isMonster) {
+      // アイテムの場合: NetHack objnam.c 規則準拠の統一プレゼンタ
+      title = ItemDisplayPresenter.getFormattedTitle(data, {
+        language: isEn ? 'en' : 'ja',
+        sagesWisdomMode: isWisdom,
+        includeLetter: false,
+        includeEquip: false,
+        includeBilingualSubname: !isEn,
+        includeCalled: true
+      });
+      if (isUnidentified) {
+        subtitle = isEn ? `Unidentified ${category}` : `未鑑定の${this._translateCategory(category)}`;
+      } else if (isWisdom) {
+        subtitle = isEn ? `Sage's Wisdom: ${category}` : `🧙 賢者の知恵: ${this._translateCategory(category)}`;
       } else {
-        title = `${trueNameDisplay || appName || (isEn ? 'Revealed Item' : '透視されたアイテム')}${called}${named}`;
+        subtitle = data.subtitle || data.japaneseName || (isEn ? category : this._translateCategory(category));
       }
-      subtitle = isEn ? `Sage's Wisdom: ${category}` : `🧙 賢者の知恵: ${this._translateCategory(category)}`;
     } else {
-      // 通常の識別済みアイテムまたはモンスター
+      // モンスターまたはその他のエンティティ
       const nameJa = data.nameJa || data.knowledge?.nameJa || data.japanese || data.japaneseName;
       const nameEn = data.nameEn || data.trueName || data.name || data.knowledge?.name;
-      const isEnchVisible = typeof data.spe === 'number' && (category === 'WEAPON' || category === 'ARMOR' || data.isWeptool || category === 'RING');
-      const enchStr = isEnchVisible ? `${data.spe >= 0 ? `+${data.spe} ` : `${data.spe} `}` : '';
-      const chargeStr = (category === 'WAND' && typeof data.spe === 'number') ? ` (${data.recharged || 0}:${data.spe})` : '';
-
-      title = (!isEn && nameJa) ? `${enchStr}${nameJa}${named}${chargeStr}${nameEn ? ` (${nameEn})` : ''}` : `${enchStr}${nameEn || data.name || (isEn ? 'Unknown Entity' : '未知の対象')}${named}${chargeStr}`;
+      title = (!isEn && nameJa) ? `${nameJa}${nameEn && nameEn !== nameJa ? ` (${nameEn})` : ''}` : (nameEn || data.name || (isEn ? 'Unknown Entity' : '未知の対象'));
       subtitle = data.subtitle || data.japaneseName || (isEn ? category : this._translateCategory(category));
     }
-    const isMonster = category === 'MONSTER' || Boolean(data.dangerLevel);
     let headerIcon = data.icon || '🏷️';
     if (isMonster) {
       headerIcon = '👾';

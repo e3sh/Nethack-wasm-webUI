@@ -118,47 +118,65 @@ export function calculateCarryingCapacity(str, con) {
 }
 
 /**
- * テキストからアイテム数量を抽出
- * @param {string} text 
- * @returns {number}
- */
-export function parseItemCount(text) {
-    if (!text || typeof text !== 'string') return 1;
-    const trimmed = text.trim();
-    const numMatch = trimmed.match(/^(\d+)\s+/);
-    if (numMatch) {
-        return parseInt(numMatch[1], 10) || 1;
-    }
-    const jaMatch = trimmed.match(/^(\d+)(?:個|本|枚|つ|杯|巻|着|缶|服|袋)?の?\s*/);
-    if (jaMatch) {
-        return parseInt(jaMatch[1], 10) || 1;
-    }
-    return 1;
-}
-
-/**
- * アイテム名や rawText から BUC 状態を判定
- * @param {string} text 
+ * 構造化アイテムまたは BUC ステータスから BUC 数値を解決 (1: 祝福, 0: 未呪い, -1: 呪い)
+ * ※言語設定や表示テキスト（「普通の」「呪われていない」「uncursed」等）に依存しない構造化プロパティ準拠
+ * @param {Object|string|number} itemOrStatus 
  * @returns {number} 1: 祝福, 0: 未呪い, -1: 呪い
  */
-export function detectBucStatus(text) {
-    if (!text || typeof text !== 'string') return 0;
-    const lower = text.toLowerCase();
-    if (/\bblessed\b/i.test(lower) || text.includes('祝福')) return 1;
-    if (/\buncursed\b/i.test(lower) || text.includes('呪われていない')) return 0;
-    if (/\bcursed\b/i.test(lower) || text.includes('呪われ')) return -1;
+export function resolveBucStatus(itemOrStatus) {
+    if (itemOrStatus === null || itemOrStatus === undefined) return 0;
+    if (typeof itemOrStatus === 'number') {
+        return itemOrStatus > 0 ? 1 : (itemOrStatus < 0 ? -1 : 0);
+    }
+    if (typeof itemOrStatus === 'object') {
+        if (typeof itemOrStatus.bcursed === 'number') {
+            return itemOrStatus.bcursed > 0 ? 1 : (itemOrStatus.bcursed < 0 ? -1 : 0);
+        }
+        if (itemOrStatus.bucStatus) {
+            return resolveBucStatus(itemOrStatus.bucStatus);
+        }
+        if (itemOrStatus.flags) {
+            if (itemOrStatus.flags.blessed) return 1;
+            if (itemOrStatus.flags.cursed) return -1;
+            return 0;
+        }
+        return 0;
+    }
+    if (typeof itemOrStatus === 'string') {
+        const upper = itemOrStatus.trim().toUpperCase();
+        if (upper === 'BLESSED') return 1;
+        if (upper === 'CURSED') return -1;
+        if (upper === 'UNCURSED' || upper === 'UNKNOWN') return 0;
+    }
     return 0;
 }
 
 /**
- * コンテナ種別を判定
- * @param {string} name 
+ * 互換用エイリアス (resolveBucStatus に委譲)
+ */
+export const detectBucStatus = resolveBucStatus;
+
+/**
+ * 構造化プロパティまたは onum からコンテナ種別を判定
+ * ※文字列正規表現による推測を全廃し、構造化プロパティおよび OBJECT_KNOWLEDGE_MAP に一本化
+ * @param {Object|number|string} itemOrOnum 
  * @param {number} [onum=-1] 
  * @returns {string}
  */
-export function detectContainerType(name, onum = -1) {
-    if (onum >= 0) {
-        const info = OBJECT_KNOWLEDGE_MAP.get(onum);
+export function detectContainerType(itemOrOnum, onum = -1) {
+    let resolvedOnum = onum;
+    if (typeof itemOrOnum === 'number') {
+        resolvedOnum = itemOrOnum;
+    } else if (itemOrOnum && typeof itemOrOnum === 'object') {
+        if (itemOrOnum.containerType) return itemOrOnum.containerType;
+        if (itemOrOnum.isBagOfHolding) return 'BAG_OF_HOLDING';
+        if (typeof itemOrOnum.onum === 'number' && itemOrOnum.onum >= 0) {
+            resolvedOnum = itemOrOnum.onum;
+        }
+    }
+
+    if (resolvedOnum >= 0) {
+        const info = OBJECT_KNOWLEDGE_MAP.get(resolvedOnum);
         if (info) {
             if (info.name === 'bag of holding') return 'BAG_OF_HOLDING';
             if (info.name === 'sack') return 'SACK';
@@ -166,16 +184,10 @@ export function detectContainerType(name, onum = -1) {
             if (info.name === 'chest') return 'CHEST';
             if (info.name === 'large box') return 'LARGE_BOX';
             if (info.name === 'ice box') return 'ICE_BOX';
+            if (info.name === 'bag of tricks') return 'BAG_OF_TRICKS';
         }
     }
-    if (!name || typeof name !== 'string') return 'UNKNOWN';
-    const lower = name.toLowerCase();
-    if (/bag of holding/i.test(lower) || /軽量化の鞄/.test(name)) return 'BAG_OF_HOLDING';
-    if (/oilskin sack/i.test(lower) || /油引きの袋/.test(name)) return 'OILSKIN_SACK';
-    if (/\bsack\b/i.test(lower) || /\b袋\b/.test(name)) return 'SACK';
-    if (/\bchest\b/i.test(lower) || /チェスト/.test(name)) return 'CHEST';
-    if (/large box/i.test(lower) || /大箱/.test(name)) return 'LARGE_BOX';
-    if (/ice box/i.test(lower) || /氷箱/.test(name)) return 'ICE_BOX';
+
     return 'UNKNOWN';
 }
 
@@ -197,6 +209,8 @@ export function getContainerBaseWeight(containerType, onum = -1) {
         case 'SACK':
         case 'OILSKIN_SACK':
             return 15;
+        case 'BAG_OF_TRICKS':
+            return 20;
         case 'LARGE_BOX':
             return 350;
         case 'CHEST':
@@ -311,12 +325,12 @@ export class EncumbranceStateManager {
     getItemWeight(item) {
         if (!item) return 0;
 
-        // Wasm 直接バインディングによる真の重量 (weight(o)) が事前設定されている場合は最優先
+        // 1. Wasm 直接バインディングによる真の重量 (weight(o)) が事前設定されている場合は最優先 (SSOT)
         if (typeof item.weight === 'number' && item.weight >= 0) {
             return item.weight;
         }
 
-        // サービスから直接単体アイテム重量を取得可能な場合
+        // 2. サービスから直接単体アイテム重量を取得可能な場合 (Cコア関数 weight(struct obj *) 呼び出し)
         if (this.wasmDirectBindingService && (item.rawObjPtr || item.ptr)) {
             const directObjWeight = this.wasmDirectBindingService.getObjectWeight(item.rawObjPtr || item.ptr);
             if (directObjWeight >= 0) {
@@ -324,10 +338,20 @@ export class EncumbranceStateManager {
             }
         }
 
-        // 金貨判定 (100枚ごとに重量 1)
-        const isGold = item.isGold || item.letter === '$' || /(?:gold\s+pieces?|pieces?\s+of\s+gold|枚の金貨|^金貨$)/i.test(item.rawText || item.name || '');
+        // 3. モック・テスト時等の構造化プロパティによる算出フォールバック
+        // 数量の取得 (CanonicalItem: quan / count)
+        const count = typeof item.count === 'number' && item.count >= 0
+            ? item.count
+            : (typeof item.quan === 'number' && item.quan >= 0 ? item.quan : 1);
+
+        // 金貨判定 (100枚ごとに重量 1) - 文字列パースを撤廃し構造化プロパティのみで判定
+        const isGold = Boolean(
+            item.isGold ||
+            item.category === 'GOLD' ||
+            item.letter === '$' ||
+            item.onum === 438
+        );
         if (isGold) {
-            const count = typeof item.count === 'number' && item.count >= 0 ? item.count : parseItemCount(item.rawText || item.name || '');
             return Math.floor(count / 100);
         }
 
@@ -343,24 +367,20 @@ export class EncumbranceStateManager {
             unitWeight = item.knowledge.weight;
         }
 
-        // 特殊アイテム (彫像、巨岩、死体) のフォールバック重量判定
+        // 特殊アイテム (彫像、巨岩、死体) の構造化フォールバック重量判定
         if (unitWeight === 0) {
-            const text = (item.rawText || item.name || '').toLowerCase();
             const cat = String(item.category || '').toUpperCase();
-            if (item.isStatue || cat === 'STATUE' || text.includes('statue') || text.includes('彫像') || text.includes('石像') || /像(?:\s|$)/.test(text)) {
-                // NetHack の像基本重量: 2500 (モンスター体重依存だが平均して極めて重い)
+            if (item.isStatue || cat === 'STATUE' || item.onum === 476) {
+                // NetHack の像基本重量: 2500
                 unitWeight = 2500;
-            } else if (text.includes('boulder') || text.includes('巨岩')) {
+            } else if (item.isBoulder || item.onum === 475) {
                 // NetHack の巨岩基本重量: 6000
                 unitWeight = 6000;
-            } else if (item.isCorpse || text.includes('corpse') || text.includes('死体')) {
+            } else if (item.isCorpse || cat === 'CORPSE' || item.onum === 265) {
                 // モンスター死体の平均重量: 200
                 unitWeight = 200;
             }
         }
-
-        // 数量の取得
-        const count = typeof item.count === 'number' && item.count > 0 ? item.count : parseItemCount(item.rawText || item.name || '');
 
         return unitWeight * count;
     }
@@ -405,7 +425,8 @@ export class EncumbranceStateManager {
      * @param {Object} data
      * @param {Array<Object>} [data.items] - 中身アイテム
      * @param {boolean} [data.isKnown] - 確認済みか
-     * @param {number} [data.bcursed] - BUC状態
+     * @param {number} [data.bcursed] - BUC状態 (数値または文字列)
+     * @param {string} [data.bucStatus] - BUCステータス ('BLESSED'等)
      * @param {string} [data.containerType] - コンテナ種別
      * @param {number} [data.onum] - onum
      * @param {string} [data.name] - コンテナ名
@@ -415,10 +436,14 @@ export class EncumbranceStateManager {
         const existing = this.containerCache.get(letter) || {};
         const name = data.name || existing.name || '';
         const onum = typeof data.onum === 'number' ? data.onum : (existing.onum !== undefined ? existing.onum : -1);
-        const containerType = data.containerType || existing.containerType || detectContainerType(name, onum);
+        const containerType = data.containerType || existing.containerType || detectContainerType(data, onum);
         const baseWeight = typeof data.baseWeight === 'number' ? data.baseWeight : (existing.baseWeight || getContainerBaseWeight(containerType, onum));
         const isKnown = data.isKnown !== undefined ? data.isKnown : (existing.isKnown !== undefined ? existing.isKnown : false);
-        const bcursed = data.bcursed !== undefined ? data.bcursed : (existing.bcursed !== undefined ? existing.bcursed : detectBucStatus(name));
+        const bcursed = data.bcursed !== undefined
+            ? resolveBucStatus(data.bcursed)
+            : (data.bucStatus !== undefined
+                ? resolveBucStatus(data.bucStatus)
+                : (existing.bcursed !== undefined ? existing.bcursed : 0));
 
         const items = Array.isArray(data.items) ? data.items : (existing.items || []);
 
@@ -470,20 +495,26 @@ export class EncumbranceStateManager {
 
         inventoryItems.forEach(item => {
             if (!item || !item.letter) return;
-            const isCont = item.isContainer || item.isBag || item.isBox || (item.knowledge && item.knowledge.isContainer);
+            const isCont = Boolean(
+                item.isContainer ||
+                item.isBag ||
+                item.isBox ||
+                (item.category === 'TOOL' && item.onum >= 214 && item.onum <= 220) ||
+                item.knowledge?.isContainer
+            );
             if (!isCont) return;
 
             currentLetters.add(item.letter);
 
+            const cType = item.containerType || detectContainerType(item, item.onum);
+            const baseWt = typeof item.baseWeight === 'number' ? item.baseWeight : getContainerBaseWeight(cType, item.onum);
+            const buc = resolveBucStatus(item);
+
             if (!this.containerCache.has(item.letter)) {
                 // 新規拾得袋: 未確認 (isKnown = false) として登録
-                const cType = detectContainerType(item.rawText || item.name || '', item.onum);
-                const baseWt = getContainerBaseWeight(cType, item.onum);
-                const buc = detectBucStatus(item.rawText || item.name || '');
-
                 this.containerCache.set(item.letter, {
                     letter: item.letter,
-                    name: item.rawText || item.name || '',
+                    name: item.name || item.rawText || '',
                     onum: item.onum !== undefined ? item.onum : -1,
                     containerType: cType,
                     baseWeight: baseWt,
@@ -494,9 +525,8 @@ export class EncumbranceStateManager {
                     effectiveWeight: baseWt,
                 });
             } else {
-                // 既存袋: BUC や名前の変化を更新
+                // 既存袋: BUC や種別の変化を同期
                 const rec = this.containerCache.get(item.letter);
-                const buc = detectBucStatus(item.rawText || item.name || '');
                 if (rec.bcursed !== buc) {
                     rec.bcursed = buc;
                     rec.effectiveWeight = this.computeContainerWeight(rec);

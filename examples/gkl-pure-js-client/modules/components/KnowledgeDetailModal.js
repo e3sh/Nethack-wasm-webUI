@@ -734,6 +734,7 @@ export class KnowledgeDetailModal {
         language: isEn ? 'en' : 'ja',
         sagesWisdomMode: isWisdom,
         includeLetter: false,
+        includeEquip: false,
         includeCalled: true
       });
     } else {

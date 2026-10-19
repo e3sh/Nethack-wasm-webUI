@@ -640,7 +640,7 @@ export class ItemIdentificationResolver {
         // 1. BUC
         if (bucStatus === 'BLESSED') parts.push(language === 'ja' ? '祝福された' : 'blessed');
         else if (bucStatus === 'CURSED') parts.push(language === 'ja' ? '呪われた' : 'cursed');
-        else if (bucStatus === 'UNCURSED' && !isUnidentified) parts.push(language === 'ja' ? '呪われていない' : 'uncursed');
+        else if (bucStatus === 'UNCURSED' && !isUnidentified) parts.push(language === 'ja' ? '普通の' : 'uncursed');
 
         // 2. 強化値
         if (enchantment !== null) {

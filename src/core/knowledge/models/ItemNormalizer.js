@@ -185,7 +185,7 @@ function getOnumByName(rawName) {
 
     // 連続する修飾語プレフィックス（empty, uncursed, blessed, cursed, 等）を除去して再試行
     let stripped = singularClean;
-    const prefixRegex = /^(empty|uncursed|blessed|cursed|diluted|locked|unlocked|broken|trapped|poisoned|historic|rustproof|fireproof|corrodeproof|corroded|very corroded|thoroughly corroded|rusty|very rusty|thoroughly rusty|burnt|very burnt|thoroughly burnt|rotted|very rotted|thoroughly rotted|\+?\-?\d+)\s+/i;
+    const prefixRegex = /^(empty|uncursed|blessed|cursed|diluted|locked|unlocked|broken|trapped|poisoned|historic|rustproof|fireproof|corrodeproof|corroded|very corroded|thoroughly corroded|rusty|very rusty|thoroughly rusty|burnt|very burnt|thoroughly burnt|rotted|very rotted|thoroughly rotted|\+?\-?\d+|空の|普通の|呪われていない|祝福された|呪われた)\s+/i;
     let prev = '';
     while (stripped !== prev) {
         prev = stripped;
@@ -292,7 +292,7 @@ export class ItemNormalizer {
         }
 
         // 3. フラグ構造体の正規化（Cコア構造体フラグ・明示的プロパティのみを信頼）
-        const flags = this._normalizeFlags(rawItem);
+        const flags = this._normalizeFlags(rawItem, parsedFromText);
 
         // 4. 識別・命名状態の解決
         const cleanText = (rawItem.rawText || rawItem.rawStr || rawItem.str || rawItem.text || rawItem.name || rawItem.displayName || parsedFromText?.cleanName || '').trim();
@@ -301,7 +301,7 @@ export class ItemNormalizer {
         const bucStatus = this.normalizeBuc(rawItem.bucStatus || rawItem.identification?.bucStatus, flags);
         const calledName = rawItem.calledName || rawItem.identification?.calledName || rawItem.uname || null;
         const namedInstance = rawItem.namedInstance || rawItem.identification?.namedInstance || rawItem.oname || null;
-        const spe = this._resolveSpe(rawItem);
+        const spe = this._resolveSpe(rawItem, parsedFromText);
         const recharged = (typeof rawItem.recharged === 'number') ? rawItem.recharged : (typeof rawItem.directObject?.recharged === 'number' ? rawItem.directObject.recharged : 0);
         const idLevel = this._resolveIdLevel(rawItem, isUnidentified, calledName, bucStatus, spe);
 
@@ -522,6 +522,14 @@ export class ItemNormalizer {
             if (articleMatch) {
                 working = articleMatch[1].trim();
             }
+        }
+
+        // 3. 強化値プレフィックスの抽出 (+1, -2 等)
+        const enchMatch = working.match(/^([+-]\d+)\s+(.+)$/);
+        if (enchMatch) {
+            res.spe = parseInt(enchMatch[1], 10);
+            res.flags.known = true;
+            working = enchMatch[2].trim();
         }
 
         res.cleanName = working;
@@ -789,8 +797,8 @@ export class ItemNormalizer {
         }
 
         // 1. 真名の確定 (actualn & actualnJa)
-        let actualn = ctx.trueName || ctx.rawItem?.trueName || master?.name || (!isUnidentified && ctx.rawItem?.name ? ctx.rawItem.name : null) || ctx.rawItem?.name || ctx.rawItem?.identification?.coreName || 'item';
-        let actualnJa = ctx.trueNameJa || ctx.rawItem?.trueNameJa || master?.nameJa || master?.japaneseName || (!isUnidentified && ctx.rawItem?.nameJa ? ctx.rawItem.nameJa : null) || actualn;
+        let actualn = ctx.trueName || (isWisdom && ctx.rawItem?.wisdomTrueName) || ctx.rawItem?.trueName || master?.name || (!isUnidentified && ctx.rawItem?.name ? ctx.rawItem.name : null) || ctx.rawItem?.name || ctx.rawItem?.identification?.coreName || 'item';
+        let actualnJa = ctx.trueNameJa || (isWisdom && ctx.rawItem?.wisdomTrueNameJa) || ctx.rawItem?.trueNameJa || master?.nameJa || master?.japaneseName || (!isUnidentified && ctx.rawItem?.nameJa ? ctx.rawItem.nameJa : null) || actualn;
 
         // 特殊アイテム真名解決
         if (category === 'FOOD' && (onum === 265 || actualn.includes('corpse')) && corpsenm >= 0) {
@@ -936,7 +944,7 @@ export class ItemNormalizer {
                 bucPrefixJa = '呪われた ';
             } else {
                 bucPrefixEn = 'uncursed ';
-                bucPrefixJa = '呪われていない ';
+                bucPrefixJa = '普通の ';
             }
         }
 
@@ -1375,7 +1383,7 @@ export class ItemNormalizer {
         return 0;
     }
 
-    static _resolveSpe(rawItem) {
+    static _resolveSpe(rawItem, parsedFromText = null) {
         if (rawItem.spe !== undefined && rawItem.spe !== null && !isNaN(rawItem.spe)) return Number(rawItem.spe);
         if (rawItem.identification?.enchantment !== undefined && rawItem.identification.enchantment !== null) {
             return Number(rawItem.identification.enchantment);
@@ -1383,10 +1391,13 @@ export class ItemNormalizer {
         if (rawItem.identification?.charges !== undefined && rawItem.identification.charges !== null) {
             return Number(rawItem.identification.charges);
         }
+        if (parsedFromText && parsedFromText.spe !== null && parsedFromText.spe !== undefined) {
+            return Number(parsedFromText.spe);
+        }
         return null;
     }
 
-    static _normalizeFlags(rawItem) {
+    static _normalizeFlags(rawItem, parsedFromText = null) {
         const rawFlags = rawItem.flags || rawItem.directObject?.flags || {};
         const dknownVal = (rawFlags.dknown !== undefined) ? rawFlags.dknown : rawItem.dknown;
         let dknown = true;
@@ -1395,7 +1406,7 @@ export class ItemNormalizer {
         }
 
         const rawBuc = String(rawItem.bucStatus || rawItem.identification?.bucStatus || '').toUpperCase();
-        const known = (rawFlags.known === true || rawFlags.known === 1 || rawItem.known === true || rawItem.known === 1);
+        const known = (rawFlags.known === true || rawFlags.known === 1 || rawItem.known === true || rawItem.known === 1 || Boolean(parsedFromText?.flags?.known));
         const bknown = (rawFlags.bknown === true || rawFlags.bknown === 1 || rawItem.bknown === true || rawBuc === 'BLESSED' || rawBuc === 'CURSED' || rawBuc === 'UNCURSED');
         const blessed = (rawFlags.blessed === true || rawFlags.blessed === 1 || rawItem.blessed === true || rawBuc === 'BLESSED');
         const cursed = (rawFlags.cursed === true || rawFlags.cursed === 1 || rawItem.cursed === true || rawBuc === 'CURSED');

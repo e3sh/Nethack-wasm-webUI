@@ -108,6 +108,7 @@ export class PaperdollModal {
       includeLetter: false,
       includeBilingualSubname: false,
       includeCalled: true,
+      includeEquip: false,
       sagesWisdomMode: isWisdom
     });
   }
@@ -677,13 +678,11 @@ export class PaperdollModal {
       : eligibleItems.map(item => {
           const isSelected = this.selectedCandidateItem && this.selectedCandidateItem.letter === item.letter;
           const isCurrentlyWorn = equippedState[activeSlot] && equippedState[activeSlot].letter === item.letter;
-          const bucMark = item.isCursed ? '(-)' : (item.isBlessed ? '(+)' : '');
-
           return `
             <div class="selector-item-row ${isSelected ? 'is-selected' : ''} ${isCurrentlyWorn ? 'is-worn' : ''}"
                  data-letter="${item.letter}">
               <span class="selector-item-letter">${item.letter}</span>
-              <span class="selector-item-name">${this._getItemDisplayName(item)} ${bucMark}</span>
+              <span class="selector-item-name">${this._getItemDisplayName(item)}</span>
               ${isCurrentlyWorn ? `<span style="font-size:10px; color:#a5b4fc;">[${isEn ? 'Equipped' : '装備中'}]</span>` : ''}
             </div>
           `;
