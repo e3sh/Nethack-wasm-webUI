@@ -390,7 +390,12 @@ export interface CanonicalItem {
   isBox?: boolean;
   isBag?: boolean;
   isTouchstone?: boolean;
+  isKey?: boolean;
+  isPickAxe?: boolean;
+  isAxe?: boolean;
   isDigWand?: boolean;
+  isFrostWand?: boolean;
+  isDigTool?: boolean;
   isGem?: boolean;
   isGold?: boolean;
   actionRecipe?: any;

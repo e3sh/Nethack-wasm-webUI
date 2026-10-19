@@ -406,6 +406,43 @@ describe('ItemNormalizer - 単一正規化アイテムスキーマ (Canonical It
             expect(canonical.displayNameJa).toBe('ルビー色の薬 [仮名: super-heal]');
             expect(canonical.displayNameJa).not.toContain('超回復');
         });
+
+        it('ツール分類フラグ保持: 鍵・ツルハシ・斧・氷の杖等のフラグが欠落せず正規化されること', () => {
+            const keyItem = ItemNormalizer.normalize({
+                letter: 'k',
+                onum: 221, // skeleton key
+                rawText: 'k - a skeleton key',
+                isKey: true
+            }, { source: 'INVENTORY' });
+            expect(keyItem.isKey).toBe(true);
+            expect(keyItem.isPickAxe).toBe(false);
+
+            const pickAxe = ItemNormalizer.normalize({
+                letter: 'p',
+                onum: 259, // pick-axe
+                rawText: 'p - a pick-axe',
+                isPickAxe: true
+            }, { source: 'INVENTORY' });
+            expect(pickAxe.isPickAxe).toBe(true);
+            expect(pickAxe.isDigTool).toBe(true);
+
+            const axe = ItemNormalizer.normalize({
+                letter: 'x',
+                onum: 17, // axe
+                rawText: 'x - an axe',
+                isAxe: true
+            }, { source: 'INVENTORY' });
+            expect(axe.isAxe).toBe(true);
+
+            const wand = ItemNormalizer.normalize({
+                letter: 'w',
+                onum: 418, // wand of cold
+                rawText: 'w - a wand of cold',
+                isFrostWand: true
+            }, { source: 'INVENTORY' });
+            expect(wand.isFrostWand).toBe(true);
+        });
     });
 });
+
 
