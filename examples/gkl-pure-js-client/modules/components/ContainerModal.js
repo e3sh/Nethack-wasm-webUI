@@ -553,8 +553,8 @@ export class ContainerModal {
 
     return items.map((item, idx) => {
       const isSelected = (this.selectedLeftIndex === idx);
-      const safety = safetyMap.get(item) || 'SAFE';
-      const validation = validationMap ? validationMap.get(item) : null;
+      const safety = (safetyMap && typeof safetyMap.get === 'function') ? (safetyMap.get(item) || 'SAFE') : 'SAFE';
+      const validation = (validationMap && typeof validationMap.get === 'function') ? validationMap.get(item) : null;
       const isInvalid = validation ? (validation.valid === false || validation.allowed === false) : false;
       const reason = validation ? validation.reason : null;
 
@@ -569,10 +569,16 @@ export class ContainerModal {
       if (isSelfContainer) rowClasses.push('self-container');
       if (isCritical) rowClasses.push('boh-danger-critical');
 
-      // 装備・コンテナ自身バッジ
+      // 装備・コンテナ自身・収納不可バッジ
       let equipBadge = '';
       if (isSelfContainer) {
         equipBadge = `<span class="badge-self-container" title="${isEn ? 'Cannot put current container into itself' : '開いているコンテナ自身です'}">🚫 ${isEn ? 'Container' : '開いている鞄'}</span>`;
+      } else if (reason === 'CANNOT_FIT') {
+        equipBadge = `<span class="badge-cannot-fit" style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.5);font-size:0.75rem;padding:2px 6px;border-radius:4px;" title="${isEn ? 'Boxes, ice boxes, and boulders cannot fit into any container' : '箱や氷箱、巨石などはコンテナに入りません'}">🚫 ${isEn ? 'Cannot Fit' : '収納不可'}</span>`;
+      } else if (reason === 'CURSED_LOADSTONE') {
+        equipBadge = `<span class="badge-cursed-loadstone" style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.5);font-size:0.75rem;padding:2px 6px;border-radius:4px;" title="${isEn ? 'Cursed loadstone cannot leave your person' : '呪われた重石は手放せません'}">🚫 ${isEn ? 'Cursed' : '呪われた石'}</span>`;
+      } else if (reason === 'QUEST_ARTIFACT') {
+        equipBadge = `<span class="badge-quest-artifact" style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.5);font-size:0.75rem;padding:2px 6px;border-radius:4px;" title="${isEn ? 'Cannot be confined in containers' : 'コンテナに収納できません'}">🚫 ${isEn ? 'Artifact' : '重要品'}</span>`;
       } else if (item.isWielded) {
         equipBadge = `<span class="badge-wielded">${isEn ? 'Wield' : '武器'}</span>`;
       } else if (item.isWorn || isEquipped) {
@@ -1125,6 +1131,24 @@ export class ContainerModal {
             : `【投入不可】開いているコンテナ自身を中に入れることはできません！`);
           return;
         }
+        if (validation.reason === 'CANNOT_FIT') {
+          alert(isEn
+            ? `[BLOCKED] Boxes, ice boxes, and boulders cannot fit into any container!`
+            : `【投入不可】箱や氷箱、巨石などはコンテナの中に入れることができません！ (NetHack仕様)`);
+          return;
+        }
+        if (validation.reason === 'CURSED_LOADSTONE') {
+          alert(isEn
+            ? `[BLOCKED] The cursed loadstone won't leave your person!`
+            : `【投入不可】呪われた重石は手放せません！`);
+          return;
+        }
+        if (validation.reason === 'QUEST_ARTIFACT') {
+          alert(isEn
+            ? `[BLOCKED] This quest artifact cannot be confined in such trappings!`
+            : `【投入不可】この重要アイテムはコンテナに収納できません！`);
+          return;
+        }
         if (validation.reason === 'EQUIPPED') {
           alert(isEn
             ? `[BLOCKED] Cannot put equipped or worn items into a container!`
@@ -1177,12 +1201,18 @@ export class ContainerModal {
     const targetCount = this._resolveItemCount(item, count);
 
     try {
-      await this._transferItem({
+      const res = await this._transferItem({
         direction: 'in',
         item: item,
         count: targetCount,
         allowSuspicious
       });
+      if (res && res.success === false && res.reason === 'REJECTED_BY_CORE') {
+        const isEn = this.currentLanguage === 'en';
+        alert(isEn
+          ? `[REJECTED] The item could not be put into the container (rejected by NetHack C core).`
+          : `【投入失敗】Cコアにより投入が拒否されました（このアイテムはコンテナに入りません）。`);
+      }
     } catch (err) {
       console.error('Error during transferIn:', err);
     } finally {

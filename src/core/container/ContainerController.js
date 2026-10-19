@@ -179,7 +179,31 @@ export class ContainerController {
             return { allowed: false, valid: false, reason: 'EQUIPPED' };
         }
 
-        // 3. BoH 防爆チェック
+        // 3. 箱・氷箱・巨石等、いかなるコンテナにも入らないアイテムのガード (NetHack src/pickup.c: in_container)
+        const itemOnum = typeof item.onum === 'number' ? item.onum : (item.directObject?.otyp ?? -1);
+        const isBoxOrBoulder = Boolean(
+            item.isBox ||
+            itemOnum === 214 || itemOnum === 215 || itemOnum === 216 || itemOnum === 475 ||
+            /\b(large box|chest|ice box|iron safe|sarcophagus|boulder)\b/i.test(item.name || item.rawText || '') ||
+            /(?:箱|宝箱|氷箱|金庫|石棺|巨石)/.test(item.nameJa || '')
+        );
+        if (isBoxOrBoulder) {
+            return { allowed: false, valid: false, reason: 'CANNOT_FIT' };
+        }
+
+        // 4. 呪われた重石ガード
+        const isLoadstone = itemOnum === 466 || /\bloadstone\b/i.test(item.name || item.rawText || '') || (item.nameJa && item.nameJa.includes('重石'));
+        const isCursed = item.bucStatus === 'CURSED' || item.flags?.cursed;
+        if (isLoadstone && isCursed) {
+            return { allowed: false, valid: false, reason: 'CURSED_LOADSTONE' };
+        }
+
+        // 5. クエスト最重要アイテムガード
+        if ([439, 260, 261, 373].includes(itemOnum) || /\b(amulet of yendor|candelabrum of invocation|bell of opening|spellbook of the dead)\b/i.test(item.name || item.rawText || '')) {
+            return { allowed: false, valid: false, reason: 'QUEST_ARTIFACT' };
+        }
+
+        // 6. BoH 防爆チェック
         if (this.currentContainer.isBagOfHolding) {
             const assessment = this.safetyGuard.assessItem(item, this.currentContainer);
             if (assessment.level === 'CRITICAL') {
@@ -557,10 +581,18 @@ export class ContainerController {
         if (direction === 'in') {
             const validation = this.validatePutIn(item);
             if (!validation.allowed) {
-                return { success: false, error: new Error(`Blocked by safety guard: ${validation.reason}`) };
+                return {
+                    success: false,
+                    reason: validation.reason,
+                    error: new Error(`Blocked by safety guard: ${validation.reason}`)
+                };
             }
             if (validation.warning === 'BOH_SUSPICIOUS' && !allowSuspicious) {
-                return { success: false, error: new Error('Blocked by safety guard: BOH_SUSPICIOUS') };
+                return {
+                    success: false,
+                    reason: 'BOH_SUSPICIOUS',
+                    error: new Error('Blocked by safety guard: BOH_SUSPICIOUS')
+                };
             }
         }
 
@@ -678,6 +710,9 @@ export class ContainerController {
                 defaultAction: '\x1b'
             };
 
+            // 投入前のインベントリ所持数を記録
+            const beforeCount = (direction === 'in') ? this._getItemInventoryCount(item) : 0;
+
             const result = await controller.querySequenceSilent(transferRecipe);
 
             this.isProcessing = false;
@@ -687,17 +722,36 @@ export class ContainerController {
                 return { success: false, error: result.error };
             }
 
-            // 🌟 C コアが処理を完了して turn_ready に着地した時点で成功確定！
-            // 裏マクロ syncContents は一切行わず、ローカルモデルを1個更新
-            if (direction === 'in') {
-                this.contentsManager.onItemPutIn({ ...item, count: count });
-            } else {
-                this.contentsManager.onItemTakenOut({ ...item, count: count });
-            }
-
             // 所持品インベントリを更新
             if (this.core && this.core.gkl && typeof this.core.gkl.syncInventorySilent === 'function') {
                 await this.core.gkl.syncInventorySilent({ force: true });
+            }
+
+            // 🌟 C コアが処理を完了した後の SSOT 検証:
+            if (direction === 'in') {
+                // 1. Cコア出力メッセージによる投入拒否判定 (NetHack src/pickup.c: in_container)
+                const isRejectedByMessage = Array.isArray(result.buffer) && result.buffer.some(ev => {
+                    const text = ev.payload?.text || ev.payload?.message || ev.text || ev.message || '';
+                    return /(?:cannot fit .* into|interesting topological exercise|cannot (?:stash|refrigerate) .* wearing|stone.* won't leave your person|cannot be confined in such trappings|must be kidding)/i.test(text);
+                });
+
+                if (isRejectedByMessage) {
+                    console.warn('[ContainerController] C core rejected item deposit via message:', item.name || item.rawText);
+                    if (this.core && typeof this.core.emit === 'function') {
+                        this.core.emit('renderRequired', { reason: 'containerTransferRejected' });
+                    }
+                    this._emitSessionUpdate();
+                    return {
+                        success: false,
+                        reason: 'REJECTED_BY_CORE',
+                        error: 'C core rejected item deposit (item cannot fit or cannot be contained).'
+                    };
+                }
+
+                const finalDepositedCount = (count > 0) ? count : (item.quan || 1);
+                this.contentsManager.onItemPutIn({ ...item, count: finalDepositedCount, quan: finalDepositedCount });
+            } else {
+                this.contentsManager.onItemTakenOut({ ...item, count: count, quan: count });
             }
 
             // 🎯 画面描画とダイアログの表示ズレ解消:
@@ -714,6 +768,47 @@ export class ContainerController {
             this.isProcessing = false;
             return { success: false, error: e };
         }
+    }
+
+    /**
+     * 所持品インベントリから特定アイテムの現在の所持数を取得
+     * @private
+     * @param {Object} item
+     * @returns {number}
+     */
+    _getItemInventoryCount(item) {
+        if (!item) return 0;
+        const isGold = Boolean(item.isGold || item.category === 'GOLD' || item.letter === '$' || item.onum === 438);
+        if (isGold) {
+            const statusGold = this.core?.gkl?.statusAccessor?.getStatus?.()?.gold;
+            if (typeof statusGold === 'number') return statusGold;
+            const coreGold = this.core?.playerGold;
+            if (typeof coreGold === 'number') return coreGold;
+        }
+
+        const invMgr = (this.core?.gkl && this.core.gkl.inventoryStateManager) || this.core?.inventoryStateManager;
+        const items = invMgr ? (typeof invMgr.getItems === 'function' ? invMgr.getItems() : invMgr.items) : [];
+        if (!Array.isArray(items) || items.length === 0) return 0;
+
+        // 1. letter による照合
+        if (item.letter && /^[a-zA-Z]$/.test(item.letter)) {
+            const matched = items.find(i => i.letter === item.letter);
+            if (matched) {
+                return (typeof matched.quan === 'number' && matched.quan > 0) ? matched.quan : (matched.count || 1);
+            }
+            return 0;
+        }
+
+        // 2. identifier / rawObjPtr による照合
+        const itemPtr = item.identifier || item.rawObjPtr || item.ptr;
+        if (itemPtr) {
+            const matched = items.find(i => (i.identifier === itemPtr || i.rawObjPtr === itemPtr || i.ptr === itemPtr));
+            if (matched) {
+                return (typeof matched.quan === 'number' && matched.quan > 0) ? matched.quan : (matched.count || 1);
+            }
+        }
+
+        return 0;
     }
 
     /**

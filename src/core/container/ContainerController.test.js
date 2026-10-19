@@ -249,6 +249,28 @@ describe('ContainerController (IRC & Signal-Driven)', () => {
             expect(validation.warning).toBe('BOH_SUSPICIOUS');
         });
 
+        it('箱 (large box, chest) や氷箱 (ice box)、巨石 (boulder) の投入をブロックすること (CANNOT_FIT)', () => {
+            const largeBox = { letter: 'c', identifier: 501, onum: 214, isBox: true, rawText: 'a large box' };
+            const v1 = controller.validatePutIn(largeBox);
+            expect(v1.allowed).toBe(false);
+            expect(v1.reason).toBe('CANNOT_FIT');
+
+            const chest = { letter: 'd', identifier: 502, onum: 215, rawText: 'a chest' };
+            const v2 = controller.validatePutIn(chest);
+            expect(v2.allowed).toBe(false);
+            expect(v2.reason).toBe('CANNOT_FIT');
+
+            const iceBox = { letter: 'i', identifier: 503, onum: 216, rawText: 'an ice box' };
+            const v3 = controller.validatePutIn(iceBox);
+            expect(v3.allowed).toBe(false);
+            expect(v3.reason).toBe('CANNOT_FIT');
+
+            const boulder = { letter: '0', identifier: 504, onum: 475, rawText: 'a boulder' };
+            const v4 = controller.validatePutIn(boulder);
+            expect(v4.allowed).toBe(false);
+            expect(v4.reason).toBe('CANNOT_FIT');
+        });
+
         it('通常アイテムの投入を許可すること', () => {
             const food = { letter: 'a', identifier: 101, rawText: 'a +0 dagger' };
             const validation = controller.validatePutIn(food);
@@ -317,6 +339,47 @@ describe('ContainerController (IRC & Signal-Driven)', () => {
             expect(contents.length).toBe(1);
             expect(contents[0].identifier).toBe(777);
             expect(contents[0].count).toBe(2);
+        });
+
+        it('Cコアで投入が拒否された場合 (拒否メッセージ受信時): contentsManager は更新されず REJECTED_BY_CORE を返すこと', async () => {
+            const normalItem = { letter: 'f', identifier: 555, rawText: 'a heavy object', quan: 1 };
+
+            mockInteractive.querySequenceSilent = vi.fn(async () => {
+                // Cコア側で "You cannot fit the heavy object into the sack." となり
+                // インベントリから削除されずに turn_ready に着地した状態
+                return {
+                    success: true,
+                    buffer: [
+                        { type: 'message', payload: { text: 'You cannot fit that into the sack.' } }
+                    ]
+                };
+            });
+
+            const result = await controller.transferItem({
+                direction: 'in',
+                item: normalItem,
+                count: 1
+            });
+
+            expect(result.success).toBe(false);
+            expect(result.reason).toBe('REJECTED_BY_CORE');
+            // コンテナ中身にアイテムが追加されていないこと (SSOT)
+            expect(contentsManager.getItems().length).toBe(0);
+        });
+
+        it('箱 (large box) などの収納不可アイテムの投入試行時: IRC を起動せずに CANNOT_FIT で即座に拒否されること', async () => {
+            const boxItem = { letter: 'c', identifier: 556, rawText: 'a large box', onum: 214, isBox: true };
+
+            const result = await controller.transferItem({
+                direction: 'in',
+                item: boxItem,
+                count: 1
+            });
+
+            expect(result.success).toBe(false);
+            expect(result.reason).toBe('CANNOT_FIT');
+            expect(mockInteractive.querySequenceSilent).not.toHaveBeenCalled();
+            expect(contentsManager.getItems().length).toBe(0);
         });
 
         it('全量投入時 (count: -1 または未指定): select_menu に count: -1 が渡されること', async () => {

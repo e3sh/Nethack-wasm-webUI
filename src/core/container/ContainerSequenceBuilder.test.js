@@ -65,6 +65,23 @@ describe('ContainerSequenceBuilder', () => {
             const res2 = builder.validatePutInItems(container, items, { allowSuspicious: true });
             expect(res2.validItems.length).toBe(2);
         });
+
+        it('箱 (large box, chest) や氷箱 (ice box)、巨石 (boulder) を CANNOT_FIT として除外すること', () => {
+            const container = { letter: 'e', name: 'sack' };
+            const items = [
+                { letter: 'a', name: 'large box', onum: 214, isBox: true },
+                { letter: 'b', name: 'chest', onum: 215, isBox: true },
+                { letter: 'c', name: 'ice box', onum: 216 },
+                { letter: 'd', name: 'boulder', onum: 475 },
+                { letter: 'f', name: 'food ration', onum: 150 },
+            ];
+
+            const result = builder.validatePutInItems(container, items);
+            expect(result.validItems.length).toBe(1);
+            expect(result.validItems[0].letter).toBe('f');
+            expect(result.excludedItems.length).toBe(4);
+            expect(result.excludedItems.every(e => e.reason === 'CANNOT_FIT')).toBe(true);
+        });
     });
 
     describe('buildPutInSequence', () => {

@@ -600,5 +600,46 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
 
       expect(renderSpy).toHaveBeenCalled();
     });
+
+    it('所持品に箱 (large box / chest) がある場合、UI上で収納不可バッジが付与され投入がブロックされること', async () => {
+      const boxItem = {
+        letter: 'b',
+        name: 'large box',
+        rawText: 'a large box',
+        onum: 214,
+        isBox: true,
+        identifier: 555
+      };
+
+      mockCore.gkl.inventoryStateManager.getItems = vi.fn(() => [boxItem]);
+
+      // モックコントローラの validatePutIn で CANNOT_FIT を返すよう設定
+      mockCore.containerController.validatePutIn = vi.fn((item) => {
+        if (item.isBox || item.onum === 214) {
+          return { allowed: false, valid: false, reason: 'CANNOT_FIT' };
+        }
+        return { allowed: true, valid: true };
+      });
+
+      modal.show({
+        containerName: 'the sack',
+        contents: [],
+      });
+
+      // HTML文字列生成の検証
+      const validationMap = new Map([[boxItem, { allowed: false, valid: false, reason: 'CANNOT_FIT' }]]);
+      const html = modal._renderPlayerItemsHtml([boxItem], new Map(), validationMap, false);
+      expect(html).toContain('item-disabled');
+      expect(html).toContain('draggable="false"');
+      expect(html).toContain('badge-cannot-fit');
+      expect(html).toContain('収納不可');
+
+      // executePutIn での投入試行
+      modal.executePutIn(boxItem);
+
+      // アラートが表示され、transferItem は呼び出されないこと
+      expect(globalThis.alert).toHaveBeenCalledWith(expect.stringContaining('箱や氷箱、巨石などはコンテナの中に入れることができません'));
+      expect(mockCore.containerController.transferItem).not.toHaveBeenCalled();
+    });
   });
 });

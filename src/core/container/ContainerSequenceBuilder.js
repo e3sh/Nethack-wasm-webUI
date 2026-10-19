@@ -65,7 +65,33 @@ export class ContainerSequenceBuilder {
                 continue;
             }
 
-            // 4. Bag of Holding への投入時の防爆セーフティチェック
+            // 4. 箱・氷箱・巨石等、いかなるコンテナにも物理的に入らないアイテムではないか (NetHack src/pickup.c: in_container)
+            const isBoxOrBoulder = Boolean(
+                item.isBox ||
+                itemOnum === 214 || itemOnum === 215 || itemOnum === 216 || itemOnum === 475 ||
+                /\b(large box|chest|ice box|iron safe|sarcophagus|boulder)\b/i.test(item.name || item.rawText || '') ||
+                /(?:箱|宝箱|氷箱|金庫|石棺|巨石)/.test(item.nameJa || '')
+            );
+            if (isBoxOrBoulder) {
+                excludedItems.push({ item, reason: 'CANNOT_FIT' });
+                continue;
+            }
+
+            // 5. 呪われた重石 (Cursed Loadstone Guard)
+            const isLoadstone = itemOnum === 466 || /\bloadstone\b/i.test(item.name || item.rawText || '') || (item.nameJa && item.nameJa.includes('重石'));
+            const isCursed = item.bucStatus === 'CURSED' || item.flags?.cursed;
+            if (isLoadstone && isCursed) {
+                excludedItems.push({ item, reason: 'CURSED_LOADSTONE' });
+                continue;
+            }
+
+            // 6. クエスト最重要アイテム (Amulet of Yendor, Bell, Book, Candelabrum)
+            if ([439, 260, 261, 373].includes(itemOnum) || /\b(amulet of yendor|candelabrum of invocation|bell of opening|spellbook of the dead)\b/i.test(item.name || item.rawText || '')) {
+                excludedItems.push({ item, reason: 'QUEST_ARTIFACT' });
+                continue;
+            }
+
+            // 7. Bag of Holding への投入時の防爆セーフティチェック
             if (isBoh) {
                 const normalizedItem = item.rawText ? item : { ...item, rawText: item.name || '' };
                 const assessment = this.safetyGuard.assessItem(normalizedItem, container);
