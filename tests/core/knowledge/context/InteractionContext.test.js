@@ -122,24 +122,24 @@ describe('InteractionContext', () => {
     describe('能力評価 (assessCapabilities)', () => {
         it('鍵や開錠具を正しく検知できること', () => {
             mockGkl.inventoryStateManager.getKeyOrLockPick = () => ({
-                invlet: 'b',
+                letter: 'b',
                 name: 'skeleton key'
             });
 
             const caps = ctx.assessCapabilities();
             expect(caps.hasKey).toBe(true);
-            expect(caps.keyItem.invlet).toBe('b');
+            expect(caps.keyItem.letter).toBe('b');
         });
 
         it('強制こじ開け道具 (ツルハシ等) を正しく検知できること', () => {
             mockGkl.inventoryStateManager.getPickAxe = () => ({
-                invlet: 'p',
+                letter: 'p',
                 name: 'pick-axe'
             });
 
             const caps = ctx.assessCapabilities();
             expect(caps.hasForceTool).toBe(true);
-            expect(caps.forceToolItem.invlet).toBe('p');
+            expect(caps.forceToolItem.letter).toBe('p');
         });
     });
 

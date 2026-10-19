@@ -157,7 +157,7 @@ export class ScenarioRecorder {
             'i': inventoryItems.map(item => {
                 const text = item.rawText || item.name || 'item';
                 if (/^[a-zA-Z]\s*[-–]/.test(text)) return text;
-                return `${item.letter || item.invlet || 'a'} - ${text}`;
+                return `${item.letter || 'a'} - ${text}`;
             })
         };
 

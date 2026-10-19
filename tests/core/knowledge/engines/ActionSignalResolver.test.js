@@ -29,7 +29,7 @@ describe('ActionSignalResolver', () => {
     describe('施錠された箱 (CONTAINER, isLocked=true) のアクション導出', () => {
         it('合鍵を所持している場合、信頼度 1.0 で合鍵解錠アクションと ActionRecipe を生成すること', () => {
             mockGkl.inventoryStateManager.getKeyOrLockPick = () => ({
-                invlet: 'k',
+                letter: 'k',
                 name: 'skeleton key'
             });
 
@@ -65,7 +65,7 @@ describe('ActionSignalResolver', () => {
 
         it('合鍵がなく、ツルハシ等のこじ開け道具がある場合、信頼度 0.6 の FORCE アクションと破損警告を生成すること', () => {
             mockGkl.inventoryStateManager.getPickAxe = () => ({
-                invlet: 'p',
+                letter: 'p',
                 name: 'pick-axe'
             });
 
@@ -123,7 +123,7 @@ describe('ActionSignalResolver', () => {
     describe('施錠された扉 (DOOR, isLocked=true)', () => {
         it('合鍵所持時に合鍵解錠アクションと ActionRecipe を生成すること', () => {
             mockGkl.inventoryStateManager.getKeyOrLockPick = () => ({
-                invlet: 'k',
+                letter: 'k',
                 name: 'key'
             });
 
@@ -147,9 +147,9 @@ describe('ActionSignalResolver', () => {
     describe('フォーカスなし時の所持品逆引き推測 (仕様 3.4)', () => {
         it('非戦闘中の apply プロンプトで探索道具を優先サジェストすること', () => {
             mockGkl.inventoryStateManager.items = [
-                { invlet: 'a', name: 'magic lamp' },
-                { invlet: 'b', name: 'skeleton key' },
-                { invlet: 'c', name: 'food ration' }
+                { letter: 'a', name: 'magic lamp' },
+                { letter: 'b', name: 'skeleton key' },
+                { letter: 'c', name: 'food ration' }
             ];
 
             ctx.setImmediatePrompt({
@@ -167,9 +167,9 @@ describe('ActionSignalResolver', () => {
 
         it('戦闘中の apply プロンプトで緊急アイテム (ポーション/ワンド) を優先サジェストすること', () => {
             mockGkl.inventoryStateManager.items = [
-                { invlet: 'a', name: 'skeleton key' },
-                { invlet: 'w', name: 'wand of fire' },
-                { invlet: 'p', name: 'potion of extra healing' }
+                { letter: 'a', name: 'skeleton key' },
+                { letter: 'w', name: 'wand of fire' },
+                { letter: 'p', name: 'potion of extra healing' }
             ];
 
             ctx.combat.inCombat = true;
@@ -192,7 +192,7 @@ describe('ActionSignalResolver', () => {
         it('英語設定 (en) の場合に英語のラベルと警告を生成すること', () => {
             resolver.setLanguage('en');
             mockGkl.inventoryStateManager.getKeyOrLockPick = () => ({
-                invlet: 'k',
+                letter: 'k',
                 name: 'skeleton key'
             });
 

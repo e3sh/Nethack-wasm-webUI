@@ -22,7 +22,7 @@ export const InventoryGrid: Component = () => {
 
   const getSlotBadge = (item: any) => {
     const badges = slotBadges();
-    return badges ? (badges[item.letter] || badges[item.invlet]) : null;
+    return (badges && item.letter) ? badges[item.letter] : null;
   };
 
   const getItemSlotClasses = (item: any) => {

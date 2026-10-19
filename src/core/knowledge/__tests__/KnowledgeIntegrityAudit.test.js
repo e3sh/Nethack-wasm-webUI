@@ -220,7 +220,7 @@ describe('Phase 3.5: ナレッジデータ構造＆スキーマ正規化 静的�
                     onum: redDSM.onum,
                     rawText: 'a - a +0 red dragon scale mail (being worn)',
                     isWorn: true,
-                    isArmor: true,
+                    category: 'ARMOR',
                     knowledge: OBJECT_KNOWLEDGE_MAP.get(redDSM.onum)
                 },
                 {
@@ -444,7 +444,6 @@ describe('Phase 3.5: ナレッジデータ構造＆スキーマ正規化 静的�
             const invMgr = new InventoryStateManager();
             // 名前やrawTextに 'gloves' や '手袋' の文字列が一切含まれない匿名モック
             invMgr.items = [{
-                invlet: 'g',
                 letter: 'g',
                 name: 'unidentified cloth object',
                 rawText: 'g - a mysterious item',
@@ -474,7 +473,6 @@ describe('Phase 3.5: ナレッジデータ構造＆スキーマ正規化 静的�
             const invMgr = new InventoryStateManager();
             // 名前やrawTextに 'blindfold' や 'towel' が一切含まれない匿名モック
             invMgr.items = [{
-                invlet: 'b',
                 letter: 'b',
                 name: 'dark strip',
                 rawText: 'b - a dark strip of cloth',
@@ -502,7 +500,6 @@ describe('Phase 3.5: ナレッジデータ構造＆スキーマ正規化 静的�
             const invMgr = new InventoryStateManager();
             // 文字列に 'water walking' や 'levitation' が一切含まれない匿名ギア
             invMgr.items = [{
-                invlet: 'w',
                 letter: 'w',
                 name: 'custom boots',
                 rawText: 'w - a pair of enchanted footwear',

@@ -181,7 +181,7 @@
                 <button
                   type="button"
                   class="spell-tag-btn"
-                  on:click={() => handleCastSpell(spell.letter || spell.invlet)}
+                  on:click={() => handleCastSpell(spell.letter)}
                   title={isEn ? `Cast ${spell.name} [${spell.letter || '?'}] (Fail: ${spell.failRate ?? spell.retrying ?? 0}%)` : `詠唱: ${spell.nameJa || spell.name} [${spell.letter || '?'}] (失敗率: ${spell.failRate ?? 0}%)`}
                 >
                   ⚡ {isEn ? spell.name : (spell.nameJa || spell.name)} [{spell.letter || '?'}]

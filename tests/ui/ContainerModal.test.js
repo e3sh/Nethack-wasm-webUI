@@ -519,7 +519,6 @@ describe('ContainerModal (Visual Container UI Two-Pane Component)', () => {
       const goldItem = renderedPlayerGold || {
         _canonical: true,
         letter: '$',
-        invlet: '$',
         isGold: true,
         category: 'GOLD',
         rawText: '150枚の金貨',

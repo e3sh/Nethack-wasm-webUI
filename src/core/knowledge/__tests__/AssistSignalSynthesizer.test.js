@@ -511,7 +511,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
                 status: { hp: { current: 3, max: 30, percent: 0.10 } },
                 inventory: [
                     {
-                        invlet: 'x',
+                        letter: 'x',
                         name: 'milky potion',
                         category: 'POTION',
                         effects: { healHp: true, healPower: 'FULL' }
@@ -530,7 +530,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
                 status: { conditions: ['Slimed'], hp: { current: 30, max: 30, percent: 1.0 } },
                 inventory: [
                     {
-                        invlet: 'z',
+                        letter: 'z',
                         name: 'white wand',
                         category: 'WAND',
                         effects: { createsFire: true }
@@ -559,7 +559,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
                 },
                 inventory: [
                     {
-                        invlet: 'b',
+                        letter: 'b',
                         name: 'cloth strip',
                         isWorn: false,
                         protectsAgainst: ['GAZE']
@@ -609,7 +609,7 @@ describe('AssistSignalSynthesizer - Action Stance & AssistSignal Engine', () => 
                 },
                 inventory: [
                     {
-                        invlet: 's',
+                        letter: 's',
                         name: 'shining blade',
                         category: 'WEAPON',
                         isSilver: true,

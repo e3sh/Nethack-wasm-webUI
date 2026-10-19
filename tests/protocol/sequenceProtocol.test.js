@@ -56,7 +56,7 @@ describe('Sequence Protocol Validation Suite (第1防壁: 静的プロトコル�
         it('緊急治癒 (e f) シーケンスが規約に適合していること', () => {
             const context = {
                 status: { conditions: ['Stone'], hp: { current: 20, max: 20, percent: 1.0 } },
-                inventory: [{ invlet: 'f', name: 'lizard corpse', category: 'FOOD' }]
+                inventory: [{ letter: 'f', name: 'lizard corpse', category: 'FOOD' }]
             };
 
             const state = AssistSignalSynthesizer.synthesize(context);
@@ -72,7 +72,7 @@ describe('Sequence Protocol Validation Suite (第1防壁: 静的プロトコル�
         it('杖による自己治療 (z b .) シーケンスが規約に適合していること', () => {
             const context = {
                 status: { conditions: ['Slimed'], hp: { current: 30, max: 30, percent: 1.0 } },
-                inventory: [{ invlet: 'b', name: 'wand of fire', category: 'WAND' }]
+                inventory: [{ letter: 'b', name: 'wand of fire', category: 'WAND' }]
             };
 
             const state = AssistSignalSynthesizer.synthesize(context);

@@ -32,7 +32,7 @@ export const InventoryGrid: React.FC = () => {
   }, [gklSituation]);
 
   const getSlotBadge = useCallback((item: any) => {
-    return slotBadges ? (slotBadges[item.letter] || slotBadges[item.invlet]) : null;
+    return (slotBadges && item.letter) ? slotBadges[item.letter] : null;
   }, [slotBadges]);
 
   const getItemSlotClasses = useCallback((item: any) => {

@@ -124,7 +124,7 @@ export class InventoryView {
           if (item.isWorn) equipClasses.push('is-worn');
 
           // Level 1: Nano Badge & 金枠ハイライト判定
-          const slotBadge = slotBadges ? (slotBadges[item.letter] || slotBadges[item.invlet]) : null;
+          const slotBadge = (slotBadges && item.letter) ? slotBadges[item.letter] : null;
           let nanoBadgeHtml = '';
           if (slotBadge) {
             const badgeType = slotBadge.type || 'info';

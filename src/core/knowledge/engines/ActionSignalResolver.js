@@ -99,7 +99,7 @@ export class ActionSignalResolver {
 
         if (isLocked) {
             if (caps.hasKey && caps.keyItem) {
-                const keySlot = caps.keyItem.letter || caps.keyItem.invlet || caps.keyItem.char || 'b';
+                const keySlot = caps.keyItem.letter || caps.keyItem.char || 'b';
                 recommendedActions.push({
                     label: isJa ? '鍵で解錠する' : 'Unlock with key',
                     actionKey: 'a',
@@ -117,7 +117,7 @@ export class ActionSignalResolver {
                     ]
                 };
             } else if (caps.hasForceTool && caps.forceToolItem) {
-                const toolSlot = caps.forceToolItem.letter || caps.forceToolItem.invlet || 'b';
+                const toolSlot = caps.forceToolItem.letter || 'b';
                 recommendedActions.push({
                     label: isJa ? '無理やりこじ開ける' : 'Force open',
                     actionKey: 'a',
@@ -209,7 +209,7 @@ export class ActionSignalResolver {
 
         if (isLocked) {
             if (caps.hasKey && caps.keyItem) {
-                const keySlot = caps.keyItem.letter || caps.keyItem.invlet || 'b';
+                const keySlot = caps.keyItem.letter || 'b';
                 recommendedActions.push({
                     label: isJa ? '合鍵で解錠する' : 'Unlock door with key',
                     actionKey: 'a',
@@ -384,7 +384,7 @@ export class ActionSignalResolver {
                     return name.includes('wand') || name.includes('potion') || name.includes('horn');
                 });
                 for (const it of emergencyItems.slice(0, 3)) {
-                    const slot = it.letter || it.invlet || '';
+                    const slot = it.letter || '';
                     recommendedActions.push({
                         label: isJa ? `使用: ${it.name || it.rawText}` : `Use: ${it.name || it.rawText}`,
                         actionKey: slot,
@@ -400,7 +400,7 @@ export class ActionSignalResolver {
                     return name.includes('key') || name.includes('pick') || name.includes('lamp') || name.includes('stethoscope');
                 });
                 for (const it of utilityItems.slice(0, 3)) {
-                    const slot = it.letter || it.invlet || '';
+                    const slot = it.letter || '';
                     recommendedActions.push({
                         label: isJa ? `使用: ${it.name || it.rawText}` : `Use: ${it.name || it.rawText}`,
                         actionKey: slot,

@@ -12,7 +12,7 @@
   $: slotBadges = $gklSituationStore?.assistState?.slotBadges || {};
 
   const getSlotBadge = (item: any) => {
-    return slotBadges ? (slotBadges[item.letter] || slotBadges[item.invlet]) : null;
+    return (slotBadges && item.letter) ? slotBadges[item.letter] : null;
   };
 
   const getItemSlotClasses = (item: any) => {

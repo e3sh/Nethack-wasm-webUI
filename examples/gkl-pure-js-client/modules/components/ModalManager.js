@@ -702,7 +702,7 @@ export class ModalManager {
     if (core && core.currentPrompt) {
       core.respond(coreNameToSend);
     } else if (core) {
-      const letter = targetData.letter || targetData.invlet || targetData.item?.letter || targetData.item?.invlet;
+      const letter = targetData.letter || targetData.item?.letter || null;
       if (letter) {
         const seq = ['C', 'o', letter, coreNameToSend];
         if (typeof core.executeSequence === 'function') {
@@ -972,7 +972,7 @@ export class ModalManager {
       if (core && core.currentPrompt) {
         core.respond(coreNameToSend);
       } else if (core) {
-        const letter = targetData.letter || targetData.invlet || targetData.item?.letter || targetData.item?.invlet;
+        const letter = targetData.letter || targetData.item?.letter || null;
         if (letter) {
           const seq = ['C', 'i', letter, coreNameToSend];
           if (typeof core.executeSequence === 'function') {

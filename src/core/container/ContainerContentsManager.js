@@ -109,7 +109,7 @@ export class ContainerContentsManager {
         this.containerName = info.name || info.rawText || null;
         this.containerOnum = typeof info.onum === 'number' ? info.onum : -1;
         this.containerType = detectContainerType(this.containerName);
-        this.containerLetter = info.letter || info.targetLetter || info.invlet || null;
+        this.containerLetter = info.letter || info.targetLetter || null;
         this.items = [];
         this.isKnown = false;
         this.isEmpty = false;
@@ -521,7 +521,7 @@ export class ContainerContentsManager {
     onItemPutIn(item) {
         if (!item) return;
         const targetName = (item.name || item.rawText || '').trim();
-        const targetLetter = item.letter || item.invlet || '';
+        const targetLetter = item.letter || '';
         const targetIdentifier = item.identifier || 0;
         const isGoldItem = item.isGold || targetLetter === '$' || /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(targetName);
 
@@ -594,7 +594,7 @@ export class ContainerContentsManager {
     onItemTakenOut(item) {
         if (!item) return;
         const targetName = (item.name || item.rawText || '').trim();
-        const targetLetter = item.letter || item.invlet || '';
+        const targetLetter = item.letter || '';
         const isGoldItem = item.isGold || targetLetter === '$' || /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(targetName);
 
         // identifier または letter または rawText または name で一致するものを探索

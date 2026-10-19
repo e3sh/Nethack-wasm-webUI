@@ -165,7 +165,7 @@ export class ContainerController {
         }
 
         // 1. 自己投入ガード
-        const itemLetter = item.letter || item.invlet;
+        const itemLetter = item.letter || null;
         const containerLetter = this.currentContainer.letter;
         if (itemLetter && containerLetter && itemLetter === containerLetter) {
             return { allowed: false, valid: false, reason: 'SELF_CONTAINER' };
@@ -272,7 +272,7 @@ export class ContainerController {
             if (!isFloor) {
                 if (options.item) {
                     matchedInventoryItem = options.item;
-                    letter = options.item.letter || options.item.invlet || letter;
+                    letter = options.item.letter || letter;
                 } else if (this.core) {
                     const invMgr = (this.core.gkl && this.core.gkl.inventoryStateManager) || this.core.inventoryStateManager;
                     const items = invMgr ? (typeof invMgr.getItems === 'function' ? invMgr.getItems() : invMgr.items) : [];
@@ -281,7 +281,7 @@ export class ContainerController {
                         let candidateItem = null;
                         if (!letter && this.core.lastUsedItemLetter) {
                             const lastLetter = this.core.lastUsedItemLetter;
-                            const found = items.find(it => (it.letter === lastLetter || it.invlet === lastLetter));
+                            const found = items.find(it => it.letter === lastLetter);
                             if (found) {
                                 const raw = (found.rawText || found.name || '').toLowerCase();
                                 const name = (found.name || '').toLowerCase();
@@ -305,7 +305,7 @@ export class ContainerController {
                         if (candidateItem) {
                             matchedInventoryItem = candidateItem;
                         } else if (letter) {
-                            matchedInventoryItem = items.find(it => (it.letter === letter || it.invlet === letter));
+                            matchedInventoryItem = items.find(it => it.letter === letter);
                         }
 
                         // 階層1: GlyphID / onum による種別フラグを第一級キーとする探索
@@ -399,7 +399,7 @@ export class ContainerController {
                         }
 
                         if (matchedInventoryItem) {
-                            letter = matchedInventoryItem.letter || matchedInventoryItem.invlet || letter;
+                            letter = matchedInventoryItem.letter || letter;
                         }
                     }
                 }
@@ -613,7 +613,7 @@ export class ContainerController {
                             const menuItems = ctx.menuItems || [];
 
                             // 金貨アイテム判定
-                            const isGoldTarget = item.isGold || item.letter === '$' || item.invlet === '$' ||
+                            const isGoldTarget = item.isGold || item.letter === '$' || item.category === 'GOLD' ||
                                                  /(?:gold\s+pieces?|pieces?\s+of\s+gold|zorkmids?|枚の金貨|^金貨$)/i.test(item.name || item.str || item.rawText || '');
 
                             // identifier の厳密同定
@@ -639,7 +639,7 @@ export class ContainerController {
                                 }
 
                                 if (!targetId) {
-                                    const targetLetter = item.letter || item.invlet || item.accelerator;
+                                    const targetLetter = item.letter || item.accelerator;
                                     const targetName = (item.name || item.str || item.rawText || '').toLowerCase().trim();
 
                                     const letterMatch = menuItems.find(mi => {

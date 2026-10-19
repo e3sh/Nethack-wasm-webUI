@@ -84,10 +84,8 @@ describe('ItemNormalizer - 単一正規化アイテムスキーマ (Canonical It
     });
 
     describe('3. インベントリレターの正規化 (normalizeLetter)', () => {
-        it('letter, invlet, directObject.invlet, charStr 等の様々な階層から解決すること', () => {
+        it('letter, charStr 等の様々な階層から解決すること', () => {
             expect(ItemNormalizer.normalizeLetter({ letter: 'a' })).toBe('a');
-            expect(ItemNormalizer.normalizeLetter({ invlet: 'b' })).toBe('b');
-            expect(ItemNormalizer.normalizeLetter({ directObject: { invlet: 'c' } })).toBe('c');
             expect(ItemNormalizer.normalizeLetter({ charStr: 'd' })).toBe('d');
             expect(ItemNormalizer.normalizeLetter({ selector: 'e' })).toBe('e');
             expect(ItemNormalizer.normalizeLetter('f')).toBe('f');

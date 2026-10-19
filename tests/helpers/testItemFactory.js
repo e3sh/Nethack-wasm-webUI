@@ -12,11 +12,11 @@ import { ITEM_KNOWLEDGE_BASE } from "../../src/core/knowledge/data/ITEM_KNOWLEDG
 /**
  * テスト用アイテムオブジェクトを生成
  * @param {string|number} nameOrOnum - アイテム名 (英語) または onum 番号
- * @param {string} [invlet='a'] - インベントリレター
+ * @param {string} [letter='a'] - インベントリレター
  * @param {Object} [overrides={}] - プロパティのオーバーライド
  * @returns {Object} 完全なナレッジプロパティを持つアイテムオブジェクト
  */
-export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
+export function createTestItem(nameOrOnum, letter = 'a', overrides = {}) {
     let onum = -1;
     let name = typeof nameOrOnum === 'string' ? nameOrOnum : 'unknown';
     let knowledge = null;
@@ -108,7 +108,7 @@ export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
     }
 
     return {
-        letter: invlet,
+        letter,
         onum,
         name,
         category,
@@ -120,7 +120,7 @@ export function createTestItem(nameOrOnum, invlet = 'a', overrides = {}) {
         isSilver: overrides.isSilver !== undefined ? overrides.isSilver : (knowledge?.isSilver || knowledge?.material === 'silver' || false),
         isMetallic: overrides.isMetallic !== undefined ? overrides.isMetallic : (knowledge?.isMetallic || false),
         knowledge: knowledge ? { ...knowledge } : null,
-        rawText: `${invlet} - an uncursed ${name}`,
+        rawText: `${letter} - an uncursed ${name}`,
         isIdentified: true,
         count: 1,
         ...overrides

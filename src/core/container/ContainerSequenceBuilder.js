@@ -33,13 +33,13 @@ export class ContainerSequenceBuilder {
         const excludedItems = [];
 
         const isBoh = !!(container && (container.isBagOfHolding || /bag of holding/i.test(container.name || '')));
-        const containerLetter = container ? (container.letter || container.invlet) : null;
+        const containerLetter = container ? (container.letter || null) : null;
         const containerOnum = container ? (typeof container.onum === 'number' ? container.onum : -1) : -1;
 
         for (const item of itemList) {
             if (!item) continue;
 
-            const letter = item.letter || item.invlet;
+            const letter = item.letter || null;
             const itemOnum = typeof item.onum === 'number' ? item.onum : -1;
 
             // 1. 有効な英字レターまたは有効な identifier を持っているか

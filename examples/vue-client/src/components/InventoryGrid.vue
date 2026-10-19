@@ -138,7 +138,7 @@ const slotBadges = computed(() => {
 
 function getSlotBadge(item: any) {
   const badges = slotBadges.value;
-  return badges ? (badges[item.letter] || badges[item.invlet]) : null;
+  return (badges && item.letter) ? badges[item.letter] : null;
 }
 
 function getItemSlotClasses(item: any) {

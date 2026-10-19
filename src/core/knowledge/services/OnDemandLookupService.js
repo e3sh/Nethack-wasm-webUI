@@ -157,13 +157,13 @@ export class OnDemandLookupService {
     }
 
     /**
-     * オブジェクトからメニュースロット文字 (invlet: a-z, A-Z) を抽出
+     * オブジェクトからメニュースロット文字 (letter: a-z, A-Z) を抽出
      * @param {string|Object} target 
      * @returns {string|null} スロット文字（存在しない場合は null）
      */
     extractTargetLetter(target) {
         if (!target || typeof target !== 'object') return null;
-        const letter = target.letter || target.invlet || target.knowledge?.letter || target.item?.letter || null;
+        const letter = target.letter || target.knowledge?.letter || target.item?.letter || null;
         if (typeof letter === 'string' && /^[a-zA-Z]$/.test(letter)) {
             return letter;
         }

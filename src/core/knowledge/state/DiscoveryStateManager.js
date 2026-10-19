@@ -794,7 +794,7 @@ export class DiscoveryStateManager {
                 const candidateTrueName = iden?.trueName || iden?.coreName || k?.name || item.name || item.rawText || '';
                 const cleanTrue = candidateTrueName.replace(/^[\*\-\+\s]+/, '').trim();
                 const lowerName = cleanTrue.toLowerCase();
-                const itemLetter = item.letter || item.invlet || item.selector || null;
+                const itemLetter = item.letter || item.selector || null;
                 const itemRawText = item.rawText || item.str || null;
 
                 // A. 識別済みインベントリアイテム (真名が判明しているアイテム)
@@ -867,7 +867,7 @@ export class DiscoveryStateManager {
                 });
 
                 if (matchedInv) {
-                    if (!entry.letter) entry.letter = matchedInv.letter || matchedInv.invlet || matchedInv.selector || null;
+                    if (!entry.letter) entry.letter = matchedInv.letter || matchedInv.selector || null;
                     if (!entry.rawText) entry.rawText = matchedInv.rawText || matchedInv.str || null;
                     if (!entry.calledName && matchedInv.identification?.calledName) {
                         entry.calledName = matchedInv.identification.calledName;

@@ -335,7 +335,6 @@ export class ContainerModal {
       const rawGoldText = `${playerGoldAmount} gold pieces`;
       const goldItem = ItemNormalizer.normalize({
         letter: '$',
-        invlet: '$',
         accelerator: '$',
         rawText: rawGoldText,
         name: 'gold pieces',
@@ -403,7 +402,7 @@ export class ContainerModal {
 
     if (encMgr) {
       const curContainer = ctrl?.currentContainer;
-      const letter = curContainer?.letter || curContainer?.invlet;
+      const letter = curContainer?.letter;
       if (letter && encMgr.containerCache.has(letter)) {
         const rec = encMgr.containerCache.get(letter);
         bagWeight = rec.effectiveWeight;
@@ -712,7 +711,7 @@ export class ContainerModal {
       const isWisdom = Boolean(item.isWisdomRevealed || core?.gkl?.inventoryStateManager?.sagesWisdomMode);
       const bucBadge = ItemDisplayPresenter.getBucBadgeHtml(item, { language: isEn ? 'en' : 'ja', format: 'symbol', sagesWisdomMode: isWisdom });
 
-      const letter = item.letter || item.invlet || '';
+      const letter = item.letter || '';
       const displayName = ItemDisplayPresenter.getFormattedTitle(item, { language: isEn ? 'en' : 'ja', includeLetter: false, sagesWisdomMode: isWisdom });
       const iconHtml = this._getItemIconHtml(item, 32);
       const canDrag = !isInvalid && !isCritical && !this.isProcessing;
@@ -903,7 +902,7 @@ export class ContainerModal {
         e.dataTransfer.setData('text/plain', JSON.stringify({
           side: 'left',
           index: idx,
-          letter: item.letter || item.invlet,
+          letter: item.letter,
           identifier: item.identifier,
           rawText: item.rawText,
         }));

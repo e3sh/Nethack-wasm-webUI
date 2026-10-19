@@ -1010,7 +1010,7 @@ describe('GKLPlugin - 独立モジュール＆イベント連携機能', () => {
             plugin.statusAccessor.updateField(18, 5);  // HP: 5
             plugin.statusAccessor.updateField(19, 30); // HPMAX: 30
             plugin.inventoryStateManager.items = [
-                { invlet: 'a', name: 'potion of extra healing', category: 'POTION' }
+                { letter: 'a', name: 'potion of extra healing', category: 'POTION' }
             ];
 
             const assistState = plugin.getAssistState();

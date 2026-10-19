@@ -306,7 +306,7 @@ describe('Stage 8.3-A: AreaStateManager Terrain Dump, Door Traps/Locks & Monster
                 ...interactionContext.getState(),
                 capabilities: {
                     hasKey: true,
-                    keyItem: { invlet: 'b', name: 'skeleton key' }
+                    keyItem: { letter: 'b', name: 'skeleton key' }
                 }
             };
 

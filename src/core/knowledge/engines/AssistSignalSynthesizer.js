@@ -174,7 +174,7 @@ export class AssistSignalSynthesizer {
         // --- A. 石化進行 (Petrifying / Stone) ---
         if (hasCondition('stone') || hasCondition('petrifying')) {
             if (lizardCorpse) {
-                const invlet = lizardCorpse.letter || lizardCorpse.invlet || 'a';
+                const invlet = lizardCorpse.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '🦎',
@@ -199,7 +199,7 @@ export class AssistSignalSynthesizer {
         // --- B. スライム化 (Sliming / Slimed) ---
         if (hasCondition('slimed') || hasCondition('sliming')) {
             if (fireSource) {
-                const invlet = fireSource.letter || fireSource.invlet || 'a';
+                const invlet = fireSource.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '🔥',
@@ -224,7 +224,7 @@ export class AssistSignalSynthesizer {
         // --- C. 病気・食中毒 (Sick / Ill / FoodPois) ---
         if (hasCondition('ill') || hasCondition('sick') || hasCondition('foodpois')) {
             if (unicornHorn) {
-                const invlet = unicornHorn.letter || unicornHorn.invlet || 'a';
+                const invlet = unicornHorn.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '🦄',
@@ -236,7 +236,7 @@ export class AssistSignalSynthesizer {
                 candidateSignals.push(createAssistSignal('SIGNAL_SICK_HORN', { invlet }));
             } else if (extraHealingPotion || healingPotion) {
                 const pot = extraHealingPotion || healingPotion;
-                const invlet = pot.letter || pot.invlet || 'a';
+                const invlet = pot.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '💊',
@@ -255,7 +255,7 @@ export class AssistSignalSynthesizer {
         if (hp.percent > 0 && hp.percent < 0.3) {
             if (healingPotion || extraHealingPotion) {
                 const pot = extraHealingPotion || healingPotion;
-                const invlet = pot.letter || pot.invlet || 'a';
+                const invlet = pot.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'danger',
                     icon: '💊',
@@ -290,7 +290,7 @@ export class AssistSignalSynthesizer {
             // HP 警戒域 (30〜50%)
             if (healingPotion || extraHealingPotion) {
                 const pot = extraHealingPotion || healingPotion;
-                const invlet = pot.letter || pot.invlet || 'a';
+                const invlet = pot.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'warning',
                     icon: '💊',
@@ -306,7 +306,7 @@ export class AssistSignalSynthesizer {
         // --- E. 混乱 (Confused / Conf) ---
         if (hasCondition('conf') || hasCondition('confused')) {
             if (unicornHorn) {
-                const invlet = unicornHorn.letter || unicornHorn.invlet || 'a';
+                const invlet = unicornHorn.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'info',
                     icon: '🦄',
@@ -330,7 +330,7 @@ export class AssistSignalSynthesizer {
         // --- F. 盲目 (Blind) ---
         if (hasCondition('blind')) {
             if (unicornHorn) {
-                const invlet = unicornHorn.letter || unicornHorn.invlet || 'a';
+                const invlet = unicornHorn.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'info',
                     icon: '🦄',
@@ -364,7 +364,7 @@ export class AssistSignalSynthesizer {
         // --- I. 呪縛 (Cursed items - SSOT: bflag, isCursed, buc) ---
         if (hasCondition('cursed') || (inventoryItems.some(i => i.isWorn && (i.bflag === 2 || i.isCursed || i.buc === 'CURSED')))) {
             if (uncurseScroll) {
-                const invlet = uncurseScroll.letter || uncurseScroll.invlet || 'a';
+                const invlet = uncurseScroll.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'info',
                     icon: '📜',
@@ -404,7 +404,7 @@ export class AssistSignalSynthesizer {
             });
 
             if (blindfold) {
-                const invlet = blindfold.letter || blindfold.invlet || 'a';
+                const invlet = blindfold.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'info',
                     icon: '🙈',
@@ -436,7 +436,7 @@ export class AssistSignalSynthesizer {
             });
 
             if (silverWeapon) {
-                const invlet = silverWeapon.letter || silverWeapon.invlet || 'a';
+                const invlet = silverWeapon.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'success',
                     icon: '✨',
@@ -506,7 +506,7 @@ export class AssistSignalSynthesizer {
 
         if (hasMetallicArmor && highFailCount > 0) {
             if (attackWand) {
-                const invlet = attackWand.letter || attackWand.invlet || 'a';
+                const invlet = attackWand.letter || 'a';
                 slotBadges[invlet] = {
                     type: 'success',
                     icon: '🪄',
@@ -517,9 +517,9 @@ export class AssistSignalSynthesizer {
                 };
             }
             candidateSignals.push(createAssistSignal('SIGNAL_ARMOR_MAGIC_PENALTY', {
-                actionKeySequence: attackWand ? ['z', attackWand.letter || attackWand.invlet || 'a'] : ['z'],
-                actionLabelJa: attackWand ? `攻撃の杖を振る (z -> ${attackWand.letter || attackWand.invlet || 'a'})` : '杖を振る (z)',
-                actionLabelEn: attackWand ? `Zap wand (z -> ${attackWand.letter || attackWand.invlet || 'a'})` : 'Zap wand (z)'
+                actionKeySequence: attackWand ? ['z', attackWand.letter || 'a'] : ['z'],
+                actionLabelJa: attackWand ? `攻撃の杖を振る (z -> ${attackWand.letter || 'a'})` : '杖を振る (z)',
+                actionLabelEn: attackWand ? `Zap wand (z -> ${attackWand.letter || 'a'})` : 'Zap wand (z)'
             }));
         }
     }
@@ -564,7 +564,7 @@ export class AssistSignalSynthesizer {
         const hasCorpse = inventoryItems.some(i => {
             const k = this._resolveObjectKnowledge(i);
             const cat = i.category || k?.category;
-            return (cat === 'FOOD' || i.isFood) && (k?.isCorpse || i.isCorpse || i.corpseOf || k?.corpseOf);
+            return (cat === 'FOOD') && (k?.isCorpse || i.isCorpse || i.corpseOf || k?.corpseOf);
         });
 
         const matchingAltar = (landmarks.altars || []).find(a => {

@@ -857,7 +857,7 @@ export class AttributeStateManager {
                 item.isEquipped || item.equipped || item.equipSlot ||
                 item.isWorn || item.isWielded || item.isQuivered ||
                 item.isAlternate || item.isSecondary ||
-                item.isWornLeft || item.isWornRight || item.isAmulet
+                item.isWornLeft || item.isWornRight
             );
 
             if (!isEquipped) {

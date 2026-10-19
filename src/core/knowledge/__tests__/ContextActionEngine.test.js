@@ -21,8 +21,8 @@ describe('ContextActionEngine - スキル連動＆おすすめ装備提案テス
     it('ContextActions に装備持ち替えアクション (ACTION_WIELD_RECOMMENDED_*) は含まれず、純粋な即時アクションのみになること', () => {
         const invMgr = new InventoryStateManager();
         invMgr.items = [
-            { letter: 'a', name: 'short sword', rawText: 'a - an uncursed short sword (weapon in hand)', isWeapon: true, isWielded: true },
-            { letter: 'b', name: 'long sword', rawText: 'b - a +2 long sword', isWeapon: true, isWielded: false }
+            { letter: 'a', name: 'short sword', rawText: 'a - an uncursed short sword (weapon in hand)', category: 'WEAPON', isWielded: true },
+            { letter: 'b', name: 'long sword', rawText: 'b - a +2 long sword', category: 'WEAPON', isWielded: false }
         ];
 
         const skillMgr = new SkillStateManager();
