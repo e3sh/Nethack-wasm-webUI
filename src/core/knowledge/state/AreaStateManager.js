@@ -70,6 +70,8 @@ export class AreaStateManager {
         this.isFloorTransitioning = false;
         this._needsFullTerrainDump = true;
         this.committedTurnCount = 0;
+        this._hasPlayerPosOnCurrentFloor = false;
+        this._pendingStatusFloorKey = null;
 
         // ブランチ同定・追跡 (Stage 8.4)
         this.currentBranchId = 'dungeon';
@@ -92,7 +94,12 @@ export class AreaStateManager {
     commitTurnState() {
         this.isTurnTransitioning = false;
         this.isFloorTransitioning = false;
+        this._pendingStatusFloorKey = null;
         this.committedTurnCount += 1;
+        if (this.landmarkRegistry) {
+            this.landmarkRegistry._transitionStairKeys.clear();
+            this.landmarkRegistry._transitionLandmarkKeys.clear();
+        }
 
         if (this.pendingDirtyCells && this.pendingDirtyCells.size > 0) {
             for (const coord of this.pendingDirtyCells) {
@@ -286,6 +293,8 @@ export class AreaStateManager {
     prepareFloorTransition() {
         this.isFloorTransitioning = true;
         this._needsFullTerrainDump = true;
+        this._hasPlayerPosOnCurrentFloor = false;
+        this._pendingStatusFloorKey = null;
         if (this.directBindingService && typeof this.directBindingService.clearFloorCaches === 'function') {
             this.directBindingService.clearFloorCaches();
         }
@@ -332,12 +341,21 @@ export class AreaStateManager {
 
         let isNewFloor = false;
         if (normalizedCurrent !== normalizedTarget) {
+            // フロア遷移中に仮フロアキー (例: BL_DLEVEL の "Dlvl:4") で先行登録された階段・ランドマークがある場合は真のフロアキーへ移行
+            if ((this.isFloorTransitioning || this.justTransitionedFloor) && !this.isFloorPending &&
+                typeof this.landmarkRegistry.rekeyProvisionalFloor === 'function') {
+                this.landmarkRegistry.rekeyProvisionalFloor(normalizedCurrent, normalizedTarget);
+            }
             // Direct Binding による階層同定（ブランチ名の確定や実階層の補正）は
             // プレイヤーが実際に階段を移動したのではなく、同一マップに対する識別名の確定である。
             // そのため、すでに描画されたマップグリッドを初期化(resetGrid)せず、フロアキーのみ同期・承継する。
             this.setCurrentFloor(normalizedTarget, { preserveGrid: true });
             isNewFloor = true;
+        } else if (this.isFloorPending) {
+            // 同一フロアキー (例: Dlvl:1 初回開始や保留状態) でも pendingStairs / pendingLandmarks を確定フラッシュ
+            this.setCurrentFloor(normalizedTarget, { preserveGrid: true });
         }
+        this._pendingStatusFloorKey = null;
 
         const isNewBranch = Boolean(prevBranch && prevBranch !== this.currentBranchId);
 
@@ -507,7 +525,7 @@ export class AreaStateManager {
                         this.pendingStairs.push({ x, y, entity: { ...cell.bottom } });
                     } else {
                         const key = `${normalizeFloorKey(this.currentFloor)}:${x},${y}`;
-                        this.stairCache.set(key, { ...cell.bottom });
+                        this.landmarkRegistry.recordStairToCache(key, { ...cell.bottom });
                     }
                 }
                 break;
@@ -521,6 +539,15 @@ export class AreaStateManager {
                 this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
                 if (cell.bottom && cell.bottom.isCachedPreload) {
                     delete cell.bottom.isCachedPreload;
+                }
+                if (cell.bottom && cell.bottom.cmapFlags && (cell.bottom.cmapFlags.isStairUp || cell.bottom.cmapFlags.isStairDown)) {
+                    if (this.isFloorPending) {
+                        this.pendingStairs.push({ x, y, entity: { ...cell.bottom } });
+                        const lm = this.extractLandmarkEntity(x, y, cell.bottom.glyph, cell.bottom);
+                        if (lm) this.pendingLandmarks.push({ x, y, entity: lm });
+                    } else {
+                        this._registerStairAt(x, y, cell.bottom.glyph, normalizeFloorKey(this.currentFloor));
+                    }
                 }
                 cell.middle = { ...info, glyphInfo, glyph: glyphId, rawGlyph: glyphId };
                 cell.top = null;
@@ -537,31 +564,58 @@ export class AreaStateManager {
                     ? cell.top.dynamicState
                     : null;
 
-                // bkglyph がアイテム類なら cell.middle を更新し、TERRAIN なら古い cell.middle をクリアした上で cell.bottom を補完
-                if (bkglyphInfo && typeof bkglyphInfo.glyph === 'number' &&
-                    bkglyphInfo.glyph >= 0 && bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF &&
-                    bkglyphInfo.ch !== ' ') {
-                    const bgInfo = classifyGlyph(bkglyphInfo.glyph);
-                    if (bgInfo.type === ENTITY_TYPES.ITEM || bgInfo.type === ENTITY_TYPES.BODY || bgInfo.type === ENTITY_TYPES.STATUE) {
-                        cell.middle = {
-                            ...bgInfo,
-                            glyphInfo: bkglyphInfo,
-                            glyph: bkglyphInfo.glyph,
-                            rawGlyph: bkglyphInfo.glyph
-                        };
-                        this.terrainInference.ensureBottomTerrain(cell, x, y, null);
-                    } else if (bgInfo.type === ENTITY_TYPES.TERRAIN) {
-                        cell.middle = null;
-                        this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
+                const isUnobservedSense = Boolean(info.isWarning || info.isDetected);
+                const hasValidBkglyph = Boolean(
+                    bkglyphInfo &&
+                    typeof bkglyphInfo.glyph === 'number' &&
+                    bkglyphInfo.glyph >= 0 &&
+                    bkglyphInfo.glyph < GLYPH_OFFSETS.GLYPH_UNEXPLORED_OFF &&
+                    bkglyphInfo.glyph !== GLYPH_STONE &&
+                    bkglyphInfo.glyph !== GLYPH_OFFSETS.GLYPH_CMAP_STONE_OFF &&
+                    bkglyphInfo.ch !== ' '
+                );
+                const hasExploredTerrain = Boolean(
+                    cell.bottom &&
+                    cell.bottom.type === ENTITY_TYPES.TERRAIN &&
+                    !cell.bottom.isCachedPreload &&
+                    !cell.bottom.inferred
+                );
+
+                // 警告 (Warning) やテレパシー探知 (Detected) で未踏領域にいるモンスターの場合は下層地形を暴かない
+                if (!isUnobservedSense || hasValidBkglyph || hasExploredTerrain) {
+                    // bkglyph がアイテム類なら cell.middle を更新し、TERRAIN なら古い cell.middle をクリアした上で cell.bottom を補完
+                    if (hasValidBkglyph) {
+                        const bgInfo = classifyGlyph(bkglyphInfo.glyph);
+                        if (bgInfo.type === ENTITY_TYPES.ITEM || bgInfo.type === ENTITY_TYPES.BODY || bgInfo.type === ENTITY_TYPES.STATUE) {
+                            cell.middle = {
+                                ...bgInfo,
+                                glyphInfo: bkglyphInfo,
+                                glyph: bkglyphInfo.glyph,
+                                rawGlyph: bkglyphInfo.glyph
+                            };
+                            this.terrainInference.ensureBottomTerrain(cell, x, y, null);
+                        } else if (bgInfo.type === ENTITY_TYPES.TERRAIN) {
+                            cell.middle = null;
+                            this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
+                        } else {
+                            this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
+                        }
                     } else {
                         this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
                     }
-                } else {
-                    this.terrainInference.ensureBottomTerrain(cell, x, y, bkglyphInfo);
-                }
 
-                if (cell.bottom && cell.bottom.isCachedPreload) {
-                    delete cell.bottom.isCachedPreload;
+                    if (cell.bottom && cell.bottom.isCachedPreload) {
+                        delete cell.bottom.isCachedPreload;
+                    }
+                    if (cell.bottom && cell.bottom.cmapFlags && (cell.bottom.cmapFlags.isStairUp || cell.bottom.cmapFlags.isStairDown)) {
+                        if (this.isFloorPending) {
+                            this.pendingStairs.push({ x, y, entity: { ...cell.bottom } });
+                            const lm = this.extractLandmarkEntity(x, y, cell.bottom.glyph, cell.bottom);
+                            if (lm) this.pendingLandmarks.push({ x, y, entity: lm });
+                        } else {
+                            this._registerStairAt(x, y, cell.bottom.glyph, normalizeFloorKey(this.currentFloor));
+                        }
+                    }
                 }
 
                 let directMon = null;
@@ -810,11 +864,16 @@ export class AreaStateManager {
                     cell.bottom.lit = genuine.lit;
                     hasChanged = true;
                 }
+                if (cell.bottom.isCachedPreload && !genuine.isCachedPreload) {
+                    delete cell.bottom.isCachedPreload;
+                    hasChanged = true;
+                }
                 cell.bottom.isGenuine = true;
             }
         }
 
-        if (registerStairs && genuine.cmapFlags && (genuine.cmapFlags.isStairUp || genuine.cmapFlags.isStairDown)) {
+        if (registerStairs && !genuine.isCachedPreload && !cell.bottom?.isCachedPreload &&
+            genuine.cmapFlags && (genuine.cmapFlags.isStairUp || genuine.cmapFlags.isStairDown)) {
             this._registerStairAt(x, y, genuine.glyph, normalizeFloorKey(this.currentFloor));
         }
 
@@ -831,14 +890,17 @@ export class AreaStateManager {
      */
     updatePlayerPosition(x, y) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-            this.seedArrivalStair(x, y);
+            this._hasPlayerPosOnCurrentFloor = true;
+            if (!this.isFloorPending) {
+                this.seedArrivalStair(x, y);
+            }
             this.justTransitionedFloor = false;
 
             if (this.monsterTracker && typeof this.monsterTracker.handlePlayerPosition === 'function') {
                 this.monsterTracker.handlePlayerPosition(x, y);
             }
             const cell = this.grid[y][x];
-            if (cell) {
+            if (cell && !this.isFloorPending) {
                 const genuine = this.getGenuineFloor(x, y);
                 if (genuine && genuine.isGenuine) {
                     this._applyGenuineFloor(cell, genuine, x, y);
@@ -917,7 +979,7 @@ export class AreaStateManager {
 
     /**
      * Wasm メモリから直接、プレイヤー周辺またはフロア全体の観測済みセルの真の床・罠・部屋・モンスター情報を一括同期
-     * ※未観測セル (cell.bottom === null/UNEXPLORED && cell.middle === null && cell.top === null かつ非プレイヤー座標) には書き込まない (Stage 8.3-B)
+     * ※未観測セル (cell.bottom === null/UNEXPLORED/isCachedPreload && cell.middle === null && 可視モンスターなし かつ非プレイヤー座標) には書き込まない (Stage 8.3-B)
      * @param {number} [radius=0] 同期半径 (0 の場合は全フロア 80x21)
      */
     syncFromDirectBinding(radius = 0) {
@@ -938,10 +1000,16 @@ export class AreaStateManager {
                 const cell = this.grid[y] && this.grid[y][x];
                 if (!cell) continue;
 
-                const isPlayerCell = (x === this.playerX && y === this.playerY);
-                const isUnobserved = (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED) &&
+                const isPlayerCell = (x === this.playerX && y === this.playerY) &&
+                    (this._hasPlayerPosOnCurrentFloor || (this.playerX > 0 && !this.isFloorTransitioning));
+                const hasVisibleTop = Boolean(cell.top && !cell.top.isWarning && !cell.top.isDetected);
+                const isUnobserved = (
+                    cell.bottom === null ||
+                    cell.bottom.type === ENTITY_TYPES.UNEXPLORED ||
+                    Boolean(cell.bottom.isCachedPreload)
+                ) &&
                     cell.middle === null &&
-                    cell.top === null &&
+                    !hasVisibleTop &&
                     !isPlayerCell;
                 if (isUnobserved) continue;
 
@@ -1007,7 +1075,10 @@ export class AreaStateManager {
 
                 const genuine = this.getGenuineFloor(x, y);
                 if (genuine) {
-                    const hasObservedOverlay = Boolean(cell.middle !== null || cell.top !== null || (x === this.playerX && y === this.playerY));
+                    const isPlayerCell = (x === this.playerX && y === this.playerY) &&
+                        (this._hasPlayerPosOnCurrentFloor || (this.playerX > 0 && !this.isFloorTransitioning));
+                    const hasVisibleTop = Boolean(cell.top && !cell.top.isWarning && !cell.top.isDetected);
+                    const hasObservedOverlay = Boolean(cell.middle !== null || hasVisibleTop || isPlayerCell);
                     const isNewDeployment = (!cell.bottom || cell.bottom.type === ENTITY_TYPES.UNEXPLORED);
                     const genuineWithPreload = (isNewDeployment && !hasObservedOverlay)
                         ? { ...genuine, isCachedPreload: true }

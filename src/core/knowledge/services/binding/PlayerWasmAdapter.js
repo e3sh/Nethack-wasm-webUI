@@ -18,6 +18,13 @@ export class PlayerWasmAdapter {
     }
 
     /**
+     * フロア移動時に前フロアのサマリーキャッシュ（dnum / dlevel / floorKey）を破棄
+     */
+    clearFloorCaches() {
+        this._cachedPlayerSummary = null;
+    }
+
+    /**
      * プレイヤーに関する全キャッシュを破棄・リセット (新ゲーム開始 / リスタート時)
      */
     clearPlayerCaches() {

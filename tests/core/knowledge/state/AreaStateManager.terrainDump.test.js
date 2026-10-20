@@ -138,6 +138,40 @@ describe('Stage 8.3-A: AreaStateManager Terrain Dump, Door Traps/Locks & Monster
             expect(areaStateManager.getDirtyCells().has('12,10')).toBe(false);
         });
 
+        it('should NOT leak unexplored preloaded staircases (isCachedPreload: true) into stairCache or landmarkCache when player walks within radius=1', () => {
+            const COLNO = 80;
+            const ROWNO = 21;
+            const mockTerrain = new Uint8Array(COLNO * ROWNO).fill(0); // STONE
+            const mockGlyphs = new Int32Array(COLNO * ROWNO).fill(3991); // STONE
+
+            // (40, 4): プレイヤーが通る通路 (CORR = 16, glyph = 3995)
+            mockTerrain[4 * COLNO + 40] = 16;
+            mockGlyphs[4 * COLNO + 40] = 3995;
+
+            // (40, 5): 通路の南隣にある未探索の部屋の階段 (STAIRS = 26, glyph = 3999 下り階段)
+            mockTerrain[5 * COLNO + 40] = 26;
+            mockGlyphs[5 * COLNO + 40] = 3999;
+
+            directBindingService.setCachedLevelTerrain(mockTerrain);
+            directBindingService.setCachedLevelGlyphs(mockGlyphs);
+
+            // dumpLevelTerrain で 80x21 全域下敷き (isCachedPreload: true) を展開
+            areaStateManager.dumpLevelTerrain();
+            expect(areaStateManager.grid[5][40].bottom?.isCachedPreload).toBe(true);
+
+            // プレイヤーが通路 (40, 4) を歩いて通過し、半径1の syncFromDirectBinding(1) が実行される
+            areaStateManager.updateGlyph(40, 4, 3995);
+            areaStateManager.updatePlayerPosition(40, 4);
+            areaStateManager.syncFromDirectBinding(1);
+
+            // 未探索の階段 (40, 5) は isCachedPreload のままであり、stairCache や landmarkCache にゴースト登録されないこと
+            expect(areaStateManager.grid[5][40].bottom?.isCachedPreload).toBe(true);
+            expect(areaStateManager.stairCache.has('Dlvl:1:40,5')).toBe(false);
+            const landmarks = areaStateManager.getFloorLandmarks('Dlvl:1');
+            expect(landmarks.stairsDown.some(s => s.x === 40 && s.y === 5)).toBe(false);
+            expect(landmarks.stairsUp.some(s => s.x === 40 && s.y === 5)).toBe(false);
+        });
+
         it('should synchronize cell.middle (pickup, drop, piletop isPile) at player feet even when player does not move', () => {
             const px = 12;
             const py = 8;

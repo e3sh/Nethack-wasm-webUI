@@ -124,17 +124,19 @@ describe('ItemDisplayPresenter', () => {
             expect(ItemDisplayPresenter.getBucBadgeHtml(wisdom, { format: 'symbol', sagesWisdomMode: true })).toContain('🧙');
         });
 
-        it('未識別アイテムであっても呪い・祝福が判明している場合は BUC シンボルを最優先表示する', () => {
+        it('未識別アイテムで呪い・祝福が判明している場合は BUC シンボルと未識別(?)バッジの両方を表示する', () => {
             // 未識別の呪われたアイテム
             const unidCursed = ItemNormalizer.normalize({ isUnidentified: true, bucStatus: 'CURSED' });
             const cursedBadgeJa = ItemDisplayPresenter.getBucBadgeHtml(unidCursed, { format: 'symbol', language: 'ja' });
             expect(cursedBadgeJa).toContain('badge-buc-cursed');
             expect(cursedBadgeJa).toContain('-');
             expect(cursedBadgeJa).toContain('title="呪い (未識別)"');
-            expect(cursedBadgeJa).not.toContain('badge-buc-unid');
+            expect(cursedBadgeJa).toContain('badge-buc-unid');
+            expect(cursedBadgeJa).toContain('?');
 
             const cursedBadgeEn = ItemDisplayPresenter.getBucBadgeHtml(unidCursed, { format: 'symbol', language: 'en' });
             expect(cursedBadgeEn).toContain('title="Cursed (Unidentified)"');
+            expect(cursedBadgeEn).toContain('badge-buc-unid');
 
             // 未識別の祝福されたアイテム
             const unidBlessed = ItemNormalizer.normalize({ isUnidentified: true, bucStatus: 'BLESSED' });
@@ -142,26 +144,33 @@ describe('ItemDisplayPresenter', () => {
             expect(blessedBadgeJa).toContain('badge-buc-blessed');
             expect(blessedBadgeJa).toContain('+');
             expect(blessedBadgeJa).toContain('title="祝福 (未識別)"');
-            expect(blessedBadgeJa).not.toContain('badge-buc-unid');
+            expect(blessedBadgeJa).toContain('badge-buc-unid');
+            expect(blessedBadgeJa).toContain('?');
 
             const blessedBadgeEn = ItemDisplayPresenter.getBucBadgeHtml(unidBlessed, { format: 'symbol', language: 'en' });
             expect(blessedBadgeEn).toContain('title="Blessed (Unidentified)"');
+            expect(blessedBadgeEn).toContain('badge-buc-unid');
 
-            // 未識別で UNCURSED のアイテム (シンボル形式では通常アイテムにバッジを出さない)
+            // 未識別で UNCURSED のアイテム (祝福・呪いシンボルがないため未識別の ? バッジのみを表示する)
             const unidUncursed = ItemNormalizer.normalize({ isUnidentified: true, bucStatus: 'UNCURSED' });
-            expect(ItemDisplayPresenter.getBucBadgeHtml(unidUncursed, { format: 'symbol' })).toBe('');
+            const uncursedBadgeJa = ItemDisplayPresenter.getBucBadgeHtml(unidUncursed, { format: 'symbol', language: 'ja' });
+            expect(uncursedBadgeJa).toContain('badge-buc-unid');
+            expect(uncursedBadgeJa).toContain('?');
+            expect(uncursedBadgeJa).toContain('title="未識別"');
 
             // 賢者の知恵下で未識別かつ呪われているアイテム
             const wisdomCursed = ItemNormalizer.normalize({ isUnidentified: true, bucStatus: 'CURSED' });
             const wisdomCursedBadge = ItemDisplayPresenter.getBucBadgeHtml(wisdomCursed, { format: 'symbol', sagesWisdomMode: true, language: 'ja' });
             expect(wisdomCursedBadge).toContain('badge-buc-cursed');
             expect(wisdomCursedBadge).toContain('title="呪い (賢者の知恵)"');
+            expect(wisdomCursedBadge).toContain('badge-buc-wisdom');
 
             // 賢者の知恵下で未識別かつ祝福されているアイテム
             const wisdomBlessed = ItemNormalizer.normalize({ isUnidentified: true, bucStatus: 'BLESSED' });
             const wisdomBlessedBadge = ItemDisplayPresenter.getBucBadgeHtml(wisdomBlessed, { format: 'symbol', sagesWisdomMode: true, language: 'ja' });
             expect(wisdomBlessedBadge).toContain('badge-buc-blessed');
             expect(wisdomBlessedBadge).toContain('title="祝福 (賢者の知恵)"');
+            expect(wisdomBlessedBadge).toContain('badge-buc-wisdom');
         });
 
         it('format: pill でラベル付きバッジを出力する', () => {

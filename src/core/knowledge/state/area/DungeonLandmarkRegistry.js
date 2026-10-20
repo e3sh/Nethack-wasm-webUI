@@ -66,15 +66,111 @@ export class DungeonLandmarkRegistry {
         this.isFloorPending = false;     // clear_nhwindow 後のフロア確定待ちフラグ
         this.pendingStairs = [];         // フロア確定待ち中に受信した階段一覧
         this.pendingLandmarks = [];      // フロア確定待ち中に受信したランドマーク一覧
+        this._preTransitionFloor = null; // フロア遷移開始前の実フロア識別子
+        this._transitionStairKeys = new Set();    // 現フロア遷移中に新規登録された階段キャッシュキー
+        this._transitionLandmarkKeys = new Set(); // 現フロア遷移中に新規登録されたランドマークキャッシュキー
     }
 
     /**
      * clear_nhwindow 受信時などにフロア遷移待機状態へ移行
      */
     prepareFloorTransition() {
+        if (!this.isFloorPending) {
+            this._preTransitionFloor = this.currentFloor;
+            this._transitionStairKeys.clear();
+            this._transitionLandmarkKeys.clear();
+        }
         this.isFloorPending = true;
         this.pendingStairs = [];
         this.pendingLandmarks = [];
+    }
+
+    /**
+     * 階段キャッシュへ登録し、フロア遷移中であれば遷移中登録キーとして追跡
+     * @param {string} key
+     * @param {Object} stairEntity
+     */
+    recordStairToCache(key, stairEntity) {
+        if (!key || !stairEntity) return;
+        const asm = this.areaStateManager;
+        const existed = this.stairCache.has(key);
+        this.stairCache.set(key, stairEntity);
+        if ((asm?.isFloorTransitioning || this.isFloorPending) && !existed) {
+            this._transitionStairKeys.add(key);
+        }
+    }
+
+    /**
+     * フロア遷移中に仮フロアキー (例: BL_DLEVEL の "Dlvl:4") で先行登録された階段・ランドマークを
+     * DirectBinding で確定した真のフロアキー (例: "mines:2") へ移行・純化
+     * @param {string} fromFloorKey
+     * @param {string} toFloorKey
+     */
+    rekeyProvisionalFloor(fromFloorKey, toFloorKey) {
+        const fromFloor = normalizeFloorKey(fromFloorKey);
+        const toFloor = normalizeFloorKey(toFloorKey);
+        if (!fromFloor || !toFloor || fromFloor === toFloor) return;
+
+        const asm = this.areaStateManager;
+        const fromPrefix = `${fromFloor}:`;
+
+        // 1. この遷移中に仮フロアへ新規登録された階段キャッシュを真フロアへ移設
+        for (const oldKey of Array.from(this._transitionStairKeys)) {
+            if (oldKey.startsWith(fromPrefix)) {
+                const coordSuffix = oldKey.slice(fromPrefix.length);
+                const entity = this.stairCache.get(oldKey);
+                this.stairCache.delete(oldKey);
+                this._transitionStairKeys.delete(oldKey);
+                if (entity) {
+                    const newKey = `${toFloor}:${coordSuffix}`;
+                    this.stairCache.set(newKey, entity);
+                    this._transitionStairKeys.add(newKey);
+                }
+            }
+        }
+
+        // 2. この遷移中に仮フロアへ新規登録されたランドマークを真フロアへ移設
+        for (const oldKey of Array.from(this._transitionLandmarkKeys)) {
+            if (oldKey.startsWith(fromPrefix)) {
+                const suffix = oldKey.slice(fromPrefix.length);
+                const lm = this.landmarkCache.get(oldKey);
+                this.landmarkCache.delete(oldKey);
+                this._transitionLandmarkKeys.delete(oldKey);
+                if (lm) {
+                    const newKey = `${toFloor}:${suffix}`;
+                    this.landmarkCache.set(newKey, {
+                        ...lm,
+                        id: newKey,
+                        floorKey: toFloor
+                    });
+                    this._transitionLandmarkKeys.add(newKey);
+                }
+            }
+        }
+
+        // 3. 仮フロアの既存キャッシュからグリッドへプリロード展開されていたゴースト階段を除去
+        if (asm && asm.grid) {
+            for (const [key] of this.stairCache.entries()) {
+                if (key.startsWith(fromPrefix)) {
+                    const coordStr = key.slice(fromPrefix.length);
+                    const [xStr, yStr] = coordStr.split(',');
+                    const x = parseInt(xStr, 10);
+                    const y = parseInt(yStr, 10);
+                    if (x >= 0 && x < asm.width && y >= 0 && y < asm.height) {
+                        const cell = asm.grid[y] && asm.grid[y][x];
+                        if (cell && cell.bottom && cell.bottom.isCachedPreload && !this.stairCache.has(`${toFloor}:${x},${y}`)) {
+                            cell.bottom = null;
+                            asm.markDirty(x, y);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. 直前フロア識別子を仮フロアではなく遷移開始前の実フロアへ復元
+        if (this._preTransitionFloor) {
+            this.currentFloor = this._preTransitionFloor;
+        }
     }
 
     /**
@@ -129,7 +225,7 @@ export class DungeonLandmarkRegistry {
             if (this.pendingStairs.length > 0) {
                 for (const item of this.pendingStairs) {
                     const key = `${this.currentFloor}:${item.x},${item.y}`;
-                    this.stairCache.set(key, { ...item.entity });
+                    this.recordStairToCache(key, { ...item.entity });
                 }
                 this.pendingStairs = [];
             }
@@ -158,8 +254,10 @@ export class DungeonLandmarkRegistry {
     clearStairCache() {
         this.stairCache.clear();
         this.pendingStairs = [];
+        this._transitionStairKeys.clear();
         this._hasSeededInitialStair = false;
         this.prevFloor = null;
+        this._preTransitionFloor = null;
         this.justTransitionedFloor = false;
     }
 
@@ -169,6 +267,7 @@ export class DungeonLandmarkRegistry {
     clearLandmarkCache() {
         this.landmarkCache.clear();
         this.pendingLandmarks = [];
+        this._transitionLandmarkKeys.clear();
         this.clearStairCache();
     }
 
@@ -180,6 +279,9 @@ export class DungeonLandmarkRegistry {
         if (this.landmarkCache) this.landmarkCache.clear();
         this.pendingStairs = [];
         this.pendingLandmarks = [];
+        this._transitionStairKeys.clear();
+        this._transitionLandmarkKeys.clear();
+        this._preTransitionFloor = null;
         this.currentFloor = normalizeFloorKey('Dlvl:1');
     }
 
@@ -202,16 +304,17 @@ export class DungeonLandmarkRegistry {
             isGenuine: true
         };
 
-        const key = `${floorKey}:${x},${y}`;
-        this.stairCache.set(key, stairEntity);
+        const normalizedFloor = normalizeFloorKey(floorKey || this.currentFloor);
+        const key = `${normalizedFloor}:${x},${y}`;
+        this.recordStairToCache(key, stairEntity);
 
         const landmark = this.extractLandmarkEntity(x, y, stairGlyph, stairInfo);
         if (landmark) {
-            this.saveLandmarkToCache(landmark, x, y, floorKey);
+            this.saveLandmarkToCache(landmark, x, y, normalizedFloor);
         }
 
         const cell = asm.grid[y] && asm.grid[y][x];
-        if (cell && (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred)) {
+        if (cell && (cell.bottom === null || cell.bottom.type === ENTITY_TYPES.UNEXPLORED || cell.bottom.inferred || cell.bottom.isCachedPreload)) {
             cell.bottom = { ...stairEntity };
             asm.markDirty(x, y);
         }
@@ -230,6 +333,7 @@ export class DungeonLandmarkRegistry {
      */
     seedArrivalStair(x, y) {
         const asm = this.areaStateManager;
+        if (this.isFloorPending) return false;
         if (x <= 0 || y <= 0 || x >= asm.width || y >= asm.height) return false;
 
         const currentNormalized = normalizeFloorKey(this.currentFloor);
@@ -246,6 +350,36 @@ export class DungeonLandmarkRegistry {
 
         // 階段 (26) または ハシゴ (27) であることが真に確定している場合のみシード
         if (cellInfo && (cellInfo.typ === 26 || cellInfo.typ === 27)) {
+            // Cコアの直接グリフ (getCellGlyph / _cachedLevelGlyphs) が階段を示している場合は絶対真値として最優先採用
+            let directStairGlyph = null;
+            if (asm.directBindingService) {
+                if (typeof asm.directBindingService.getCellGlyph === 'function') {
+                    const g = asm.directBindingService.getCellGlyph(x, y);
+                    if (typeof g === 'number' && g > 0) {
+                        const cf = classifyGlyph(g)?.cmapFlags;
+                        if (cf && (cf.isStairUp || cf.isStairDown)) {
+                            directStairGlyph = g;
+                        }
+                    }
+                }
+                if (directStairGlyph === null && asm.directBindingService._cachedLevelGlyphs && x >= 0 && x < 80 && y >= 0 && y < 21) {
+                    const g = asm.directBindingService._cachedLevelGlyphs[y * 80 + x];
+                    if (typeof g === 'number' && g > 0) {
+                        const cf = classifyGlyph(g)?.cmapFlags;
+                        if (cf && (cf.isStairUp || cf.isStairDown)) {
+                            directStairGlyph = g;
+                        }
+                    }
+                }
+            }
+
+            if (directStairGlyph !== null) {
+                if (currentNormalized === 'Dlvl:1') {
+                    this._hasSeededInitialStair = true;
+                }
+                return this.registerStairAt(x, y, directStairGlyph, currentNormalized);
+            }
+
             const isLadder = cellInfo.typ === 27;
             const prevLvl = this.prevFloor ? parseFloorLevel(this.prevFloor) : 1;
             const currLvl = parseFloorLevel(currentNormalized);
@@ -282,8 +416,23 @@ export class DungeonLandmarkRegistry {
     seedInitialStair(x, y) {
         const asm = this.areaStateManager;
         if (this._hasSeededInitialStair) return false;
+        if (this.isFloorPending) return false;
         if (normalizeFloorKey(this.currentFloor) !== 'Dlvl:1') return false;
         if (x <= 0 || y <= 0 || x >= asm.width || y >= asm.height) return false;
+
+        if (asm.directBindingService && (asm.directBindingService.bridge || asm.directBindingService.hasLiveMemory)) {
+            const cellInfo = typeof asm.directBindingService.getCellInfo === 'function'
+                ? asm.directBindingService.getCellInfo(x, y)
+                : null;
+            if (!cellInfo) {
+                // WorkerBridge 非同期同期完了前は仮シードせず保留 (inputRequired で真値から確定)
+                return false;
+            }
+            if (cellInfo.typ !== 26 && cellInfo.typ !== 27) {
+                this._hasSeededInitialStair = true;
+                return false;
+            }
+        }
 
         this._hasSeededInitialStair = true;
         const stairGlyph = 4002;
@@ -428,6 +577,7 @@ export class DungeonLandmarkRegistry {
      */
     saveLandmarkToCache(landmark, x, y, floorKey = null) {
         if (!landmark || !landmark.type) return;
+        const asm = this.areaStateManager;
         const floor = normalizeFloorKey(floorKey || this.currentFloor);
 
         if (landmark.type === 'SHOP') {
@@ -435,13 +585,21 @@ export class DungeonLandmarkRegistry {
             for (const [k, v] of this.landmarkCache.entries()) {
                 if (k.startsWith(`${floor}:`) && (k.endsWith(':SHOP') || v.type === 'SHOP')) {
                     this.landmarkCache.delete(k);
+                    this._transitionLandmarkKeys.delete(k);
                 }
             }
             const key = `${floor}:${x},${y}:SHOP`;
-            this.landmarkCache.set(key, { ...landmark, floorKey: floor, x, y });
+            this.landmarkCache.set(key, { ...landmark, id: key, floorKey: floor, x, y });
+            if (asm?.isFloorTransitioning || this.isFloorPending) {
+                this._transitionLandmarkKeys.add(key);
+            }
         } else {
             const key = `${floor}:${x},${y}:${landmark.type}`;
-            this.landmarkCache.set(key, { ...landmark, floorKey: floor, x, y });
+            const existed = this.landmarkCache.has(key);
+            this.landmarkCache.set(key, { ...landmark, id: key, floorKey: floor, x, y });
+            if ((asm?.isFloorTransitioning || this.isFloorPending) && !existed) {
+                this._transitionLandmarkKeys.add(key);
+            }
         }
     }
 

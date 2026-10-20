@@ -123,6 +123,18 @@
   font-size: 8px;
 }
 
+/* BUC(+/-) と 未識別(?)/賢者の知恵(🧙) が両方ある場合は右上に横並び配置 */
+.slot-badge.badge-buc-cursed + .slot-badge.badge-buc-unid,
+.slot-badge.badge-buc-blessed + .slot-badge.badge-buc-unid,
+.slot-badge.badge-buc-cursed + .slot-badge.badge-buc-wisdom,
+.slot-badge.badge-buc-blessed + .slot-badge.badge-buc-wisdom {
+  right: 16px;
+}
+
+.slot-badges-box .slot-badge {
+  position: static;
+}
+
 /* 装備スロットバッジ (スロット右下配置) */
 .gkl-slot-equip-badge,
 .slot-badge.badge-wielded,

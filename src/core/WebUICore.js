@@ -1441,6 +1441,7 @@ export class WebUICore {
                 this.textWindowManager.clearWindow(data.windowId);
             }
             if (data.windowId === 3 || data.windowId === 2 || data.windowId === 0) {
+                this._hasClearedMapForCurrentTransition = true;
                 if (this.renderer && typeof this.renderer.clearMap === 'function') {
                     this.renderer.clearMap();
                 }
@@ -1610,10 +1611,13 @@ export class WebUICore {
                 const currentDlevelText = structuredStatus.dlevel ? structuredStatus.dlevel.text : '';
 
                 if (this.lastDlevelText !== undefined && currentDlevelText && this.lastDlevelText !== currentDlevelText) {
-                    if (this.renderer && typeof this.renderer.clearMap === 'function') {
-                        this.renderer.clearMap();
+                    if (!this._hasClearedMapForCurrentTransition) {
+                        if (this.renderer && typeof this.renderer.clearMap === 'function') {
+                            this.renderer.clearMap();
+                        }
+                        this.emit('map_cleared');
                     }
-                    this.emit('map_cleared');
+                    this._hasClearedMapForCurrentTransition = false;
                 }
                 if (currentDlevelText) {
                     this.lastDlevelText = currentDlevelText;

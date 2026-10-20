@@ -73,30 +73,31 @@ export class ItemDisplayPresenter {
             return '';
         }
 
-        // 'symbol' フォーマット (スロットやグリッド内のミニバッジ)
+        // 'symbol' フォーマット (スロットやグリッド内のミニバッジ: BUCと未識別を右上に並べて両方表示)
+        const badges = [];
         if (buc === 'CURSED') {
             const title = isWisdom && canonical.isUnidentified
                 ? (isEn ? "Cursed (Sage's Wisdom)" : '呪い (賢者の知恵)')
                 : isUnid
                     ? (isEn ? 'Cursed (Unidentified)' : '呪い (未識別)')
                     : (isEn ? 'Cursed' : '呪い');
-            return `<span class="slot-badge badge-buc-cursed" title="${title}">-</span>`;
-        }
-        if (buc === 'BLESSED') {
+            badges.push(`<span class="slot-badge badge-buc-cursed" title="${title}">-</span>`);
+        } else if (buc === 'BLESSED') {
             const title = isWisdom && canonical.isUnidentified
                 ? (isEn ? "Blessed (Sage's Wisdom)" : '祝福 (賢者の知恵)')
                 : isUnid
                     ? (isEn ? 'Blessed (Unidentified)' : '祝福 (未識別)')
                     : (isEn ? 'Blessed' : '祝福');
-            return `<span class="slot-badge badge-buc-blessed" title="${title}">+</span>`;
+            badges.push(`<span class="slot-badge badge-buc-blessed" title="${title}">+</span>`);
         }
+
         if (isWisdom && canonical.isUnidentified) {
-            return `<span class="slot-badge badge-buc-wisdom" title="${isEn ? "Sage's Wisdom" : '賢者の知恵'}">🧙</span>`;
+            badges.push(`<span class="slot-badge badge-buc-wisdom" title="${isEn ? "Sage's Wisdom" : '賢者の知恵'}">🧙</span>`);
+        } else if (isUnid) {
+            badges.push(`<span class="slot-badge badge-buc-unid" title="${isEn ? 'Unidentified' : '未識別'}">?</span>`);
         }
-        if (isUnid && buc === 'UNKNOWN') {
-            return `<span class="slot-badge badge-buc-unid" title="${isEn ? 'Unidentified' : '未識別'}">?</span>`;
-        }
-        return '';
+
+        return badges.join('');
     }
 
     /**

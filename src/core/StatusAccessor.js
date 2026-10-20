@@ -80,12 +80,12 @@ export class StatusAccessor {
         }
 
         // Dlevel (20: BL_DLEVEL)
-        const dlvlRaw = f[20] !== undefined ? String(f[20]) : "Dlvl:1";
+        const dlvlRaw = f[20] !== undefined ? String(f[20]).trim() : "Dlvl:1";
         let branchName = "Dlvl";
         let levelNum = 1;
-        const dlvlMatch = dlvlRaw.match(/^(.*?):?\s*(\d+)$/i);
+        const dlvlMatch = dlvlRaw.match(/^(.*?):?\s*(\d+)\s*$/i);
         if (dlvlMatch) {
-            branchName = dlvlMatch[1] || "Dlvl";
+            branchName = dlvlMatch[1] ? dlvlMatch[1].trim() : "Dlvl";
             levelNum = parseInt(dlvlMatch[2], 10) || 1;
         }
 

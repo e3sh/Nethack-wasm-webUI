@@ -134,6 +134,7 @@ export class WasmDirectBindingService {
         this.spatialAdapter.clearFloorCaches();
         this.monsterAdapter.clearFloorCaches();
         this.inventoryAdapter.clearFloorCaches();
+        this.playerAdapter.clearFloorCaches();
     }
 
     /**

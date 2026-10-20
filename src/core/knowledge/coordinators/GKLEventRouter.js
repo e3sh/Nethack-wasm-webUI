@@ -158,7 +158,26 @@ export class GKLEventRouter {
                         }
                     }
 
-                    // 🎯 フロア遷移・初回ターン確定時の全フロア地形・グリフ (80x21) 自動ロード (Stage 8.3-B / Hybrid)
+                    // 🎯 1. プレイヤーサマリー（dnumブランチ・dlevel実階層、祈り、怒り等）の最優先同期 (Stage 8.4 / SSOT)
+                    // dumpLevelMap や syncPlayerFeetFloor の前に真の floorKey を確定させ、仮フロアキーへの階段誤登録を根絶する
+                    let syncedSummary = null;
+                    let syncedAreaInfo = null;
+                    if (p.wasmDirectBindingService && typeof p.wasmDirectBindingService.getPlayerSummary === 'function') {
+                        syncedSummary = p.wasmDirectBindingService.getPlayerSummary();
+                        if (syncedSummary && p.areaStateManager && typeof p.areaStateManager.syncPlayerSummary === 'function') {
+                            syncedAreaInfo = p.areaStateManager.syncPlayerSummary(syncedSummary);
+                            if (syncedAreaInfo && syncedAreaInfo.isNewFloor && p.monsterTracker && typeof p.monsterTracker.handleDlevelChange === 'function') {
+                                p.monsterTracker.handleDlevelChange(syncedAreaInfo.floorKey);
+                            }
+                        }
+                    }
+                    // GET_PLAYER_SUMMARY 未実装モック等でまだ isFloorPending が残っている場合のフォールバック確定
+                    if (p.areaStateManager && p.areaStateManager.isFloorPending && typeof p.areaStateManager.setCurrentFloor === 'function') {
+                        const fallbackKey = p.areaStateManager._pendingStatusFloorKey || p.areaStateManager.currentFloor;
+                        p.areaStateManager.setCurrentFloor(fallbackKey, { preserveGrid: true });
+                    }
+
+                    // 🎯 2. フロア遷移・初回ターン確定時の全フロア地形・グリフ (80x21) 自動ロード (Stage 8.3-B / Hybrid)
                     if (needTerrainDump && p.areaStateManager) {
                         if (typeof p.areaStateManager.dumpLevelMap === 'function') {
                             p.areaStateManager.dumpLevelMap();
@@ -167,7 +186,7 @@ export class GKLEventRouter {
                         }
                     }
 
-                    // 🎯 発見・識別状態 (objects[i].oc_name_known) の同期
+                    // 🎯 3. 発見・識別状態 (objects[i].oc_name_known) の同期
                     if (p.discoveryStateManager && typeof p.discoveryStateManager.syncWithLiveMemory === 'function') {
                         const discChanged = p.discoveryStateManager.syncWithLiveMemory(p.wasmDirectBindingService);
                         if (discChanged) {
@@ -175,17 +194,23 @@ export class GKLEventRouter {
                         }
                     }
 
-                    // 🎯 周辺セルの真値同期 (真の床・真のモンスター平和状態を注入) (Stage 8.3-A)
+                    // 🎯 4. 周辺セルの真値同期 (真の床・真のモンスター平和状態を注入) (Stage 8.3-A)
                     if (p.areaStateManager && typeof p.areaStateManager.syncFromDirectBinding === 'function') {
                         p.areaStateManager.syncFromDirectBinding(1);
                     }
 
-                    // 🎯 足元の真の床を AreaStateManager へ即時反映 (Stage 8.2-B)
-                    if (p.areaStateManager && typeof p.areaStateManager.syncPlayerFeetFloor === 'function') {
-                        p.areaStateManager.syncPlayerFeetFloor();
+                    // 🎯 5. 足元の到着階段シード＆真の床を AreaStateManager へ即時反映 (Stage 8.2-B)
+                    if (p.areaStateManager) {
+                        if (typeof p.areaStateManager.seedArrivalStair === 'function' &&
+                            p.areaStateManager.playerX > 0 && p.areaStateManager.playerY > 0) {
+                            p.areaStateManager.seedArrivalStair(p.areaStateManager.playerX, p.areaStateManager.playerY);
+                        }
+                        if (typeof p.areaStateManager.syncPlayerFeetFloor === 'function') {
+                            p.areaStateManager.syncPlayerFeetFloor();
+                        }
                     }
 
-                    // 🎯 モンスター足元の床アイテム同期 (Hybrid二重管理)
+                    // 🎯 6. モンスター足元の床アイテム同期 (Hybrid二重管理)
                     if (p.areaStateManager && typeof p.areaStateManager.syncMonstersFeetObjects === 'function') {
                         p.areaStateManager.syncMonstersFeetObjects();
                     }
@@ -197,7 +222,7 @@ export class GKLEventRouter {
                         }
                     }
 
-                    // 🎯 プレイヤー真の属性・耐性 (u.uprops) の同期
+                    // 🎯 7. プレイヤー真の属性・耐性 (u.uprops) の同期
                     if (p.attributeStateManager && typeof p.attributeStateManager.syncFromDirectBinding === 'function') {
                         const attrChanged = p.attributeStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
                         if (attrChanged) {
@@ -205,7 +230,7 @@ export class GKLEventRouter {
                         }
                     }
 
-                    // 🎯 スキル熟練度 (DUMP_SKILLS) の同期
+                    // 🎯 8. スキル熟練度 (DUMP_SKILLS) の同期
                     if (p.skillStateManager && typeof p.skillStateManager.syncFromDirectBinding === 'function') {
                         const skillChanged = p.skillStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
                         if (skillChanged) {
@@ -213,7 +238,7 @@ export class GKLEventRouter {
                         }
                     }
 
-                    // 🎯 呪文リスト (DUMP_SPELL_BOOK) の同期
+                    // 🎯 9. 呪文リスト (DUMP_SPELL_BOOK) の同期
                     if (p.spellStateManager && typeof p.spellStateManager.syncFromDirectBinding === 'function') {
                         const spellChanged = p.spellStateManager.syncFromDirectBinding(p.wasmDirectBindingService);
                         if (spellChanged) {
@@ -221,29 +246,23 @@ export class GKLEventRouter {
                         }
                     }
 
-                    // 🎯 プレイヤーサマリー（dnumブランチ、ublesscnt祈り、ugangr怒り等）の同期 (Stage 8.4)
-                    if (p.wasmDirectBindingService && typeof p.wasmDirectBindingService.getPlayerSummary === 'function') {
-                        const summary = p.wasmDirectBindingService.getPlayerSummary();
-                        if (summary) {
-                            if (p.areaStateManager && typeof p.areaStateManager.syncPlayerSummary === 'function') {
-                                const areaInfo = p.areaStateManager.syncPlayerSummary(summary);
-                                if (areaInfo && areaInfo.isNewBranch) {
-                                    core.emit('areaEntered', areaInfo);
-                                    if (p.gklFxCoordinator && typeof p.gklFxCoordinator.emitFxTrigger === 'function') {
-                                        p.gklFxCoordinator.emitFxTrigger({
-                                            type: 'AREA_ENTERED',
-                                            branchId: areaInfo.branchId,
-                                            title: areaInfo.branchName,
-                                            titleJa: areaInfo.branchNameJa,
-                                            subtitle: `Level ${areaInfo.dlevel}`,
-                                            theme: areaInfo.theme || 'dungeon',
-                                            bannerDurationMs: 4000
-                                        });
-                                    }
-                                }
+                    // 🎯 10. プレイヤーサマリー通知イベントの発火 (Stage 8.4)
+                    if (syncedSummary) {
+                        if (syncedAreaInfo && syncedAreaInfo.isNewBranch) {
+                            core.emit('areaEntered', syncedAreaInfo);
+                            if (p.gklFxCoordinator && typeof p.gklFxCoordinator.emitFxTrigger === 'function') {
+                                p.gklFxCoordinator.emitFxTrigger({
+                                    type: 'AREA_ENTERED',
+                                    branchId: syncedAreaInfo.branchId,
+                                    title: syncedAreaInfo.branchName,
+                                    titleJa: syncedAreaInfo.branchNameJa,
+                                    subtitle: `Level ${syncedAreaInfo.dlevel}`,
+                                    theme: syncedAreaInfo.theme || 'dungeon',
+                                    bannerDurationMs: 4000
+                                });
                             }
-                            core.emit('playerSummaryUpdated', summary);
                         }
+                        core.emit('playerSummaryUpdated', syncedSummary);
                     }
                 }
 
@@ -584,7 +603,8 @@ export class GKLEventRouter {
                 // 階層 (BL_DLEVEL = 20) の同期
                 if (data.field === 20 || data.field === 'dlevel') {
                     let floorKey = data.value;
-                    if (data.dlevelData && data.dlevelData.branch && data.dlevelData.dlevelNum) {
+                    const hasExplicitBranchData = Boolean(data.dlevelData && data.dlevelData.branch && data.dlevelData.dlevelNum);
+                    if (hasExplicitBranchData) {
                         floorKey = `${data.dlevelData.branch}:${data.dlevelData.dlevelNum}`;
                     } else if (p.statusAccessor && typeof p.statusAccessor.getStatus === 'function') {
                         const st = p.statusAccessor.getStatus();
@@ -593,10 +613,26 @@ export class GKLEventRouter {
                         }
                     }
 
-                    if (p.areaStateManager && typeof p.areaStateManager.setCurrentFloor === 'function') {
-                        p.areaStateManager.setCurrentFloor(floorKey);
+                    const asm = p.areaStateManager;
+                    const hasDirectConnection = Boolean(
+                        p.wasmDirectBindingService &&
+                        (p.wasmDirectBindingService.bridge || p.wasmDirectBindingService.hasLiveMemory)
+                    );
+
+                    if (asm && typeof asm.setCurrentFloor === 'function') {
+                        if (hasDirectConnection && !hasExplicitBranchData) {
+                            // DirectBinding 接続時は Cコア u.uz (dnum, dlevel) が階層の絶対真値 (SSOT)。
+                            // BL_DLEVEL 文字列 ("Dlvl:N") はノームの鉱山等の分岐でも "Dlvl:N" を送出するため、
+                            // フロア遷移中は pending 状態を維持して退避し、サマリー同期済みの通常ターンでも上書きしない。
+                            asm._pendingStatusFloorKey = floorKey;
+                            if (!asm.isFloorPending && !asm.isFloorTransitioning && !asm.playerSummary) {
+                                asm.setCurrentFloor(floorKey, { preserveGrid: true });
+                            }
+                        } else {
+                            asm.setCurrentFloor(floorKey);
+                        }
                     }
-                    if (p.monsterTracker) {
+                    if (p.monsterTracker && (!hasDirectConnection || hasExplicitBranchData)) {
                         p.monsterTracker.handleDlevelChange(floorKey);
                     }
                 }

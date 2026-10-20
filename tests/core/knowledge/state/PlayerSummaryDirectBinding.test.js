@@ -308,5 +308,47 @@ describe('Stage 8.4: Branch Identification, Prayer Tracker, and Player Resistanc
             expect(asm.currentFloor).toBe('sokoban:1');
             expect(asm.currentBranchId).toBe('sokoban');
         });
+
+        it('rekeys provisional BL_DLEVEL stairs/landmarks to the true branch floorKey and never pollutes Dlvl:N cache on branch transition', () => {
+            // 1. Dlvl:4 の本来の階段 (36, 4) を観測・登録
+            asm.setCurrentFloor('Dlvl:4');
+            asm.updateGlyph(36, 4, 3999);
+            asm.updatePlayerPosition(36, 4);
+            expect(asm.stairCache.get('Dlvl:4:36,4')?.glyph).toBe(3999);
+
+            // 2. Dlvl:3 に戻ってからノームの鉱山 (dnum=2, depth=4 -> BL_DLEVEL="Dlvl:4  ", floorKey="mines:2") へ降りるケースをシミュレート
+            asm.setCurrentFloor('Dlvl:3');
+            asm.prepareFloorTransition();
+
+            // 仮に DirectBinding 同期前に status_update (BL_DLEVEL="Dlvl:4") で暫定キー Dlvl:4 に切り替わり、
+            // 鉱山側の階段 (40, 13) が print_glyph で届いたとしても:
+            asm.setCurrentFloor('Dlvl:4', { preserveGrid: true });
+            asm.updateGlyph(40, 13, 3998);
+            asm.updatePlayerPosition(40, 13);
+
+            // 3. inputRequired で DirectBinding の真値 (mines:2) が同期される
+            asm.syncPlayerSummary({
+                dnum: 2,
+                dlevel: 2,
+                branchId: 'mines',
+                branchName: 'The Gnomish Mines',
+                branchNameJa: 'ノームの鉱山',
+                theme: 'cave',
+                floorKey: 'mines:2'
+            });
+
+            // 鉱山で観測された階段 (40, 13) は mines:2 に移管され、Dlvl:4 には残らないこと
+            expect(asm.currentFloor).toBe('mines:2');
+            expect(asm.stairCache.get('mines:2:40,13')?.glyph).toBe(3998);
+            expect(asm.stairCache.has('Dlvl:4:40,13')).toBe(false);
+            expect(asm.stairCache.get('Dlvl:4:36,4')?.glyph).toBe(3999);
+
+            const dlvl4Landmarks = asm.getFloorLandmarks('Dlvl:4');
+            expect(dlvl4Landmarks.stairsUp.some(s => s.x === 40 && s.y === 13)).toBe(false);
+            expect(dlvl4Landmarks.stairsDown.some(s => s.x === 36 && s.y === 4)).toBe(true);
+
+            const mines2Landmarks = asm.getFloorLandmarks('mines:2');
+            expect(mines2Landmarks.stairsUp.some(s => s.x === 40 && s.y === 13)).toBe(true);
+        });
     });
 });
