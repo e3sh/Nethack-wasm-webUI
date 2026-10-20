@@ -720,5 +720,185 @@ describe('WasmDirectBindingService', () => {
                 expect(bridgeService._cachedLevelGlyphs).toBe(glyphs);
             });
         });
+
+        describe('SHIM_CMD_DUMP_MAPSEEN (0x34) - Dungeon Overview & Floor Annotations', () => {
+            function createMockMapseenBuffer(entriesData) {
+                const buf = new ArrayBuffer(entriesData.length * 96);
+                const dv = new DataView(buf);
+                const u8 = new Uint8Array(buf);
+
+                entriesData.forEach((e, idx) => {
+                    const base = idx * 96;
+                    dv.setInt32(base + 0, e.dnum ?? 0, true);
+                    dv.setInt32(base + 4, e.dlevel ?? 1, true);
+                    dv.setUint16(base + 8, e.nfount ?? 0, true);
+                    dv.setUint16(base + 10, e.nsink ?? 0, true);
+                    dv.setUint16(base + 12, e.naltar ?? 0, true);
+                    dv.setUint16(base + 14, e.msalign ?? 0, true);
+                    dv.setUint16(base + 16, e.nshop ?? 0, true);
+                    dv.setUint16(base + 18, e.shoptype ?? 0, true);
+                    dv.setUint16(base + 20, e.nthrone ?? 0, true);
+                    dv.setUint16(base + 22, e.ntemple ?? 0, true);
+                    dv.setUint8(base + 24, e.water ?? 0);
+                    dv.setUint8(base + 25, e.lava ?? 0);
+                    dv.setUint8(base + 26, e.ice ?? 0);
+                    dv.setUint8(base + 27, ((e.ngrave ?? 0) & 0x0F) | (((e.ntree ?? 0) & 0x0F) << 4));
+                    dv.setUint32(base + 28, e.flags ?? 0, true);
+                    if (e.custom) {
+                        const encoded = new TextEncoder().encode(e.custom);
+                        u8.set(encoded.subarray(0, 63), base + 32);
+                    }
+                });
+
+                return Array.from(new Int32Array(buf));
+            }
+
+            it('getDungeonOverview / getMapseenList decodes MapseenFloorInfo in live memory mode', () => {
+                const allocatedPtr = 0xB000;
+                vi.spyOn(memory, 'allocateBuffer').mockReturnValue(allocatedPtr);
+                vi.spyOn(memory, 'freeBuffer');
+
+                const mockWords = createMockMapseenBuffer([
+                    {
+                        dnum: 0,
+                        dlevel: 5,
+                        nfount: 1,
+                        nsink: 2,
+                        naltar: 1,
+                        msalign: 3, // 3: Lawful (include/align.h Amask2msa)
+                        nshop: 1,
+                        shoptype: 19, // Delicatessen (食料品店)
+                        nthrone: 1,
+                        ntemple: 1,
+                        water: 1,
+                        lava: 0,
+                        ice: 0,
+                        ngrave: 0,
+                        ntree: 1,
+                        flags: 0x04 | 0x10, // oracle | bigroom
+                        custom: '🚩拠点・聖水作成'
+                    },
+                    {
+                        dnum: 2, // Mines
+                        dlevel: 4,
+                        naltar: 1,
+                        msalign: 1, // 1: Chaotic
+                        nshop: 2,
+                        shoptype: 14, // General Store
+                        ntemple: 1,
+                        flags: 0,
+                        custom: 'Minetown'
+                    }
+                ]);
+
+                vi.spyOn(memory, 'bridgeCall').mockImplementation((cmd, a1, a2, buf, len) => {
+                    if (cmd === NetHackMemory.SHIM_CMD.DUMP_MAPSEEN) {
+                        expect(len).toBe(64 * 96);
+                        return 2;
+                    }
+                    return -1;
+                });
+                vi.spyOn(memory, 'readInt32Array').mockReturnValue(mockWords);
+
+                const overview = service.getDungeonOverview();
+                expect(overview).toHaveLength(2);
+                expect(service.getMapseenList()).toEqual(overview);
+
+                // Floor 1: Main Dungeon Dlvl:5
+                expect(overview[0]).toMatchObject({
+                    dnum: 0,
+                    dlevel: 5,
+                    branchId: 'dungeon',
+                    branchNameJa: 'メインダンジョン',
+                    floorKey: 'Dlvl:5',
+                    features: {
+                        fountains: 1,
+                        sinks: 2,
+                        altars: 1,
+                        altarAlign: 'lawful',
+                        altarAlignJa: '秩序',
+                        shops: 1,
+                        shopType: 19,
+                        shopNameJa: '食料品店',
+                        thrones: 1,
+                        temples: 1,
+                        water: 1,
+                        lava: 0,
+                        ice: 0,
+                        graves: 0,
+                        trees: 1
+                    },
+                    flags: {
+                        sokoSolved: false,
+                        castle: false,
+                        oracle: true,
+                        vibratingSquare: false,
+                        bigRoom: true
+                    },
+                    annotation: '🚩拠点・聖水作成'
+                });
+
+                // Floor 2: Mines 4
+                expect(overview[1]).toMatchObject({
+                    dnum: 2,
+                    dlevel: 4,
+                    branchId: 'mines',
+                    branchNameJa: 'ノームの鉱山',
+                    floorKey: 'mines:4',
+                    features: {
+                        altars: 1,
+                        altarAlign: 'chaotic',
+                        altarAlignJa: '混沌',
+                        shops: 2,
+                        shopType: 14,
+                        temples: 1
+                    },
+                    annotation: 'Minetown'
+                });
+
+                expect(memory.freeBuffer).toHaveBeenCalledWith(allocatedPtr);
+            });
+
+            it('fetchDungeonOverview / syncDungeonOverviewOnDemand works via WorkerBridge.callShim', async () => {
+                const mockWords = createMockMapseenBuffer([
+                    {
+                        dnum: 4, // Sokoban
+                        dlevel: 2,
+                        flags: 0x01, // sokosolved
+                        custom: 'Solved level'
+                    },
+                    {
+                        dnum: 1, // Gehennom
+                        dlevel: 20,
+                        flags: 0x02 | 0x08, // castle | vibrating_square
+                        custom: 'Vibrating square here'
+                    }
+                ]);
+
+                mockBridge.callShim.mockImplementation(async (cmd, a1, a2, size, type) => {
+                    if (cmd === NetHackMemory.SHIM_CMD.DUMP_MAPSEEN) {
+                        expect(size).toBe(64 * 96);
+                        expect(type).toBe('int32');
+                        return { result: 2, buffer: mockWords };
+                    }
+                    return { result: 0, buffer: null };
+                });
+
+                const list = await bridgeService.fetchDungeonOverview();
+                expect(list).toHaveLength(2);
+                expect(list[0].branchId).toBe('sokoban');
+                expect(list[0].branchNameJa).toBe('倉庫番');
+                expect(list[0].flags.sokoSolved).toBe(true);
+                expect(list[0].annotation).toBe('Solved level');
+
+                expect(list[1].branchId).toBe('gehennom');
+                expect(list[1].flags.castle).toBe(true);
+                expect(list[1].flags.vibratingSquare).toBe(true);
+                expect(list[1].annotation).toBe('Vibrating square here');
+
+                // キャッシュから同期取得できること
+                expect(bridgeService.getDungeonOverview()).toEqual(list);
+            });
+        });
     });
 });

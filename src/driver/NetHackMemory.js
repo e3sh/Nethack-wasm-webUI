@@ -501,6 +501,153 @@
             if (!ptr) return "";
             return this.UTF8ToString(ptr);
         }
+
+        /**
+         * SHIM_CMD_DUMP_MAPSEEN (0x34) で返却された MapseenDumpEntry バッファをデコードし、
+         * プレーンな JavaScript オブジェクト配列に変換します。
+         *
+         * MapseenDumpEntry (96 bytes = 24 * int32):
+         *   offset 0:  int32  dnum
+         *   offset 4:  int32  dlevel
+         *   offset 8:  uint16 nfount
+         *   offset 10: uint16 nsink
+         *   offset 12: uint16 naltar
+         *   offset 14: uint16 msalign (0:None, 1:Chaotic, 2:Neutral, 3:Lawful)
+         *   offset 16: uint16 nshop
+         *   offset 18: uint16 shoptype
+         *   offset 20: uint16 nthrone
+         *   offset 22: uint16 ntemple
+         *   offset 24: uint8  water
+         *   offset 25: uint8  lava
+         *   offset 26: uint8  ice
+         *   offset 27: uint8  extra_feat (ngrave | (ntree << 4))
+         *   offset 28: uint32 flags
+         *   offset 32: char   custom[64]
+         *
+         * @param {Uint8Array|Int32Array|Array<number>|ArrayBuffer} bufferOrArray
+         * @param {number} [count] エントリ件数 (省略時はバッファ長から自動算出)
+         * @returns {Array<Object>}
+         */
+        static parseMapseenBuffer(bufferOrArray, count = null) {
+            if (!bufferOrArray) return [];
+
+            const ENTRY_BYTES = 96;
+            let u8 = null;
+
+            if (bufferOrArray instanceof Uint8Array) {
+                u8 = bufferOrArray;
+            } else if (bufferOrArray instanceof Int32Array) {
+                u8 = new Uint8Array(bufferOrArray.buffer, bufferOrArray.byteOffset, bufferOrArray.byteLength);
+            } else if (bufferOrArray instanceof ArrayBuffer) {
+                u8 = new Uint8Array(bufferOrArray);
+            } else if (Array.isArray(bufferOrArray)) {
+                if (bufferOrArray.length === 0) return [];
+                // callShim(..., 'int32') の戻り値配列か、'uint8' の戻り値配列かを判別
+                const expectedInt32Len = (typeof count === 'number' && count > 0) ? count * 24 : 0;
+                const isUint8Mode = (typeof count === 'number' && count > 0 && bufferOrArray.length >= count * ENTRY_BYTES)
+                    || (expectedInt32Len === 0 && bufferOrArray.length % ENTRY_BYTES === 0 && bufferOrArray.every(v => typeof v === 'number' && v >= 0 && v <= 255));
+
+                if (!isUint8Mode && (bufferOrArray.length % 24 === 0 || (expectedInt32Len > 0 && bufferOrArray.length >= expectedInt32Len))) {
+                    const i32 = new Int32Array(bufferOrArray);
+                    u8 = new Uint8Array(i32.buffer);
+                } else {
+                    u8 = new Uint8Array(bufferOrArray);
+                }
+            } else {
+                return [];
+            }
+
+            const maxPossible = Math.floor(u8.byteLength / ENTRY_BYTES);
+            const total = (typeof count === 'number' && count >= 0)
+                ? Math.min(count, maxPossible)
+                : maxPossible;
+
+            if (total <= 0) return [];
+
+            const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+            const entries = [];
+
+            for (let i = 0; i < total; i++) {
+                const base = i * ENTRY_BYTES;
+                const dnum = dv.getInt32(base + 0, true);
+                const dlevel = dv.getInt32(base + 4, true);
+
+                const nfount = dv.getUint16(base + 8, true);
+                const nsink = dv.getUint16(base + 10, true);
+                const naltar = dv.getUint16(base + 12, true);
+                const msalign = dv.getUint16(base + 14, true);
+                const nshop = dv.getUint16(base + 16, true);
+                const shoptype = dv.getUint16(base + 18, true);
+                const nthrone = dv.getUint16(base + 20, true);
+                const ntemple = dv.getUint16(base + 22, true);
+
+                const water = dv.getUint8(base + 24);
+                const lava = dv.getUint8(base + 25);
+                const ice = dv.getUint8(base + 26);
+                const extraFeat = dv.getUint8(base + 27);
+                const ngrave = extraFeat & 0x0F;
+                const ntree = (extraFeat >> 4) & 0x0F;
+
+                const flags = dv.getUint32(base + 28, true);
+
+                // custom[64] NULL終端文字列デコード
+                const strBytes = [];
+                for (let c = 0; c < 64; c++) {
+                    const ch = u8[base + 32 + c];
+                    if (ch === 0) break;
+                    strBytes.push(ch);
+                }
+                let custom = "";
+                if (strBytes.length > 0) {
+                    try {
+                        if (typeof TextDecoder !== 'undefined') {
+                            custom = new TextDecoder().decode(new Uint8Array(strBytes));
+                        } else {
+                            custom = String.fromCharCode(...strBytes);
+                        }
+                    } catch (_) {
+                        custom = String.fromCharCode(...strBytes);
+                    }
+                }
+
+                entries.push({
+                    dnum,
+                    dlevel,
+                    nfount,
+                    nsink,
+                    naltar,
+                    msalign,
+                    nshop,
+                    shoptype,
+                    nthrone,
+                    ntemple,
+                    water,
+                    lava,
+                    ice,
+                    ngrave,
+                    ntree,
+                    flags,
+                    custom
+                });
+            }
+
+            return entries;
+        }
+
+        /**
+         * インスタンスメソッド版 parseMapseenBuffer
+         * @param {Uint8Array|Int32Array|Array<number>|ArrayBuffer|number} bufferOrPtr
+         * @param {number} [count=0]
+         * @returns {Array<Object>}
+         */
+        parseMapseenBuffer(bufferOrPtr, count = 0) {
+            if (typeof bufferOrPtr === 'number') {
+                if (!bufferOrPtr || count <= 0) return [];
+                const rawWords = this.readInt32Array(bufferOrPtr, count * 24);
+                return NetHackMemory.parseMapseenBuffer(rawWords, count);
+            }
+            return NetHackMemory.parseMapseenBuffer(bufferOrPtr, count);
+        }
     }
 
     NetHackMemory.SHIM_CMD = {
@@ -521,6 +668,7 @@
         GET_PLAYER_PTR: 0x31,
         GET_PLAYER_PROPS: 0x32,
         GET_PLAYER_PROFILE: 0x33,
+        DUMP_MAPSEEN: 0x34,
 
         GET_INVENT_PTR: 0x40,
         GET_EQUIPMENT_PTRS: 0x41,

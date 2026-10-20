@@ -30,6 +30,7 @@ enum ShimBridgeCmd {
     SHIM_CMD_GET_PLAYER_PTR     = 0x31, /* -> &u */
     SHIM_CMD_GET_PLAYER_PROPS   = 0x32, /* buf=long[LAST_PROP+1] -> uprops (耐性・能力配列一括コピー) */
     SHIM_CMD_GET_PLAYER_PROFILE = 0x33, /* buf=long[16]+strings(192B) -> [roleIdx, raceIdx, female, align, urole.mnum, urace.mnum, ulevel, initgend, align_record, 0...] + strings: role, race, plname */
+    SHIM_CMD_DUMP_MAPSEEN       = 0x34, /* buf=MapseenDumpEntry[], len=max_bytes -> 全踏破階層・施設・#annotate メモ一括ダンプ (返値: 件数) */
 
     /* 4. インベントリ・装備・アイテム系 (0x40〜0x4F) */
     SHIM_CMD_GET_INVENT_PTR     = 0x40, /* -> gi.invent (所持品リンクリスト先頭) */
@@ -60,6 +61,26 @@ enum ShimSymbolId {
     SHIM_SYM_SPL_BOOK  = 6, /* &svs.spl_book */
     SHIM_SYM_MOVES     = 7, /* &svm.moves */
 };
+
+/* MapseenDumpEntry (SHIM_CMD_DUMP_MAPSEEN = 0x34 用固定長ダンプ構造体: 96 bytes, 8-byte aligned) */
+typedef struct {
+    int32_t  dnum;              /* offset 0: ダンジョン番号 (0: Main, 1: Gehennom, 2: Mines 等) */
+    int32_t  dlevel;            /* offset 4: 階層の深さ (1〜) */
+    uint16_t nfount;            /* offset 8: 泉の数 */
+    uint16_t nsink;             /* offset 10: シンクの数 */
+    uint16_t naltar;            /* offset 12: 祭壇の数 */
+    uint16_t msalign;           /* offset 14: 祭壇の属性 (0:None, 1:Chaotic, 2:Neutral, 3:Lawful) */
+    uint16_t nshop;             /* offset 16: 店の数 */
+    uint16_t shoptype;          /* offset 18: 店舗種別 (rtype) */
+    uint16_t nthrone;           /* offset 20: 玉座の数 */
+    uint16_t ntemple;           /* offset 22: 寺院の数 */
+    uint8_t  water;             /* offset 24: 水路の有無 */
+    uint8_t  lava;              /* offset 25: 溶岩の有無 */
+    uint8_t  ice;               /* offset 26: 氷の有無 */
+    uint8_t  extra_feat;        /* offset 27: ngrave(下位4bit) | (ntree << 4) */
+    uint32_t flags;             /* offset 28: 特殊フロア・進行フラグビットマスク */
+    char     custom[64];        /* offset 32: #annotate カスタム注釈テキスト (NULL終端保証) */
+} MapseenDumpEntry;
 
 /* 唯一のエクスポート窓口関数 */
 long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
@@ -248,6 +269,63 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
                 }
             }
             return 0;
+        }
+        case SHIM_CMD_DUMP_MAPSEEN: {
+            if (!buf || len < (int) sizeof(MapseenDumpEntry)) return 0;
+            /* 現在フロアの mapseen を最新状態に再計算反映 */
+            recalc_mapseen();
+
+            MapseenDumpEntry *dst = (MapseenDumpEntry *) buf;
+            int max_entries = len / (int) sizeof(MapseenDumpEntry);
+            int count = 0;
+            struct mapseen *curr = svm.mapseenchn;
+
+            while (curr && count < max_entries) {
+                memset(&dst[count], 0, sizeof(MapseenDumpEntry));
+                dst[count].dnum       = (int32_t) curr->lev.dnum;
+                dst[count].dlevel     = (int32_t) curr->lev.dlevel;
+                dst[count].nfount     = (uint16_t) curr->feat.nfount;
+                dst[count].nsink      = (uint16_t) curr->feat.nsink;
+                dst[count].naltar     = (uint16_t) curr->feat.naltar;
+                dst[count].msalign    = (uint16_t) curr->feat.msalign;
+                dst[count].nshop      = (uint16_t) curr->feat.nshop;
+                dst[count].shoptype   = (uint16_t) curr->feat.shoptype;
+                dst[count].nthrone    = (uint16_t) curr->feat.nthrone;
+                dst[count].ntemple    = (uint16_t) curr->feat.ntemple;
+                dst[count].water      = (uint8_t) curr->feat.water;
+                dst[count].lava       = (uint8_t) curr->feat.lava;
+                dst[count].ice        = (uint8_t) curr->feat.ice;
+                dst[count].extra_feat = (uint8_t) ((curr->feat.ngrave & 0x0F) | ((curr->feat.ntree & 0x0F) << 4));
+
+                dst[count].flags = (uint32_t) (
+                    (curr->flags.sokosolved       ? 0x0001 : 0) |
+                    (curr->flags.castle           ? 0x0002 : 0) |
+                    (curr->flags.oracle           ? 0x0004 : 0) |
+                    (curr->flags.vibrating_square ? 0x0008 : 0) |
+                    (curr->flags.bigroom          ? 0x0010 : 0) |
+                    (curr->flags.notreachable     ? 0x0020 : 0) |
+                    (curr->flags.forgot           ? 0x0040 : 0) |
+                    (curr->flags.knownbones       ? 0x0080 : 0) |
+                    (curr->flags.castletune       ? 0x0100 : 0) |
+                    (curr->flags.valley           ? 0x0200 : 0) |
+                    (curr->flags.msanctum         ? 0x0400 : 0) |
+                    (curr->flags.ludios           ? 0x0800 : 0) |
+                    (curr->flags.roguelevel       ? 0x1000 : 0) |
+                    (curr->flags.quest_summons    ? 0x2000 : 0) |
+                    (curr->flags.questing         ? 0x4000 : 0)
+                );
+
+                if (curr->custom && curr->custom[0]) {
+                    strncpy(dst[count].custom, curr->custom, sizeof(dst[count].custom) - 1);
+                    dst[count].custom[sizeof(dst[count].custom) - 1] = '\0';
+                } else {
+                    dst[count].custom[0] = '\0';
+                }
+
+                count++;
+                curr = curr->next;
+            }
+            return (long) count;
         }
 
         /* 4. インベントリ・装備 */

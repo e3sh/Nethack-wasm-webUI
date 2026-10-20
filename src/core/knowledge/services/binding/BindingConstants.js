@@ -33,6 +33,7 @@ export const SHIM_CMD = {
     GET_PLAYER_PTR: 0x31,
     GET_PLAYER_PROPS: 0x32,
     GET_PLAYER_PROFILE: 0x33,
+    DUMP_MAPSEEN: 0x34,
 
     GET_INVENT_PTR: 0x40,
     GET_EQUIPMENT_PTRS: 0x41,
@@ -645,4 +646,148 @@ export function parsePlayerSummaryBuffer(raw) {
         floorKey,
         canPray: ublesscnt === 0 && ugangr === 0
     };
+}
+
+/**
+ * MapseenDumpEntry 構造体サイズ (バイト数 / int32要素数)
+ */
+export const MAPSEEN_ENTRY_BYTES = 96;
+export const MAPSEEN_ENTRY_WORDS = 24;
+export const MAPSEEN_MAX_ENTRIES = 64;
+
+/**
+ * Mapseen 祭壇属性 (feat.msalign: 0..3) マッピング
+ * NetHack include/align.h: Amask2msa(x) -> 0:MSA_NONE, 1:AM_CHAOTIC, 2:AM_NEUTRAL, 3:AM_LAWFUL
+ */
+export const MAPSEEN_ALTAR_ALIGN = {
+    0: 'none',
+    1: 'chaotic',
+    2: 'neutral',
+    3: 'lawful'
+};
+
+export const MAPSEEN_ALTAR_ALIGN_JA = {
+    none: 'なし',
+    chaotic: '混沌',
+    neutral: '中立',
+    lawful: '秩序'
+};
+
+/**
+ * Mapseen flags ビットマスク定義 (shim_bridge.c と同期)
+ */
+export const MAPSEEN_FLAGS = {
+    SOKOSOLVED: 0x0001,
+    CASTLE: 0x0002,
+    ORACLE: 0x0004,
+    VIBRATING_SQUARE: 0x0008,
+    BIGROOM: 0x0010,
+    NOTREACHABLE: 0x0020,
+    FORGOT: 0x0040,
+    KNOWNBONES: 0x0080,
+    CASTLETUNE: 0x0100,
+    VALLEY: 0x0200,
+    MSANCTUM: 0x0400,
+    LUDIOS: 0x0800,
+    ROGUELEVEL: 0x1000,
+    QUEST_SUMMONS: 0x2000,
+    QUESTING: 0x4000
+};
+
+/**
+ * SHIM_CMD_DUMP_MAPSEEN (0x34) の生バッファまたはデコード済みエントリ配列を
+ * ドメインモデルの MapseenFloorInfo 配列に変換 (純粋関数)
+ *
+ * @param {Uint8Array|Int32Array|Array<number|Object>|ArrayBuffer} bufferOrEntries
+ * @param {number|null} [count=null]
+ * @returns {Array<Object>} MapseenFloorInfo[]
+ */
+export function parseMapseenOverviewBuffer(bufferOrEntries, count = null) {
+    if (!bufferOrEntries) return [];
+
+    let rawEntries = [];
+    if (Array.isArray(bufferOrEntries) && bufferOrEntries.length > 0 && typeof bufferOrEntries[0] === 'object' && bufferOrEntries[0] !== null && 'dnum' in bufferOrEntries[0]) {
+        const limit = (typeof count === 'number' && count >= 0) ? Math.min(count, bufferOrEntries.length) : bufferOrEntries.length;
+        rawEntries = bufferOrEntries.slice(0, limit);
+    } else {
+        const MemClass = getGlobalMemoryClass();
+        if (MemClass && typeof MemClass.parseMapseenBuffer === 'function') {
+            rawEntries = MemClass.parseMapseenBuffer(bufferOrEntries, count);
+        } else {
+            return [];
+        }
+    }
+
+    return rawEntries.map((entry) => {
+        const dnum = Number(entry.dnum ?? 0);
+        const dlevel = Number(entry.dlevel ?? 1);
+        const branch = getDungeonBranch(dnum);
+        const branchId = branch.id;
+        const branchName = branch.name;
+        const branchNameJa = branch.nameJa;
+        const floorKey = (dnum === 0) ? `Dlvl:${dlevel}` : `${branchId}:${dlevel}`;
+
+        const msalign = Number(entry.msalign ?? 0);
+        const altarAlign = MAPSEEN_ALTAR_ALIGN[msalign] || 'none';
+        const altarAlignJa = MAPSEEN_ALTAR_ALIGN_JA[altarAlign] || 'なし';
+
+        const shopType = Number(entry.shoptype ?? 0);
+        let shopName = null;
+        let shopNameJa = null;
+        if (shopType === ROOM_TYPE.SHOPBASE - 1) {
+            shopName = 'Untended Shop';
+            shopNameJa = '無人商店';
+        } else if (shopType >= ROOM_TYPE.SHOPBASE && ROOM_NAMES[shopType]) {
+            shopName = ROOM_NAMES[shopType].name;
+            shopNameJa = ROOM_NAMES[shopType].nameJa;
+        }
+
+        const rawFlags = Number(entry.flags ?? 0);
+        const annotation = typeof entry.custom === 'string' ? entry.custom : '';
+
+        return {
+            dnum,
+            dlevel,
+            branchId,
+            branchName,
+            branchNameJa,
+            floorKey,
+            features: {
+                fountains: Number(entry.nfount ?? 0),
+                sinks: Number(entry.nsink ?? 0),
+                altars: Number(entry.naltar ?? 0),
+                altarAlign,
+                altarAlignJa,
+                shops: Number(entry.nshop ?? 0),
+                shopType,
+                shopName,
+                shopNameJa,
+                thrones: Number(entry.nthrone ?? 0),
+                temples: Number(entry.ntemple ?? 0),
+                water: Number(entry.water ?? 0),
+                lava: Number(entry.lava ?? 0),
+                ice: Number(entry.ice ?? 0),
+                graves: Number(entry.ngrave ?? 0),
+                trees: Number(entry.ntree ?? 0)
+            },
+            flags: {
+                sokoSolved: Boolean(rawFlags & MAPSEEN_FLAGS.SOKOSOLVED),
+                castle: Boolean(rawFlags & MAPSEEN_FLAGS.CASTLE),
+                oracle: Boolean(rawFlags & MAPSEEN_FLAGS.ORACLE),
+                vibratingSquare: Boolean(rawFlags & MAPSEEN_FLAGS.VIBRATING_SQUARE),
+                bigRoom: Boolean(rawFlags & MAPSEEN_FLAGS.BIGROOM),
+                notReachable: Boolean(rawFlags & MAPSEEN_FLAGS.NOTREACHABLE),
+                forgot: Boolean(rawFlags & MAPSEEN_FLAGS.FORGOT),
+                knownBones: Boolean(rawFlags & MAPSEEN_FLAGS.KNOWNBONES),
+                castleTune: Boolean(rawFlags & MAPSEEN_FLAGS.CASTLETUNE),
+                valley: Boolean(rawFlags & MAPSEEN_FLAGS.VALLEY),
+                sanctum: Boolean(rawFlags & MAPSEEN_FLAGS.MSANCTUM),
+                ludios: Boolean(rawFlags & MAPSEEN_FLAGS.LUDIOS),
+                rogueLevel: Boolean(rawFlags & MAPSEEN_FLAGS.ROGUELEVEL),
+                questSummons: Boolean(rawFlags & MAPSEEN_FLAGS.QUEST_SUMMONS),
+                questing: Boolean(rawFlags & MAPSEEN_FLAGS.QUESTING)
+            },
+            annotation
+        };
+    });
 }

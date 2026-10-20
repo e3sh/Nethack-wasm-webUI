@@ -1,152 +1,59 @@
 ---
 title: SpatialPatternEngine (空間幾何学認識エンジン) 仕様・アーキテクチャ設計書
-status: proposed
-last_updated: 2026-10-11
+status: deprecated_for_tracking
+last_updated: 2026-10-20
 related_docs:
   - docs/3_gkl/Dungeon_Tracker_and_Checkpoint_Architecture.md
-  - docs/3_gkl/GKL_Visual_FX_Event_Architecture.md
   - docs/3_gkl/TacticalAdvisor_Specification_and_Architecture.md
   - docs/1_driver/official_shim_direct_binding_implementation_plan.md
 ---
 
 # SpatialPatternEngine (空間幾何学認識エンジン) 仕様・アーキテクチャ設計書
 
-> [!NOTE]
-> **Phase 8 C メモリ直結 (`shim_bridge.c`) 導入に伴う設計前提のアップデート (2026-10-11)**
-> Phase 8 の完了により、以下の空間データはグリフ推論に頼らず `WasmDirectBindingService` 経由で C メモリから直接取得可能になりました：
-> - **特殊部屋種別**: `SHIM_CMD_GET_ROOM_TYPE (0x24)` により、`rooms[roomno - ROOMOFFSET].rtype`（`BEEHIVE`, `MORGDUP`, `VAULT`, `BARRACKS`, `SHOPBASE` 等）を直接判定可能。
-> - **床の刻み文字**: `SHIM_CMD_GET_ENGRAVING_AT (0x23)` により、任意の座標の刻み文字テキストと種別（`DUST`, `ENGRAVE`, `BURN` 等）を直接取得可能。
-> - **重なり箱・コンテナ**: `SHIM_CMD_GET_OBJECT_AT (0x22)` および `DUMP_LEVEL_TERRAIN (0x62)` により、同一マスの複数箱の重なり（`nexthere` チェーン）や施錠状態（`olocked` / `obroken`）を直接取得可能。
->
-> したがって、本仕様を実装する際は、**Phase 8 Direct Binding による Ground Truth 取得を主軸**とし、本書の幾何学パターン認識は「2マス隣接刻み文字による旗立て（🚩）の重心算出」「複数マスの箱クラスタリング」「Direct Binding 非稼働環境（TTY 等）でのフォールバック」として活用します。
-
-本書は、NetHack Game Knowledge Layer (GKL) における基底認識レイヤー（Perception Layer）として機能する **SpatialPatternEngine (空間幾何学認識エンジン)** の設計思想、幾何学シグナルプロトコル、空間パターン認識アルゴリズム、および各コンシューマー（UI・演出・アドバイザー）へのインターフェース規則をまとめた公式仕様書です。
-
----
-
-## 1. 背景と設計思想 (Motivation & Philosophy)
-
-### 1.1 解決する課題
-NetHackの描画プロトコル（WASM/TTY）から送られてくる情報は、マス目単位の「生グリフ（Glyph ID）」に過ぎません。
-しかし、プレイヤーの意思決定や高度なUI演出を行うには、以下のような**「空間的な文脈・配置関係（コンテキスト）」**を理解する必要があります：
-- 「床の刻み文字が2マス並んでいる（＝プレイヤーが意図した旗立て・目印）」
-- 「箱が同じマスまたは近傍に複数集まっている（＝プレイヤーが集積した拠点）」
-- 「蜂（`f`）や蝋の床が密集している（＝蜂の巣）」
-- 「壁で四方を塞がれた孤立空間に金貨がある（＝隠し金庫 Vault）」
-
-### 1.2 責務の明確化：基底認識エンジンとしての独立
-本エンジンは、特定のUI（DungeonTrackerModal等）や演出の従属物ではなく、**「グリフマップの空間構造を解析し、幾何学的コンテキストを抽出する純粋な認識基盤」**として完全に独立します。
-
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Consumers / Feature Layer                       │
-│ ┌───────────────┐ ┌────────────────┐ ┌────────────────┐ ┌────────────┐ │
-│ │ CheckPoint    │ │ DungeonTracker │ │ CustomTile     │ │ Tactical   │ │
-│ │ (旗立て・拠点)│ │ (踏破サマリー) │ │ (拡張描画/FX)  │ │ Advisor    │ │
-│ └───────┬───────┘ └───────┬────────┘ └───────┬────────┘ └─────┬──────┘ │
-└─────────┼─────────────────┼──────────────────┼────────────────┼────────┘
-          │                 │                  │                │ 利用
-┌─────────▼─────────────────▼──────────────────▼────────────────▼────────┐
-│        【基底認識レイヤー】SpatialPatternEngine (空間幾何学解析)         │
-│  - 2マス隣接刻み文字の検出 (CheckpointDetector)                        │
-│  - 箱の密集・重ね箱クラスタの検出 (ContainerClusterDetector)           │
-│  - 特殊部屋・地形パターンの識別 (RoomClassifier: 蜂の巣, 金庫, 兵舎)   │
-│  - 幾何学的重心・中間座標 (Sub-pixel Centroid) の計算                  │
-├────────────────────────────────────────────────────────────────────────┤
-│          AreaStateManager (生グリフ走査・タイルマップメモリ管理)       │
-└────────────────────────────────────────────────────────────────────────┘
-```
+> [!CAUTION]
+> **【設計方針の変更・責務退役のお知らせ (2026-10-20)】**
+> 本ドキュメントで構想されていた「2マス隣接Engravingによる幾何学的旗立て（🚩）」および「幾何パターン認識による全階層の位置支援・トラッカー構築」は、**NetHack C コア標準の `mapseen`（`#overview`）および `#annotate` を Direct Binding 直結する新アーキテクチャへ全面移行したため、正式に退役（廃止）となりました**。
+> 
+> - **移行理由**:
+>   1. **公式機能の活用**: NetHack には全階層の施設・踏破状況をセーブデータ内部で自動追跡する `mapseen` 構造体と、フロアにメモを残す `#annotate` コマンドがすでに標準装備されている。
+>   2. **操作性と風化の解決**: プレイヤーがゲーム内でターンを消費して床に文字を刻む必要がなくなり、歩行や水による埃の風化リスクもゼロになる。
+>   3. **コード純化**: 幾何認識エンジンや独自キャッシュを自前実装する必要がなくなり、JS 側のコード量を大幅に削減できる。
+> 
+> ※詳細な新アーキテクチャ仕様は [`Dungeon_Tracker_and_Checkpoint_Architecture.md`](./Dungeon_Tracker_and_Checkpoint_Architecture.md) を参照してください。
+> 
+> **現在の本エンジンの位置づけ**:
+> 全階層のトラッキングや旗立ての責務からは完全に外れ、もし将来的に利用する場合でも「現在画面に映っている同一マス内の複数箱の重なり判定」や「局所的なビジュアル演出（パーティクル発生位置の重心計算など）」の補助ツールとしてのみ限定的に扱います。
 
 ---
 
-## 2. 空間幾何学シグナルプロトコル (Spatial Signal Protocols)
+## 1. 背景と過去の経緯 (Historical Context)
 
-### 2.1 チェックポイント旗立てプロトコル (🚩 Dual-Engraving)
-C言語ソースコードの改変を行わず、文字列（テキスト）も読めないロード直後の制約をクリアするため、**「2マスの幾何学的隣接関係」**をプロトコルとします。
+### 1.1 過去の動機
+NetHack の C コア内部構造にアクセスできなかった時代、画面上の生グリフ（Glyph ID）のみからプレイヤーの拠点や重要な場所を外部 UI で認識させる手段として、「床の刻み文字（Engraving）を2マス並べる幾何学プロトコル」が考案されました。
 
-#### 【判定規則】
-- **トリガー**: `GLYPH_ENGRAVING` が、8近傍（チェビシェフ距離 = 1）に連続して2マス並んでいること。
-- **中間座標（Centroid）の算出**:
-  2マスの中心となるサブピクセル座標を計算し、演出用アンカーとして提供します。
-  $$x_{\text{center}} = \frac{x_A + x_B}{2}, \quad y_{\text{center}} = \frac{y_A + y_B}{2}$$
-
-```typescript
-interface CheckpointGeometry {
-  cellA: { x: number, y: number };
-  cellB: { x: number, y: number };
-  center: { x: number, y: number }; // 境界中央
-  orientation: 'horizontal' | 'vertical' | 'diagonal';
-}
-```
-
-#### 【なぜこのプロトコルなのか】
-1. **自然生成との重複ゼロ**: NetHackの自動生成で刻み文字が2マス連続生成されることはないため、誤認率0%。
-2. **ノーコスト・高速**: 指（`#engrave` -> `-`）で2ターンで設営可能。
-3. **ロード復帰完全耐性**: テキスト内容を一切読まず、グリフIDの配置だけで100%復元可能。
+### 1.2 なぜ移行したのか（アーキテクチャ決定の経緯）
+Phase 8 において公式 C ソース非侵襲の `shim_bridge.c`（Direct Binding）が確立されたことで、C コア内部の真値（`svm.mapseenchn`、`rooms[]`、`u.uz` 等）に 0 ウェイトで安全にアクセスできるようになりました。
+これにより、外側からグリフの並びを幾何推論する必要性が完全に消滅し、C コアの絶対真値（SSOT）をそのまま利用する最短・最善の設計へと統合されました。
 
 ---
 
-### 2.2 コンテナ・クラスタリングプロトコル (Container Clustering)
-ダンジョン内に存在する箱・袋（`LARGE_BOX`, `CHEST`, `SACK` 等）の密集度を解析します。
+## 2. アーカイブ：幾何学シグナルプロトコルの記録
 
-- **単独配置 (`isCluster: false`)**: スルーした鍵箱や道中のドロップ品。
-- **密集配置 (`isCluster: true`)**: マンハッタン距離 $\le 2$ の範囲内に複数の箱が存在、または同一マスの重ね箱。
-  ➔ **「拠点（ベースキャンプ）」** の強力な幾何シグネチャ。
+以下は、過去に検討された幾何プロトコルの設計記録（アーカイブ）です。
 
----
+### 2.1 チェックポイント旗立てプロトコル (🚩 Dual-Engraving) [廃止]
+- **ルール**: `GLYPH_ENGRAVING` が8近傍に2マス連続して並んでいることを検出。
+- **廃止理由**: 公式の `#annotate` コマンドにより、ゲーム内ターンを消費せず UI から直接セーブデータにメモを保存可能になったため不要化。
 
-### 2.3 特殊部屋・地形パターン認識 (Room Pattern Classifier)
-ダンジョン生成アルゴリズム特有の幾何学タイル配置をパターンマッチングします（※Phase 8 Direct Binding 稼働時は `SHIM_CMD_GET_ROOM_TYPE` による `rooms[].rtype` 直結判定を優先）：
-
-| 対象 | 幾何パターン / グリフ条件 | 判定結果 |
-| :--- | :--- | :--- |
-| **蜂の巣 (Beehive)** | 蝋（Wax）の床、または一定密度以上の蜂（`f`）クラスタ | `ROOM_BEEHIVE` |
-| **隠し金庫 (Vault)** | 四方を壁で完全に囲まれた孤立小部屋（2x2〜3x3）＋金貨（`$`） | `ROOM_VAULT` |
-| **兵舎 (Barracks)** | ベッド等の家具が格子状に整列した空間 | `ROOM_BARRACKS` |
+### 2.2 コンテナ・クラスタリングプロトコル (Container Clustering) [限定適用]
+ダンジョン内に存在する箱・袋（`LARGE_BOX`, `CHEST` 等）の密集度を解析する手法。
+- **現在画面（リアルタイム）への限定適用**:
+  - `SHIM_CMD_GET_OBJECT_AT` 経由で、同一マスに複数のコンテナが重なっている場合（`nexthere` チェーン）の「重なり箱」バッジ表示などに限り、有用な知見として活用されます。
 
 ---
 
-## 3. コンシューマーへの提供インターフェース (API & Output)
+## 3. まとめと後続設計への参照
 
-本エンジンの解析結果は、純粋なデータ構造として各上位レイヤーへ提供されます：
+本仕様書が目指していた「安全でゴミの残らない探索トラッカー」「拠点やメモの直感的な記録」は、NetHack 本体の設計と融合することで、よりシンプルで強固な形（`mapseen` + `#annotate`）で実現されました。
 
-```typescript
-interface SpatialAnalysisResult {
-  checkpoints: CheckpointGeometry[];    // 検出された旗（🚩）
-  containers: {
-    total: number;                      // 総箱数
-    clusters: ContainerCluster[];       // 拠点候補クラスタ
-    isolated: ContainerNode[];          // 単独の箱
-  };
-  features: {
-    specialRooms: SpecialRoomNode[];    // 蜂の巣、金庫など
-  };
-}
-```
-
----
-
-## 4. 拡張描画・レンダラー連携（仮想タイル / オートタイル）
-
-本エンジンの判定結果は、描画層において**「公式Glyphを上書きするカスタム拡張タイル」**のトリガーとしても機能します。
-
-1. **ベースキャンプタイルの合成**:
-   - `checkpoints`（2マスEngraving）の `center` 座標に対して、2マスぶち抜きの「野営地（焚き火とテント）」グラフィックをオーバーレイ描画。
-2. **特殊地形の専用タイル化**:
-   - `ROOM_BEEHIVE` と判定された床を「ハニカム（蜜蝋）タイル」に動的差し替え。
-   - `ROOM_VAULT` と判定された壁を「重厚な金庫鉄壁」に差し替え。
-
----
-
-## 5. 構築・テスト戦略 (TDD Roadmap)
-
-本エンジンは**純粋関数型（ステートレス）の幾何計算モジュール**として実装されるため、NetHack本体やブラウザUIを起動せず、Vitest 単体テストのみで100%開発・検証が可能です。
-
-### テストケース例 (`SpatialPatternEngine.test.js`)
-1. **隣接Engraving検出テスト**:
-   - 水平、垂直、斜めに2マス並んだグリフ配列から、正しく `center` 座標と方向が返るか。
-   - 孤立した1マスのみのEngravingでは反応しないか。
-2. **コンテナ密集テスト**:
-   - 3x3内に箱が3個ある場合、`isCluster: true` と判定されるか。
-3. **金庫（Vault）幾何判定テスト**:
-   - 壁に囲まれた2x2の空間にゴールドがある場合、`ROOM_VAULT` が検出されるか。
+実装の詳細は最新の [`Dungeon_Tracker_and_Checkpoint_Architecture.md`](./Dungeon_Tracker_and_Checkpoint_Architecture.md) を確認してください。

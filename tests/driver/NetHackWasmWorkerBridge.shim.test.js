@@ -234,4 +234,87 @@ describe('NetHackWasmWorkerBridge - callShim 最小調停 PoC テスト (Stage 8
         expect(res2.result).toBe(0);
         expect(res2.buffer).toEqual(dummyDump);
     });
+
+    it('8. SHIM_CMD_DUMP_MAPSEEN (0x34) で MapseenDumpEntry バッファが透過中継され、NetHackMemory.parseMapseenBuffer で正確にデコードできること', async () => {
+        const { NetHackMemory } = await import('../../src/driver/NetHackMemory.js');
+
+        // 2エントリ分の MapseenDumpEntry (96 bytes * 2 = 192 bytes) を構築
+        const buf = new ArrayBuffer(192);
+        const dv = new DataView(buf);
+        const u8 = new Uint8Array(buf);
+
+        // Entry 0: Main Dungeon Dlvl:3 (一般商店 + 泉 + カスタムメモ)
+        dv.setInt32(0, 0, true);     // dnum: 0 (Main)
+        dv.setInt32(4, 3, true);     // dlevel: 3
+        dv.setUint16(8, 2, true);    // nfount: 2
+        dv.setUint16(10, 1, true);   // nsink: 1
+        dv.setUint16(12, 1, true);   // naltar: 1
+        dv.setUint16(14, 2, true);   // msalign: 2 (neutral)
+        dv.setUint16(16, 1, true);   // nshop: 1
+        dv.setUint16(18, 14, true);  // shoptype: 14 (SHOPBASE / General Store)
+        dv.setUint16(20, 0, true);   // nthrone: 0
+        dv.setUint16(22, 0, true);   // ntemple: 0
+        dv.setUint8(24, 1);          // water: 1
+        dv.setUint8(25, 0);          // lava: 0
+        dv.setUint8(26, 0);          // ice: 0
+        dv.setUint8(27, 0x21);       // ngrave: 1, ntree: 2
+        dv.setUint32(28, 0x10, true);// flags: bigroom (0x10)
+        const note1 = new TextEncoder().encode('Main Base & Stash');
+        u8.set(note1, 32);
+
+        // Entry 1: Sokoban 4F (クリア済み)
+        const base2 = 96;
+        dv.setInt32(base2 + 0, 4, true);    // dnum: 4 (Sokoban)
+        dv.setInt32(base2 + 4, 4, true);    // dlevel: 4
+        dv.setUint32(base2 + 28, 0x01, true); // flags: sokosolved (0x01)
+        const note2 = new TextEncoder().encode('Sokoban Cleared!');
+        u8.set(note2, base2 + 32);
+
+        const int32Words = Array.from(new Int32Array(buf));
+
+        const promise = bridge.callShim(NetHackMemory.SHIM_CMD.DUMP_MAPSEEN, 0, 0, 64 * 96, 'int32');
+        const sentMsg = mockWorker.postMessage.mock.calls[0][0];
+        expect(sentMsg.payload.cmd).toBe(0x34);
+        expect(sentMsg.payload.bufferSize).toBe(6144);
+
+        mockWorker.onmessage({
+            data: {
+                type: 'SHIM_RESULT',
+                callId: sentMsg.callId,
+                result: 2,
+                buffer: int32Words
+            }
+        });
+
+        const res = await promise;
+        expect(res.result).toBe(2);
+
+        const parsed = NetHackMemory.parseMapseenBuffer(res.buffer, res.result);
+        expect(parsed).toHaveLength(2);
+
+        expect(parsed[0]).toEqual({
+            dnum: 0,
+            dlevel: 3,
+            nfount: 2,
+            nsink: 1,
+            naltar: 1,
+            msalign: 2,
+            nshop: 1,
+            shoptype: 14,
+            nthrone: 0,
+            ntemple: 0,
+            water: 1,
+            lava: 0,
+            ice: 0,
+            ngrave: 1,
+            ntree: 2,
+            flags: 0x10,
+            custom: 'Main Base & Stash'
+        });
+
+        expect(parsed[1].dnum).toBe(4);
+        expect(parsed[1].dlevel).toBe(4);
+        expect(parsed[1].flags).toBe(0x01);
+        expect(parsed[1].custom).toBe('Sokoban Cleared!');
+    });
 });

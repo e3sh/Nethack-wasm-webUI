@@ -485,6 +485,22 @@ export class GKLPlugin {
         return false;
     }
 
+    async syncDungeonOverviewOnDemand() {
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.syncDungeonOverviewOnDemand === 'function') {
+            const list = await this.wasmDirectBindingService.syncDungeonOverviewOnDemand();
+            if (this.core) this.core.emit('dungeonOverviewUpdated', list);
+            return list;
+        }
+        return [];
+    }
+
+    getDungeonOverview() {
+        if (this.wasmDirectBindingService && typeof this.wasmDirectBindingService.getDungeonOverview === 'function') {
+            return this.wasmDirectBindingService.getDungeonOverview();
+        }
+        return [];
+    }
+
     // --- 状況要約・ゲッター・アドバイザー ---
     getSituation() {
         if (this.situationCache) return this.situationCache.getSituation();

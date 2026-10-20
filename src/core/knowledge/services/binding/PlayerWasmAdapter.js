@@ -5,7 +5,17 @@
  * および習得呪文（spellbook）の C構造体デコードとキャッシュ管理を担当。
  */
 
-import { SHIM_CMD, parseSkillsBuffer, parseSpellBookBuffer, parsePlayerProfileBuffer, parsePlayerSummaryBuffer } from './BindingConstants.js';
+import {
+    SHIM_CMD,
+    MAPSEEN_ENTRY_BYTES,
+    MAPSEEN_ENTRY_WORDS,
+    MAPSEEN_MAX_ENTRIES,
+    parseSkillsBuffer,
+    parseSpellBookBuffer,
+    parsePlayerProfileBuffer,
+    parsePlayerSummaryBuffer,
+    parseMapseenOverviewBuffer
+} from './BindingConstants.js';
 
 export class PlayerWasmAdapter {
     constructor() {
@@ -15,6 +25,7 @@ export class PlayerWasmAdapter {
         this._cachedSpells = null;
         this._cachedPlayerSummary = null;
         this._cachedPlayerProfile = null;
+        this._cachedMapseen = null;
     }
 
     /**
@@ -34,10 +45,19 @@ export class PlayerWasmAdapter {
         this._cachedSpells = null;
         this._cachedPlayerSummary = null;
         this._cachedPlayerProfile = null;
+        this._cachedMapseen = null;
     }
 
     resetCache() {
         this.clearPlayerCaches();
+    }
+
+    get cachedMapseen() {
+        return this._cachedMapseen;
+    }
+
+    set cachedMapseen(val) {
+        this._cachedMapseen = val;
     }
 
     get cachedPlayerProfile() {
@@ -404,5 +424,87 @@ export class PlayerWasmAdapter {
         }
 
         return this._cachedPlayerSummary || null;
+    }
+
+    /**
+     * 全踏破階層・施設・メモ一覧 (svm.mapseenchn) を一括ダンプ同期 (SHIM_CMD_DUMP_MAPSEEN)
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @param {number} [maxEntries=MAPSEEN_MAX_ENTRIES]
+     * @returns {Array<Object>} MapseenFloorInfo[]
+     */
+    dumpMapseen(memory, isAvailable, hasLiveMemory, maxEntries = MAPSEEN_MAX_ENTRIES) {
+        if (!isAvailable) return this._cachedMapseen || [];
+        if (hasLiveMemory && memory) {
+            const bufSize = maxEntries * MAPSEEN_ENTRY_BYTES;
+            const bufPtr = memory.allocateBuffer(bufSize);
+            if (bufPtr) {
+                try {
+                    const count = memory.bridgeCall(SHIM_CMD.DUMP_MAPSEEN, 0, 0, bufPtr, bufSize);
+                    if (count >= 0) {
+                        if (count === 0) {
+                            this._cachedMapseen = [];
+                            return [];
+                        }
+                        const raw = memory.readInt32Array(bufPtr, count * MAPSEEN_ENTRY_WORDS);
+                        const list = parseMapseenOverviewBuffer(raw, count);
+                        this._cachedMapseen = list;
+                        return list;
+                    }
+                } finally {
+                    memory.freeBuffer(bufPtr);
+                }
+            }
+        }
+        return this._cachedMapseen || [];
+    }
+
+    /**
+     * 最新のダンジョン踏破履歴・施設・メモ一覧を取得
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {Array<Object>} MapseenFloorInfo[]
+     */
+    getDungeonOverview(memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return this._cachedMapseen || [];
+        if (hasLiveMemory) {
+            return this.dumpMapseen(memory, isAvailable, hasLiveMemory);
+        }
+        return this._cachedMapseen || [];
+    }
+
+    /**
+     * ダンジョン踏破履歴・施設・メモ一覧を非同期取得 (Worker 調停対応)
+     * @param {Object} bridge
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @param {number} [maxEntries=MAPSEEN_MAX_ENTRIES]
+     * @returns {Promise<Array<Object>>} MapseenFloorInfo[]
+     */
+    async fetchDungeonOverview(bridge, memory, isAvailable, hasLiveMemory, maxEntries = MAPSEEN_MAX_ENTRIES) {
+        if (!isAvailable) return [];
+
+        if (hasLiveMemory) {
+            return this.getDungeonOverview(memory, isAvailable, hasLiveMemory);
+        }
+
+        if (bridge && typeof bridge.callShim === 'function') {
+            try {
+                const bufSize = maxEntries * MAPSEEN_ENTRY_BYTES;
+                const res = await bridge.callShim(SHIM_CMD.DUMP_MAPSEEN, 0, 0, bufSize, 'int32');
+                if (res && typeof res.result === 'number' && res.result >= 0 && Array.isArray(res.buffer)) {
+                    const list = parseMapseenOverviewBuffer(res.buffer, res.result);
+                    this._cachedMapseen = list;
+                    return list;
+                }
+            } catch (e) {
+                console.warn('[PlayerWasmAdapter] fetchDungeonOverview error:', e);
+            }
+        }
+
+        return this._cachedMapseen || [];
     }
 }

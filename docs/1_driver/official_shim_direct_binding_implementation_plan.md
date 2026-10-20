@@ -65,7 +65,7 @@ related_code:
 | **モンスター (生物)** | ペット (766〜1531)<br>不可視 (1532)<br>モンスター種別 (monOffset) | **友好・NPC (`mpeaceful`)**<br>**HP/最大HP (`mhp`/`mhpmax`)**<br>**状態異常 (睡眠/逃走/麻痺)**<br>**店主・僧侶フラグ (`isshk`/`ispriest`)** | 視界に入った瞬間に NPC / 敵を自動識別（Look不要）。HPゲージ表示。睡眠中の敵への不用意な接近防止。店主の誤攻撃を完全防止。 |
 | **地形 (セル・部屋)** | 通常の床・壁・ドア・水・溶岩<br>祭壇の属性 (4006〜4010)<br>玉座・泉・シンク・墓石<br>階段の向き (上り/下り/梯子) | **真の床 (`levl.typ`)**<br>**扉施錠・罠 (`levl.flags`)**<br>**床の罠 (`t_at`)**<br>**部屋/店舗種別 (`svr.rooms`)**<br>**刻み文字 (`engr_at`)** | 仮床推測（3992番）完全撤廃。<br>扉前のワンタップで解錠提示。<br>床の罠・店舗名（武器屋・寺院等）・Elbereth安全状態を即座に判定。 |
 | **アイテム・インベントリ** | アイテムカテゴリ・種別 (onum)<br>山積み PileTop (7992〜) | **全所持品 (`gi.invent`)**<br>**全装備品 (`uwep`, `uarm`等)**<br>**真の重量 (`weight`)**<br>**祭壇判明BUC (`bknown`)** | メニューを開かずに常時正確なインベントリ同期と所持重量・装備状況を把握。鞄の補正重量も完全自動計算。 |
-| **自キャラ / ダンジョン** | なし（ステータス行は Dlvl のみ） | **ブランチID (`u.uz.dnum`)**<br>**お祈りターン (`ublesscnt`)**<br>**神の怒り (`ugangr`)**<br>**信仰値 (`ualign.record`)**<br>**内在耐性 (`uprops`)** | 階層キャッシュの完全分離（`branch:dlvl`）。神の怒りを加味した推測誤差ゼロの絶対安全お祈りインジケーター。耐性カードの即時表示。 |
+| **自キャラ / ダンジョン** | なし（ステータス行は Dlvl のみ） | **ブランチID (`u.uz.dnum`)**<br>**お祈りターン (`ublesscnt`)**<br>**神の怒り (`ugangr`)**<br>**信仰値 (`ualign.record`)**<br>**内在耐性 (`uprops`)**<br>**全踏破履歴・メモ (`svm.mapseenchn`)** | 階層キャッシュの完全分離（`branch:dlvl`）。神の怒りを加味した推測誤差ゼロの絶対安全お祈りインジケーター。耐性カードの即時表示。<br>過去全フロアの施設（祭壇・店・泉・シンク）と `#annotate` メモの一括取得（自前キャッシュ全廃）。 |
 | **呪文・スキル・図鑑** | なし（メニュー画面のみ） | **習得呪文配列 (`svs.spl_book`)**<br>**スキル熟練度 (`u.weapon_skills`)**<br>**発見・鑑定済図鑑 (`objects[].oc_name_known`)** | キーマクロによるウィンドウ展開を完全撤廃。常時最新の呪文パレット・スキル画面・ネタバレ防止マスクを0ms同期。 |
 
 ---
@@ -96,10 +96,11 @@ enum ShimBridgeCmd {
     SHIM_CMD_GET_MONSTER_INFO   = 0x22, /* a1=x, a2=y -> mpeaceful(1) | mtame(1) | mhp(12) | mhpmax(12) */
     SHIM_CMD_GET_MONSTER_STATE  = 0x23, /* a1=x, a2=y -> msleeping(1) | mflee(1) | mcanmove(1) | isshk(1) | ispriest(1) */
 
-    /* 3. プレイヤー状態系 (0x30〜0x3F) */
+    /* 3. プレイヤー状態・ダンジョン系 (0x30〜0x3F) */
     SHIM_CMD_GET_PLAYER_SUMMARY = 0x30, /* buf=long[8] -> [dnum, dlevel, ublesscnt, ugangr, uluck, ualign_record, uhunger, moves] */
     SHIM_CMD_GET_PLAYER_PTR     = 0x31, /* -> &u */
     SHIM_CMD_GET_PLAYER_PROPS   = 0x32, /* buf=long[LAST_PROP+1] -> uprops (耐性・能力配列一括コピー) */
+    SHIM_CMD_DUMP_MAPSEEN       = 0x34, /* buf=MapseenDumpEntry[], len=max -> 全踏破階層・施設・#annotate メモ一括ダンプ */
 
     /* 4. インベントリ・装備・アイテム系 (0x40〜0x4F) */
     SHIM_CMD_GET_INVENT_PTR     = 0x40, /* -> gi.invent (所持品リンクリスト先頭) */

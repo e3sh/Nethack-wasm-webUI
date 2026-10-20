@@ -18,7 +18,10 @@ import {
     parseSkillsBuffer,
     parseSpellBookBuffer,
     parsePlayerProfileBuffer,
-    parsePlayerSummaryBuffer
+    parsePlayerSummaryBuffer,
+    MAPSEEN_ENTRY_BYTES,
+    MAPSEEN_MAX_ENTRIES,
+    parseMapseenOverviewBuffer
 } from './BindingConstants.js';
 
 export class WasmSyncCoordinator {
@@ -457,6 +460,20 @@ export class WasmSyncCoordinator {
                     }
                 }
 
+                // 14. 全踏破階層・施設・メモ一覧 (SHIM_CMD_DUMP_MAPSEEN: 0x34)
+                if (options.syncMapseen === true && player) {
+                    try {
+                        const bufSize = MAPSEEN_MAX_ENTRIES * MAPSEEN_ENTRY_BYTES;
+                        const mapseenRes = await bridge.callShim(SHIM_CMD.DUMP_MAPSEEN, 0, 0, bufSize, 'int32');
+                        if (isStale()) return false;
+                        if (mapseenRes && typeof mapseenRes.result === 'number' && mapseenRes.result >= 0 && Array.isArray(mapseenRes.buffer)) {
+                            player.cachedMapseen = parseMapseenOverviewBuffer(mapseenRes.buffer, mapseenRes.result);
+                        }
+                    } catch (e) {
+                        // silent fallback
+                    }
+                }
+
                 this._lastCompletedSyncGeneration = syncGen;
                 return true;
             } catch (err) {
@@ -670,6 +687,38 @@ export class WasmSyncCoordinator {
                 }
             } catch (e) {
                 console.warn('[WasmSyncCoordinator] syncPlayerSummaryOnDemand error:', e);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ダンジョン踏破履歴・メモ一覧 (DUMP_MAPSEEN) のオンデマンド同期
+     * @param {Object} bridge
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @param {Object} playerAdapter
+     * @param {Object} memory
+     * @returns {Promise<boolean>}
+     */
+    async syncDungeonOverviewOnDemand(bridge, isAvailable, hasLiveMemory, playerAdapter, memory = null) {
+        if (!isAvailable || !playerAdapter) return false;
+
+        if (hasLiveMemory) {
+            playerAdapter.dumpMapseen(memory, isAvailable, hasLiveMemory);
+            return true;
+        }
+
+        if (bridge && typeof bridge.callShim === 'function') {
+            try {
+                const bufSize = MAPSEEN_MAX_ENTRIES * MAPSEEN_ENTRY_BYTES;
+                const res = await bridge.callShim(SHIM_CMD.DUMP_MAPSEEN, 0, 0, bufSize, 'int32');
+                if (res && typeof res.result === 'number' && res.result >= 0 && Array.isArray(res.buffer)) {
+                    playerAdapter.cachedMapseen = parseMapseenOverviewBuffer(res.buffer, res.result);
+                    return true;
+                }
+            } catch (e) {
+                console.warn('[WasmSyncCoordinator] syncDungeonOverviewOnDemand error:', e);
             }
         }
         return false;

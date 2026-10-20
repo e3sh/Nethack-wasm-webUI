@@ -430,6 +430,51 @@ export interface ItemKnowledge {
     usageAdvice?: string[];
 }
 
+export interface MapseenFloorInfo {
+    dnum: number;
+    dlevel: number;
+    branchId: string;
+    branchName: string;
+    branchNameJa: string;
+    floorKey: string;
+    features: {
+        fountains: number;
+        sinks: number;
+        altars: number;
+        altarAlign: 'none' | 'lawful' | 'neutral' | 'chaotic';
+        altarAlignJa: string;
+        shops: number;
+        shopType: number;
+        shopName: string | null;
+        shopNameJa: string | null;
+        thrones: number;
+        temples: number;
+        water: number;
+        lava: number;
+        ice: number;
+        graves: number;
+        trees: number;
+    };
+    flags: {
+        sokoSolved: boolean;
+        castle: boolean;
+        oracle: boolean;
+        vibratingSquare: boolean;
+        bigRoom: boolean;
+        notReachable: boolean;
+        forgot: boolean;
+        knownBones: boolean;
+        castleTune: boolean;
+        valley: boolean;
+        sanctum: boolean;
+        ludios: boolean;
+        rogueLevel: boolean;
+        questSummons: boolean;
+        questing: boolean;
+    };
+    annotation: string;
+}
+
 export class StructuredKnowledgeEngine {
     constructor(options?: { translationEngine?: TranslationEngine });
     setTranslationEngine(translationEngine: TranslationEngine): void;

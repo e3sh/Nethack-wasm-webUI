@@ -71,6 +71,8 @@ export class WasmDirectBindingService {
     set _cachedPlayerSummary(v) { this.playerAdapter.cachedPlayerSummary = v; }
     get _cachedPlayerProfile() { return this.playerAdapter.cachedPlayerProfile; }
     set _cachedPlayerProfile(v) { this.playerAdapter.cachedPlayerProfile = v; }
+    get _cachedMapseen() { return this.playerAdapter.cachedMapseen; }
+    set _cachedMapseen(v) { this.playerAdapter.cachedMapseen = v; }
 
     get _cachedMonsters() { return this.monsterAdapter.cachedMonsters; }
     set _cachedMonsters(v) { this.monsterAdapter.cachedMonsters = v; }
@@ -750,6 +752,63 @@ export class WasmDirectBindingService {
      */
     async syncPlayerSummaryOnDemand() {
         return await this.syncCoordinator.syncPlayerSummaryOnDemand(
+            this.bridge,
+            this.isAvailable(),
+            this.hasLiveMemory,
+            this.playerAdapter,
+            this.memory
+        );
+    }
+
+    /**
+     * 全踏破階層・施設・メモ一覧 (SHIM_CMD_DUMP_MAPSEEN) を一括ダンプ同期
+     * @param {number} [maxEntries=64]
+     * @returns {Array<Object>} MapseenFloorInfo[]
+     */
+    dumpMapseen(maxEntries = 64) {
+        return this.playerAdapter.dumpMapseen(this.memory, this.isAvailable(), this.hasLiveMemory, maxEntries);
+    }
+
+    /**
+     * ダンジョン全体の踏破履歴・施設・#annotate メモ一覧を取得 (SSOT: svm.mapseenchn)
+     * @returns {Array<Object>} MapseenFloorInfo[]
+     */
+    getDungeonOverview() {
+        return this.playerAdapter.getDungeonOverview(this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
+     * getDungeonOverview のエイリアス
+     * @returns {Array<Object>} MapseenFloorInfo[]
+     */
+    getMapseenList() {
+        return this.getDungeonOverview();
+    }
+
+    /**
+     * ダンジョン全体の踏破履歴・施設・#annotate メモ一覧を非同期取得 (Worker 調停対応)
+     * @param {number} [maxEntries=64]
+     * @returns {Promise<Array<Object>>} MapseenFloorInfo[]
+     */
+    async fetchDungeonOverview(maxEntries = 64) {
+        return this.playerAdapter.fetchDungeonOverview(this.bridge, this.memory, this.isAvailable(), this.hasLiveMemory, maxEntries);
+    }
+
+    /**
+     * fetchDungeonOverview のエイリアス
+     * @param {number} [maxEntries=64]
+     * @returns {Promise<Array<Object>>} MapseenFloorInfo[]
+     */
+    async fetchMapseenList(maxEntries = 64) {
+        return this.fetchDungeonOverview(maxEntries);
+    }
+
+    /**
+     * ダンジョン踏破履歴・メモ一覧 (SHIM_CMD_DUMP_MAPSEEN) のオンデマンド同期
+     * @returns {Promise<boolean>}
+     */
+    async syncDungeonOverviewOnDemand() {
+        return await this.syncCoordinator.syncDungeonOverviewOnDemand(
             this.bridge,
             this.isAvailable(),
             this.hasLiveMemory,
