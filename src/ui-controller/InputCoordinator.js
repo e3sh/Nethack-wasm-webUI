@@ -27,8 +27,40 @@ export const ROUTE_ACTIONS = {
   OPEN_KNOWLEDGE_INSPECTOR: 'OPEN_KNOWLEDGE_INSPECTOR',
   OPEN_DISCOVERY_CODEX: 'OPEN_DISCOVERY_CODEX',
   OPEN_CALL_DIALOG: 'OPEN_CALL_DIALOG',
-  PASSTHROUGH_GAME_KEY: 'PASSTHROUGH_GAME_KEY'
+  PASSTHROUGH_GAME_KEY: 'PASSTHROUGH_GAME_KEY',
+  SWITCH_INPUT_MODE: 'SWITCH_INPUT_MODE',
+  ROTATE_FACING: 'ROTATE_FACING',
+  EXECUTE_CONTEXT_PRIMARY: 'EXECUTE_CONTEXT_PRIMARY',
+  TOGGLE_INVENTORY: 'TOGGLE_INVENTORY',
+  TOGGLE_CHARACTER_STATUS: 'TOGGLE_CHARACTER_STATUS',
+  SHOW_KEYMAP_HELP: 'SHOW_KEYMAP_HELP',
+  EXECUTE_CONTEXT_FEET: 'EXECUTE_CONTEXT_FEET',
+  DASH_MOVE: 'DASH_MOVE'
 };
+
+export const DIRECTION_KEY_MAP = Object.freeze({
+  'ArrowUp': 'N',
+  'ArrowDown': 'S',
+  'ArrowLeft': 'W',
+  'ArrowRight': 'E',
+  'Numpad8': 'N',
+  'Numpad2': 'S',
+  'Numpad4': 'W',
+  'Numpad6': 'E',
+  'Numpad7': 'NW',
+  'Numpad9': 'NE',
+  'Numpad1': 'SW',
+  'Numpad3': 'SE',
+  'KeyW': 'N',
+  'KeyS': 'S',
+  'KeyX': 'S',
+  'KeyA': 'W',
+  'KeyD': 'E',
+  'KeyQ': 'NW',
+  'KeyE': 'NE',
+  'KeyZ': 'SW',
+  'KeyC': 'SE'
+});
 
 export class InputCoordinator {
   /**
@@ -59,6 +91,11 @@ export class InputCoordinator {
    */
   evaluateKeyDown(event, context = {}) {
     const { key, code, altKey, ctrlKey } = event;
+
+    // 0. 🔄 入力モード切替ショートカット (F1)
+    if (code === 'F1' || key === 'F1') {
+      return { action: ROUTE_ACTIONS.SWITCH_INPUT_MODE };
+    }
 
     // 1. 🎒 サイドパネル一時退避・再展開ショートカット (Alt+S または F2)
     if ((altKey && (code === 'KeyS' || key === 's' || key === 'S')) || code === 'F2') {
@@ -121,13 +158,14 @@ export class InputCoordinator {
       }
 
       // 通常メニュー操作
-      if (key === 'ArrowDown' || code === 'ArrowDown' || code === 'Numpad2') {
+      const isNehww = (context.inputMode || 'classic') === 'nehww';
+      if (key === 'ArrowDown' || code === 'ArrowDown' || code === 'Numpad2' || (isNehww && code === 'KeyS')) {
         return { action: ROUTE_ACTIONS.MENU_SCROLL_DOWN };
       }
-      if (key === 'ArrowUp' || code === 'ArrowUp' || code === 'Numpad8') {
+      if (key === 'ArrowUp' || code === 'ArrowUp' || code === 'Numpad8' || (isNehww && code === 'KeyW')) {
         return { action: ROUTE_ACTIONS.MENU_SCROLL_UP };
       }
-      if (key === 'Enter' || code === 'Enter' || code === 'NumpadEnter') {
+      if (key === 'Enter' || code === 'Enter' || code === 'NumpadEnter' || (isNehww && (code === 'Space' || key === ' '))) {
         return { action: ROUTE_ACTIONS.MENU_SELECT };
       }
       if (key === 'Escape' || key === '0' || key === 'q' || code === 'Escape' || code === 'Digit0' || code === 'Numpad0' || code === 'KeyQ') {
@@ -145,7 +183,7 @@ export class InputCoordinator {
     }
 
     // ミニマップ最大化中に Escape が押された場合は縮小
-    if (context.isMinimapMaximized && (code === 'Escape' || key === 'Escape')) {
+    if (context.isMinimapMaximized && (code === 'Escape' || key === 'Escape' || code === 'KeyM' || key === 'm' || key === 'M')) {
       return { action: ROUTE_ACTIONS.SHORTCUT_ESCAPE_MINIMAP };
     }
 
@@ -154,8 +192,71 @@ export class InputCoordinator {
       return { action: ROUTE_ACTIONS.BLOCK_INPUT };
     }
 
-    // 10. 📚 標準操作プログレッシブ拡張 (Phase 7: Native Command Progressive Enhancement)
-    // 通常プレイ中（モーダル/メニュー/テキスト入力非表示時）の '/' (What is this?), '\' (Known objects)
+    // 10. 入力モード判定 (CLASSIC vs NEHWW)
+    const inputMode = context.inputMode || 'classic';
+    const isClassic = inputMode === 'classic';
+
+    // 11. 方向キー情報の導出
+    const dirCode = DIRECTION_KEY_MAP[code] || DIRECTION_KEY_MAP[key] || null;
+
+    // 12. 🛡️ NEHWW モード専用の論理アクション処理
+    if (!isClassic && !context.isPromptActive) {
+      // 12.1 🔄 Shift + 方向キー ➔ その場向き変更 (ターン消費ゼロ)
+      if (event.shiftKey && dirCode) {
+        return {
+          action: ROUTE_ACTIONS.ROTATE_FACING,
+          payload: { dirCode }
+        };
+      }
+
+      // 12.15 🏃 Ctrl + 方向キー ➔ ダッシュ移動 (連続歩行)
+      if (ctrlKey && !altKey && dirCode) {
+        return {
+          action: ROUTE_ACTIONS.DASH_MOVE,
+          payload: { dirCode }
+        };
+      }
+
+      // 12.16 👣 Shift + Space ➔ 足元アクション (拾う/階段/祭壇/調べる)
+      if (event.shiftKey && !ctrlKey && !altKey && (code === 'Space' || key === ' ')) {
+        return { action: ROUTE_ACTIONS.EXECUTE_CONTEXT_FEET };
+      }
+
+      // 12.2 修飾キーなしの論理ショートカット
+      if (!ctrlKey && !altKey) {
+        // 決定 / 文脈アクション実行 [Space]
+        if (code === 'Space' || key === ' ') {
+          return { action: ROUTE_ACTIONS.EXECUTE_CONTEXT_PRIMARY };
+        }
+
+        // 🎒 所持品 & 装備ペーパードール [I]
+        if (code === 'KeyI' || key === 'i' || key === 'I') {
+          return { action: ROUTE_ACTIONS.TOGGLE_INVENTORY };
+        }
+
+        // 👤 キャラクター詳細ステータス [P] または [V]
+        if (code === 'KeyP' || key === 'p' || key === 'P' || code === 'KeyV' || key === 'v' || key === 'V') {
+          return { action: ROUTE_ACTIONS.TOGGLE_CHARACTER_STATUS };
+        }
+
+        // 🗺️ 全体ミニマップ HUD [M]
+        if (code === 'KeyM' || key === 'm' || key === 'M') {
+          return { action: ROUTE_ACTIONS.SHORTCUT_TOGGLE_MINIMAP };
+        }
+
+        // 📖 冒険手帳・ディスカバリー図鑑 [B]
+        if (code === 'KeyB' || key === 'b' || key === 'B') {
+          return { action: ROUTE_ACTIONS.OPEN_DISCOVERY_CODEX };
+        }
+
+        // ❓ キーレイアウトヘルプ [?]
+        if (key === '?' || (code === 'Slash' && event.shiftKey)) {
+          return { action: ROUTE_ACTIONS.SHOW_KEYMAP_HELP };
+        }
+      }
+    }
+
+    // 13. 📚 標準操作プログレッシブ拡張 (Phase 7: 通常プレイ時の '/' および '\')
     if (!context.bypassEnhancedSignals && !ctrlKey && !altKey) {
       if (key === '/') {
         return { action: ROUTE_ACTIONS.OPEN_KNOWLEDGE_INSPECTOR };
@@ -165,7 +266,7 @@ export class InputCoordinator {
       }
     }
 
-    // 11. 通常のゲームキー操作 (パススルー)
+    // 14. 通常のゲームキー操作 (パススルー)
     return {
       action: ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY,
       payload: {
@@ -173,7 +274,8 @@ export class InputCoordinator {
         key,
         shiftKey: Boolean(event.shiftKey),
         ctrlKey: Boolean(event.ctrlKey),
-        altKey: Boolean(event.altKey)
+        altKey: Boolean(event.altKey),
+        dirCode
       }
     };
   }

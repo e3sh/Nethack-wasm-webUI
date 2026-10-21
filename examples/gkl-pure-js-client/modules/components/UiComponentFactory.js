@@ -103,6 +103,7 @@ export class UiComponentFactory {
       getAreaGrid: () => client.core?.gkl?.getSituation()?.area?.grid,
       getSituation: () => client.core?.gkl?.getSituation(),
       getCore: () => client.core,
+      getFacingDir: () => client.keyHandler?.currentFacingDir || 'S',
       tileSource: client.layoutConfig?.tileImage
     });
     client.mapRenderer = client.mainViewportRenderer; // 後方互換
@@ -116,6 +117,7 @@ export class UiComponentFactory {
       getCore: () => client.core,
       getTileImg: () => client.mainViewportRenderer.tileImg,
       isTileLoaded: () => client.mainViewportRenderer.tileLoaded,
+      getFacingDir: () => client.keyHandler?.currentFacingDir || 'S',
       tileSource: client.layoutConfig?.tileImage
     });
 
@@ -338,7 +340,7 @@ export class UiComponentFactory {
 
     // 8.9 Smart Floating ContextActions Menu
     const viewportContainer = typeof document !== 'undefined' ? document.querySelector('.game-viewport') : null;
-    client.floatingActions = new FloatingContextActions({
+    client.floatingContextActions = client.floatingActions = new FloatingContextActions({
       container: viewportContainer,
       getCore: () => client.core,
       language: client.currentLanguage,
@@ -387,7 +389,11 @@ export class UiComponentFactory {
       getUIConfigStore: () => client.uiConfigStore,
       toggleSidePanel: (forceState) => client.toggleSidePanel(forceState),
       onOpenKnowledgeInspector: () => client.openKnowledgeInspector(),
-      onOpenDiscoveryCodex: () => client.openDiscoveryCodex()
+      onOpenDiscoveryCodex: () => client.openDiscoveryCodex(),
+      getFloatingContextActions: () => client.floatingActions,
+      onFacingChanged: (dirCode) => client.onFacingChanged?.(dirCode),
+      onInputModeChanged: (mode) => client.onInputModeChanged?.(mode),
+      onShowKeymapHelp: () => client.showKeymapHelp?.()
     });
 
   }

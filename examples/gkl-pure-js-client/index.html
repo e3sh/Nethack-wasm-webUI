@@ -30,6 +30,13 @@
         </button>
         <button id="btn-toggle-side-panel" class="btn btn-secondary side-panel-header-btn" title="サイドパネル一時退避 / 再展開 [ F2/Alt+S ]">
           <span id="btn-side-panel-label">🎒 パネル ⏵</span>
+
+        </button>
+        <button id="btn-toggle-input-mode" class="btn btn-secondary input-mode-header-btn" title="入力モード切替: Nehww (論理アクション) ⇄ Classic (原作透過) [F1]">
+          <span id="btn-input-mode-label">🛡️ Nehww</span>
+        </button>
+        <button id="btn-open-keymap-help" class="btn btn-secondary keymap-help-header-btn" title="キーボード・操作ヘルプ [?]">
+          <span>❓ 操作ヘルプ</span>
         </button>
         <div class="settings-dropdown-wrapper">
           <button id="btn-settings-toggle" class="btn btn-secondary" title="設定・システムメニュー">⚙️ 設定</button>
@@ -85,17 +92,7 @@
             </div>
             <div class="settings-menu-separator"></div>
 
-            <!-- キー入力・操作 -->
-            <div class="settings-menu-group">
-              <span class="settings-menu-title" id="lbl-settings-input-section">キー入力 ＆ 操作</span>
-              <label class="settings-checkbox-item">
-                <input type="checkbox" id="chk-bypass-enhanced-signals" />
-                <span id="lbl-bypass-enhanced-signals">⌨️ キー入力のネイティブ透過 (/,\ の直接送信)</span>
-              </label>
-            </div>
-            <div class="settings-menu-separator"></div>
-
-            <!-- ビュー・カメラ -->
+<!-- ビュー・カメラ -->
             <div class="settings-menu-group">
               <span class="settings-menu-title" id="lbl-settings-view-section">表示・カメラ</span>
               <button id="btn-toggle-view" class="btn-menu-item">ビュー切替: ✨ HD-2D ➜ 🎨 2Dグラフィック</button>
@@ -292,6 +289,21 @@
         <div id="prompt-bar" class="prompt-bar hidden">
           <div id="prompt-text" class="prompt-text"></div>
           <div id="input-controls" class="input-controls"></div>
+        </div>
+        <!-- 💡 キーレイアウト ＆ コンテキストスマートガイドバー -->
+        <div id="key-guide-bar" class="key-guide-bar">
+          <div class="key-guide-main">
+            <span class="key-guide-chip" id="guide-chip-interact"><kbd>Space</kbd> 目の前</span>
+            <span class="key-guide-chip" id="guide-chip-feet"><kbd>Shift+Space</kbd> 足元</span>
+            <span class="key-guide-chip" id="guide-chip-rotate"><kbd>Shift+WASD</kbd> 向き変更</span>
+            <span class="key-guide-chip" id="guide-chip-dash"><kbd>Ctrl+WASD</kbd> ダッシュ</span>
+            <span class="key-guide-chip" id="guide-chip-inv"><kbd>I</kbd> 持物</span>
+            <span class="key-guide-chip" id="guide-chip-map"><kbd>Tab</kbd> 地図</span>
+          </div>
+          <div class="key-guide-system">
+            <span class="key-guide-chip system" id="guide-chip-mode"><kbd>F1</kbd> モード切替</span>
+            <span class="key-guide-chip system" id="guide-chip-help"><kbd>?</kbd> ヘルプ</span>
+          </div>
         </div>
       </section>
 
@@ -875,6 +887,65 @@
     </div>
 
 
+    
+    <!-- ❓ キーレイアウト ＆ チートシートヘルプモーダル -->
+    <div id="keymap-help-modal" class="keymap-modal-backdrop hidden">
+      <div class="keymap-modal-card">
+        <header class="keymap-modal-header">
+          <div class="keymap-header-title">
+            <span class="keymap-title-icon">⌨️</span>
+            <span class="keymap-title-text" id="lbl-keymap-help-title">Nehww キーボード操作ヘルプ ＆ ガイド</span>
+          </div>
+          <button id="btn-close-keymap-help" class="keymap-modal-close" title="閉じる [Esc]">✕</button>
+        </header>
+        <div class="keymap-modal-body">
+          <div class="keymap-current-mode-banner" id="keymap-mode-banner">
+            <span>現在の入力モード: </span>
+            <strong id="keymap-current-mode-label" class="mode-badge nehww">🛡️ Nehww モダンモード</strong>
+            <button id="btn-keymap-mode-toggle" class="btn btn-small" style="margin-left:8px;">[F1] モード切替</button>
+          </div>
+          <div class="keymap-sections-grid">
+            <div class="keymap-section">
+              <h4>🕹️ 移動 ＆ 向き転換</h4>
+              <ul class="keymap-list">
+                <li><kbd>WASD</kbd> / <kbd>QWEADZXC</kbd> <span>8方向移動</span></li>
+                <li><kbd>テンキー 1-9</kbd> / <kbd>矢印キー</kbd> <span>8方向移動</span></li>
+                <li><kbd>Shift + 方向</kbd> <span class="highlight">その場向き変更 (ターン消費なし)</span></li>
+                <li><kbd>Ctrl + 方向</kbd> <span class="highlight">その方向へダッシュ (連続移動)</span></li>
+                <li><kbd>.</kbd> (ピリオド) <span>その場で1ターン待機</span></li>
+              </ul>
+            </div>
+            <div class="keymap-section">
+              <h4>⚡ 文脈インタラクト (Facing & Smart Auto)</h4>
+              <ul class="keymap-list">
+                <li><kbd>Space</kbd> <span class="highlight">目の前インタラクト (扉開閉/蹴破り/攻撃/メニュー)</span></li>
+                <li><kbd>Shift + Space</kbd> <span class="highlight">足元インタラクト (拾う/階段昇降/祭壇/メニュー)</span></li>
+                <li><span style="font-size:11px; color:#94a3b8;">※対象マスのアクション候補がメニューとして提示され、数字キー [1]〜[9] や Space で即実行できます。</span></li>
+              </ul>
+            </div>
+            <div class="keymap-section">
+              <h4>🎒 GUI 画面ダイレクト呼び出し</h4>
+              <ul class="keymap-list">
+                <li><kbd>I</kbd> <span>所持品アイテム ＆ 装備ペーパードール</span></li>
+                <li><kbd>P</kbd> / <kbd>V</kbd> <span>キャラクター詳細ステータス ＆ 耐性</span></li>
+                <li><kbd>Tab</kbd> / <kbd>M</kbd> <span>全体ミニマップ ＆ フロア記録手帳</span></li>
+                <li><kbd>B</kbd> / <kbd>\</kbd> <span>冒険手帳 ＆ ディスカバリー図鑑</span></li>
+                <li><kbd>Ctrl + P</kbd> <span>メッセージ過去ログドロワー</span></li>
+                <li><kbd>F2</kbd> / <kbd>Alt+S</kbd> <span>サイドパネル一時退避 / 再展開</span></li>
+                <li><kbd>/</kbd> <span>知識インスペクター (What is this?)</span></li>
+              </ul>
+            </div>
+            <div class="keymap-section">
+              <h4>⚔️ Classic (原作互換モード) について</h4>
+              <ul class="keymap-list">
+                <li><kbd>F1</kbd> <span>いつでも Classic モードに切り替え可能</span></li>
+                <li><span>Classic モードでは、すべてのキーが NetHack C コアへ直接送信され、原作通りの操作が可能です。</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- 構造化ナレッジ詳細モーダル -->
     <div id="knowledge-detail-modal" class="knowledge-modal-backdrop hidden"></div>
 

@@ -139,16 +139,9 @@ describe('UIConfigStore (Headless UI Layout Config)', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it('bypassEnhancedSignals の更新と永続化が正常に行われること', () => {
+  it('bypassEnhancedSignals は常時 true (ネイティブキー透過) に固定されていること', () => {
     const configStore = new UIConfigStore({ storage: mockStorage });
-    expect(configStore.get().bypassEnhancedSignals).toBe(false);
-
-    configStore.setProperty('bypassEnhancedSignals', true);
     expect(configStore.get().bypassEnhancedSignals).toBe(true);
-    expect(mockStorage.setItem).toHaveBeenCalledWith(
-      STORAGE_KEY_DEFAULT,
-      expect.stringContaining('"bypassEnhancedSignals":true')
-    );
   });
 
   it('panelDirectionPad, mapActionIndicator, stoneRenderingMode の更新と永続化・フォールバックが正常に行われること', () => {

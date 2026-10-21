@@ -10,6 +10,7 @@ export {
   UIConfigStore,
   STORAGE_KEY_DEFAULT,
   PRESETS,
+  INPUT_MODES,
   DEFAULT_LAYOUT_CONFIG
 } from './UIConfigStore.js';
 

@@ -59,6 +59,7 @@ export class FloatingContextActions {
 
     this.currentTarget = null;
     this.isVisible = false;
+    this.focusedIndex = 0;
     this.elPopup = elPopup || null;
 
     this._boundGlobalClick = (e) => this._handleGlobalClick(e);
@@ -237,6 +238,7 @@ export class FloatingContextActions {
     };
 
     this.isVisible = true;
+    this.focusedIndex = 0;
     this._justShown = true;
     if (typeof setTimeout !== 'undefined') {
       setTimeout(() => {
@@ -511,13 +513,16 @@ export class FloatingContextActions {
     // 3. アクションボタン群 HTML（GKL 推奨アクションのプロパティをそのまま描画）
     let actionsHtml = '';
     if (actions.length > 0) {
-      actionsHtml = actions.map(act => {
+      actionsHtml = actions.map((act, idx) => {
         const label = isEn ? (act.labelEn || act.label) : (act.labelJa || act.label);
         const icon = act.icon || (act.id?.startsWith('ACTION_ATTACK') ? '⚔️' : '⚡');
+        const numBadge = idx < 9 ? `${idx + 1}` : '';
         const keyBadge = act.charStr || act.key || '';
         const isDanger = act.risk === 'danger' || act.category === 'SURVIVAL';
+        const isFocused = idx === this.focusedIndex;
         return `
-          <button class="gkl-floating-btn ${isDanger ? 'danger' : ''}" data-action-id="${act.id}">
+          <button class="gkl-floating-btn ${isDanger ? 'danger' : ''} ${isFocused ? 'focused' : ''}" data-action-id="${act.id}" data-action-index="${idx}">
+            <span class="btn-num-shortcut">${numBadge ? `[${numBadge}]` : ''}</span>
             <span class="btn-icon">${icon}</span>
             <span class="btn-label">${label}</span>
             ${keyBadge ? `<span class="btn-key">${keyBadge}</span>` : ''}
@@ -755,10 +760,114 @@ export class FloatingContextActions {
   }
 
   _handleKeyDown(e) {
-    if (!this.isVisible) return;
+    if (!this.isVisible || !this.currentTarget) return;
+
     if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
       this.hide();
+      return;
     }
+
+    const actions = this.currentTarget.actions || [];
+    if (actions.length === 0) return;
+
+    // 数字キー 1〜9 による直接実行
+    if (/^[1-9]$/.test(e.key)) {
+      const idx = parseInt(e.key, 10) - 1;
+      if (actions[idx]) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.executeContextAction(actions[idx]);
+        return;
+      }
+    }
+
+    // フォーカス移動 (下: ArrowDown, KeyS, Numpad2)
+    if (e.code === 'ArrowDown' || e.code === 'KeyS' || e.code === 'Numpad2') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.focusedIndex = (this.focusedIndex + 1) % actions.length;
+      this._updateFocus();
+      return;
+    }
+
+    // フォーカス移動 (上: ArrowUp, KeyW, Numpad8)
+    if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Numpad8') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.focusedIndex = (this.focusedIndex - 1 + actions.length) % actions.length;
+      this._updateFocus();
+      return;
+    }
+
+    // 決定 (Space, Enter, NumpadEnter)
+    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      const targetAction = actions[this.focusedIndex];
+      if (targetAction) {
+        this.executeContextAction(targetAction);
+      }
+      return;
+    }
+  }
+
+  _updateFocus() {
+    if (!this.elPopup) return;
+    const buttons = this.elPopup.querySelectorAll('.gkl-floating-btn');
+    buttons.forEach((btn, idx) => {
+      if (idx === this.focusedIndex) {
+        btn.classList.add('focused');
+        btn.scrollIntoView?.({ block: 'nearest' });
+      } else {
+        btn.classList.remove('focused');
+      }
+    });
+  }
+
+  /**
+   * プレイヤー隣接マスの候補アクション一覧を画面中央/対象付近にフローティングポップアップ
+   * @param {string} dirCode - 'N'|'E'|'S'|'W' 等
+   * @param {Array<Object>} candidates - 推奨アクション候補配列
+   */
+  showAtPlayerAdjacent(dirCode, candidates = []) {
+    const core = this.getCore ? this.getCore() : null;
+    const situation = core?.gkl?.getSituation?.();
+    const area = situation?.area;
+    const px = area?.playerX ?? 40;
+    const py = area?.playerY ?? 12;
+
+    const DIR_OFFSETS = {
+      'N':  { dx: 0, dy: -1 },
+      'NE': { dx: 1, dy: -1 },
+      'E':  { dx: 1, dy: 0 },
+      'SE': { dx: 1, dy: 1 },
+      'S':  { dx: 0, dy: 1 },
+      'SW': { dx: -1, dy: 1 },
+      'W':  { dx: -1, dy: 0 },
+      'NW': { dx: -1, dy: -1 },
+      'SELF': { dx: 0, dy: 0 }
+    };
+    const offset = DIR_OFFSETS[dirCode] || { dx: 0, dy: 0 };
+    const targetGx = px + offset.dx;
+    const targetGy = py + offset.dy;
+
+    const cellData = area?.grid?.[targetGy]?.[targetGx];
+    const clientX = Math.round(typeof window !== 'undefined' ? window.innerWidth / 2 : 400);
+    const clientY = Math.round(typeof window !== 'undefined' ? window.innerHeight / 2 : 300);
+
+    this.show({
+      gx: targetGx,
+      gy: targetGy,
+      playerX: px,
+      playerY: py,
+      clientX,
+      clientY,
+      cardData: cellData?.middle || cellData?.bottom || null,
+      actions: candidates,
+      canTravel: false
+    });
   }
 
   destroy() {

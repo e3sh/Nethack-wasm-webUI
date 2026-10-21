@@ -95,6 +95,7 @@ class GklPureJSClient {
     this.layoutController.bindLayoutEvents();
     this.interactionController.bindInteractionEvents();
     this.onLanguageChanged();
+    this.updateInputModeUI();
     this.bootstrapGame();
     this.startMainRenderLoop();
   }
@@ -153,6 +154,7 @@ class GklPureJSClient {
     } else {
       this.currentLanguage = (lang === 'en' ? 'en' : 'ja');
       this.onLanguageChanged();
+    this.updateInputModeUI();
     }
   }
 
@@ -172,6 +174,7 @@ class GklPureJSClient {
     this.core.on('languageChanged', ({ language }) => {
       this.currentLanguage = language || 'ja';
       this.onLanguageChanged();
+    this.updateInputModeUI();
     });
 
     // 1. State Change
@@ -651,6 +654,81 @@ class GklPureJSClient {
 
   setPreset(presetName) {
     this.layoutController.setPreset(presetName);
+  }
+
+  onFacingChanged(dirCode) {
+    if (this.virtualScreen && typeof this.virtualScreen.markAllDirty === 'function') {
+      this.virtualScreen.markAllDirty();
+    }
+    if (this.webgpuRenderer && typeof this.webgpuRenderer.wakeUp === 'function') {
+      this.webgpuRenderer.wakeUp();
+    }
+  }
+
+  onInputModeChanged(mode) {
+    this.updateInputModeUI(mode);
+  }
+
+  toggleInputMode() {
+    const current = this.uiConfigStore?.get()?.inputMode || 'nehww';
+    const next = current === 'classic' ? 'nehww' : 'classic';
+    this.uiConfigStore?.setProperty('inputMode', next);
+    this.updateInputModeUI(next);
+  }
+
+  updateInputModeUI(mode = null) {
+    const currentMode = mode || this.uiConfigStore?.get()?.inputMode || 'nehww';
+    const isNehww = currentMode === 'nehww';
+
+    const btnToggle = document.getElementById('btn-toggle-input-mode');
+    const lblBadge = document.getElementById('btn-input-mode-label');
+    if (btnToggle && lblBadge) {
+      if (isNehww) {
+        btnToggle.className = 'btn btn-secondary input-mode-header-btn mode-nehww';
+        lblBadge.textContent = '🛡️ Nehww';
+      } else {
+        btnToggle.className = 'btn btn-secondary input-mode-header-btn mode-classic';
+        lblBadge.textContent = '⚔️ Classic';
+      }
+    }
+
+    const modalModeLabel = document.getElementById('keymap-current-mode-label');
+    if (modalModeLabel) {
+      if (isNehww) {
+        modalModeLabel.className = 'mode-badge nehww';
+        modalModeLabel.textContent = '🛡️ Nehww モダンモード';
+      } else {
+        modalModeLabel.className = 'mode-badge classic';
+        modalModeLabel.textContent = '⚔️ Classic 原作互換モード';
+      }
+    }
+
+    const guideBar = document.getElementById('key-guide-bar');
+    if (guideBar) {
+      const chipInteract = document.getElementById('guide-chip-interact');
+      const chipInv = document.getElementById('guide-chip-inv');
+      const chipStatus = document.getElementById('guide-chip-status');
+      const chipRotate = document.getElementById('guide-chip-rotate');
+      if (chipInteract) chipInteract.style.display = isNehww ? 'inline-flex' : 'none';
+      if (chipInv) chipInv.style.display = isNehww ? 'inline-flex' : 'none';
+      if (chipStatus) chipStatus.style.display = isNehww ? 'inline-flex' : 'none';
+      if (chipRotate) chipRotate.style.display = isNehww ? 'inline-flex' : 'none';
+    }
+  }
+
+  showKeymapHelp() {
+    const modal = document.getElementById('keymap-help-modal');
+    if (modal) {
+      this.updateInputModeUI();
+      modal.classList.remove('hidden');
+    }
+  }
+
+  closeKeymapHelp() {
+    const modal = document.getElementById('keymap-help-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
   }
 }
 

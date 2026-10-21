@@ -20,12 +20,13 @@ export { Mat4, WGSL_SHADER, HD2DFxOverlay, isCellInShadow };
 // WebGPUHD2DRenderer クラス本体
 // ============================================================================
 export class WebGPUHD2DRenderer {
-  constructor({ canvas, getSituation, getAreaGrid, getGlyphBuffer, getCore, getTileImg, isTileLoaded, onCellClick, onCellHover, tileSource = null, floorMarkerService = null }) {
+  constructor({ canvas, getSituation, getAreaGrid, getGlyphBuffer, getCore, getTileImg, isTileLoaded, onCellClick, onCellHover, tileSource = null, floorMarkerService = null, getFacingDir = null }) {
     this.canvas = canvas;
     this.getSituation = getSituation || (() => null);
     this.getAreaGrid = getAreaGrid || (() => null);
     this.getGlyphBuffer = getGlyphBuffer || (() => null);
     this.getCore = getCore || (() => null);
+    this.getFacingDir = getFacingDir || (() => 'S');
     this.getTileImg = getTileImg || (() => null);
     this.isTileLoaded = isTileLoaded || (() => false);
     this.onCellClick = onCellClick || null;
@@ -102,6 +103,7 @@ export class WebGPUHD2DRenderer {
       getTargetCursor: () => ({ x: this.targetCursorX, y: this.targetCursorY }),
       getZoom: () => this.currentZoom,
       getCore: this.getCore,
+      getFacingDir: this.getFacingDir,
       floorMarkerService: this.floorMarkerService
     });
 

@@ -176,7 +176,7 @@ export class WebUICore {
         this.lastTriggerCommand = null;
         this.lastRawMessageText = '';
         this.playerName = options.playerName || '';
-        this.bypassEnhancedSignals = Boolean(options.bypassEnhancedSignals);
+        this.bypassEnhancedSignals = true;
         this.messageItems = [];
         this.nextMessageId = 1;
         this._currentActionLastItem = null;

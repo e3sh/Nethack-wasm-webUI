@@ -83,6 +83,21 @@ last_updated: 2026-10-21
   - 設計書: [external_wiki_knowledge_linking_architecture.ja.md](./7_futures/external_wiki_knowledge_linking_architecture.ja.md)
   - 概要: ナレッジカード（`<nh-knowledge-card>`）や詳細モーダルのヘッダーに `[🌐 NetHackWiki]` ボタンを配置し、英語真名（`entity.name`）で外部 Wiki へワンクリックジャンプ（約50行で独立実装可能）。
 
+### 3.4 Nehww モダン入力の Web Components (`<nh-*>`) 昇格 ＆ Headless 純化構想 (Componentization & Input Architecture)
+- **ステータス**: `💡 proposed (Backlog / RFC)`
+- **設計書**: **[input_mode_separation_and_semantic_action_architecture.ja.md §8](./2_client_ui/input_mode_separation_and_semantic_action_architecture.ja.md#8-ui層肥大化の解消とコンポーネント化-nh--への移行方針)**
+- **背景と課題**:
+  - 先行して急遽実装された Nehww モダン操作系（WASD移動、テンキー偽装返却、Facing向き管理、スマート文脈メニュー、ダッシュ、YNQプロンプトガード）は現在 `KeyHandler.js`（View-Handler）にロジックが集約されており、View層が肥大化・ややこしくなっている。
+- **目的と方針**:
+  1. **`InputCoordinator` への状態評価・キーコード生成の完全カプセル化**:
+     - プロンプト状態判定や Numpad 偽装判定を `src/ui-controller/` に集約し、`KeyHandler` を単にイベントを流すだけの100行未満の薄い土管に純化する。
+  2. **スマート文脈メニューの Web Component 化 (`<nh-context-actions>`)**:
+     - `FloatingContextActions.js` を独立した自立型 Web Component へ昇格。
+  3. **スマートガイドバー ＆ ヘルプダイアログの Web Component 化**:
+     - `<nh-key-guide-bar>` および `<nh-keymap-dialog>` を新設し、UI固有の HTML からプロジェクト標準コンポーネントへ共通化。
+  4. **ゲームパッド ＆ キーリマップ連携**:
+     - パッド操作体系（Phase 2）および `<nh-ui-config>` でのキーコンフィグ（Phase 3）とシームレスに統合。
+
 ### 3.3 レガシーフォールバック一掃 ＆ Direct-Only アーキテクチャ純化構想 (Tech Debt Cleanup)
 - **ステータス**: `💡 proposed (Backlog / RFC)`
 - **背景と課題**:
@@ -145,6 +160,7 @@ last_updated: 2026-10-21
 | [Container_Interaction_Specification_IRC.md](./3_gkl/Container_Interaction_Specification_IRC.md) | `<nh-container-filer>`, `ContainerController` | Phase 3 | 2画面コンテナ出し入れファイラー ＆ BoH防爆安全ガード |
 | [gamepad_console_mode_architecture.ja.md](./7_futures/gamepad/gamepad_console_mode_architecture.ja.md) | `GamepadInputController.js`, `RadialInputRecognizer` | Phase 5 | ラジアルメニュー認識 ＆ ゲームパッド操作体系 |
 | [direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md](./2_client_ui/direct_binding_lifecycle_and_ui_pipeline_reconstruction_plan.ja.md) | `CharacterStatusModal.js`, `UIConfigStore.js` | Phase 8.5 | オンデマンド型キャラ詳細モーダル・Quick Dock・透過入力調停 |
+| [input_mode_separation_and_semantic_action_architecture.ja.md](./2_client_ui/input_mode_separation_and_semantic_action_architecture.ja.md) | `InputCoordinator.js`, `KeyHandler.js` | 2026-10-21 | Nehwwモダン操作 (WASD/Facing/ダッシュ/スマートメニュー) ⇄ Classic (Cコアテンキー偽装返却) 完全分離 ＆ プロンプトガード基盤 |
 
 ### 4.5 音響・メッセージ・テスト基盤
 | 機能・仕様書 | 主要コード / モジュール | 完了期 | 概要 |

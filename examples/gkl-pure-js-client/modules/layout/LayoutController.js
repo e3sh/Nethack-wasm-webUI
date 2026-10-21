@@ -150,9 +150,8 @@ export class LayoutController {
     if (chk2Line) chk2Line.checked = Boolean(config.statusClassic2Line);
     if (chkGauges) chkGauges.checked = Boolean(config.statusGauges);
     if (chkGkl) chkGkl.checked = Boolean(config.statusGklExtra);
-    if (chkBypass) chkBypass.checked = Boolean(config.bypassEnhancedSignals);
     if (client.core) {
-      client.core.bypassEnhancedSignals = Boolean(config.bypassEnhancedSignals);
+      client.core.bypassEnhancedSignals = true;
     }
 
     // 3.5. 方向キーパッドの折りたたみ & マップ上オーバーレイ & 岩盤レンダリング設定反映
@@ -259,7 +258,6 @@ export class LayoutController {
     bindLayoutCheckbox('chk-status-classic-2line', 'statusClassic2Line');
     bindLayoutCheckbox('chk-status-gauges', 'statusGauges');
     bindLayoutCheckbox('chk-status-gkl-extra', 'statusGklExtra');
-    bindLayoutCheckbox('chk-bypass-enhanced-signals', 'bypassEnhancedSignals');
 
     // Web Components (<nh-ui-config> & <nh-modal>) 連携
     const nhUiConfig = document.getElementById('nh-ui-config-modal-panel');

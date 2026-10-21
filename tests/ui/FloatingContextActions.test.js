@@ -409,4 +409,67 @@ describe('FloatingContextActions - フローティング推奨アクション UI
     expect(onUserActionMock).toHaveBeenCalledTimes(1);
     expect(actionCoreMock.executeAction).toHaveBeenCalledTimes(1);
   });
+
+  it('18. ポップアップ表示中、数字キー [1] で先頭アクションが即座に実行されること', async () => {
+    const actionCoreMock = {
+      executeAction: vi.fn().mockResolvedValue(true)
+    };
+    const fa = new FloatingContextActions({
+      container,
+      getCore: () => actionCoreMock
+    });
+
+    const act1 = { id: 'ACTION_OPEN_DOOR', label: '扉を開ける', dirCode: 'E' };
+    const act2 = { id: 'ACTION_KICK_DOOR', label: '扉を蹴破る', dirCode: 'E' };
+    fa.show({
+      gx: 11, gy: 10, playerX: 10, playerY: 10,
+      actions: [act1, act2]
+    });
+
+    // 数字キー '1' を押下
+    fa._handleKeyDown({
+      key: '1',
+      code: 'Digit1',
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    });
+
+    expect(actionCoreMock.executeAction).toHaveBeenCalledWith(act1);
+  });
+
+  it('19. ポップアップ表示中、KeyS/KeyW でフォーカス移動し Space で選択実行されること', async () => {
+    const actionCoreMock = {
+      executeAction: vi.fn().mockResolvedValue(true)
+    };
+    const fa = new FloatingContextActions({
+      container,
+      getCore: () => actionCoreMock
+    });
+
+    const act1 = { id: 'ACTION_OPEN_DOOR', label: '扉を開ける', dirCode: 'E' };
+    const act2 = { id: 'ACTION_KICK_DOOR', label: '扉を蹴破る', dirCode: 'E' };
+    fa.show({
+      gx: 11, gy: 10, playerX: 10, playerY: 10,
+      actions: [act1, act2]
+    });
+    expect(fa.focusedIndex).toBe(0);
+
+    // 下移動 (KeyS)
+    fa._handleKeyDown({
+      key: 's',
+      code: 'KeyS',
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    });
+    expect(fa.focusedIndex).toBe(1);
+
+    // 決定 (Space)
+    fa._handleKeyDown({
+      key: ' ',
+      code: 'Space',
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    });
+    expect(actionCoreMock.executeAction).toHaveBeenCalledWith(act2);
+  });
 });

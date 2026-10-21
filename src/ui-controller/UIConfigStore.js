@@ -7,6 +7,11 @@
 
 export const STORAGE_KEY_DEFAULT = 'gkl_ui_layout_config';
 
+export const INPUT_MODES = {
+  NEHWW: 'nehww',
+  CLASSIC: 'classic'
+};
+
 export const PRESETS = {
   MODERN: 'modern',
   CLASSIC: 'classic',
@@ -15,6 +20,7 @@ export const PRESETS = {
 
 export const DEFAULT_LAYOUT_CONFIG = Object.freeze({
   preset: PRESETS.MODERN,
+  inputMode: INPUT_MODES.NEHWW,
   panelInventory: true,
   panelActions: true,
   panelKnowledge: true,
@@ -23,7 +29,7 @@ export const DEFAULT_LAYOUT_CONFIG = Object.freeze({
   statusClassic2Line: false,
   statusGauges: true,
   statusGklExtra: true,
-  bypassEnhancedSignals: false,
+  bypassEnhancedSignals: true,
   hudFadeDelay: 2500,
   oracleGuideAlwaysUnlocked: false,
   guideAssistanceMode: 'VETERAN',
@@ -170,6 +176,7 @@ export class UIConfigStore {
       next = {
         ...next,
         preset: PRESETS.CLASSIC,
+        inputMode: INPUT_MODES.CLASSIC,
         panelInventory: false,
         panelActions: false,
         panelKnowledge: false,
@@ -184,6 +191,7 @@ export class UIConfigStore {
       next = {
         ...next,
         preset: PRESETS.MODERN,
+        inputMode: INPUT_MODES.NEHWW,
         panelInventory: true,
         panelActions: true,
         panelKnowledge: true,
@@ -222,6 +230,7 @@ export class UIConfigStore {
   _normalize(raw) {
     return {
       preset: typeof raw.preset === 'string' ? raw.preset : PRESETS.MODERN,
+      inputMode: raw.inputMode === INPUT_MODES.CLASSIC ? INPUT_MODES.CLASSIC : INPUT_MODES.NEHWW,
       panelInventory: raw.panelInventory !== undefined ? Boolean(raw.panelInventory) : true,
       panelActions: raw.panelActions !== undefined ? Boolean(raw.panelActions) : true,
       panelKnowledge: raw.panelKnowledge !== undefined ? Boolean(raw.panelKnowledge) : true,
@@ -230,7 +239,7 @@ export class UIConfigStore {
       statusClassic2Line: Boolean(raw.statusClassic2Line),
       statusGauges: raw.statusGauges !== undefined ? Boolean(raw.statusGauges) : true,
       statusGklExtra: raw.statusGklExtra !== undefined ? Boolean(raw.statusGklExtra) : true,
-      bypassEnhancedSignals: Boolean(raw.bypassEnhancedSignals),
+      bypassEnhancedSignals: true,
       hudFadeDelay: typeof raw.hudFadeDelay === 'number' && !Number.isNaN(raw.hudFadeDelay)
         ? raw.hudFadeDelay
         : (parseInt(raw.hudFadeDelay, 10) || 2500),

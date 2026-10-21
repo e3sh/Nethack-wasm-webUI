@@ -264,10 +264,20 @@
   transition: background 0.1s, border-color 0.1s, transform 0.06s;
 }
 
-.gkl-floating-btn:hover {
+.gkl-floating-btn:hover,
+.gkl-floating-btn.focused {
   background: rgba(56, 189, 248, 0.22);
   border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
   transform: translateY(-1px);
+}
+
+.btn-num-shortcut {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-right: 2px;
 }
 
 .gkl-floating-btn:active {

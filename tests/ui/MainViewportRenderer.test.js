@@ -21,6 +21,8 @@ describe('MainViewportRenderer - 自キャラ追従迫力メインビューポ�
       save: vi.fn(),
       restore: vi.fn(),
       translate: vi.fn(),
+      rotate: vi.fn(),
+      setLineDash: vi.fn(),
       beginPath: vi.fn(),
       moveTo: vi.fn(),
       lineTo: vi.fn(),

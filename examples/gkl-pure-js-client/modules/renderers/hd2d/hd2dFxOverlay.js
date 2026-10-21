@@ -19,7 +19,8 @@ export class HD2DFxOverlay {
     getTargetCursor,
     getZoom,
     getCore,
-    floorMarkerService
+    floorMarkerService,
+    getFacingDir
   }) {
     this.canvas = canvas;
     this.worldToScreen = worldToScreen || (() => null);
@@ -30,6 +31,7 @@ export class HD2DFxOverlay {
     this.getTargetCursor = getTargetCursor || (() => ({ x: -1, y: -1 }));
     this.getZoom = getZoom || (() => 1.0);
     this.getCore = getCore || (() => null);
+    this.getFacingDir = getFacingDir || (() => 'S');
     this.floorMarkerService = floorMarkerService || FloorMarkerService.getInstance();
 
     this.fxCanvas = null;
@@ -223,6 +225,85 @@ export class HD2DFxOverlay {
         ctx.moveTo(p3.screenX + (p2.screenX - p3.screenX) * cornerFactor, p3.screenY + (p2.screenY - p3.screenY) * cornerFactor);
         ctx.lineTo(p3.screenX, p3.screenY);
         ctx.lineTo(p3.screenX + (p0.screenX - p3.screenX) * cornerFactor, p3.screenY + (p0.screenY - p3.screenY) * cornerFactor);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+  }
+
+  /**
+   * 自キャラ足元の向き三角マーカー (▲) ＆ 目の前マスのフォーカス枠を描画 (3D パース吸着)
+   */
+  _renderFacingIndicator(ctx, ts, now, playerPos) {
+    if (!ctx || playerPos.x === undefined || playerPos.y === undefined) return;
+    const facing = this.getFacingDir ? this.getFacingDir() : 'S';
+    if (!facing) return;
+
+    const FACING_OFFSETS = {
+      'N':  { dx: 0, dy: -1, angle: -Math.PI / 2 },
+      'NE': { dx: 1, dy: -1, angle: -Math.PI / 4 },
+      'E':  { dx: 1, dy: 0,  angle: 0 },
+      'SE': { dx: 1, dy: 1,  angle: Math.PI / 4 },
+      'S':  { dx: 0, dy: 1,  angle: Math.PI / 2 },
+      'SW': { dx: -1, dy: 1, angle: Math.PI * 3 / 4 },
+      'W':  { dx: -1, dy: 0, angle: Math.PI },
+      'NW': { dx: -1, dy: -1, angle: -Math.PI * 3 / 4 }
+    };
+
+    const offset = FACING_OFFSETS[facing];
+    if (!offset) return;
+
+    const px = playerPos.x;
+    const py = playerPos.y;
+
+    // 1. 自キャラ足元に向き三角矢印 (▲) を 3D ワールド座標から投影描画
+    const arrowWorldX = px + offset.dx * 0.46;
+    const arrowWorldZ = py + offset.dy * 0.46;
+    const arrowScreen = this.worldToScreen(arrowWorldX, 0.02, arrowWorldZ);
+
+    if (arrowScreen) {
+      ctx.save();
+      ctx.translate(arrowScreen.screenX, arrowScreen.screenY);
+      ctx.rotate(offset.angle + Math.PI / 2);
+
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(6, 4);
+      ctx.lineTo(-6, 4);
+      ctx.closePath();
+      ctx.fillStyle = '#38bdf8';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // 2. 向いている目の前のマスのフォーカスハイライト (パース吸着 3D 枠)
+    const tx = px + offset.dx;
+    const ty = py + offset.dy;
+    if (tx >= 0 && tx < 80 && ty >= 0 && ty < 24) {
+      const p0 = this.worldToScreen(tx - 0.48, 0.01, ty - 0.48);
+      const p1 = this.worldToScreen(tx + 0.48, 0.01, ty - 0.48);
+      const p2 = this.worldToScreen(tx + 0.48, 0.01, ty + 0.48);
+      const p3 = this.worldToScreen(tx - 0.48, 0.01, ty + 0.48);
+
+      if (p0 && p1 && p2 && p3) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+
+        ctx.beginPath();
+        ctx.moveTo(p0.screenX, p0.screenY);
+        ctx.lineTo(p1.screenX, p1.screenY);
+        ctx.lineTo(p2.screenX, p2.screenY);
+        ctx.lineTo(p3.screenX, p3.screenY);
+        ctx.closePath();
         ctx.stroke();
 
         ctx.restore();
@@ -479,6 +560,9 @@ export class HD2DFxOverlay {
 
     // 1. 自キャラ枠 ＆ ターゲットカーソル枠の描画
     this._renderCursorFrames(ctx, baseTs, now, playerPos, targetCursor);
+
+    // 1.5. 自キャラ足元の向き三角マーカー (▲) ＆ 目の前マスのフォーカス枠描画
+    this._renderFacingIndicator(ctx, baseTs, now, playerPos);
 
     // 2. Pet / Ridden / piletop アイテムの視覚的強調描画
     this._renderEntityHighlights(ctx, baseTs, now);

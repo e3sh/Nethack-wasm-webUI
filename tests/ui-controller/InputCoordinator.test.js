@@ -152,6 +152,21 @@ describe('InputCoordinator (Headless Input Routing)', () => {
     expect(res.action).toBe(ROUTE_ACTIONS.SHORTCUT_TOGGLE_MINIMAP);
   });
 
+  it('Nehww モード時、M キーでもミニマップ最大化トグルが導出されること', () => {
+    const res = coordinator.evaluateKeyDown(
+      { key: 'm', code: 'KeyM' },
+      { inputMode: 'nehww', isPromptActive: false }
+    );
+    expect(res.action).toBe(ROUTE_ACTIONS.SHORTCUT_TOGGLE_MINIMAP);
+
+    // 最大化中に M で縮小
+    const resClose = coordinator.evaluateKeyDown(
+      { key: 'm', code: 'KeyM' },
+      { isMinimapMaximized: true, inputMode: 'nehww' }
+    );
+    expect(resClose.action).toBe(ROUTE_ACTIONS.SHORTCUT_ESCAPE_MINIMAP);
+  });
+
   it('標準操作プログレッシブ拡張: "/" で OPEN_KNOWLEDGE_INSPECTOR、"\\" で OPEN_DISCOVERY_CODEX が導出されること', () => {
     // '/' キー
     const resSlash = coordinator.evaluateKeyDown({ key: '/', code: 'Slash' });
@@ -186,6 +201,149 @@ describe('InputCoordinator (Headless Input Routing)', () => {
     const resPipe = coordinator.evaluateKeyDown({ key: '|', code: 'Backslash', shiftKey: true });
     expect(resPipe.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
     expect(resPipe.payload?.key).toBe('|');
+  });
+
+  it('F1 キーで SWITCH_INPUT_MODE が導出されること', () => {
+    const res = coordinator.evaluateKeyDown({ key: 'F1', code: 'F1' });
+    expect(res.action).toBe(ROUTE_ACTIONS.SWITCH_INPUT_MODE);
+  });
+
+  describe('NEHWW モードでの論理アクション導出', () => {
+    const nehwwContext = { inputMode: 'nehww' };
+
+    it('Shift + 方向キーでターン消費ゼロの ROTATE_FACING が導出されること', () => {
+      // Shift + 上矢印 -> 北向き
+      const resUp = coordinator.evaluateKeyDown(
+        { key: 'ArrowUp', code: 'ArrowUp', shiftKey: true },
+        nehwwContext
+      );
+      expect(resUp.action).toBe(ROUTE_ACTIONS.ROTATE_FACING);
+      expect(resUp.payload?.dirCode).toBe('N');
+
+      // Shift + KeyD -> 東向き (WASD系)
+      const resD = coordinator.evaluateKeyDown(
+        { key: 'd', code: 'KeyD', shiftKey: true },
+        nehwwContext
+      );
+      expect(resD.action).toBe(ROUTE_ACTIONS.ROTATE_FACING);
+      expect(resD.payload?.dirCode).toBe('E');
+    });
+
+    it('Space キーで決定・文脈アクション EXECUTE_CONTEXT_PRIMARY が導出されること', () => {
+      const res = coordinator.evaluateKeyDown(
+        { key: ' ', code: 'Space' },
+        nehwwContext
+      );
+      expect(res.action).toBe(ROUTE_ACTIONS.EXECUTE_CONTEXT_PRIMARY);
+    });
+
+    it('Shift + Space キーで足元アクション EXECUTE_CONTEXT_FEET が導出されること', () => {
+      const res = coordinator.evaluateKeyDown(
+        { key: ' ', code: 'Space', shiftKey: true },
+        nehwwContext
+      );
+      expect(res.action).toBe(ROUTE_ACTIONS.EXECUTE_CONTEXT_FEET);
+    });
+
+    it('Ctrl + WASD でダッシュ移動 DASH_MOVE が導出されること', () => {
+      const resW = coordinator.evaluateKeyDown(
+        { key: 'w', code: 'KeyW', ctrlKey: true },
+        nehwwContext
+      );
+      expect(resW.action).toBe(ROUTE_ACTIONS.DASH_MOVE);
+      expect(resW.payload?.dirCode).toBe('N');
+
+      const resS = coordinator.evaluateKeyDown(
+        { key: 's', code: 'KeyS', ctrlKey: true },
+        nehwwContext
+      );
+      expect(resS.action).toBe(ROUTE_ACTIONS.DASH_MOVE);
+      expect(resS.payload?.dirCode).toBe('S');
+    });
+
+    it('I キーで所持品・装備 TOGGLE_INVENTORY が導出されること', () => {
+      const res = coordinator.evaluateKeyDown(
+        { key: 'i', code: 'KeyI' },
+        nehwwContext
+      );
+      expect(res.action).toBe(ROUTE_ACTIONS.TOGGLE_INVENTORY);
+    });
+
+    it('P および V キーでキャラクター詳細ステータス TOGGLE_CHARACTER_STATUS が導出されること', () => {
+      const resP = coordinator.evaluateKeyDown(
+        { key: 'p', code: 'KeyP' },
+        nehwwContext
+      );
+      expect(resP.action).toBe(ROUTE_ACTIONS.TOGGLE_CHARACTER_STATUS);
+
+      const resV = coordinator.evaluateKeyDown(
+        { key: 'v', code: 'KeyV' },
+        nehwwContext
+      );
+      expect(resV.action).toBe(ROUTE_ACTIONS.TOGGLE_CHARACTER_STATUS);
+    });
+
+    it('B キーで冒険手帳 OPEN_DISCOVERY_CODEX が導出されること', () => {
+      const res = coordinator.evaluateKeyDown(
+        { key: 'b', code: 'KeyB' },
+        nehwwContext
+      );
+      expect(res.action).toBe(ROUTE_ACTIONS.OPEN_DISCOVERY_CODEX);
+    });
+
+    it('? キーでキーレイアウトヘルプ SHOW_KEYMAP_HELP が導出されること', () => {
+      const res = coordinator.evaluateKeyDown(
+        { key: '?', code: 'Slash', shiftKey: true },
+        nehwwContext
+      );
+      expect(res.action).toBe(ROUTE_ACTIONS.SHOW_KEYMAP_HELP);
+    });
+
+    it('通常移動キーで PASSTHROUGH_GAME_KEY に dirCode が付与されること (WASD / KeyS 対応)', () => {
+      const resW = coordinator.evaluateKeyDown(
+        { key: 'w', code: 'KeyW', shiftKey: false },
+        nehwwContext
+      );
+      expect(resW.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
+      expect(resW.payload?.dirCode).toBe('N');
+
+      const resS = coordinator.evaluateKeyDown(
+        { key: 's', code: 'KeyS', shiftKey: false },
+        nehwwContext
+      );
+      expect(resS.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
+      expect(resS.payload?.dirCode).toBe('S');
+
+      // Shift + KeyS で ROTATE_FACING (dirCode: 'S')
+      const resShiftS = coordinator.evaluateKeyDown(
+        { key: 'S', code: 'KeyS', shiftKey: true },
+        nehwwContext
+      );
+      expect(resShiftS.action).toBe(ROUTE_ACTIONS.ROTATE_FACING);
+      expect(resShiftS.payload?.dirCode).toBe('S');
+    });
+
+    it('メニュー表示中、Nehww モードでは KeyW/KeyS/Space でスクロール・選択できること', () => {
+      const menuContext = { isMenuOpen: true, isTextWindowMode: false, inputMode: 'nehww' };
+      
+      const resS = coordinator.evaluateKeyDown({ key: 's', code: 'KeyS' }, menuContext);
+      expect(resS.action).toBe(ROUTE_ACTIONS.MENU_SCROLL_DOWN);
+
+      const resW = coordinator.evaluateKeyDown({ key: 'w', code: 'KeyW' }, menuContext);
+      expect(resW.action).toBe(ROUTE_ACTIONS.MENU_SCROLL_UP);
+
+      const resSpace = coordinator.evaluateKeyDown({ key: ' ', code: 'Space' }, menuContext);
+      expect(resSpace.action).toBe(ROUTE_ACTIONS.MENU_SELECT);
+    });
+
+    it('プロンプト要求中 (isPromptActive) はショートカットが横取りされずパススルーされること', () => {
+      const promptContext = { inputMode: 'nehww', isPromptActive: true };
+      const res = coordinator.evaluateKeyDown(
+        { key: 'i', code: 'KeyI' },
+        promptContext
+      );
+      expect(res.action).toBe(ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY);
+    });
   });
 });
 

@@ -28,7 +28,8 @@ export class MainViewportRenderer {
     tileImg = null,
     tileLoaded = false,
     tileSource = null,
-    floorMarkerService = null
+    floorMarkerService = null,
+    getFacingDir = null
   } = {}) {
     this.canvas = canvas;
     this.ctx = canvas ? canvas.getContext('2d') : null;
@@ -38,6 +39,7 @@ export class MainViewportRenderer {
     this.getAreaGrid = getAreaGrid || (() => null);
     this.getSituation = getSituation || (() => null);
     this.getCore = getCore || (() => null);
+    this.getFacingDir = getFacingDir || (() => 'S');
     this.tileSource = tileSource;
 
     this.tileSize = 32; // 原寸 32px
@@ -702,6 +704,81 @@ export class MainViewportRenderer {
         }
         this.ctx.restore();
       });
+    }
+
+    // 3. 自キャラの向きマーカー (▲) ＆ 目の前マスのフォーカスハイライト
+    this.renderFacingIndicator(srcX, srcY, dstX, dstY, ts, px, py);
+  }
+
+  /**
+   * 自キャラ足元の向き三角マーカー (▲) ＆ 目の前マスのフォーカス枠を描画
+   */
+  renderFacingIndicator(srcX, srcY, dstX, dstY, ts, px, py) {
+    if (!this.ctx || px == null || py == null) return;
+    const facing = this.getFacingDir ? this.getFacingDir() : 'S';
+    if (!facing) return;
+
+    const FACING_OFFSETS = {
+      'N':  { dx: 0, dy: -1, angle: -Math.PI / 2 },
+      'NE': { dx: 1, dy: -1, angle: -Math.PI / 4 },
+      'E':  { dx: 1, dy: 0,  angle: 0 },
+      'SE': { dx: 1, dy: 1,  angle: Math.PI / 4 },
+      'S':  { dx: 0, dy: 1,  angle: Math.PI / 2 },
+      'SW': { dx: -1, dy: 1, angle: Math.PI * 3 / 4 },
+      'W':  { dx: -1, dy: 0, angle: Math.PI },
+      'NW': { dx: -1, dy: -1, angle: -Math.PI * 3 / 4 }
+    };
+
+    const offset = FACING_OFFSETS[facing];
+    if (!offset) return;
+
+    const playerScreenX = Math.round(px * ts - srcX + dstX);
+    const playerScreenY = Math.round(py * ts - srcY + dstY);
+
+    this.ctx.save();
+
+    // 1. 自キャラ足元に向いている方向の三角矢印マーカー (▲) を描画
+    const cx = playerScreenX + ts / 2;
+    const cy = playerScreenY + ts / 2;
+    const arrowDist = ts * 0.46;
+    const ax = cx + Math.cos(offset.angle) * arrowDist;
+    const ay = cy + Math.sin(offset.angle) * arrowDist;
+
+    if (typeof this.ctx.translate === 'function') {
+      this.ctx.translate(ax, ay);
+    }
+    if (typeof this.ctx.rotate === 'function') {
+      this.ctx.rotate(offset.angle + Math.PI / 2);
+    }
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, -4);
+    this.ctx.lineTo(4, 3);
+    this.ctx.lineTo(-4, 3);
+    this.ctx.closePath();
+    this.ctx.fillStyle = '#38bdf8';
+    this.ctx.fill();
+    this.ctx.strokeStyle = '#0f172a';
+    this.ctx.lineWidth = 1;
+    this.ctx.stroke();
+
+    this.ctx.restore();
+
+    // 2. 向いている目の前のマスのフォーカスハイライト
+    const targetGx = px + offset.dx;
+    const targetGy = py + offset.dy;
+    if (targetGx >= 0 && targetGx < 80 && targetGy >= 0 && targetGy < 24) {
+      const targetScreenX = Math.round(targetGx * ts - srcX + dstX);
+      const targetScreenY = Math.round(targetGy * ts - srcY + dstY);
+
+      this.ctx.save();
+      this.ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+      this.ctx.lineWidth = 1.5;
+      if (typeof this.ctx.setLineDash === 'function') {
+        this.ctx.setLineDash([3, 3]);
+      }
+      this.ctx.strokeRect(targetScreenX + 1.5, targetScreenY + 1.5, ts - 3, ts - 3);
+      this.ctx.restore();
     }
   }
 

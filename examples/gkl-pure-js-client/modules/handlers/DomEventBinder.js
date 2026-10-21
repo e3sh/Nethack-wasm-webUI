@@ -196,6 +196,34 @@ export class DomEventBinder {
       };
     }
 
+    // 🛡️ 入力モード切替ボタン (Header & Help Modal)
+    const btnToggleInputMode = document.getElementById('btn-toggle-input-mode');
+    if (btnToggleInputMode) {
+      btnToggleInputMode.onclick = () => client.toggleInputMode();
+    }
+    const btnKeymapModeToggle = document.getElementById('btn-keymap-mode-toggle');
+    if (btnKeymapModeToggle) {
+      btnKeymapModeToggle.onclick = () => client.toggleInputMode();
+    }
+
+    // ❓ キーマップヘルプボタン & 閉じるボタン
+    const btnOpenKeymapHelp = document.getElementById('btn-open-keymap-help');
+    if (btnOpenKeymapHelp) {
+      btnOpenKeymapHelp.onclick = () => client.showKeymapHelp();
+    }
+    const btnCloseKeymapHelp = document.getElementById('btn-close-keymap-help');
+    if (btnCloseKeymapHelp) {
+      btnCloseKeymapHelp.onclick = () => client.closeKeymapHelp();
+    }
+    const guideChipHelp = document.getElementById('guide-chip-help');
+    if (guideChipHelp) {
+      guideChipHelp.onclick = () => client.showKeymapHelp();
+    }
+    const guideChipMode = document.getElementById('guide-chip-mode');
+    if (guideChipMode) {
+      guideChipMode.onclick = () => client.toggleInputMode();
+    }
+
     // 🖥️ 全画面ウィンドウリサイズ追従 (Canvas 2D / WebGPU 解像度同期)
     const handleResize = () => {
       const w = window.innerWidth;
