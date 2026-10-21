@@ -14,6 +14,7 @@ export class KeyHandler {
     getContainerModal,
     getPaperdollModal,
     getCharacterStatusModal,
+    getFloorTrackerModal,
     getCodexModal,
     getMinimapRenderer,
     getMessageHistoryDrawer,
@@ -30,6 +31,7 @@ export class KeyHandler {
     this.getContainerModal = getContainerModal || (() => null);
     this.getPaperdollModal = getPaperdollModal || (() => null);
     this.getCharacterStatusModal = getCharacterStatusModal || (() => null);
+    this.getFloorTrackerModal = getFloorTrackerModal || (() => null);
     this.getCodexModal = getCodexModal || (() => null);
     this.getKnowledgeDetailModal = getKnowledgeDetailModal || (() => null);
     this.getCallCandidateDialog = getCallCandidateDialog || (() => null);
@@ -104,6 +106,26 @@ export class KeyHandler {
       close: () => {
         const charModal = this.getCharacterStatusModal();
         if (charModal) charModal.close();
+      }
+    });
+
+    // フロア記録・マーカー管理モーダル
+    this.modalStack.registerModal('floorTracker', {
+      priority: 30,
+      isOpen: () => {
+        const ftModal = this.getFloorTrackerModal();
+        return Boolean(ftModal && ftModal.isVisible);
+      },
+      close: () => {
+        const ftModal = this.getFloorTrackerModal();
+        if (ftModal) ftModal.close();
+      },
+      isInputFocused: () => {
+        const ftModal = this.getFloorTrackerModal();
+        if (ftModal && typeof ftModal.isInputFocused === 'function') {
+          return ftModal.isInputFocused();
+        }
+        return false;
       }
     });
 
@@ -242,6 +264,13 @@ export class KeyHandler {
           minimap.toggleMaximize();
         }
         return;
+
+      case ROUTE_ACTIONS.SHORTCUT_TOGGLE_FLOOR_TRACKER: {
+        e.preventDefault();
+        const floorTrackerModal = this.getFloorTrackerModal();
+        if (floorTrackerModal) floorTrackerModal.toggle();
+        return;
+      }
 
       case ROUTE_ACTIONS.SHORTCUT_ESCAPE_MINIMAP:
         if (minimap) {

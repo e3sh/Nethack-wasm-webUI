@@ -21,6 +21,7 @@ import { ScenarioRecorder } from './inspector/ScenarioRecorder.js';
 import { InteractiveRequestController } from './request/InteractiveRequestController.js';
 import { SignalDetector } from './prompt/SignalDetector.js';
 import { LoreCodex } from './knowledge/index.js';
+import { FloorMarkerService } from './knowledge/services/FloorMarkerService.js';
 import { MessageContextResolver, ContextFrameBuffer } from './message/index.js';
 
 
@@ -265,9 +266,75 @@ export class WebUICore {
     }
 
     /**
+     * ダンジョン全階層の踏破・施設・#annotate メモ一覧を取得 (Cコア SSOT: svm.mapseenchn)
+     * @returns {Array<Object>} MapseenFloorInfo[]
+     */
+    getDungeonOverview() {
+        if (this.gkl && typeof this.gkl.getDungeonOverview === 'function') {
+            return this.gkl.getDungeonOverview();
+        }
+        return [];
+    }
+
+    /**
+     * ダンジョン踏破概要 (SHIM_CMD_DUMP_MAPSEEN) のオンデマンド同期
+     * @returns {Promise<Array<Object>>} MapseenFloorInfo[]
+     */
+    async syncDungeonOverviewOnDemand() {
+        if (this.gkl && typeof this.gkl.syncDungeonOverviewOnDemand === 'function') {
+            return await this.gkl.syncDungeonOverviewOnDemand();
+        }
+        return [];
+    }
+
+    /**
+     * 現在階層への #annotate 注釈書き込み (IRC 経由安全実行 & オンデマンド同期)
+     * @param {string} annotationText - ASCII 注釈文字列
+     * @returns {Promise<boolean>}
+     */
+    async annotateFloor(annotationText) {
+        if (this.gkl && typeof this.gkl.annotateCurrentFloor === 'function') {
+            return await this.gkl.annotateCurrentFloor(annotationText);
+        }
+                const cleanText = (typeof annotationText === 'string' && annotationText.trim().length > 0)
+            ? annotationText.trim()
+            : ' ';
+        const sequence = ['#', 'annotate', cleanText];
+        let success = false;
+        if (this.interactiveController) {
+            success = await this.interactiveController.executeSequence(sequence, {
+                isSilentSync: true,
+                suppressPrompts: true
+            });
+        }
+        await this.syncDungeonOverviewOnDemand();
+        return Boolean(success);
+    }
+
+    /**
      * 冒険手帳・伝承コレクションマネージャを取得 (GKL 委譲プロキシ)
      * @returns {LoreCodex}
      */
+    /**
+     * 現在プレイヤー階層のマーカー一覧を取得 (Cコア SSOT svm.mapseenchn 準拠)
+     * @returns {Array<{ type: number, x: number, y: number, hex: string }>}
+     */
+    getCurrentFloorMarkers() {
+        const overview = this.getDungeonOverview();
+        const status = (typeof this.getStatus === 'function') ? this.getStatus() : null;
+        const area = this.gkl?.areaStateManager;
+        const dnum = area?.currentDnum ?? 0;
+        const dlevel = area?.currentDlevel ?? (status?.dlevel?.dlevel ?? 1);
+        const branchId = area?.currentBranchId ?? 'dungeon';
+        const floorKey = (dnum === 0) ? `Dlvl:${dlevel}` : `${branchId}:${dlevel}`;
+        const floor = overview.find(f => f.floorKey === floorKey || (f.dnum === dnum && f.dlevel === dlevel));
+        if (!floor || !floor.annotation) return [];
+        if (!this._floorMarkerService) {
+            this._floorMarkerService = FloorMarkerService.getInstance();
+        }
+        return this._floorMarkerService.parseAnnotation(floor.annotation).markers;
+    }
+
     getCodex() {
         return this.gkl?.getCodex() || this._fallbackLoreCodex;
     }
@@ -1514,6 +1581,11 @@ export class WebUICore {
             }
 
             // 🌐 4. 画面表示用テキストの翻訳 (TranslationEngine / dictionary.csv が一元管理)
+            // 階層注釈メッセージ検知時のダンジョン踏破情報オンデマンド自動同期
+            if (typeof rawText === 'string' && rawText.includes('You remember this level as')) {
+                this.syncDungeonOverviewOnDemand();
+            }
+
             const translated = this.translator.translate(rawText);
 
             // 🔊 効果音の判定・発火 (MessageContext 優先 O(1) 判定 ➔ 英語生テキストフォールバック)

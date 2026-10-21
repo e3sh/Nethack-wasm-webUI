@@ -14,6 +14,7 @@
 import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/AreaStateManager.js";
 import { classifyGlyph, GLYPH_STONE } from "../../../../src/core/knowledge/engines/glyphClassifier.js";
 import { getTileCandidatePaths } from "../config/TileConfig.js";
+import { FloorMarkerService } from "../../../../src/core/knowledge/services/FloorMarkerService.js";
 
 export class MainViewportRenderer {
   constructor({
@@ -26,7 +27,8 @@ export class MainViewportRenderer {
     getCore = null,
     tileImg = null,
     tileLoaded = false,
-    tileSource = null
+    tileSource = null,
+    floorMarkerService = null
   } = {}) {
     this.canvas = canvas;
     this.ctx = canvas ? canvas.getContext('2d') : null;
@@ -47,6 +49,8 @@ export class MainViewportRenderer {
     this.camY = 12;
     this.smoothScroll = false;
     this.cameraLerp = 0.2;
+    this._boundCore = null;
+    this._ensureCoreEvents();
     this.isCameraInitialized = false;
 
     // 80x24 バッファ (ASCII & グリフ情報)
@@ -72,6 +76,7 @@ export class MainViewportRenderer {
     // マップ上オーバーレイ＆岩盤表示設定
     this.mapActionIndicator = true;
     this.stoneRenderingMode = 'smart'; // 'smart' | 'minimal' | 'classic_tile'
+    this.floorMarkerService = floorMarkerService || FloorMarkerService.getInstance();
   }
 
   setMapActionIndicator(enabled) {
@@ -276,7 +281,17 @@ export class MainViewportRenderer {
   /**
    * 毎フレームの描画メインエントリ
    */
+  _ensureCoreEvents() {
+    const core = this.getCore?.();
+    if (!core || this._boundCore === core || typeof core.on !== 'function') return;
+    this._boundCore = core;
+    core.on('dungeonOverviewUpdated', () => {
+      this.render();
+    });
+  }
+
   render() {
+    this._ensureCoreEvents();
     if (!this.isGraphicCanvasMode || !this.ctx || !this.canvas) return;
 
     const situation = this.getSituation();
@@ -520,6 +535,9 @@ export class MainViewportRenderer {
     // 4.5. マップ上への ContextActions バッジ ＆ スマート岩盤・掘削アシストの最前面オーバーレイ描画
     this.renderMapContextOverlays(srcX, srcY, dstX, dstY, ts, px, py, currentActions, areaGrid, cols, tileMap);
 
+    // 4.6. フロアマーカー (ピン) 最前面オーバーレイ描画
+    this.renderFloorMarkers(srcX, srcY, dstX, dstY, ts, canvasW, canvasH);
+
     // 5. Visual FX 最前面オーバーレイ描画
     this.renderVisualFx(srcX, srcY, dstX, dstY, ts, canvasW, canvasH, now);
 
@@ -684,6 +702,55 @@ export class MainViewportRenderer {
         }
         this.ctx.restore();
       });
+    }
+  }
+
+  /**
+   * フロアマーカー (ピン) 最前面オーバーレイ描画
+   */
+  renderFloorMarkers(srcX, srcY, dstX, dstY, ts, canvasW, canvasH) {
+    if (!this.ctx) return;
+    const markers = this.getSituation?.()?.markers || this.getCore?.()?.getCurrentFloorMarkers?.() || [];
+    if (!Array.isArray(markers) || markers.length === 0) return;
+
+    const minGx = Math.max(0, Math.floor((srcX - dstX) / ts));
+    const maxGx = Math.min(79, Math.ceil((srcX - dstX + canvasW) / ts));
+    const minGy = Math.max(0, Math.floor((srcY - dstY) / ts));
+    const maxGy = Math.min(23, Math.ceil((srcY - dstY + canvasH) / ts));
+
+    const badgeW = 16;
+    const badgeH = 16;
+
+    for (const m of markers) {
+      if (typeof m.x !== 'number' || typeof m.y !== 'number') continue;
+      if (m.x < minGx || m.x > maxGx || m.y < minGy || m.y > maxGy) continue;
+
+      const screenX = Math.round(m.x * ts - srcX + dstX);
+      const screenY = Math.round(m.y * ts - srcY + dstY);
+      const slot = this.floorMarkerService.getSlotDefinition(m.type);
+
+      // タイル右上の半透明バッジ
+      const bx = screenX + ts - badgeW;
+      const by = screenY;
+
+      this.ctx.save();
+      // 半透明背景
+      this.ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+      this.ctx.fillRect(bx, by, badgeW, badgeH);
+
+      // 金色/白の細枠
+      this.ctx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+      this.ctx.lineWidth = 1;
+      this.ctx.strokeRect(bx + 0.5, by + 0.5, badgeW - 1, badgeH - 1);
+
+      // 絵文字アイコン
+      if (typeof this.ctx.fillText === 'function') {
+        this.ctx.font = '10px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(slot.icon || '📍', bx + badgeW / 2, by + badgeH / 2 + 0.5);
+      }
+      this.ctx.restore();
     }
   }
 

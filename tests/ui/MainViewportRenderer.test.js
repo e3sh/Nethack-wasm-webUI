@@ -386,4 +386,34 @@ describe('MainViewportRenderer - 自キャラ追従迫力メインビューポ�
     const calls = renderer.drawTile.mock.calls.filter(call => call[0] === 3929);
     expect(calls.length).toBe(1); // 26,10 の1回のみ
   });
+
+  it('13. 現在階層のフロアマーカーが実マップ（メインダンジョン画面）上の該当タイルにオーバーレイ描画されること', () => {
+    const mockCore = {
+      getCurrentFloorMarkers: vi.fn(() => [
+        { type: 0, x: 25, y: 10 }, // 🚩 拠点 (プレイヤーと同じマス)
+        { type: 2, x: 26, y: 10 }  // ⚠️ 危険マス (隣接マス)
+      ])
+    };
+
+    const renderer = new MainViewportRenderer({
+      canvas: mockCanvas,
+      asciiGrid: mockAsciiGrid,
+      virtualScreen: vScreen,
+      getCore: () => mockCore,
+      getAreaGrid: () => []
+    });
+
+    renderer.drawTile = vi.fn();
+    mockCtx.fillText.mockClear();
+
+    renderer.renderMainViewport({ playerX: 25, playerY: 10, grid: [] }, []);
+
+    // core.getCurrentFloorMarkers が呼ばれたこと
+    expect(mockCore.getCurrentFloorMarkers).toHaveBeenCalled();
+
+    // fillText でマーカーアイコン (🚩, ⚠️) が描画されたこと
+    const textCalls = mockCtx.fillText.mock.calls.map(c => c[0]);
+    expect(textCalls).toContain('🚩');
+    expect(textCalls).toContain('⚠️');
+  });
 });

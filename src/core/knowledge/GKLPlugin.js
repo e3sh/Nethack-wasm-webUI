@@ -44,6 +44,9 @@ export class GKLPlugin {
         this.statusAccessor = new StatusAccessor();
         this.monsterTracker = options.monsterTracker || new MonsterTracker();
         this.areaStateManager = new AreaStateManager(80, 24, this.monsterTracker);
+        this.areaStateManager.onFloorChange = () => {
+            this.syncDungeonOverviewOnDemand();
+        };
         this.inventoryStateManager = options.inventoryStateManager || new InventoryStateManager();
         this.spellStateManager = options.spellStateManager || new SpellStateManager();
         this.skillStateManager = options.skillStateManager || new SkillStateManager();
@@ -499,6 +502,33 @@ export class GKLPlugin {
             return this.wasmDirectBindingService.getDungeonOverview();
         }
         return [];
+    }
+
+    /**
+     * 現在の階層へ #annotate 注釈を書き込み、ダンジョン踏破情報をオンデマンド再取得
+     * @param {string} annotationText - ASCII 注釈文字列 (例: "Base !M:154C")
+     * @returns {Promise<boolean>} 書き込み・再同期成功時 true
+     */
+    async annotateCurrentFloor(annotationText) {
+        const cleanText = (typeof annotationText === 'string' && annotationText.trim().length > 0) ? annotationText.trim() : ' ';
+        const sequence = ['#', 'annotate', cleanText];
+
+        let success = false;
+        if (this.core && this.core.interactiveController && typeof this.core.interactiveController.executeSequence === 'function') {
+            success = await this.core.interactiveController.executeSequence(sequence, {
+                isSilentSync: true,
+                suppressPrompts: true
+            });
+        } else if (this.core && typeof this.core.sendAction === 'function') {
+            success = await this.core.sendAction(sequence, {
+                isSilentSync: true,
+                suppressPrompts: true
+            });
+        }
+
+        // 書き込み後に C コア最新真値をオンデマンド再取得
+        await this.syncDungeonOverviewOnDemand();
+        return Boolean(success);
     }
 
     // --- 状況要約・ゲッター・アドバイザー ---

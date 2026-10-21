@@ -16,6 +16,7 @@ export class CharacterStatusModal {
    * @param {Function} options.getCore - WebUICore取得関数
    * @param {Function} [options.onCastSpell] - 呪文詠唱コールバック
    * @param {Function} [options.onEnhanceSkill] - スキル向上コールバック
+   * @param {Function} [options.onOpenFloorTracker] - フロア記録モーダル起動コールバック
    * @param {string} [options.language='ja'] - 言語 ('ja' | 'en')
    */
   constructor(options = {}) {
@@ -24,6 +25,7 @@ export class CharacterStatusModal {
     this.getCore = options.getCore || (() => null);
     this.onCastSpell = options.onCastSpell || null;
     this.onEnhanceSkill = options.onEnhanceSkill || null;
+    this.onOpenFloorTracker = options.onOpenFloorTracker || null;
     this.currentLanguage = options.language === 'en' ? 'en' : 'ja';
     this.isVisible = false;
     this.isSyncing = false;
@@ -293,9 +295,9 @@ export class CharacterStatusModal {
                 <span class="label">${isEn ? 'Level / Exp' : 'レベル / 経験値'}</span>
                 <span class="value">Lv.${expText}</span>
               </div>
-              <div class="char-profile-item">
+              <div class="char-profile-item char-profile-item-clickable" id="char-status-location-row" style="cursor: pointer;" title="${isEn ? 'Open Floor Tracker & Markers [Ctrl+O / Alt+A]' : 'フロア記録・マーカー管理を開く [Ctrl+O / Alt+A]'}">
                 <span class="label">${isEn ? 'Location' : '現在地'}</span>
-                <span class="value">${dlvlText}</span>
+                <span class="value" style="color: #38bdf8; text-decoration: underline; text-underline-offset: 3px;">${dlvlText} 🗺️</span>
               </div>
               <div class="char-profile-item">
                 <span class="label">${isEn ? 'HP' : 'ヒットポイント'}</span>
@@ -447,6 +449,22 @@ export class CharacterStatusModal {
       btnClose.onclick = handleClose;
       if (typeof btnClose.addEventListener === 'function') {
         btnClose.addEventListener('click', handleClose);
+      }
+    }
+
+    // 現在地クリックイベント (FloorTrackerModal 連携)
+    const locRow = this.elModal.querySelector('#char-status-location-row');
+    if (locRow) {
+      const handleLocClick = (e) => {
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+        this.close();
+        if (typeof this.onOpenFloorTracker === 'function') {
+          this.onOpenFloorTracker();
+        }
+      };
+      locRow.onclick = handleLocClick;
+      if (typeof locRow.addEventListener === 'function') {
+        locRow.addEventListener('click', handleLocClick);
       }
     }
 

@@ -6,6 +6,8 @@
  * - [Tab] キーまたはクリックによる中央半透明拡大（マキシマイズ）トグル
  */
 
+import { FloorMarkerService } from '../../../../src/core/knowledge/services/FloorMarkerService.js';
+
 export class MinimapHudRenderer {
   constructor({
     minimapCanvas,
@@ -14,7 +16,8 @@ export class MinimapHudRenderer {
     btnToggleMinimap,
     virtualScreen = null,
     getSituation = null,
-    getCore = null
+    getCore = null,
+    floorMarkerService = null
   } = {}) {
     this.canvas = minimapCanvas;
     this.ctx = minimapCanvas ? minimapCanvas.getContext('2d') : null;
@@ -24,6 +27,7 @@ export class MinimapHudRenderer {
     this.virtualScreen = virtualScreen;
     this.getSituation = getSituation || (() => null);
     this.getCore = getCore || (() => null);
+    this.floorMarkerService = floorMarkerService || FloorMarkerService.getInstance();
 
     this.isMaximized = false;
     this.isVisible = true;
@@ -38,10 +42,21 @@ export class MinimapHudRenderer {
     this.targetCursorX = -1;
     this.targetCursorY = -1;
 
+    this._boundCore = null;
     this.initEvents();
   }
 
+  _ensureCoreEvents() {
+    const core = this.getCore?.();
+    if (!core || this._boundCore === core || typeof core.on !== 'function') return;
+    this._boundCore = core;
+    core.on('dungeonOverviewUpdated', () => {
+      this.renderMinimap();
+    });
+  }
+
   initEvents() {
+    this._ensureCoreEvents();
     if (this.btnToggleMinimap) {
       this.btnToggleMinimap.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -116,6 +131,7 @@ export class MinimapHudRenderer {
    * ミニマップ描画メインループ
    */
   renderMinimap(situation = null) {
+    this._ensureCoreEvents();
     if (!this.isVisible || !this.ctx || !this.canvas) return;
 
     const sit = situation || this.getSituation();
@@ -164,6 +180,12 @@ export class MinimapHudRenderer {
     const landmarks = sit?.landmarks || (this.getCore()?.gkl?.areaStateManager?.getFloorLandmarks?.());
     if (landmarks) {
       this.renderLandmarks(ctx, landmarks, scaleX, scaleY);
+    }
+
+    // 3.5. フロアマーカーオーバーレイ (Cコア SSOT マーカーピン描画)
+    const markers = sit?.markers || this.getCore()?.getCurrentFloorMarkers?.() || [];
+    if (markers && markers.length > 0) {
+      this.renderMarkers(ctx, markers, scaleX, scaleY);
     }
 
     // 4. モンスター位置オーバーレイ (赤ドット)
@@ -308,6 +330,43 @@ export class MinimapHudRenderer {
         ctx.arc(sx, sy, r, 0, Math.PI * 2);
         ctx.fill();
       }
+    }
+  }
+
+  /**
+   * フロアマーカーピンのオーバーレイ描画
+   */
+  renderMarkers(ctx, markers, scaleX, scaleY) {
+    if (!Array.isArray(markers) || markers.length === 0) return;
+
+    const isMax = this.isMaximized;
+    const pinRadius = isMax ? 6 : 3.5;
+    const fontSize = isMax ? 10 : 6;
+
+    for (const m of markers) {
+      if (typeof m.x !== 'number' || typeof m.y !== 'number') continue;
+      const mx = (m.x + 0.5) * scaleX;
+      const my = (m.y + 0.5) * scaleY;
+      const slot = this.floorMarkerService.getSlotDefinition(m.type);
+
+      ctx.save();
+      // ピン外枠（丸型背景）
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = isMax ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.arc(mx, my, pinRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // 絵文字アイコン
+      if (typeof ctx.fillText === 'function') {
+        ctx.font = `${fontSize}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(slot.icon || '📍', mx, my + (isMax ? 0.5 : 0.2));
+      }
+      ctx.restore();
     }
   }
 }

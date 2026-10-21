@@ -14,6 +14,7 @@ export const ROUTE_ACTIONS = {
   SHORTCUT_TOGGLE_HISTORY: 'SHORTCUT_TOGGLE_HISTORY',
   SHORTCUT_TOGGLE_MINIMAP: 'SHORTCUT_TOGGLE_MINIMAP',
   SHORTCUT_ESCAPE_MINIMAP: 'SHORTCUT_ESCAPE_MINIMAP',
+  SHORTCUT_TOGGLE_FLOOR_TRACKER: 'SHORTCUT_TOGGLE_FLOOR_TRACKER',
   CLOSE_TOP_MODAL: 'CLOSE_TOP_MODAL',
   BLOCK_INPUT: 'BLOCK_INPUT',
   TRAP_FOCUS: 'TRAP_FOCUS',
@@ -69,6 +70,12 @@ export class InputCoordinator {
       return { action: ROUTE_ACTIONS.SHORTCUT_TOGGLE_HISTORY };
     }
 
+    // 2.5 🗺️ フロア記録・マーカー管理 (Ctrl+O または Alt+A) の開閉ハンドリング
+    if ((ctrlKey && (code === 'KeyO' || key === 'o' || key === 'O')) ||
+        (altKey && (code === 'KeyA' || key === 'a' || key === 'A'))) {
+      return { action: ROUTE_ACTIONS.SHORTCUT_TOGGLE_FLOOR_TRACKER };
+    }
+
     // 3. モーダルスタックチェック (最前面モーダルが開いている場合)
     const topModal = this.modalStack.getTopModal();
     if (topModal) {
@@ -80,8 +87,8 @@ export class InputCoordinator {
       const isEscape = key === 'Escape' || code === 'Escape';
       const isQ = key === 'q' || key === 'Q' || code === 'KeyQ';
 
-      // モーダルごとのESC/q閉塞判定
-      if (isEscape || (topModal.id === 'paperdoll' && isQ) || (topModal.id === 'container' && isQ) || (topModal.id === 'charStatus' && isQ) || (topModal.id === 'characterStatus' && isQ)) {
+      // モーダルごとのESC/q閉塞判定 (isInputFocused 時は上記で除外済み)
+      if (isEscape || (topModal.id === 'paperdoll' && isQ) || (topModal.id === 'container' && isQ) || (topModal.id === 'charStatus' && isQ) || (topModal.id === 'characterStatus' && isQ) || (topModal.id === 'floorTracker' && isQ)) {
         return { action: ROUTE_ACTIONS.CLOSE_TOP_MODAL, payload: { modalId: topModal.id } };
       }
 

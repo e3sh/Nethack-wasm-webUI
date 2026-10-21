@@ -1,3 +1,5 @@
+import { FloorMarkerService } from "../../../../../src/core/knowledge/services/FloorMarkerService.js";
+
 /**
  * hd2dFxOverlay.js - WebGPU HD2D ジオラマ用 2D Canvas オーバーレイ描画マネージャー
  *
@@ -15,7 +17,9 @@ export class HD2DFxOverlay {
     wakeUp,
     getPlayerPos,
     getTargetCursor,
-    getZoom
+    getZoom,
+    getCore,
+    floorMarkerService
   }) {
     this.canvas = canvas;
     this.worldToScreen = worldToScreen || (() => null);
@@ -25,6 +29,8 @@ export class HD2DFxOverlay {
     this.getPlayerPos = getPlayerPos || (() => ({ x: 0, y: 0 }));
     this.getTargetCursor = getTargetCursor || (() => ({ x: -1, y: -1 }));
     this.getZoom = getZoom || (() => 1.0);
+    this.getCore = getCore || (() => null);
+    this.floorMarkerService = floorMarkerService || FloorMarkerService.getInstance();
 
     this.fxCanvas = null;
     this.fxCtx = null;
@@ -406,6 +412,53 @@ export class HD2DFxOverlay {
     }
   }
 
+  /**
+   * フロアマーカー（ピン）バッジの最前面オーバーレイ描画
+   */
+  _renderFloorMarkers(ctx, baseTs, now) {
+    const situation = this.getSituation ? this.getSituation() : null;
+    const markers = situation?.markers || this.getCore?.()?.getCurrentFloorMarkers?.() || [];
+    if (!Array.isArray(markers) || markers.length === 0) return;
+
+    const canvasW = this.canvas ? this.canvas.width : (this.fxCanvas ? this.fxCanvas.width : 0);
+    const canvasH = this.canvas ? this.canvas.height : (this.fxCanvas ? this.fxCanvas.height : 0);
+
+    for (const m of markers) {
+      if (typeof m.x !== 'number' || typeof m.y !== 'number') continue;
+      if (m.x < 0 || m.x >= 80 || m.y < 0 || m.y >= 24) continue;
+
+      // タイル右上の 3D ワールド座標 (gx + 0.45, 高さ 0.05, gz - 0.45) をスクリーン座標へ投影
+      const pRightTop = this.worldToScreen(m.x + 0.45, 0.05, m.y - 0.45);
+      if (!pRightTop) continue;
+
+      if (pRightTop.screenX < -20 || pRightTop.screenX > canvasW + 20 ||
+          pRightTop.screenY < -20 || pRightTop.screenY > canvasH + 20) {
+        continue;
+      }
+
+      const slot = this.floorMarkerService.getSlotDefinition(m.type);
+      const badgeSize = Math.max(12, Math.min(20, Math.round(baseTs * 0.38)));
+      const fontSize = Math.max(9, Math.min(13, Math.round(badgeSize * 0.75)));
+      const bx = Math.round(pRightTop.screenX - badgeSize);
+      const by = Math.round(pRightTop.screenY);
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fillRect(bx, by, badgeSize, badgeSize);
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 0.5, by + 0.5, badgeSize - 1, badgeSize - 1);
+
+      if (typeof ctx.fillText === 'function') {
+        ctx.font = `${fontSize}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(slot.icon || '📍', bx + badgeSize / 2, by + badgeSize / 2 + 0.5);
+      }
+      ctx.restore();
+    }
+  }
+
   render(now) {
     if (!this.fxCtx || !this.fxCanvas) return;
     const ctx = this.fxCtx;
@@ -432,6 +485,9 @@ export class HD2DFxOverlay {
 
     // 2.5. マップ上への ContextActions バッジ ＆ 掘削アシスト枠描画
     this._renderActionBadges(ctx, baseTs, now, playerPos);
+
+    // 2.6. フロアマーカー（ピン）バッジ描画
+    this._renderFloorMarkers(ctx, baseTs, now);
 
     // 3. Visual FX の描画
     if (!this.activeFxList || this.activeFxList.length === 0) return;

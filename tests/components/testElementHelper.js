@@ -207,6 +207,22 @@ function parseSimpleHtml(html, parentNode) {
           el.title = titleMatch[1];
           el.setAttribute('title', titleMatch[1]);
         }
+        // value
+        const valueMatch = attrsStr.match(/value=["']([^"']*)["']/);
+        if (valueMatch) {
+          el.value = valueMatch[1];
+          el.setAttribute('value', valueMatch[1]);
+        }
+        // disabled
+        if (/\bdisabled\b/.test(attrsStr)) {
+          el.disabled = true;
+          el.setAttribute('disabled', '');
+        }
+        // selected
+        if (/\bselected\b/.test(attrsStr)) {
+          el.selected = true;
+          el.setAttribute('selected', '');
+        }
       }
 
       const currentParent = stack[stack.length - 1];
@@ -275,22 +291,18 @@ function matchesSelector(node, selector) {
     const id = selector.slice(1);
     return node.id === id || (typeof node.getAttribute === 'function' && node.getAttribute('id') === id);
   }
-  // クラスセレクタ (.btn, .filer-item-card.risk)
-  if (selector.startsWith('.')) {
-    const classes = selector.split('.').filter(Boolean);
-    return classes.every(cls => node.classList.contains(cls));
-  }
-  // 単純なタグセレクタ (button)
-  if (/^[a-zA-Z0-9_-]+$/.test(selector)) {
-    return node.tagName.toLowerCase() === selector.toLowerCase();
-  }
-  // 属性セレクタ ([data-config-key="..."], input[type="checkbox"])
-  const attrMatch = selector.match(/^(?:([a-zA-Z0-9_-]+))?\[([a-zA-Z0-9_-]+)(?:=["']?([^"']*)["']?)?\]$/);
+  // クラスまたは属性を含むセレクタ (.btn[data-id="..."], [data-config-key="..."], input[type="checkbox"])
+  const attrMatch = selector.match(/^(?:([a-zA-Z0-9_-]+))?((?:\.[a-zA-Z0-9_-]+)*)\[([a-zA-Z0-9_-]+)(?:=["']?([^"']*)["']?)?\]$/);
   if (attrMatch) {
     const tag = attrMatch[1];
-    const attr = attrMatch[2];
-    const val = attrMatch[3];
+    const classPart = attrMatch[2];
+    const attr = attrMatch[3];
+    const val = attrMatch[4];
     if (tag && node.tagName.toLowerCase() !== tag.toLowerCase()) return false;
+    if (classPart) {
+      const classes = classPart.split('.').filter(Boolean);
+      if (!classes.every(cls => node.classList.contains(cls))) return false;
+    }
 
     if (attr.startsWith('data-')) {
       const camelKey = attr.slice(5).replace(/-([a-z])/g, (_, g) => g.toUpperCase());
@@ -302,6 +314,17 @@ function matchesSelector(node, selector) {
       return actualVal !== undefined && actualVal !== null;
     }
     return val !== undefined ? node.getAttribute(attr) === val : node.hasAttribute(attr);
+  }
+
+  // クラスセレクタ (.btn, .filer-item-card.risk)
+  if (selector.startsWith('.')) {
+    const classes = selector.split('.').filter(Boolean);
+    return classes.every(cls => node.classList.contains(cls));
+  }
+
+  // 単純なタグセレクタ (button, nh-modal)
+  if (/^[a-zA-Z0-9_-]+$/.test(selector)) {
+    return node.tagName.toLowerCase() === selector.toLowerCase();
   }
 
   return false;

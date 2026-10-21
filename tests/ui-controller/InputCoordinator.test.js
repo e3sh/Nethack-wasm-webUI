@@ -18,6 +18,14 @@ describe('InputCoordinator (Headless Input Routing)', () => {
     // Ctrl+P -> 過去ログドロワートグル
     const resHistory = coordinator.evaluateKeyDown({ key: 'p', code: 'KeyP', ctrlKey: true });
     expect(resHistory.action).toBe(ROUTE_ACTIONS.SHORTCUT_TOGGLE_HISTORY);
+
+    // Ctrl+O -> フロア記録・マーカー管理トグル
+    const resFloorCtrl = coordinator.evaluateKeyDown({ key: 'o', code: 'KeyO', ctrlKey: true });
+    expect(resFloorCtrl.action).toBe(ROUTE_ACTIONS.SHORTCUT_TOGGLE_FLOOR_TRACKER);
+
+    // Alt+A -> フロア記録・マーカー管理トグル
+    const resFloorAlt = coordinator.evaluateKeyDown({ key: 'a', code: 'KeyA', altKey: true });
+    expect(resFloorAlt.action).toBe(ROUTE_ACTIONS.SHORTCUT_TOGGLE_FLOOR_TRACKER);
   });
 
   it('モーダルが開いている場合は ESC で CLOSE_TOP_MODAL が導出されること', () => {
@@ -56,6 +64,22 @@ describe('InputCoordinator (Headless Input Routing)', () => {
     expect(resQ.payload?.modalId).toBe('charStatus');
   });
 
+  it('floorTracker モーダルが開いている場合は ESC および q で CLOSE_TOP_MODAL が導出されること', () => {
+    modalStack.registerModal('floorTracker', {
+      isOpen: () => true,
+      close: vi.fn(),
+      priority: 30
+    });
+
+    const resEsc = coordinator.evaluateKeyDown({ key: 'Escape', code: 'Escape' });
+    expect(resEsc.action).toBe(ROUTE_ACTIONS.CLOSE_TOP_MODAL);
+    expect(resEsc.payload?.modalId).toBe('floorTracker');
+
+    const resQ = coordinator.evaluateKeyDown({ key: 'q', code: 'KeyQ' });
+    expect(resQ.action).toBe(ROUTE_ACTIONS.CLOSE_TOP_MODAL);
+    expect(resQ.payload?.modalId).toBe('floorTracker');
+  });
+
   it('モーダル内の入力欄にフォーカスがある場合は passToNative で通すこと', () => {
     modalStack.registerModal('codex', {
       isOpen: () => true,
@@ -67,6 +91,17 @@ describe('InputCoordinator (Headless Input Routing)', () => {
     const res = coordinator.evaluateKeyDown({ key: 'a', code: 'KeyA' });
     expect(res.action).toBe(ROUTE_ACTIONS.BLOCK_INPUT);
     expect(res.payload?.passToNative).toBe(true);
+
+    // floorTracker でも入力欄フォーカス時は 'q' で閉じずに passToNative となること
+    modalStack.registerModal('floorTracker', {
+      isOpen: () => true,
+      close: vi.fn(),
+      priority: 30,
+      isInputFocused: () => true
+    });
+    const resFloorQ = coordinator.evaluateKeyDown({ key: 'q', code: 'KeyQ' });
+    expect(resFloorQ.action).toBe(ROUTE_ACTIONS.BLOCK_INPUT);
+    expect(resFloorQ.payload?.passToNative).toBe(true);
   });
 
   it('メニューモーダル表示中の操作が正しくルーティングされること', () => {

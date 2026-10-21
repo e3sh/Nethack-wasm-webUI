@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI システム現有能力カタログ
 status: implemented
-last_updated: 2026-10-19
+last_updated: 2026-10-21
 ---
 
 # 🧭 NetHack WASM WebUI システム現有能力カタログ (SYSTEM_CAPABILITIES.md)
@@ -25,14 +25,15 @@ last_updated: 2026-10-19
    - [2.5 空間状態総合オーケストレーション ＆ 探索知識台帳 (AreaStateManager)](#25-空間状態総合オーケストレーション--探索知識台帳-areastatemanager)
    - [2.6 事後ナレッジ解析 ＆ 冒険手帳メタ進行 (PostMortemKnowledgeResolver / AdventureLogManager)](#26-事後ナレッジ解析--冒険手帳メタ進行-postmortemknowledgeresolver--adventurelogmanager)
    - [2.7 ゲームライフサイクル状態マシン (GameLifecycleManager)](#27-ゲームライフサイクル状態マシン-gamelifecyclemanager)
+   - [2.8 アイテムデータモデル単一正規化 (ItemNormalizer / ItemDisplayPresenter)](#28-アイテムデータモデル単一正規化-itemnormalizer--itemdisplaypresenter)
 3. [③ データ・伝承資産 (Data & Lore Assets)](#③-データ伝承資産-data--lore-assets)
 4. [④ UI制御・操作調停・盤面描画 (UIController & Web Components & Renderers)](#④-ui制御操作調停盤面描画-uicontroller--web-components--renderers)
    - [4.1 キー・ゲームパッド入力調停 (InputCoordinator / GamepadInputController / ModalStackController)](#41-キーゲームパッド入力調停-inputcoordinator--gamepadinputcontroller--modalstackcontroller)
    - [4.2 共通 Web Components (<nh-*>)](#42-共通-web-components-nh-)
    - [4.3 コンテキスト連動型岩盤可視化 ＆ 掘削アシスト・マップ上コマンド数バッジ (Renderers & Overlays)](#43-コンテキスト連動型岩盤可視化--掘削アシストマップ上コマンド数バッジ-renderers--overlays)
 5. [⑤ アーキテクチャの基本憲法（設計判断ルール）](#⑤-アーキテクチャの基本憲法設計判断ルール)
-6. [⑥ 機能重複およびレガシー文字列パースの統廃合・退役候補 (Consolidation & Retirement Candidates)](#⑥-機能重複およびレガシー文字列パースの統廃合退役候補-consolidation--retirement-candidates)
-7. [⑦ ギャップ分析と解消状況 (Capability Gaps & Resolution Status)](#⑦-ギャップ分析と解消状況-capability-gaps--resolution-status)
+6. [⑥ レガシーコード撤廃・Direct-Only純化計画 ＆ UI一本化状況](#⑥-レガシーコード撤廃direct-only純化計画--ui一本化状況)
+7. [⑦ ギャップ解消総括 ＆ 品質保証実績](#⑦-ギャップ解消総括--品質保証実績)
 
 ---
 
@@ -235,6 +236,18 @@ WASM 単体では得られない高次のゲーム状態をリアルタイムに
   - `NOT_STARTED` ➔ `INITIALIZING` ➔ `STARTUP_FLOW` ➔ `IN_GAME` ➔ `GAME_OVER` ➔ `RESETTING` の単一ステートマシンによるライフサイクル遷移管理（SSOT）。
   - 散在していた旧フラグ（`isFirstTurnSyncing`, `isStartingUp` 等）を一元化し、状態遷移リスナーと不正遷移ガードを提供。
 
+### 2.8 アイテムデータモデル単一正規化 (`ItemNormalizer` / `ItemDisplayPresenter`)
+
+* **主要クラス / ファイル**:
+  - `src/core/knowledge/models/ItemNormalizer.js` (`normalizeCanonicalItem`, `generateCanonicalDisplayName`)
+  - `src/core/knowledge/presenters/ItemDisplayPresenter.js` (`buildItemDisplayModel`)
+  - `src/core/knowledge/models/canonicalItem.js` / `src/core/index.d.ts` (`CanonicalItem`, `ItemDisplayModel`)
+  - 詳細仕様書: [canonical_item_schema_and_normalization_architecture.ja.md](./3_gkl/canonical_item_schema_and_normalization_architecture.ja.md)
+* **できること**:
+  - **NetHack 公式 C コア（`src/objnam.c`）準拠の決定論的名称生成**: BUC、スタック数量、未識別外見名、個別名（call/name）、チャージ数、強化値、防具状態を C コアと完全に一致するルールで決定論的に合成。
+  - **防御的多重フォールバック（`||` 嵐）の完全根絶**: `item.name || item.rawText || item.dname` のような場当たり的分岐を廃止し、データ正規化層（`ItemNormalizer`）と画面描画整形層（`ItemDisplayPresenter`）の責務を厳格に分離。
+  - **型安全性と回帰防止**: TypeScript 型定義（`src/core/index.d.ts`）に完全準拠し、公式 `objnam.c` 網羅テストおよびスキーマ適合性契約テスト（100% PASS）を配備。
+
 ---
 
 ## ③ データ・伝承資産 (Data & Lore Assets)
@@ -369,53 +382,61 @@ Phase 8 の C 構造体メモリ直結（`SHIM_DIRECT`）が有効な場合、�
 
 ---
 
-## ⑥ 機能重複およびレガシー文字列パースの統廃合・退役候補 (Consolidation & Retirement Candidates)
+## ⑥ レガシーコード撤廃・Direct-Only純化計画 ＆ UI一本化状況
 
-コードベースの肥大化・保守コスト・正規表現誤爆リスクを削減するため、段階的に統合・退役（断捨離）を進めているリストです。
+Direct Binding（WASM メモリ直結）の全面開通に伴い、コードベースのスリム化・保守性向上・誤爆リスク根絶を目的とした統廃合・退役計画です。
 
-### 6.1 UI コンポーネントの重複統廃合
+### 6.1 UI コンポーネントの共通基盤一本化
 
-| 対象機能 / UI | 現状の重複状況 | 一本化・統廃合先 | ステータス / メリット |
-| :--- | :--- | :--- | :--- |
-| **ナレッジ詳細カード** | `KnowledgeDetailModal.js` (Nehww)<br>`<nh-knowledge-card>` (共通基盤) | **`<nh-knowledge-card>`** | `🟢 コンポーネント配備済` — 3層統合ナレッジカードへ集約中。 |
-| **メッセージHUD / ログ** | `FloatingMessageHud.js` (Nehww)<br>`MessageHistoryDrawer.js`<br>`<nh-floating-hud>` | **`FloatingMessageHudController`** ＋ **`<nh-floating-hud>`** | Headless コントローラーと標準 Web Components への一本化により、描画ロジックの二重実装を解消。 |
-| **コンテナ出し入れ操作** | `ContainerModal.js` (Nehww)<br>`<nh-container-filer>` (共通基盤) | **`<nh-container-filer>`** | 二画面コンテナ操作、数量ドラフト、BoH 防爆安全ガードのロジックを共通コンポーネント1つに集約。 |
-| **ペーパードール装備** | `PaperdollModal.js` (Nehww)<br>`<nh-paperdoll>` (共通基盤) | **`<nh-paperdoll>`** | 部位判定・ドラッグ＆ドロップ・換装シミュレーションのロジックを一元化。 |
-| **モーダルスタック管理** | `ModalManager.js` (Nehww)<br>`ModalStackController.js` (Headless) | **`ModalStackController`** | ESC 閉塞・FocusTrap・Z-Index 解決を Headless パッケージに完全統一。 |
+各画面固有の実装から、DOM非依存の Headless コントローラー（`@nethack-webui/ui-controller`）および共通 Web Components（`@nethack-webui/components`）への一本化を完了・推進しています。
 
-### 6.2 Phase 5（シグナル化）＋ Phase 8（Direct Binding）により不要化した旧文字列パース・推測処理の断捨離対象
-以前は C コア内部が見えなかったため画面出力の正規表現パースに頼っていましたが、同一 WASM バイナリ内で `shim_bridge.c` と `MessageContextResolver` が常時稼働する現在、**「念のため残した過去の文字列パース」自体が誤爆バグや複雑化の温床**となっています。以下の処理は安易に温存せず、要否を厳しく監査して計画的に縮小・廃止（退役）します。
+| 対象機能 | 一本化・標準化コンポーネント | 現状ステータス ＆ 成果 |
+| :--- | :--- | :--- |
+| **ナレッジ詳細カード** | `<nh-knowledge-card>` | 3層統合（基本・公式攻撃・文学引用）カードへ集約完了。 |
+| **メッセージHUD / ログ** | `FloatingMessageHudController` ＋ `<nh-floating-hud>` | Headless 調停と標準 Custom Elements へ集約完了。 |
+| **コンテナ操作** | `<nh-container-filer>` | 2画面ファイラー、数量スライダー、BoH 防爆安全ガードを集約完了。 |
+| **ペーパードール装備** | `<nh-paperdoll>` ＋ `PaperdollPresenter` | 人形型スロットUI、ドラッグ＆ドロップ、換装シミュレーションを集約完了。 |
+| **モーダルスタック管理** | `ModalStackController` | FocusTrap、ESC 閉塞、多重モーダル Z-Index 解決を完全統一。 |
 
-| ドメイン / 対象箇所 | 過去のレガシー実装（疑うべき処理） | 現在の正規手段（Ground Truth） | 整理・断捨離方針 |
-| :--- | :--- | :--- | :--- |
-| **所持品カテゴリ・装備状態判定**<br>`InventoryStateManager.js`<br>`EquipmentRules.js` | `categorizeItem` の Layer 2 文字列正規表現、`parseEquipState(rawText)` の括弧パース、和名逆流 | `onum` (`0..480`) / `oclass` 直引き ＋ `getEquipmentPtrs()` ＋ ASCII英語純化 | **✅ 整理完了 (Stage 8.5)**: 和名汚染を解消し、モデル層の日本語正規表現を完全撤廃。 |
-| **アイテム外見・識別深度解析**<br>`ItemIdentificationResolver.js` | `detectAppearance`（形容詞総当たり正規表現）、`inferCategory`、`extractBuc`、`extractEnchantmentAndCharges` | `onum` ＋ `oc_name_known` ＋ `oc_descr_idx` ＋ `o->bknown` / `o->known` / `o->spe` | **✅ 整理完了 (Stage 8.5)**: 数値とフラグから直接構築し、日本語正規表現を完全削除。 |
-| **ディスカバリー同期**<br>`DiscoveryStateManager.js` | `\` コマンドのサイレントマクロ実行とテキスト行正規表現パース (`updateFromDiscoveriesText`) | `SHIM_CMD_DUMP_DISCOVERIES` (0x10) ＋ `DUMP_DESCR_INDEXES` (0x62) ＋ `oc_uname` | 実機ではメモリ直結で 100% 完結するため、マクロ実行と行パーサーへの依存を廃止。 |
-| **空間・仮床・扉/罠推論**<br>`AreaStateManager.js`<br>`TerrainInferenceEngine.js` | `9622` 仮床注入、メッセージ文字列からの罠・施錠推測 | `dumpLevelTerrain()` ＋ `getCellInfo()` (`typ`, `door`, `trap`) ＋ `print_glyph` | **✅ 整理完了 (Stage 8.3-B/C)**: Direct Binding 稼働時は仮床推測・メッセージ頼みの地形書き換えを完全排除。 |
-| **属性・耐性・タイマー同期**<br>`AttributeStateManager.js` | `^X` のサイレントマクロ画面キャプチャと正規表現パース、祈り経過歩数カウント | `SHIM_CMD_GET_PLAYER_SUMMARY` (0x30) ＋ `GET_PLAYER_PROPS` (0x32: `uprops`) ＋ `ublesscnt` | **✅ 整理完了 (Stage 8.4)**: C メモリ直接取得に一本化。お祈りタイマーも真値直結へ移行。 |
+### 6.2 レガシー文字列パース・推測処理の Direct-Only 純化ロードマップ (Tech Debt Cleanup)
 
-> **💡 今も本当にテキスト処理が必要な領域（これだけに集中する）**:  
+Phase 8 の Direct Binding により、過去のテキスト端末ベースで行われていた画面正規表現パースや地形推論は不要化（またはバイパス化）されました。現在は誤爆バグを根絶するため、これらを物理削除する「Direct-Only 純化」を進めています。
+
+#### A. Direct Binding 移行完了実績 (バイパス・確定値移行済)
+- **所持品・装備**: `onum` / `oclass` 直引き ＋ `getEquipmentPtrs()` ＋ ASCII 英語純化（Stage 8.5 完遂）
+- **アイテム外見・識別深度**: `oc_name_known` / `oc_descr_idx` ＋ フラグ直結（Stage 8.5 完遂）
+- **空間・ダンジョン地形**: `dumpLevelTerrain()` ＋ `getCellInfo()` ＋ `print_glyph` 直結（Stage 8.3-B/C 完遂）
+- **属性・耐性・タイマー**: `GET_PLAYER_SUMMARY` ＋ `uprops` ＋ `ublesscnt` 直結（Stage 8.4 完遂）
+- **ディスカバリー同期**: `SHIM_CMD_DUMP_DISCOVERIES` ＋ `DUMP_DESCR_INDEXES` 直結（Stage 8.2-C 完遂）
+
+#### B. 今後の完全撤廃・物理削除対象 (Retirement Candidates)
+1. **`OnDemandLookService.js`**: `;` キー送信によるメッセージ行パースの完全廃止・ファイル削除（`getFullMonsterAt` / `getFloorItemsAt` への一本化）。
+2. **`ItemIdentificationResolver.js`**: 文字列からの `extractBuc`, `extractEnchantmentAndCharges` 正規表現パース群の物理削除（`ItemNormalizer` / C 構造体直結への純化）。
+3. **`AreaStateManager.js` / `TerrainInferenceEngine.js`**: 空間推論・仮床（`9622`）捏造コードの完全撤廃（`_cachedLevelGlyphs` / `_cachedLevelTerrain` への一本化）。
+4. **`InventoryStateManager.js`**: TTY メニューテキスト逆算パースコードの撤廃。
+
+> **💡 テキスト処理を意図的に残す正当な領域 (SSOT)**:  
 > ① `putmsg` 動的メッセージストリームのカタログ照合（`MessageContextResolver`）と翻訳（`TranslationEngine`）  
-> ② 対話プロンプト（`yn_function`, `getlin`）および C コアの選択メニューウィンドウ（コンテナ・呪文選択時のレター抽出）  
+> ② 対話プロンプト（`yn_function`, `getlin`）および C コアの選択メニューウィンドウ（レター抽出）  
 > ③ テキスト自体が一次情報である `dat/data.base`（公式文学引用）と `xlogfile`（スコアボード死因文字列）
 
 ---
 
-## ⑦ ギャップ分析と解消状況 (Capability Gaps & Resolution Status)
+## ⑦ ギャップ解消総括 ＆ 品質保証実績
 
-初期監査で抽出された 4 大ギャップ（ギャップ 1: ディスカバリー図鑑、ギャップ 2: 命名アシスト、ギャップ 3: WASM動的文学引用、ギャップ 4: 冒険手帳ダッシュボード）および床アイテム覗き見知恵（Peek Wisdom）は、**すべて 100% 実装完了** しました。
+初期アーキテクチャ監査で特定された **4 大機能ギャップおよび床アイテム覗き見知恵（Peek Wisdom）はすべて 100% 解消** され、現行機能として安定稼働しています。
 
-| ギャップ項目 | 状態 | 実装・解決内容 |
-| :--- | :---: | :--- |
-| **ギャップ 1: `\` コマンド（ディスカバリー）の図鑑UI連携** | **✅ 実装完了**<br>*(Phase 7-1)* | `<nh-discovery-codex>` により、ゲーム内で発見済みアイテムの「真名 ⇄ 外見」対照表・基本価格・カテゴリ絞り込みを即時閲覧可能。さらに Stage 8.2-C の `SHIM_CMD_DUMP_DESCR_INDEXES` でメモリ直結化も完了。 |
-| **ギャップ 2: アイテム候補逆引きからの命名支援 ＆ GamePad候補選択** | **✅ 実装完了**<br>*(Phase 7-3 / ROADMAP §2.1)* | `ItemCandidateResolver.js` (価格帯・効果・既知除外) ＋ `CustomNameStore.js` ＋ `<nh-call-candidate-dialog>` ＋ `InputCoordinator` 連携により、テキストパース不要でキーボード・ゲームパッドからワンタップで候補仮名を選択・命名可能。 |
-| **ギャップ 3: WASM 動的文学引用（`data.base`）のオンデマンド閲覧 UI** | **✅ 実装完了**<br>*(Phase 7-1)* | `OnDemandLookupService.js` および `<nh-knowledge-card>` の第3層「文学・伝承引用」セクションとして完全接続済み（LRUキャッシュ＋日本語対訳対応）。 |
-| **ギャップ 4: セッション横断の図鑑収集率（知のメタ進行）ダッシュボード** | **✅ 実装完了**<br>*(Phase 7-2)* | `AdventureLogManager.js`、`<nh-codex-grid>`、および独立ツール `tools/adventure_log.html` / `tools/scoreboard.html` として完全実装済み。 |
-| **【追加】床アイテム覗き見知恵 (Peek Wisdom) 統合** | **✅ 実装完了**<br>*(Phase 8 Stage 8.5)* | `SHIM_CMD_GET_OBJECT_AT` から `ItemSpecPresenter` へ接続し、床に置かれたアイテムの数量、強化値、残チャージ、対象生物種別、BUC を動的バッジ化。 |
+| ギャップ項目 | 解消手段 ＆ 現行実装 | 主要メリット |
+| :--- | :--- | :--- |
+| **1. ディスカバリー図鑑** | `<nh-discovery-codex>` ＋ `SHIM_CMD_DUMP_DESCR_INDEXES` | `\` コマンドの発見済みアイテム（真名⇄外見）をゼロ遅延で即時閲覧。 |
+| **2. 命名アシスト** | `ItemCandidateResolver` ＋ `<nh-call-candidate-dialog>` | 未識別アイテムの価格・効果逆引き候補から、ゲームパッド/キーでワンタップ命名。 |
+| **3. WASM 動的文学引用** | `OnDemandLookupService` ＋ `<nh-knowledge-card>` | C コア内包の `data.base`（4,000+引用）をオンデマンド抽出・日本語対訳表示。 |
+| **4. 冒険手帳メタ進行** | `AdventureLogManager` ＋ `<nh-codex-grid>` / `tools/` | セッション横断の遭遇・発見解禁率（知のメタ進行）と死因分析を完全可視化。 |
+| **【拡張】Peek Wisdom** | `SHIM_CMD_GET_OBJECT_AT` ＋ `ItemSpecPresenter` | 床アイテムのスタック・強化値・残チャージ・BUC を動的バッジ化。 |
 
 ---
 
 ## 8. まとめ
 
-NetHack WASM WebUI は、「通信・同期（Phase 8 Direct Binding + IRC）」「状態解析」「データ・伝承」「UI調停（Headless UI + Web Components）」「マルチドライバ音響（Phase 6）」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャ（全158スイート・1,984テスト 100% PASS）を保有しています。  
+NetHack WASM WebUI は、「通信・同期（Phase 8 Direct Binding + IRC）」「状態解析」「データ・伝承」「UI調停（Headless UI + Web Components）」「マルチドライバ音響（Phase 6）」の各レイヤーにおいて、極めて強固で完成度の高いインフラストラクチャ（**全169スイート・2,177テスト 100% PASS**）を保有しています。  
 初期の全ギャップおよび Phase 8 メモリ直結基盤が完遂された現在、**強固な土台の上でセマンティックUIやモダンインベントリダイアログ等の次期構想へ安心して邁進できる状態** が整いました。

@@ -29,7 +29,8 @@ export class StatusView {
     elStItemTurns,
     elStItemScore,
     getCore,
-    getLoadedTileImagePath
+    getLoadedTileImagePath,
+    onOpenFloorTracker
   }) {
     this.elStatusBar = elStatusBar;
     this.elBtnToggleStatusDetails = elBtnToggleStatusDetails;
@@ -61,6 +62,19 @@ export class StatusView {
     this.conditionStateManager = new ConditionStateManager();
     this.conditionDisplayMode = 'badge'; // 'badge' (モダンバッジ) または 'classic' (テキスト)
     this.lastStatus = null;
+    this.onOpenFloorTracker = onOpenFloorTracker || null;
+
+    if (this.elStDlvl) {
+      this.elStDlvl.style.cursor = 'pointer';
+      this.elStDlvl.classList.add('status-clickable');
+      this.elStDlvl.title = 'フロア記録・マーカー管理を開く [Ctrl+O / Alt+A]';
+      this.elStDlvl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof this.onOpenFloorTracker === 'function') {
+          this.onOpenFloorTracker();
+        }
+      });
+    }
   }
 
   setLanguage(lang) {
@@ -69,6 +83,10 @@ export class StatusView {
       const isEn = this.currentLanguage === 'en';
       this.elBtnToggleStatusDetails.title = isEn ? 'Open character profile & status [👤]' : 'キャラクター詳細ステータスを開く [👤]';
       this.elBtnToggleStatusDetails.textContent = `👤 ${isEn ? 'Details' : '詳細'}`;
+    }
+    if (this.elStDlvl) {
+      const isEn = this.currentLanguage === 'en';
+      this.elStDlvl.title = isEn ? 'Open Floor Tracker & Markers [Ctrl+O / Alt+A]' : 'フロア記録・マーカー管理を開く [Ctrl+O / Alt+A]';
     }
     if (this.lastStatus) {
       this.updateStatus(this.lastStatus);

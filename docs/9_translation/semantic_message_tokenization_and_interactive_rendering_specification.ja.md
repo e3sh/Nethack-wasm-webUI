@@ -1,320 +1,262 @@
 ---
 title: セマンティック・メッセージトークン化 ＆ インタラクティブ描画仕様書
-subtitle: 非翻訳モードにおける構文シグナル活用・GKLナレッジ連携・演出翻訳
+subtitle: 静的型付き構文カタログ・2層防壁戦闘検出・GKLナレッジカード連携
 status: proposed
-last_updated: 2026-10-15
+last_updated: 2026-10-21
 author: AI Pair Programmer & e3-sh
 related_docs:
   - docs/ROADMAP.md
   - docs/9_translation/signal_driven_hybrid_translation_architecture.ja.md
   - docs/2_client_ui/immersive_hud_message_window_specification.ja.md
   - docs/3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md
+  - docs/3_gkl/canonical_item_schema_and_normalization_architecture.ja.md
 ---
 
 # 🧩 セマンティック・メッセージトークン化 ＆ インタラクティブ描画仕様書
-*(Semantic Message Tokenization & Interactive Rendering Specification: Signal-to-UI/VFX Pipeline)*
+*(Semantic Message Tokenization & Interactive Rendering Specification: Static-Typed Catalog to GKL Pipeline)*
 
 ## 1. 背景と基本方針 (Background & Core Philosophy)
 
-### 1.1 「翻訳」から「意味論的トークン化（Semantic Tokenization）」への昇華
-NetHack のテキスト出力（WASM C コアからの `putstr` / `message`）は、伝統的に単一のフラットな文字列（ASCII）として扱われてきました。
-しかし、[signal_driven_hybrid_translation_architecture.ja.md](./signal_driven_hybrid_translation_architecture.ja.md) で確立された構文シグナル基盤（[MessageContextResolver.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/core/message/MessageContextResolver.js)）により、メッセージ内の「文骨格」と「変数部分（モンスター名、アイテム名、数値、状態異常）」が分離・特定可能となりました。
-
-本仕様は、**「言語翻訳（日本語化）を使用しない（英語原文でプレイする）」場合であっても、この構文解析シグナルを最大限に活用し、メッセージを意味論的なトークン列（Message AST）へと構造化して描画する**アーキテクチャを定義します。
+### 1.1 「メッセージ内の名詞特定 → クリック → GKL ナレッジ表示」への純化
+NetHack のテキスト出力（WASM C コアからの `putstr` / `pline` 等）は、伝統的に単一のフラットな文字列として画面に流されてきました。
+本仕様は、**NetHack 本体の C コアを一切改変せず（公式 C 非改変・SSOT 原則）**、C ソースコード静的解析データ（`c_arguments`）および Direct Binding 物理状態監視を活用し、メッセージ内の名詞（モンスター名・アイテム名）を安全にトークン化し、ユーザーのクリック操作から GKL ナレッジカード（`<nh-knowledge-card>`）へシームレスに連携するアーキテクチャを定義します。
 
 ```mermaid
 flowchart TD
-    Raw["生テキスト (putstr / rawText)<br>'The rabid rat bites your kitten!'"]
-    --> Resolver["MessageContextResolver<br>(O(1)〜O(K) 状況シグナル照合)"]
+    Raw["生テキスト (pline / rawText)"]
+    --> Branch{"メッセージ系統の判定"}
     
-    Resolver --> Segmenter["MessageSegmenter (トークナイザー)<br>プレースホルダ位置特定 ＆ 冠詞分離"]
+    Branch -->|通常メッセージ| Catalog["【第1トラック】静的型付きカタログ照合<br>(source_messages_mapped.json 由来)"]
+    Branch -->|戦闘ターン内メッセージ| Combat["【第2トラック】2層防壁 戦闘検出<br>(Direct Binding 物理状態 × SVO 構文解析)"]
     
-    Segmenter --> AST["構造化トークン配列 (Message AST)<br>・[Text: 'The '] <br>・[Entity: 'rabid rat' (type: monster, threat: normal)]<br>・[Text: ' bites your ']<br>・[Entity: 'kitten' (type: monster, relation: pet)]<br>・[Text: '!']"]
+    Catalog --> Tokenizer["MessageTokenParser<br>範囲スライス ＆ 静的型 (monster/item) 付与"]
+    Combat --> Tokenizer
     
-    AST --> RouteA["【DOM レイヤー描画】<br>FloatingMessageHud / 履歴ドロワー<br>・CSS シンタックスハイライト<br>・クリックで GKL ナレッジポップアップ<br>・ダイレクトアクションパレット"]
+    Tokenizer --> AST["軽量構造化トークン配列 (Message Tokens)<br>・[Text: 'You hit the ']<br>・[Token: 'jackal' (type: monster, range: [12, 18])]<br>・[Text: '.']"]
     
-    AST --> RouteB["【シグナル演出翻訳 (VFX/SFX)】<br>GKLFxCoordinator / SoundCoordinator<br>・被弾フラッシュ / マイクロシェイク<br>・毒パルス / 噛みつき効果音"]
+    AST --> RouteA["【DOM レイヤー描画】<br>メッセージ履歴ドロワー / HUD<br>・CSS シンタックスハイライト<br>・クリック / キーボード選択可能化"]
     
-    AST --> RouteC["【ハイブリッド翻訳への橋渡し】<br>TemplateTranslationSynthesizer<br>・骨格のみ日本語化<br>・名詞は GKL 和名へ差し替え"]
+    RouteA -->|ユーザーがトークンをクリック| Resolver["クリック時遅延解決 (Lazy Resolution)<br>・Item: OBJECT_KNOWLEDGE_MAP 照合 → onum 確定<br>・Monster: MONSTER_KNOWLEDGE_MAP 照合 → monNum 確定"]
+    
+    Resolver -->|解決成功| Card["GKL ナレッジカード表示<br>&lt;nh-knowledge-card&gt;<br>・公式解説 / 耐性 / 弱点 / スペック"]
+    Resolver -->|未識別・曖昧| Plain["平文フォールバック<br>(推測・捏造せず安全に平文表示)"]
 ```
 
-### 1.2 本設計がもたらす 3 大価値
-1. **非翻訳モード（英語原文）でのモダン CRPG 体験**:
-   - モンスターやアイテムが色分けされ、メッセージをクリックするだけで GKL の弱点・耐性・持ち物などのナレッジがその場で参照可能。
-2. **シグナル演出翻訳（Signal-to-VFX/SFX Engine）**:
-   - 言語を訳す代わりに、シグナルを視覚・音響演出（画面振動、フラッシュ、状態異常の視覚化）にマッピング。
-3. **ハイブリッド翻訳への最も安全なステップ**:
-   - 「トークン分割とリッチ描画」の基盤が確立すれば、翻訳は「文骨格の置換」と「名詞の和名置換」を行うだけで完成するため、翻訳機能の導入リスクと複雑さを劇的に最小化。
+### 1.2 確定設計方針（不変原則）
+1. **NetHack C コア非改変の SSOT 原則**:
+   - C 側でメッセージに型情報を能動的に付与する改変（`putmixed` 等）は不採用。
+   - `shim_bridge.c` はプロジェクト管理下の読み取り専用拡張とし、メッセージ発生時のリアルタイム状態照会も行わない。
+2. **2 つのトラックによる完全カバー**:
+   - **第 1 トラック（通常メッセージ）**: ビルド時に `tools/data/source_messages_mapped.json` の `c_arguments`（C 引数式）から静的に分類・カタログ化。
+   - **第 2 トラック（戦闘メッセージ）**: バッファ組立て文に対し、「Direct Binding 物理状態遷移」と「S-V-O 構文解析」の 2 層防壁で誤検出ゼロの動的判定。
+3. **クリック時遅延解決（Lazy Resolution）と名詞解決の一本化**:
+   - トークン自身は「範囲（range）＋型（type: monster/item）＋原文（rawText）」のみを保持し、冠詞・複数形正規化の新規実装は行わない。
+   - ID 解決（`onum` / `monNum`）はクリック時に既存の静的名称表（`OBJECT_KNOWLEDGE_MAP` / `MONSTER_KNOWLEDGE_MAP`）へ委譲する。一意に決まらない場合は推測せず平文のままとする。
+4. **スコープの明確な分離**:
+   - **VFX/SFX 演出**: Direct Binding から直接駆動済みのため本仕様のスコープ外とする。
+   - **インベントリ連携**: `InventoryStateManager` および `ItemNormalizer` で別途実現済みのため除外。
+   - **既存カタログ保護**: 既存の `MessageContextCatalog.js`（250KB 上限・DoD 準拠）は既存機能が依存しているため破壊せず、トークン化用カタログを独立して設計する。
 
 ---
 
-## 2. トークン・データ構造仕様 (Message AST Schema)
+## 2. トークン・データ構造仕様 (Message Token Schema)
 
-メッセージは 1 つの平文から、以下の `MessageSegment` の配列として表現されます。
+トークン構造体は不要なメタデータ（関係性や推測属性）を削ぎ落とし、最小限の構造を保ちます。
 
-### 2.1 MessageSegment スキーマ
+### 2.1 MessageToken スキーマ
 ```typescript
-interface MessageSegment {
-  // トークン種別: 'text' (平文) | 'entity' (モンスター/NPC) | 'item' (道具) | 'condition' (状態異常) | 'value' (数値/効果)
-  type: 'text' | 'entity' | 'item' | 'condition' | 'value';
+export type TokenType = 'monster' | 'item' | 'text';
+
+export interface MessageToken {
+  // トークン種別: 'text' (平文) | 'monster' (モンスター) | 'item' (アイテム)
+  type: TokenType;
   
-  // 画面に表示する文字列 (英語原文 または 翻訳後の文字列)
+  // 表示文字列 (原文)
   text: string;
   
-  // インタラクティブ操作可能フラグ (クリック/ホバー有効)
-  interactive?: boolean;
+  // 原文メッセージ内の文字範囲 [startIndex, endIndex]
+  range: [number, number];
   
-  // 詳細メタデータ (種別に応じた属性)
+  // クリック操作可能フラグ (type !== 'text')
+  interactive: boolean;
+  
+  // メタデータ (静的カタログまたは戦闘検出由来)
   meta?: {
-    entityId?: string;       // GKL モンスターID ('kitten', 'green_dragon' 等)
-    relation?: 'hostile' | 'peaceful' | 'pet' | 'boss'; // 関係性
-    itemId?: string;         // GKL アイテム識別子 ('excalibur', 'potion_healing' 等)
-    itemClass?: string;      // 武器/防具/巻物/ポーション等
-    blessedCursed?: string;  // 'blessed' | 'uncursed' | 'cursed'
-    actionHint?: string[];   // 実行可能なクイックアクション (['apply', 'throw', 'examine'])
-    colorClass?: string;     // スタイリング用 CSS クラス
+    callee?: string;       // C 呼出元 ('You', 'pline' 等)
+    sourceFile?: string;   // C ソースファイル ('eat.c', 'uhitm.c' 等)
+    cArgExpr?: string;     // 分類根拠となった引数式 ('mon_nam(mtmp)', 'doname(otmp)' 等)
+    combatRole?: 'attacker' | 'target'; // 戦闘時ロール (主語/目的語)
   };
 }
 ```
 
 ### 2.2 出力例
-メッセージ: `"The green dragon breathes fire at you!"`
+メッセージ: `"You displace the kitten."`
 ```json
 [
-  { "type": "text", "text": "The " },
   { 
-    "type": "entity", 
-    "text": "green dragon", 
+    "type": "text", 
+    "text": "You displace the ", 
+    "range": [0, 17], 
+    "interactive": false 
+  },
+  { 
+    "type": "monster", 
+    "text": "kitten", 
+    "range": [17, 23], 
     "interactive": true,
     "meta": {
-      "entityId": "green_dragon",
-      "relation": "hostile",
-      "colorClass": "token-monster-dragon"
+      "callee": "You",
+      "sourceFile": "do.c",
+      "cArgExpr": "mon_nam(mtmp)"
     }
   },
-  { "type": "text", "text": " breathes " },
   { 
-    "type": "condition", 
-    "text": "fire", 
-    "interactive": false,
-    "meta": { "colorClass": "token-element-fire" }
-  },
-  { "type": "text", "text": " at you!" }
+    "type": "text", 
+    "text": ".", 
+    "range": [23, 24], 
+    "interactive": false 
+  }
 ]
 ```
 
 ---
 
-## 3. セグメンテーション（トークナイズ）処理設計
+## 3. 第 1 トラック: 通常メッセージの静的型付けカタログ
 
-### 3.1 処理パイプライン
-1. **シグナル解決 (`MessageContextResolver.resolve(rawText)`)**:
-   - `messageId`, `domain`, `placeholders`（正規表現キャプチャグループ）を取得。
-2. **プレースホルダ位置特定 ＆ 冠詞分離**:
-   - キャプチャされた名詞（例: `"a red dragon"`, `"your +1 dagger"`, `"the kitten"`）から、英語の冠詞（`a `, `an `, `the `）や所有代名詞（`your `, `its `）を分離して平文（`text`）へ戻し、純粋な名詞部分のみをトークン化。
-3. **GKL 知識照合**:
-   - 名詞を GKL の `LoreCodex` / `MonsterTracker` / `ItemSpec` に照会し、`entityId` やアイテム種別を同定。
-4. **安全なフォールバック ($O(1)$ パススルー)**:
-   - シグナル未検出（`null`）または完全一致固定文の場合、余計なパースを行わず即座に `[{ type: 'text', text: rawText }]` を返却。CPU 負荷をゼロに抑制。
+### 3.1 `%s` 静的型付けルール (`tools/data/source_messages_mapped.json`)
+C ソース全メッセージ（14,849 件）のうち、プレースホルダーを持つメッセージの引数式（`c_arguments`）を以下の決定ルールで分類します：
 
-### 3.2 冠詞・所有格の分離ルール (Article / Possessive Splitter)
-```javascript
-function stripLeadingSpecifiers(phrase) {
-  // 英語の冠詞・所有代名詞を前方分離
-  const match = phrase.match(/^(the|a|an|your|its|his|her)\s+(.*)$/i);
-  if (match) {
-    return { prefix: match[1] + ' ', noun: match[2] };
-  }
-  return { prefix: '', noun: phrase };
-}
+| 分類先型 (`TokenType`) | 抽出対象となる主な C 引数式・関数パターン | カバー率（実測） |
+| :--- | :--- | :---: |
+| **`monster`** | `Monnam`, `mon_nam`, `y_monnam`, `some_mon_nam`, `x_monnam`, `noit_mon_nam`, `Shknam`, `shkname`, `Amonnam`, `a_monnam`, `noit_mhis`, `m_monnam`, `mons[...]` | **18.79%** (829件) |
+| **`item`** | `doname`, `xname`, `yname`, `Yname2`, `the()`, `an()`, `simpleonames`, `cxname`, `aobjnam`, `Tobjnam`, `bare_why_name`, `objects[...]` | **13.85%** (611件) |
+| **平文 / 対象外** | `body_part`（部位）, `u_gname`（神名）, `buf`/`msg`（バッファ変数）, `what`/`verb`/`something`（代名詞・動詞） | **67.36%** |
+
+> **合計網羅性**: `%s` 全 4,413 件中、モンスター・アイテムの特定エンティティだけで **1,440 件 (32.63%)**、拡張型付け全体で **1,825 件 (41.36%)** を静的に確定可能。
+
+### 3.2 クリック時遅延解決（Lazy Resolution）フロー
+トークンがクリックされた際、以下の決定論的パイプラインで GKL ナレッジカードへ渡す ID を解決します。
+
+1. **アイテム (`type: 'item'`)**:
+   - `OBJECT_KNOWLEDGE_MAP` の名称辞書（英語名 `name`、外見名 `appearance`）と照合。
+   - 冠詞（`a `, `an `, `the `）や数量・修飾語を除去した文字列で `onum` を逆引き。
+   - `onum` が確定した場合: `ItemNormalizer.normalize({ onum })` を生成し、`<nh-knowledge-card>` の `setTarget(canonicalItem)` を呼び出す。
+2. **モンスター (`type: 'monster'`)**:
+   - `MONSTER_KNOWLEDGE_MAP` の名称辞書（英語名 `name`）と照合。
+   - 冠詞等を除去した文字列で `monNum`（PM 番号: 0〜390）を逆引き。
+   - `monNum` が確定した場合: 対象モンスターオブジェクトを構築し、`<nh-knowledge-card>` の `setTarget(monsterData)` を呼び出す。
+3. **解決失敗時**:
+   - 推測や捏造を行わず、カードを開かない（安全な平文フォールバック）。
+
+---
+
+## 4. 第 2 トラック: 戦闘メッセージ検出（2層防壁方式）
+
+### 4.1 なぜテキスト単体の後追い正規表現ではいけないのか
+`uhitm.c` / `mhitu.c` / `mhitm.c` の戦闘メッセージは、C 側で主語・動詞・目的語・追加効果が動的に結合（`pline("%s", buf)` 等）されています。
+これらをテキスト単体の正規表現（例: `/(hits|bites|misses)/`）で評価しようとすると、店主のセリフ（`"That bites!"`）やベアトラップの作動メッセージ（`"A bear trap bites into your leg!"`）を戦闘と誤認する誤検出（False Positive）が発生します。
+
+これを根絶するため、**「Direct Binding 物理状態」と「S-V-O 構文解析」を組み合わせた 2 層防壁** を採用します。
+
+```mermaid
+flowchart TD
+    subgraph Wall1["第 1 防壁: Direct Binding 物理状態遷移の確認"]
+        Frame["1操作のメッセージフレーム (ContextFrameBuffer)"]
+        --> CheckState{"このフレームで戦闘状態が発生したか？<br>① 直前の入力が攻撃方向キー (GKLFxCoordinator)<br>② プレイヤーHPの減少 (u.uhp 差分)<br>③ 視界内モンスターのHP減少 または 死亡"}
+    end
+
+    CheckState -->|No (通常ターン)| Bypass["戦闘パーサーを完全バイパス<br>(誤検出リスク 0%)"]
+    CheckState -->|Yes (戦闘ターン)| Wall2
+
+    subgraph Wall2["第 2 防壁: S-V-O 構文解析 (戦闘動詞 × モンスター辞書)"]
+        Parser["S-V-O 構文パーサー<br>[主語] + [戦闘動詞] + [目的語]"]
+        --> DictCheck{"主語または目的語が<br>MONSTER_KNOWLEDGE_MAP (390種) に合致するか？"}
+    end
+
+    DictCheck -->|No| Plain["平文維持 (推測せず)"]
+    DictCheck -->|Yes| CombatToken["確実な戦闘メッセージとしてトークン化<br>・モンスター名部分を 'monster' 型で抽出<br>・クリックで <nh-knowledge-card> 連携"]
 ```
 
+### 4.2 第 1 防壁：物理状態遷移によるフレーム限定
+- メッセージを 1 行ずつバラバラに評価するのではなく、1 ターンのメッセージフレーム（`ContextFrameBuffer`）単位で評価します。
+- そのターン内で以下の **Direct Binding 物理的事実** のいずれかが発生している場合のみ、「戦闘コンテキスト」のフラグを立てます：
+  1. 直前のユーザー入力が「隣接敵対モンスターへの方向キー（攻撃）」である（`GKLFxCoordinator` で既に検知可能）。
+  2. プレイヤーの現在 HP（`u.uhp`）が前フレームから減少した。
+  3. 攻撃対象マスのモンスター HP が減少した、またはモンスターが死亡消滅した（`DEADMONSTER()`）。
+- **効果**: 探索中・売買中・祈り時などはこの条件を満たさないため、戦闘パーサー自体が起動せず、**誤検出の可能性が構造的にゼロ**になります。
+
+### 4.3 第 2 防壁：S-V-O 構文解析（戦闘動詞マスター × モンスター辞書）
+第 1 防壁を通過したフレーム内のメッセージに対してのみ、NetHack の規則正しい英文法（主語-動詞-目的語）を評価します。
+
+C ソース（`attack.h`, `uhitm.c`, `mhitu.c`）で定義された攻撃動詞は有限個（約30語）に限定されています：
+- **プレイヤー攻撃動詞**: `hit`, `slash`, `stab`, `thrust`, `chop`, `hack`, `cleave`, `smite`, `strike`, `punch`, `kick`, `miss`
+- **モンスター攻撃動詞**: `bites`, `claws`, `stings`, `touches`, `butts`, `engulfs`, `crushes`, `hugs`, `kicks`, `misses`
+
+構文解析器は、文中の主語または目的語が **`MONSTER_KNOWLEDGE_MAP`（390種）の英語名と完全一致するか** を検証します：
+- 例: `"The jackal bites you!"`  
+  → 主語: `"jackal"`（モンスター辞書に完全一致 → `monNum` 確定）  
+  → 動詞: `"bites"`（モンスター攻撃動詞テーブルに完全一致）  
+  → 目的語: `"you"`  
+  ⇒ **100% の確度で戦闘メッセージと断定**し、`"jackal"` のみを `monster` トークンとして抽出。
+
+### 4.4 連鎖メッセージ（撃破・状態異常）のコンテキスト継承
+戦闘メッセージ直後に同一フレーム内で届く撃破・状態異常メッセージ（`"You kill the newt!"`, `"The newt is killed!"`, `"The newt is poisoned!"`）は、直前の攻撃メッセージで確定した対象モンスターのコンテキストを引き継ぎ、定型パターン（`is killed!`, `dies!`, `is destroyed!` 等の 10 パターン）と照合して安全にトークン化します。
+
 ---
 
-## 4. レンダリング・描画設計 (DOM HUD Architecture)
+## 5. 名詞解決の一本化（翻訳システムとの整合性）
 
-### 4.1 責務分離：なぜ Canvas / WebGL ではなく DOM なのか
-- **Canvas / WebGL**: ダンジョン盤面（マップグリッド、タイル、足元エフェクト）の超高速描画に特化。可変長テキストのヒットテストやマウスホバー、フォーカス管理を Canvas 上で実装するのは極めて脆弱でメンテナンス困難。
-- **DOM レイヤー**: [FloatingMessageHudController.js](file:///c:/Users/e3-sh/Documents/GitHub/Nethack-wasm-webUI/src/ui-controller/FloatingMessageHudController.js) およびメッセージ履歴ドロワーは既に HTML / CSS で管理されている。
-- **結論**: メッセージおよびリストのリッチ描画・インタラクティブ化は **100% DOM (HTML/CSS) レイヤーに集約**する。
+### 5.1 二重化の解消アーキテクチャ
+既存の `TranslationEngine`（`dictionary.csv` の文字列置換）と `ItemNormalizer`（`OBJECT_KNOWLEDGE_MAP` の構造化）の間で発生していた和名や判定の不一致を、以下のパイプラインに一本化します。
 
-### 4.2 DOM 表現仕様
-各トークンは標準的な `<span class="nh-token ...">` 要素として展開されます。
-
-```html
-<div class="nh-message-line">
-  <span>The </span>
-  <span class="nh-token token-entity token-hostile danger-high"
-        data-token-type="entity"
-        data-entity-id="green_dragon"
-        role="button"
-        tabindex="0"
-        title="Click to view Lore Codex">green dragon</span>
-  <span> breathes </span>
-  <span class="nh-token token-element token-fire">fire</span>
-  <span> at you!</span>
-</div>
+```mermaid
+flowchart LR
+    TokenText["英語名詞句<br>('a silver dagger')"]
+    --> Resolver["静的マスタ逆引き<br>(OBJECT_KNOWLEDGE_MAP)"]
+    
+    Resolver -->|ID確定| UnifiedID["確定 ID (onum / monNum)"]
+    
+    UnifiedID --> GKL["GKL ナレッジカード<br>&lt;nh-knowledge-card&gt;"]
+    UnifiedID --> Presenter["ItemDisplayPresenter<br>/ mon_jp (公式和名)"]
+    
+    Presenter --> Translation["TranslationEngine<br>(画面表示用和名の一致)"]
 ```
 
-### 4.3 スタイリングとアクセシビリティ
-- **シンタックスハイライト**:
-  - `.token-hostile`: 警告色（薄い赤/オレンジ）、下線ドット（点線）
-  - `.token-pet`: 安心色（シアン/エメラルドグリーン）
-  - `.token-artifact`: 鮮やかなマゼンタ/ゴールドの微発光
-  - `.token-item-unknown`: 注意色（アンバー/イエロー）
-- **キーボード / ゲームパッド操作**:
-  - メッセージ履歴ドロワーを開いた際、`Tab` または方向キーで各 `.nh-token` にフォーカス可能（`tabindex="0"`）。
-  - `Enter` またはパッド `A` ボタンでナレッジカードを開く。
+- **単一源泉化**: アイテムの和名は `OBJECT_KNOWLEDGE_MAP`（`objects.c` 準拠）、モンスターの和名は `MONSTER_KNOWLEDGE_MAP`（`mon_jp.c` 準拠）を真値（SSOT）とする。
+- **翻訳エンジンへの還元**: `TranslationEngine` がアイテム・モンスターを和名化する際も、この同一の ID 解決機構を共有することで、メッセージ内の翻訳名とナレッジカードの名称が完全に一致する。
 
 ---
 
-## 5. インタラクティブ連携 (Knowledge & Action Integration)
+## 6. UI / UX 実装仕様 (Interaction & Rendering)
 
-### 5.1 GKL ナレッジポップアップ（クリック / ホバー）
-メッセージ内の `.token-entity` または `.token-item` をクリックした際：
-1. **イベント発火**: `window.dispatchEvent(new CustomEvent('gkl:inspect-token', { detail: { type, id } }))`
-2. **ナレッジカード表示**:
-   - モンスターの場合：既存の `<nh-knowledge-card>` が対象モンスターの「弱点」「耐性」「公式攻撃一覧（3,767行データ）」を表示。
-   - アイテムの場合：識別状況、未鑑定時の推定候補、外見対照表を表示。
-3. **ゲームの一時停止不要**:
-   - ターンは進まず、画面隅に非モーダル（または軽量ポップオーバー）で表示されるため、思考を邪魔しない。
+### 6.1 メッセージ履歴ドロワー（主戦場）
+- `FloatingMessageHud` はゲームプレイを阻害しないよう `pointer-events: none` で設計されているため、**トークンのインタラクティブ操作の主戦場はメッセージ履歴ドロワー（History Drawer / Message Log）** とする。
+- ドロワー内では、トークンが `<span class="nh-token ...">` として描画される。
+  - `.token-monster`: モンスター固有の視認色（アンバー/赤系）＋点線下線
+  - `.token-item`: アイテム固有の視認色（シアン/緑系）＋点線下線
+- キーボード（`Tab` / `Shift+Tab`）およびゲームパッドのフォーカス移動に対応（`tabindex="0"`）。
+- `Enter` キー、クリック、またはゲームパッド `A` ボタンでナレッジカードを開く。
 
-### 5.2 ダイレクト・アクションパレット
-メッセージ内のアイテム名をクリックした際、状況に応じたクイックアクションを表示：
-- **床のアイテム**: `[拾う (,)]` `[調べる (/)]`
-- **所持品**: `[身につける (W)]` `[投げる (t)]` `[食べる (e)]`
-- 選択されたアクションのコマンドキーを WASM 入力キューへ送出。
-
----
-
-## 6. シグナル演出翻訳 (Signal to VFX / SFX Engine)
-
-テキストメッセージを「言語」として訳すだけでなく、「視覚・音響演出」として翻訳・実行します。
-
-| メッセージシグナル (`domain` / `messageId`) | 視覚演出 (VFX) | 音響演出 (SFX: `SoundCoordinator`) |
-| :--- | :--- | :--- |
-| **戦闘: 致命打 / 大ダメージ** (`uhitm:hit`, `mhitu:hit`) | 画面マイクロシェイク (2〜3px, 150ms)、被弾赤フラッシュ | 重い打撃音 (`se_hit_heavy`) |
-| **状態異常: 毒** (`poison`, `eat:poison`) | 画面外周の緑パルスビネット | 毒蝕音 (`se_poison`) |
-| **状態異常: 混乱 / 目眩** (`confused`, `stunned`) | 画面がわずかに波打つシェーダー (Wobble) | 幻惑音 (`se_confuse`) |
-| **道具破壊** (`worn:break`, `destroy`) | アイテム破片パーティクル | 砕折音 (`se_shatter`) |
-| **神託 / 神の怒り** (`pray:angry`, `priest:wrath`) | 画面全体の一瞬の暗転 ＋ 金/雷光フラッシュ | 雷鳴・神聖轟音 (`se_rumble`) |
+### 6.2 ダイレクト・アクションパレット（条件付き有効化）
+メッセージ内のアイテムトークンからクイックアクション（拾う、調べる、食べる等）を実行するアクションパレットは、以下の**厳格な安全条件**を満たす場合のみ有効化する：
+1. **コマンド入力待ち（poskey 等）状態であること**:
+   - `ContextFrameBuffer` または `WebUICore.driver` がプロンプト待機中であることを確認。
+2. **Yes/No 等の質問プロンプト待機中ではないこと**:
+   - 割り込み入力を防止し、安全なタイミングでのみコマンド入力を WASM キューへ注入する。
 
 ---
 
-## 7. リスト表示（インベントリ / メニュー）とのフォーマット統一
+## 7. パフォーマンス制約・受入基準 (DoD)
 
-### 7.1 Phase 8 `struct obj` メモリ直結との統合
-メッセージ行だけでなく、インベントリ一覧（`display_nhwindow(WIN_MENU)`）の各行も全く同じ `MessageSegment[]` フォーマットで統一します。
-
-Phase 8 の Direct Binding により、C 構造体から以下のメタデータが直接手に入ります：
-- `otyp`: アイテム種別ID
-- `spe`: 強化値 (+1, -2 等)
-- `blessed`: 祝福/呪いフラグ
-- `quan`: 数量
-
-これらを `MessageSegmenter` と共通のフォーマットへ流し込むことで、**メッセージログ内のアイテムも、インベントリ画面内のアイテムも、全く同一の `<nh-token>` コンポーネントと CSS、ナレッジ連携ロジックで動作**するようになります。
-
----
-
-## 8. プロトタイプ PoC 実装リファレンス (MessageSegmenter.js)
-
-以下は、本構想の中核を担うセグメンテーションエンジンの最小構成プロトタイプです。
-
-```javascript
-/**
- * MessageSegmenter.js - セマンティック・メッセージトークナイザー (PoC)
- */
-export class MessageSegmenter {
-  constructor(messageResolver, knowledgeEngine) {
-    this.resolver = messageResolver;
-    this.knowledge = knowledgeEngine;
-  }
-
-  /**
-   * 1行のメッセージを構造化トークン列 (MessageSegment[]) に分割
-   * @param {string} rawText 
-   * @returns {Array<Object>} segments
-   */
-  segment(rawText) {
-    if (!rawText || typeof rawText !== 'string') {
-      return [{ type: 'text', text: '' }];
-    }
-
-    // 1. 構文シグナルの照合
-    const context = this.resolver ? this.resolver.resolve(rawText) : null;
-    if (!context || !context.placeholders || context.placeholders.length === 0) {
-      // プレースホルダのない固定文または未定義文は平文として返却 (O(1))
-      return [{ type: 'text', text: rawText }];
-    }
-
-    const segments = [];
-    let currentIdx = 0;
-
-    // 2. プレースホルダ順に文字列をスライス
-    for (const ph of context.placeholders) {
-      const pos = rawText.indexOf(ph, currentIdx);
-      if (pos === -1) continue;
-
-      // プレースホルダより前の平文
-      if (pos > currentIdx) {
-        segments.push({
-          type: 'text',
-          text: rawText.substring(currentIdx, pos)
-        });
-      }
-
-      // 冠詞・所有代名詞の分離
-      const { prefix, noun } = this._splitSpecifier(ph);
-      if (prefix) {
-        segments.push({ type: 'text', text: prefix });
-      }
-
-      // 名詞のトークン化 ＆ GKL 属性付与
-      const token = this._resolveNounToken(noun, context);
-      segments.push(token);
-
-      currentIdx = pos + ph.length;
-    }
-
-    // 残りの平文
-    if (currentIdx < rawText.length) {
-      segments.push({
-        type: 'text',
-        text: rawText.substring(currentIdx)
-      });
-    }
-
-    return segments;
-  }
-
-  _splitSpecifier(text) {
-    const match = text.match(/^(the|a|an|your|its|his|her)\s+(.*)$/i);
-    if (match) {
-      return { prefix: match[1] + ' ', noun: match[2] };
-    }
-    return { prefix: '', noun: text };
-  }
-
-  _resolveNounToken(noun, context) {
-    // GKL への問い合わせ (モンスターまたはアイテム)
-    // 簡易判定例:
-    const isMonster = context.domain.includes('combat') || context.domain.includes('monster');
-    return {
-      type: isMonster ? 'entity' : 'item',
-      text: noun,
-      interactive: true,
-      meta: {
-        rawDomain: context.domain,
-        colorClass: isMonster ? 'token-monster' : 'token-item'
-      }
-    };
-  }
-}
-```
-
----
-
-## 9. 結論とロードマップ上の位置づけ
-
-本仕様により、**「翻訳エンジンの開発」が「ゲーム全体のモダンUI・演出エンジンの開発」と完全に一体化**します。
-非翻訳モードで本トークン化・DOM描画基盤を先行配備することにより、プレイヤーは即座にリッチなナレッジ連携と視覚体験を享受でき、その後に控えるシグナル駆動ハイブリッド翻訳は、このトークン列に和名・日本語テンプレートをマッピングするだけの安全な作業へと昇華されます。
+1. **カタログサイズ制限**:
+   - トークン化専用カタログの追加に伴う JS バンドル増分は **300KB 以内** に抑制すること。
+   - 既存の `MessageContextCatalog.js`（250KB 制約）の挙動を破壊・劣化させないこと。
+2. **実行時性能**:
+   - メッセージ 1 件あたりのトークン化処理時間は **0.01ms 以内**（正規表現および部分文字列スライスのみで完了すること）。
+   - クリック時の GKL ナレッジ表示開始までのレイテンシは **16ms（1フレーム）以内** であること。
+3. **誤検出防止の厳格保証**:
+   - 第 2 トラック（戦闘メッセージ）において、非戦闘メッセージが誤って戦闘トークン化される誤検出率 **0%** を維持すること（第 1 防壁の物理状態ゲートによる保証）。
+4. **SSOT 原則の遵守**:
+   - C コアのコード変更は 0 行。
+   - トークン化の失敗や ID 未解決によって、メッセージの平文表示が欠落・破壊されないこと（安全なフォールバック保証）。

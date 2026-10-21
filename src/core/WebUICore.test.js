@@ -1406,7 +1406,39 @@ describe('WebUICore - isNonItemSequence and syncInventorySilent Guard', () => {
             expect(mapClearedListener).toHaveBeenCalledTimes(1);
         });
     });
+
+    describe('WebUICore - #annotate floor annotation', () => {
+        it('annotateFloor: NetHack C コア仕様に従い [#, annotate, text] シーケンスを送信し、完了後にオンデマンド同期すること', async () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver });
+            core.interactiveController = {
+                executeSequence: vi.fn(async () => true)
+            };
+            core.gkl.syncDungeonOverviewOnDemand = vi.fn(async () => []);
+            core.syncDungeonOverviewOnDemand = vi.fn(async () => []);
+
+            const result = await core.annotateFloor('Base !M:154C');
+            expect(result).toBe(true);
+            expect(core.interactiveController.executeSequence).toHaveBeenCalledWith(
+                ['#', 'annotate', 'Base !M:154C'],
+                { isSilentSync: true, suppressPrompts: true }
+            );
+            expect(core.gkl.syncDungeonOverviewOnDemand).toHaveBeenCalledTimes(1);
+        });
+
+        it('annotateFloor: 空文字の場合は C コアで注釈クリアするため半角スペースを送信すること', async () => {
+            const mockDriver = createMockDriver();
+            const core = new WebUICore({ driver: mockDriver });
+            core.interactiveController = {
+                executeSequence: vi.fn(async () => true)
+            };
+            core.syncDungeonOverviewOnDemand = vi.fn(async () => []);
+
+            await core.annotateFloor('');
+            expect(core.interactiveController.executeSequence).toHaveBeenCalledWith(
+                ['#', 'annotate', ' '],
+                { isSilentSync: true, suppressPrompts: true }
+            );
+        });
+    });
 });
-
-
-

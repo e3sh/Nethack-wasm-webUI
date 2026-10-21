@@ -78,6 +78,7 @@ export class AreaStateManager {
         this.currentDnum = 0;
         this.currentDlevel = 1;
         this.playerSummary = null;
+        this.onFloorChange = null;
     }
 
     /**
@@ -316,6 +317,35 @@ export class AreaStateManager {
     }
 
     /**
+     * 新フロアの更新・確定処理 (Stage 8.4 / SSOT)
+     * @param {string|Object} [floorKeyOrSummary=null] - フロア識別文字列 (例: "Dlvl:2") またはサマリーオブジェクト
+     * @param {Object} [options={}]
+     * @returns {boolean} 新フロアが確定したか (isNewFloor)
+     */
+    updateFloor(floorKeyOrSummary = null, options = {}) {
+        if (floorKeyOrSummary && typeof floorKeyOrSummary === 'object') {
+            const res = this.syncPlayerSummary(floorKeyOrSummary);
+            return Boolean(res && res.isNewFloor);
+        }
+
+        if (typeof floorKeyOrSummary === 'string' && floorKeyOrSummary.trim()) {
+            const normalizedTarget = normalizeFloorKey(floorKeyOrSummary.trim());
+            const normalizedCurrent = normalizeFloorKey(this.currentFloor);
+            if (normalizedCurrent !== normalizedTarget) {
+                this.setCurrentFloor(normalizedTarget, options);
+                if (typeof this.onFloorChange === 'function') {
+                    this.onFloorChange(normalizedTarget);
+                }
+                return true;
+            }
+            return false;
+        }
+
+        const res = this.syncPlayerSummary();
+        return Boolean(res && res.isNewFloor);
+    }
+
+    /**
      * Wasm Cコア Direct Binding から取得したプレイヤーサマリーを同期 (Stage 8.4)
      * dnum からブランチ (main, mines, gehennom等) を 100% 確定同定し、
      * branch:dlvl 形式でフロアキャッシュを分離。
@@ -351,6 +381,9 @@ export class AreaStateManager {
             // そのため、すでに描画されたマップグリッドを初期化(resetGrid)せず、フロアキーのみ同期・承継する。
             this.setCurrentFloor(normalizedTarget, { preserveGrid: true });
             isNewFloor = true;
+            if (typeof this.onFloorChange === 'function') {
+                this.onFloorChange(normalizedTarget);
+            }
         } else if (this.isFloorPending) {
             // 同一フロアキー (例: Dlvl:1 初回開始や保留状態) でも pendingStairs / pendingLandmarks を確定フラッシュ
             this.setCurrentFloor(normalizedTarget, { preserveGrid: true });

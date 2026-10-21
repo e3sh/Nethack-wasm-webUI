@@ -20,7 +20,7 @@ export { Mat4, WGSL_SHADER, HD2DFxOverlay, isCellInShadow };
 // WebGPUHD2DRenderer クラス本体
 // ============================================================================
 export class WebGPUHD2DRenderer {
-  constructor({ canvas, getSituation, getAreaGrid, getGlyphBuffer, getCore, getTileImg, isTileLoaded, onCellClick, onCellHover, tileSource = null }) {
+  constructor({ canvas, getSituation, getAreaGrid, getGlyphBuffer, getCore, getTileImg, isTileLoaded, onCellClick, onCellHover, tileSource = null, floorMarkerService = null }) {
     this.canvas = canvas;
     this.getSituation = getSituation || (() => null);
     this.getAreaGrid = getAreaGrid || (() => null);
@@ -31,6 +31,7 @@ export class WebGPUHD2DRenderer {
     this.onCellClick = onCellClick || null;
     this.onCellHover = onCellHover || null;
     this.tileSource = tileSource;
+    this.floorMarkerService = floorMarkerService;
 
     this.isSupported = false;
     this.initError = null;
@@ -99,8 +100,13 @@ export class WebGPUHD2DRenderer {
       wakeUp: () => this.wakeUp(),
       getPlayerPos: () => ({ x: this.playerX, y: this.playerY }),
       getTargetCursor: () => ({ x: this.targetCursorX, y: this.targetCursorY }),
-      getZoom: () => this.currentZoom
+      getZoom: () => this.currentZoom,
+      getCore: this.getCore,
+      floorMarkerService: this.floorMarkerService
     });
+
+    this._boundCore = null;
+    this._ensureCoreEvents();
 
     // インスタンスバッファ Dirty キャッシュ
     this.isInstanceDirty = true;
@@ -135,6 +141,16 @@ export class WebGPUHD2DRenderer {
       this.fxOverlay.setMapActionIndicator(enabled);
       this.wakeUp();
     }
+  }
+
+  _ensureCoreEvents() {
+    const core = this.getCore?.();
+    if (!core || this._boundCore === core || typeof core.on !== 'function') return;
+    this._boundCore = core;
+    core.on('dungeonOverviewUpdated', () => {
+      this.markDirty();
+      this.wakeUp();
+    });
   }
 
   // 互換用プロパティ連携
@@ -781,6 +797,7 @@ export class WebGPUHD2DRenderer {
   }
 
   render(timeInSeconds = 0) {
+    this._ensureCoreEvents();
     if (!this.isSupported || !this.pipeline || !this.bindGroup) {
       this._updateDebugHud(timeInSeconds);
       return;

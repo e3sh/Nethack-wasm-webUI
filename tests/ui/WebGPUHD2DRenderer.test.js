@@ -674,6 +674,72 @@ describe('WebGPUHD2DRenderer - Phase 3 WebGPU HD2D 一本化 ＆ 描画調整', 
     // 5. プレイヤー直近 (11, 10) のアイテムは影除外され、通常明度 (1.0) で描画されていること
     expect(foundNearPlayerItem).toBeCloseTo(1.0, 2);
   });
+
+  it('19. WebGPU HD-2D: _renderFloorMarkers がタイルの右上に半透明マーカーバッジをオーバーレイ描画すること', () => {
+    const mockFxCtx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      fillRect: vi.fn(),
+      strokeRect: vi.fn(),
+      fillText: vi.fn(),
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn()
+    };
+
+    const mockMarkers = [
+      { type: 0, x: 21, y: 12, hex: '154C' } // 宝石 (💎)
+    ];
+
+    const renderer = new WebGPUHD2DRenderer({
+      canvas: mockCanvas,
+      getCore: () => ({
+        getCurrentFloorMarkers: () => mockMarkers
+      }),
+      getSituation: () => ({ markers: mockMarkers })
+    });
+
+    const overlay = renderer.fxOverlay;
+    overlay.worldToScreen = vi.fn((x, y, z) => ({
+      screenX: 300,
+      screenY: 200
+    }));
+
+    overlay._renderFloorMarkers(mockFxCtx, 32, 1000);
+
+    expect(overlay.worldToScreen).toHaveBeenCalled();
+    expect(mockFxCtx.save).toHaveBeenCalled();
+    expect(mockFxCtx.fillRect).toHaveBeenCalled();
+    expect(mockFxCtx.strokeRect).toHaveBeenCalled();
+    expect(mockFxCtx.fillText).toHaveBeenCalledWith(expect.stringContaining('🚩'), expect.any(Number), expect.any(Number));
+    expect(mockFxCtx.restore).toHaveBeenCalled();
+  });
+
+  it('20. WebGPU HD-2D: dungeonOverviewUpdated イベントを受信した際に markDirty / wakeUp が実行されること', () => {
+    let overviewHandler = null;
+    const mockCore = {
+      on: vi.fn((event, handler) => {
+        if (event === 'dungeonOverviewUpdated') {
+          overviewHandler = handler;
+        }
+      })
+    };
+
+    const renderer = new WebGPUHD2DRenderer({
+      canvas: mockCanvas,
+      getCore: () => mockCore
+    });
+
+    const markDirtySpy = vi.spyOn(renderer, 'markDirty');
+    const wakeUpSpy = vi.spyOn(renderer, 'wakeUp');
+
+    expect(mockCore.on).toHaveBeenCalledWith('dungeonOverviewUpdated', expect.any(Function));
+    overviewHandler();
+
+    expect(markDirtySpy).toHaveBeenCalled();
+    expect(wakeUpSpy).toHaveBeenCalled();
+  });
 });
 
 

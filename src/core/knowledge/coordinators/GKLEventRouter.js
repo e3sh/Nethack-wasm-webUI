@@ -169,6 +169,9 @@ export class GKLEventRouter {
                             if (syncedAreaInfo && syncedAreaInfo.isNewFloor && p.monsterTracker && typeof p.monsterTracker.handleDlevelChange === 'function') {
                                 p.monsterTracker.handleDlevelChange(syncedAreaInfo.floorKey);
                             }
+                            if (typeof p.syncDungeonOverviewOnDemand === 'function') {
+                                p.syncDungeonOverviewOnDemand();
+                            }
                         }
                     }
                     // GET_PLAYER_SUMMARY 未実装モック等でまだ isFloorPending が残っている場合のフォールバック確定
@@ -344,6 +347,12 @@ export class GKLEventRouter {
 
                 p.fxCoordinator.checkMessageDeathOrResurrection(text, px, py);
 
+                if (typeof text === 'string' && text.includes('You remember this level as')) {
+                    if (typeof p.syncDungeonOverviewOnDemand === 'function') {
+                        p.syncDungeonOverviewOnDemand();
+                    }
+                }
+
                 let killedInfo = null;
                 if (p.monsterTracker && typeof p.monsterTracker.handleMessage === 'function') {
                     killedInfo = p.monsterTracker.handleMessage(text);
@@ -481,6 +490,14 @@ export class GKLEventRouter {
         addCoreListener('game_started', triggerDiscoverySync);
         addCoreListener('restore', triggerDiscoverySync);
         addCoreListener('game_restored', triggerDiscoverySync);
+
+        const triggerDungeonOverviewSync = () => {
+            if (typeof p.syncDungeonOverviewOnDemand === 'function') {
+                p.syncDungeonOverviewOnDemand();
+            }
+        };
+        addCoreListener('restore', triggerDungeonOverviewSync);
+        addCoreListener('game_restored', triggerDungeonOverviewSync);
 
         // 新規ゲーム開始・リスタート時のキャッシュ初期化
         const handleGameReset = () => {

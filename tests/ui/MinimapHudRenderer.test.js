@@ -28,7 +28,8 @@ describe('MinimapHudRenderer - ミニマップ HUD ＆ [Tab] オーバーレイ 
       closePath: vi.fn(),
       stroke: vi.fn(),
       arc: vi.fn(),
-      fill: vi.fn()
+      fill: vi.fn(),
+      fillText: vi.fn()
     };
 
     mockCanvas = {
@@ -232,5 +233,35 @@ describe('MinimapHudRenderer - ミニマップ HUD ＆ [Tab] オーバーレイ 
 
     expect(dynamicHudBox.classList.add).not.toHaveBeenCalledWith('dock-left');
     expect(classSet.has('dock-left')).toBe(false);
+  });
+
+  it('8. 現在階層のフロアマーカーがミニマップ上にピンアイコン描画されること', () => {
+    const mockCore = {
+      getCurrentFloorMarkers: vi.fn(() => [
+        { type: 0, x: 10, y: 5 }, // 🚩 拠点
+        { type: 1, x: 25, y: 15 } // 🔒 宝箱
+      ])
+    };
+
+    const minimap = new MinimapHudRenderer({
+      minimapCanvas: mockCanvas,
+      minimapHudBox: mockHudBox,
+      minimapPosBadge: mockPosBadge,
+      btnToggleMinimap: mockToggleBtn,
+      virtualScreen: vScreen,
+      getCore: () => mockCore
+    });
+
+    minimap.renderMinimap({
+      area: { playerX: 35, playerY: 12 },
+      landmarks: { all: [] }
+    });
+
+    // core.getCurrentFloorMarkers が呼ばれたこと
+    expect(mockCore.getCurrentFloorMarkers).toHaveBeenCalled();
+
+    // fillText でスロットのアイコン (🚩, 🔒) が描画されたこと
+    expect(mockCtx.fillText).toHaveBeenCalledWith('🚩', (10 + 0.5) * (240 / 80), (5 + 0.5) * (72 / 24) + 0.2);
+    expect(mockCtx.fillText).toHaveBeenCalledWith('🔒', (25 + 0.5) * (240 / 80), (15 + 0.5) * (72 / 24) + 0.2);
   });
 });

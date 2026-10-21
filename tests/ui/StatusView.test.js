@@ -301,4 +301,86 @@ describe('StatusView - GKL状態異常表示・多言語・表示モード', () 
   });
 });
 
+describe('StatusView - FloorTrackerModal 呼出連携', () => {
+  it('elStDlvl クリック時に onOpenFloorTracker が呼び出されること', () => {
+    let called = false;
+    const elStDlvl = {
+      style: {},
+      classList: { add: vi.fn(), remove: vi.fn() },
+      addEventListener: vi.fn((event, handler) => {
+        elStDlvl._handler = handler;
+      }),
+      title: ''
+    };
+    const view = new StatusView({
+      elStDlvl,
+      onOpenFloorTracker: () => { called = true; }
+    });
+    expect(elStDlvl.style.cursor).toBe('pointer');
+    expect(elStDlvl.classList.add).toHaveBeenCalledWith('status-clickable');
+    expect(elStDlvl.title).toContain('フロア記録・マーカー管理');
 
+    elStDlvl._handler({ stopPropagation: vi.fn() });
+    expect(called).toBe(true);
+
+    view.setLanguage('en');
+    expect(elStDlvl.title).toContain('Floor Tracker & Markers');
+  });
+
+  it('UiComponentFactory: statusView に onOpenFloorTracker が配線され、floorTrackerModal.open が起動すること', async () => {
+    const { UiComponentFactory } = await import('../../examples/gkl-pure-js-client/modules/components/UiComponentFactory.js');
+
+    let modalOpened = false;
+    const client = {
+      core: { on: vi.fn(), emit: vi.fn() },
+      mapRenderer: { loadedTileImagePath: 'dummy.png' },
+      floorTrackerModal: {
+        open: vi.fn(() => {
+          modalOpened = true;
+        })
+      }
+    };
+
+    const origGetElementById = document.getElementById;
+    const origAddEvent = document.addEventListener;
+    const origRemoveEvent = document.removeEventListener;
+    document.addEventListener = vi.fn();
+    document.removeEventListener = vi.fn();
+    const origQuerySelector = document.querySelector;
+    document.querySelector = vi.fn(() => null);
+    document.getElementById = (id) => ({
+      style: {},
+      classList: { add: vi.fn(), remove: vi.fn(), contains: vi.fn(() => false) },
+      addEventListener: vi.fn(),
+      getContext: vi.fn(() => ({})),
+      children: [], querySelectorAll: vi.fn(() => []), querySelector: vi.fn(() => null)
+    });
+
+    try {
+      UiComponentFactory.createAndBindComponents(client);
+
+      expect(client.statusView).toBeDefined();
+      expect(typeof client.statusView.onOpenFloorTracker).toBe('function');
+      expect(client.floorTrackerModal).toBeDefined();
+      const openSpy = vi.spyOn(client.floorTrackerModal, 'open');
+
+      client.statusView.onOpenFloorTracker();
+      expect(openSpy).toHaveBeenCalledTimes(1);
+      expect(client.floorTrackerModal.isVisible).toBe(true);
+
+      // CharacterStatusModal からの呼び出し検証
+      expect(client.characterStatusModal).toBeDefined();
+      expect(typeof client.characterStatusModal.onOpenFloorTracker).toBe('function');
+      client.floorTrackerModal.close();
+      expect(client.floorTrackerModal.isVisible).toBe(false);
+      client.characterStatusModal.onOpenFloorTracker();
+      expect(client.floorTrackerModal.isVisible).toBe(true);
+    } finally {
+      document.getElementById = origGetElementById;
+      document.addEventListener = origAddEvent;
+      document.removeEventListener = origRemoveEvent;
+      document.querySelector = origQuerySelector;
+    }
+
+  });
+});

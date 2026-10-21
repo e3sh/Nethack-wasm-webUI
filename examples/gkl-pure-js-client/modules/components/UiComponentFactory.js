@@ -18,6 +18,7 @@ import { CharacterIntroModal } from './CharacterIntroModal.js';
 import { ContainerModal } from './ContainerModal.js';
 import { PaperdollModal } from './PaperdollModal.js';
 import { CharacterStatusModal } from './CharacterStatusModal.js';
+import { FloorTrackerModal } from './FloorTrackerModal.js';
 import { CodexModal } from './CodexModal.js';
 import { KnowledgeDetailModal } from './KnowledgeDetailModal.js';
 import { EngravingHud } from './EngravingHud.js';
@@ -27,6 +28,7 @@ import { FloatingMessageHud } from './FloatingMessageHud.js';
 import { MessageHistoryDrawer } from './MessageHistoryDrawer.js';
 import { KeyHandler } from '../handlers/KeyHandler.js';
 import { getDefaultTilePath } from '../config/TileConfig.js';
+import { FloorMarkerService } from '../../../../src/core/knowledge/services/FloorMarkerService.js';
 
 export class UiComponentFactory {
   /**
@@ -46,6 +48,7 @@ export class UiComponentFactory {
     client.settingsDropdown = document.getElementById('settings-menu-dropdown');
     client.elMessageLog = document.getElementById('message-log');
     client.elGklTooltip = document.getElementById('gkl-item-tooltip');
+    client.floorMarkerService = FloorMarkerService.getInstance();
 
     // 💬 フローティング最新行 HUD
     client.floatingMessageHud = new FloatingMessageHud({
@@ -75,7 +78,8 @@ export class UiComponentFactory {
         const minimapBox = document.getElementById('minimap-hud-box');
         if (minimapBox) minimapBox.classList.toggle('with-pinned-drawer', isPinned);
       },
-      getCore: () => client.core
+      getCore: () => client.core,
+      floorMarkerService: client.floorMarkerService
     });
 
     const btnOpenHistory = document.getElementById('btn-open-history');
@@ -123,7 +127,8 @@ export class UiComponentFactory {
       btnToggleMinimap: document.getElementById('btn-minimap-toggle'),
       virtualScreen: client.virtualScreen,
       getSituation: () => client.core?.gkl?.getSituation(),
-      getCore: () => client.core
+      getCore: () => client.core,
+      floorMarkerService: client.floorMarkerService
     });
     client.zoomRenderer = client.mainViewportRenderer; // 後方互換
 
@@ -210,7 +215,8 @@ export class UiComponentFactory {
       elStItemTurns: document.getElementById('st-item-turns'),
       elStItemScore: document.getElementById('st-item-score'),
       getCore: () => client.core,
-      getLoadedTileImagePath: () => client.mapRenderer.loadedTileImagePath
+      getLoadedTileImagePath: () => client.mapRenderer.loadedTileImagePath,
+      onOpenFloorTracker: () => client.floorTrackerModal?.open()
     });
 
     // 7.5 Engraving HUD
@@ -226,7 +232,8 @@ export class UiComponentFactory {
       elBtnEngraveReapply: document.getElementById('btn-engrave-reapply'),
       elBtnEngravingClose: document.getElementById('btn-engraving-close'),
       getCore: () => client.core,
-      language: client.currentLanguage
+      language: client.currentLanguage,
+      floorMarkerService: client.floorMarkerService
     });
 
     // 8. Character Creation Modal
@@ -297,7 +304,15 @@ export class UiComponentFactory {
       },
       onEnhanceSkill: (skill) => {
         if (client.statusView) client.statusView.enhanceSkill(skill);
-      }
+      },
+      onOpenFloorTracker: () => client.floorTrackerModal?.open()
+    });
+
+    // 8.68 Floor Tracker Modal
+    client.floorTrackerModal = new FloorTrackerModal({
+      elModal: document.getElementById('floor-tracker-modal'),
+      getCore: () => client.core,
+      language: client.currentLanguage
     });
 
     // 8.7 Codex Modal
@@ -364,6 +379,7 @@ export class UiComponentFactory {
       getContainerModal: () => client.containerModal,
       getPaperdollModal: () => client.paperdollModal,
       getCharacterStatusModal: () => client.characterStatusModal,
+      getFloorTrackerModal: () => client.floorTrackerModal,
       getCodexModal: () => client.codexModal,
       getKnowledgeDetailModal: () => client.knowledgeDetailModal,
       getMinimapRenderer: () => client.minimapRenderer,

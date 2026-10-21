@@ -542,12 +542,15 @@
                 u8 = new Uint8Array(bufferOrArray);
             } else if (Array.isArray(bufferOrArray)) {
                 if (bufferOrArray.length === 0) return [];
-                // callShim(..., 'int32') の戻り値配列か、'uint8' の戻り値配列かを判別
-                const expectedInt32Len = (typeof count === 'number' && count > 0) ? count * 24 : 0;
-                const isUint8Mode = (typeof count === 'number' && count > 0 && bufferOrArray.length >= count * ENTRY_BYTES)
-                    || (expectedInt32Len === 0 && bufferOrArray.length % ENTRY_BYTES === 0 && bufferOrArray.every(v => typeof v === 'number' && v >= 0 && v <= 255));
+                // callShim(..., 'uint8') の戻り値（バイト配列）か、'int32' の戻り値（32bitワード配列）かを判別
+                const countVal = (typeof count === 'number' && count > 0) ? count : 0;
+                const hasNonByteValues = bufferOrArray.some(v => typeof v !== 'number' || v < 0 || v > 255);
+                const isInt32Mode = hasNonByteValues
+                    || bufferOrArray.length === 1536
+                    || (countVal > 0 && bufferOrArray.length === countVal * 24)
+                    || (bufferOrArray.length % 24 === 0 && bufferOrArray.length % ENTRY_BYTES !== 0);
 
-                if (!isUint8Mode && (bufferOrArray.length % 24 === 0 || (expectedInt32Len > 0 && bufferOrArray.length >= expectedInt32Len))) {
+                if (isInt32Mode) {
                     const i32 = new Int32Array(bufferOrArray);
                     u8 = new Uint8Array(i32.buffer);
                 } else {

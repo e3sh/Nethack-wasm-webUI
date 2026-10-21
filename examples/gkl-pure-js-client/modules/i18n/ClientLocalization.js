@@ -35,6 +35,7 @@ export class ClientLocalization {
     client.containerModal?.setLanguage(lang);
     client.paperdollModal?.setLanguage?.(lang);
     client.characterStatusModal?.setLanguage?.(lang);
+    client.floorTrackerModal?.setLanguage?.(lang);
     client.codexModal?.setLanguage?.(lang);
     client.characterCreationModal?.setLanguage?.(lang);
     client.characterIntroModal?.setLanguage?.(lang);

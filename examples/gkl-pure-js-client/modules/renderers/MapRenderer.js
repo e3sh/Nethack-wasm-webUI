@@ -1,11 +1,12 @@
 import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/AreaStateManager.js";
 import { getTileCandidatePaths } from "../config/TileConfig.js";
+import { FloorMarkerService } from "../../../../src/core/knowledge/services/FloorMarkerService.js";
 
 /**
  * MapRenderer - メインCanvas (Graphic Canvas) & ASCII Grid の描画マネージャー
  */
 export class MapRenderer {
-  constructor({ canvas, asciiGrid, btnToggleView, getAreaGrid, virtualScreen = null, tileSource = null }) {
+  constructor({ canvas, asciiGrid, btnToggleView, getAreaGrid, virtualScreen = null, tileSource = null, getCore = null, floorMarkerService = null }) {
     this.canvas = canvas;
     this.ctx = canvas ? canvas.getContext('2d') : null;
     this.asciiGrid = asciiGrid;
@@ -13,6 +14,8 @@ export class MapRenderer {
     this.getAreaGrid = getAreaGrid || (() => null);
     this.virtualScreen = virtualScreen;
     this.tileSource = tileSource;
+    this.getCore = getCore || (() => null);
+    this.floorMarkerService = floorMarkerService || FloorMarkerService.getInstance();
 
     this.isGraphicCanvasMode = true;
     this.currentLanguage = 'ja';
@@ -30,6 +33,8 @@ export class MapRenderer {
     this.tileImg = this.virtualScreen?.tileImg || (typeof Image !== 'undefined' ? new Image() : null);
     this.tileLoaded = Boolean(this.virtualScreen?.tileLoaded);
     this.loadedTileImagePath = this.virtualScreen?.loadedTileImagePath || null;
+    this._boundCore = null;
+    this._ensureCoreEvents();
   }
 
   init() {
@@ -141,7 +146,17 @@ export class MapRenderer {
   }
 
   // 3層グラフィック描画 ＋ 上下浮遊バウンスアニメーション
+  _ensureCoreEvents() {
+    const core = this.getCore?.();
+    if (!core || this._boundCore === core || typeof core.on !== 'function') return;
+    this._boundCore = core;
+    core.on('dungeonOverviewUpdated', () => {
+      this.redrawAllGraphicTiles();
+    });
+  }
+
   redrawAllGraphicTiles() {
+    this._ensureCoreEvents();
     if (!this.isGraphicCanvasMode || !this.tileLoaded || this.tileImg.naturalWidth === 0 || !this.ctx) return;
     const tileMap = typeof tileMapping === 'function' ? tileMapping() : [];
     const cols = Math.floor(this.tileImg.width / 32);
@@ -193,6 +208,9 @@ export class MapRenderer {
         }
       }
     }
+
+    // マーカーピンの最前面オーバーレイ描画
+    this.renderMarkersOverlay();
   }
 
   drawTileGlyph(glyphId, cols, tileMap, dx, dy, animY = 0) {
@@ -266,6 +284,13 @@ export class MapRenderer {
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(dx + 0.5, dy + 0.5, 15, 13);
       }
+
+      // マーカーが存在すればオーバーレイ描画
+      const markers = this.getCore?.()?.getCurrentFloorMarkers?.() || [];
+      const m = markers.find(marker => marker.x === x && marker.y === y);
+      if (m) {
+        this.drawMarkerBadgeAt(x, y, m.type);
+      }
     } else {
       const cellData = this.asciiGridBuffer[y][x];
       const cellSpan = document.getElementById(`ascii-cell-${x}-${y}`);
@@ -292,5 +317,48 @@ export class MapRenderer {
     } else {
       this.renderColorAsciiMap();
     }
+  }
+
+  /**
+   * フロアマーカーの最前面オーバーレイ描画
+   */
+  renderMarkersOverlay() {
+    if (!this.ctx) return;
+    const markers = this.getCore?.()?.getCurrentFloorMarkers?.() || [];
+    if (!Array.isArray(markers) || markers.length === 0) return;
+
+    for (const m of markers) {
+      this.drawMarkerBadgeAt(m.x, m.y, m.type);
+    }
+  }
+
+  /**
+   * 単一マスへのマーカーバッジ描画
+   */
+  drawMarkerBadgeAt(x, y, typeId) {
+    if (!this.ctx || x < 0 || x >= 80 || y < 0 || y >= 24) return;
+    const dx = x * 16;
+    const dy = y * 14;
+    const slot = this.floorMarkerService.getSlotDefinition(typeId);
+
+    const bw = 10;
+    const bh = 9;
+    const bx = dx + 16 - bw;
+    const by = dy;
+
+    this.ctx.save();
+    this.ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    this.ctx.fillRect(bx, by, bw, bh);
+    this.ctx.strokeStyle = '#fbbf24';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+
+    if (typeof this.ctx.fillText === 'function') {
+      this.ctx.font = '7px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(slot.icon || '📍', bx + bw / 2, by + bh / 2 + 0.5);
+    }
+    this.ctx.restore();
   }
 }
