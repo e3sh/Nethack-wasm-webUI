@@ -3,6 +3,36 @@
  * @description GKL Pure JS Client の盤面インタラクション（2D/3D/ASCII/Zoomキャンバスのホバー・クリック・スマートコンテキスト・調査）コントローラー
  */
 
+/**
+ * 相対座標 (dx, dy) から向くべき8方向コード (N, S, E, W, NE, NW, SE, SW) を導出
+ * 直近マスだけでなく、長距離クリック時も現在地からのベクトル角度を8方向に量子化
+ * @param {number} dx - targetX - playerX
+ * @param {number} dy - targetY - playerY
+ * @returns {string|null}
+ */
+export function getDirectionCodeFromDelta(dx, dy) {
+  if (dx === 0 && dy === 0) return null;
+
+  // ラジアン角 (-π ~ +π) を 0 ~ 360 度に変換 (東=0°, 南=90°, 西=180°, 北=270°)
+  let deg = Math.atan2(dy, dx) * (180 / Math.PI);
+  if (deg < 0) deg += 360;
+
+  // 8方向量子化 (各 45 度、境界は ±22.5 度)
+  if (deg >= 337.5 || deg < 22.5) return 'E';
+  if (deg >= 22.5 && deg < 67.5) return 'SE';
+  if (deg >= 67.5 && deg < 112.5) return 'S';
+  if (deg >= 112.5 && deg < 157.5) return 'SW';
+  if (deg >= 157.5 && deg < 202.5) return 'W';
+  if (deg >= 202.5 && deg < 247.5) return 'NW';
+  if (deg >= 247.5 && deg < 292.5) return 'N';
+  if (deg >= 292.5 && deg < 337.5) return 'NE';
+
+  return null;
+}
+
+// 互換性用エイリアス
+export const getAdjacentDirectionCode = getDirectionCodeFromDelta;
+
 export class CanvasInteractionController {
   /**
    * @param {Object} client - GklPureJSClient インスタンス参照
@@ -18,10 +48,11 @@ export class CanvasInteractionController {
    * @param {number} gx - グリッドX座標
    * @param {number} gy - グリッドY座標
    * @param {boolean} isHover - ホバー操作かどうか
-   * @param {Object|null} clientPos - { clientX, clientY }
+   * @param {Object|null} clientPos - { clientX, clientY, shiftKey? }
    * @param {boolean} isForceContextMenu - 右クリック等による強制メニュー展開
+   * @param {boolean} isShiftClick - Shiftキー押下による移動抑止（向き変更のみ）
    */
-  async handleCanvasInspect(gx, gy, isHover, clientPos = null, isForceContextMenu = false) {
+  async handleCanvasInspect(gx, gy, isHover, clientPos = null, isForceContextMenu = false, isShiftClick = false) {
     if (gx < 0 || gx >= 80 || gy < 0 || gy >= 24) return;
     if (isHover && gx === this.lastHoverTileX && gy === this.lastHoverTileY) {
       return;
@@ -67,9 +98,26 @@ export class CanvasInteractionController {
         data?.category === 'CONTAINER' || data?.category === 'CHEST' || data?.isChest ||
         data?.id?.includes('door') || data?.id?.includes('stairs')
       );
-      const dx = Math.abs(gx - px);
-      const dy = Math.abs(gy - py);
+      const diffX = gx - px;
+      const diffY = gy - py;
+      const dx = Math.abs(diffX);
+      const dy = Math.abs(diffY);
       const isAdjacent = (dx <= 1 && dy <= 1 && !isPlayerTile);
+
+      // 🧭 マウスクリック時: 目標位置への方向 (Facing) へ更新 (直近・長距離問わずクリック先を向く)
+      if (!isPlayerTile) {
+        const dirCode = getDirectionCodeFromDelta(diffX, diffY);
+        if (dirCode && typeof client.setFacingDirection === 'function') {
+          client.setFacingDirection(dirCode);
+        }
+      }
+
+      // 🛡️ Shift + クリック: 移動およびメニュー展開を抑止し、ターン消費ゼロでその場の向き変更のみを行う
+      const isShift = Boolean(isShiftClick || clientPos?.shiftKey);
+      if (isShift) {
+        client.floatingActions?.hide();
+        return;
+      }
 
       // GKL 推奨アクション一覧の取得
       const allActions = client.core?.gkl?.getRecommendedActions ? client.core.gkl.getRecommendedActions() : [];
@@ -172,7 +220,7 @@ export class CanvasInteractionController {
         e.stopPropagation();
         const grid = client.mainViewportRenderer?.screenToGrid(e.clientX, e.clientY);
         if (grid) {
-          await this.handleCanvasInspect(grid.gx, grid.gy, false, { clientX: e.clientX, clientY: e.clientY }, false);
+          await this.handleCanvasInspect(grid.gx, grid.gy, false, { clientX: e.clientX, clientY: e.clientY, shiftKey: Boolean(e.shiftKey) }, false);
         }
       });
 
@@ -182,7 +230,7 @@ export class CanvasInteractionController {
         e.stopPropagation();
         const grid = client.mainViewportRenderer?.screenToGrid(e.clientX, e.clientY);
         if (grid) {
-          await this.handleCanvasInspect(grid.gx, grid.gy, false, { clientX: e.clientX, clientY: e.clientY }, true);
+          await this.handleCanvasInspect(grid.gx, grid.gy, false, { clientX: e.clientX, clientY: e.clientY, shiftKey: Boolean(e.shiftKey) }, true);
         }
       });
     }
@@ -209,7 +257,7 @@ export class CanvasInteractionController {
         e.stopPropagation();
         const coords = getAsciiCellCoords(e);
         if (coords) {
-          await this.handleCanvasInspect(coords.gx, coords.gy, false, { clientX: e.clientX, clientY: e.clientY });
+          await this.handleCanvasInspect(coords.gx, coords.gy, false, { clientX: e.clientX, clientY: e.clientY, shiftKey: Boolean(e.shiftKey) });
         }
       });
 
@@ -218,7 +266,7 @@ export class CanvasInteractionController {
         e.stopPropagation();
         const coords = getAsciiCellCoords(e);
         if (coords) {
-          await this.handleCanvasInspect(coords.gx, coords.gy, false, { clientX: e.clientX, clientY: e.clientY }, true);
+          await this.handleCanvasInspect(coords.gx, coords.gy, false, { clientX: e.clientX, clientY: e.clientY, shiftKey: Boolean(e.shiftKey) }, true);
         }
       });
     }
@@ -248,14 +296,14 @@ export class CanvasInteractionController {
       zoomCanvas.addEventListener('click', async (e) => {
         e.stopPropagation();
         const { gx, gy } = getZoomCellCoords(e);
-        await this.handleCanvasInspect(gx, gy, false, { clientX: e.clientX, clientY: e.clientY });
+        await this.handleCanvasInspect(gx, gy, false, { clientX: e.clientX, clientY: e.clientY, shiftKey: Boolean(e.shiftKey) });
       });
 
       zoomCanvas.addEventListener('contextmenu', async (e) => {
         e.preventDefault();
         e.stopPropagation();
         const { gx, gy } = getZoomCellCoords(e);
-        await this.handleCanvasInspect(gx, gy, false, { clientX: e.clientX, clientY: e.clientY }, true);
+        await this.handleCanvasInspect(gx, gy, false, { clientX: e.clientX, clientY: e.clientY, shiftKey: Boolean(e.shiftKey) }, true);
       });
     }
   }

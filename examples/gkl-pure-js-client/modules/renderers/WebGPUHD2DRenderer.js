@@ -495,7 +495,7 @@ export class WebGPUHD2DRenderer {
       if (!this.isActive) return;
       const grid = this._raycastFloor(e.clientX, e.clientY);
       if (grid && this.onCellClick) {
-        this.onCellClick(grid.x, grid.y, { clientX: e.clientX, clientY: e.clientY }, false);
+        this.onCellClick(grid.x, grid.y, { clientX: e.clientX, clientY: e.clientY, shiftKey: Boolean(e.shiftKey) }, false);
       }
     });
 
@@ -505,9 +505,9 @@ export class WebGPUHD2DRenderer {
       const grid = this._raycastFloor(e.clientX, e.clientY);
       if (grid) {
         if (this.onCellContextMenu) {
-          this.onCellContextMenu(grid.x, grid.y, { clientX: e.clientX, clientY: e.clientY });
+          this.onCellContextMenu(grid.x, grid.y, { clientX: e.clientX, clientY: e.clientY, shiftKey: Boolean(e.shiftKey) });
         } else if (this.onCellClick) {
-          this.onCellClick(grid.x, grid.y, { clientX: e.clientX, clientY: e.clientY }, true);
+          this.onCellClick(grid.x, grid.y, { clientX: e.clientX, clientY: e.clientY, shiftKey: Boolean(e.shiftKey) }, true);
         }
       }
     });

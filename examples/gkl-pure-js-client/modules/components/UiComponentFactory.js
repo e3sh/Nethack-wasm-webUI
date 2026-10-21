@@ -358,6 +358,11 @@ export class UiComponentFactory {
       },
       onUserAction: () => {
         client.floatingMessageHud?.notifyUserAction();
+      },
+      onFacingChange: (dirCode) => {
+        if (typeof client.setFacingDirection === 'function') {
+          client.setFacingDirection(dirCode);
+        }
       }
     });
 

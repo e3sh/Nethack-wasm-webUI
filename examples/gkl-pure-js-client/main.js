@@ -656,6 +656,14 @@ class GklPureJSClient {
     this.layoutController.setPreset(presetName);
   }
 
+  setFacingDirection(dirCode) {
+    if (!dirCode) return;
+    if (this.keyHandler) {
+      this.keyHandler.currentFacingDir = dirCode;
+    }
+    this.onFacingChanged(dirCode);
+  }
+
   onFacingChanged(dirCode) {
     if (this.virtualScreen && typeof this.virtualScreen.markAllDirty === 'function') {
       this.virtualScreen.markAllDirty();
