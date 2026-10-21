@@ -245,20 +245,37 @@ describe('InputCoordinator (Headless Input Routing)', () => {
       expect(res.action).toBe(ROUTE_ACTIONS.EXECUTE_CONTEXT_FEET);
     });
 
-    it('Ctrl + WASD でダッシュ移動 DASH_MOVE が導出されること', () => {
+    it('G キーによるプレフィックス ➔ WASD でダッシュ移動 DASH_MOVE が導出されること', () => {
+      // 1. G キー押下でダッシュプレフィックス待機
+      const resG = coordinator.evaluateKeyDown(
+        { key: 'g', code: 'KeyG' },
+        nehwwContext
+      );
+      expect(resG.action).toBe(ROUTE_ACTIONS.ACTIVATE_DASH_PREFIX);
+      expect(coordinator.isDashPrefixActive).toBe(true);
+
+      // 2. 次に W キー押下で北向きダッシュ移動
       const resW = coordinator.evaluateKeyDown(
-        { key: 'w', code: 'KeyW', ctrlKey: true },
+        { key: 'w', code: 'KeyW' },
         nehwwContext
       );
       expect(resW.action).toBe(ROUTE_ACTIONS.DASH_MOVE);
       expect(resW.payload?.dirCode).toBe('N');
+      expect(coordinator.isDashPrefixActive).toBe(false);
 
-      const resS = coordinator.evaluateKeyDown(
-        { key: 's', code: 'KeyS', ctrlKey: true },
+      // 3. G キー押下後に Escape でダッシュキャンセル
+      coordinator.evaluateKeyDown({ key: 'g', code: 'KeyG' }, nehwwContext);
+      expect(coordinator.isDashPrefixActive).toBe(true);
+      const resEsc = coordinator.evaluateKeyDown({ key: 'Escape', code: 'Escape' }, nehwwContext);
+      expect(resEsc.action).toBe(ROUTE_ACTIONS.CANCEL_DASH_PREFIX);
+      expect(coordinator.isDashPrefixActive).toBe(false);
+
+      // 4. ブラウザ保護: Ctrl + WASD は DASH_MOVE にならず、タブ終了等の事故を防止すること
+      const resCtrlW = coordinator.evaluateKeyDown(
+        { key: 'w', code: 'KeyW', ctrlKey: true },
         nehwwContext
       );
-      expect(resS.action).toBe(ROUTE_ACTIONS.DASH_MOVE);
-      expect(resS.payload?.dirCode).toBe('S');
+      expect(resCtrlW.action).not.toBe(ROUTE_ACTIONS.DASH_MOVE);
     });
 
     it('I キーで所持品・装備 TOGGLE_INVENTORY が導出されること', () => {

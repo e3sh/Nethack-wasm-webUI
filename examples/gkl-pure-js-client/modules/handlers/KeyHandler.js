@@ -431,11 +431,23 @@ export class KeyHandler {
 
       case ROUTE_ACTIONS.EXECUTE_CONTEXT_FEET:
         e.preventDefault();
+        this._updateDashGuide(false);
         this.executeContextFeet();
+        return;
+
+      case ROUTE_ACTIONS.ACTIVATE_DASH_PREFIX:
+        e.preventDefault();
+        this._updateDashGuide(true);
+        return;
+
+      case ROUTE_ACTIONS.CANCEL_DASH_PREFIX:
+        e.preventDefault();
+        this._updateDashGuide(false);
         return;
 
       case ROUTE_ACTIONS.DASH_MOVE:
         e.preventDefault();
+        this._updateDashGuide(false);
         if (evaluated.payload?.dirCode) {
           const dirCode = evaluated.payload.dirCode;
           this.currentFacingDir = dirCode;
@@ -471,6 +483,7 @@ export class KeyHandler {
         return;
 
       case ROUTE_ACTIONS.PASSTHROUGH_GAME_KEY:
+        this._updateDashGuide(false);
         if (modal && modal.isAnyModalOpen && modal.isAnyModalOpen()) {
           return;
         }
@@ -627,5 +640,23 @@ export class KeyHandler {
 
     // 候補がなければ待機 (.)
     core.sendKey('Period', false, false, false, '.');
+  }
+
+  /**
+   * スマートガイドバーのダッシュ状態表示更新
+   * @param {boolean} isActive
+   * @private
+   */
+  _updateDashGuide(isActive) {
+    if (typeof document === 'undefined') return;
+    const chip = document.getElementById('guide-chip-dash');
+    if (!chip) return;
+    if (isActive) {
+      chip.classList.add('active');
+      chip.innerHTML = '<kbd>WASD/矢印</kbd> 🏃ダッシュ方向入力... <kbd style="margin-left:4px;">Esc</kbd> 取消';
+    } else {
+      chip.classList.remove('active');
+      chip.innerHTML = '<kbd>G</kbd>+<kbd>WASD</kbd> ダッシュ';
+    }
   }
 }

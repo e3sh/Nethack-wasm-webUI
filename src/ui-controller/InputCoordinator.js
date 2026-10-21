@@ -35,7 +35,9 @@ export const ROUTE_ACTIONS = {
   TOGGLE_CHARACTER_STATUS: 'TOGGLE_CHARACTER_STATUS',
   SHOW_KEYMAP_HELP: 'SHOW_KEYMAP_HELP',
   EXECUTE_CONTEXT_FEET: 'EXECUTE_CONTEXT_FEET',
-  DASH_MOVE: 'DASH_MOVE'
+  DASH_MOVE: 'DASH_MOVE',
+  ACTIVATE_DASH_PREFIX: 'ACTIVATE_DASH_PREFIX',
+  CANCEL_DASH_PREFIX: 'CANCEL_DASH_PREFIX'
 };
 
 export const DIRECTION_KEY_MAP = Object.freeze({
@@ -69,6 +71,14 @@ export class InputCoordinator {
    */
   constructor({ modalStack }) {
     this.modalStack = modalStack;
+    this.isDashPrefixActive = false;
+  }
+
+  /**
+   * 内部状態のリセット (ダッシュ待機フラグ等)
+   */
+  resetState() {
+    this.isDashPrefixActive = false;
   }
 
   /**
@@ -116,6 +126,7 @@ export class InputCoordinator {
     // 3. モーダルスタックチェック (最前面モーダルが開いている場合)
     const topModal = this.modalStack.getTopModal();
     if (topModal) {
+      this.isDashPrefixActive = false;
       if (topModal.isInputFocused && topModal.isInputFocused()) {
         // モーダル内検索入力等にフォーカスがある場合はそのまま入力を通す
         return { action: ROUTE_ACTIONS.BLOCK_INPUT, payload: { passToNative: true } };
@@ -201,6 +212,23 @@ export class InputCoordinator {
 
     // 12. 🛡️ NEHWW モード専用の論理アクション処理
     if (!isClassic && !context.isPromptActive) {
+      // 12.0 🏃 ダッシュプレフィックス (Gキー押下後) の方向キー入力待ち処理
+      if (this.isDashPrefixActive) {
+        if (dirCode) {
+          this.isDashPrefixActive = false;
+          return {
+            action: ROUTE_ACTIONS.DASH_MOVE,
+            payload: { dirCode }
+          };
+        }
+        if (key === 'Escape' || code === 'Escape') {
+          this.isDashPrefixActive = false;
+          return { action: ROUTE_ACTIONS.CANCEL_DASH_PREFIX };
+        }
+        // 他のキーが押された場合はプレフィックスを解除して後続の通常判定へ
+        this.isDashPrefixActive = false;
+      }
+
       // 12.1 🔄 Shift + 方向キー ➔ その場向き変更 (ターン消費ゼロ)
       if (event.shiftKey && dirCode) {
         return {
@@ -209,21 +237,19 @@ export class InputCoordinator {
         };
       }
 
-      // 12.15 🏃 Ctrl + 方向キー ➔ ダッシュ移動 (連続歩行)
-      if (ctrlKey && !altKey && dirCode) {
-        return {
-          action: ROUTE_ACTIONS.DASH_MOVE,
-          payload: { dirCode }
-        };
-      }
-
-      // 12.16 👣 Shift + Space ➔ 足元アクション (拾う/階段/祭壇/調べる)
+      // 12.2 👣 Shift + Space ➔ 足元アクション (拾う/階段/祭壇/調べる)
       if (event.shiftKey && !ctrlKey && !altKey && (code === 'Space' || key === ' ')) {
         return { action: ROUTE_ACTIONS.EXECUTE_CONTEXT_FEET };
       }
 
-      // 12.2 修飾キーなしの論理ショートカット
+      // 12.3 修飾キーなしの論理ショートカット
       if (!ctrlKey && !altKey) {
+        // 🏃 ダッシュプレフィックス待機 [G]
+        if (code === 'KeyG' || key === 'g' || key === 'G') {
+          this.isDashPrefixActive = true;
+          return { action: ROUTE_ACTIONS.ACTIVATE_DASH_PREFIX };
+        }
+
         // 決定 / 文脈アクション実行 [Space]
         if (code === 'Space' || key === ' ') {
           return { action: ROUTE_ACTIONS.EXECUTE_CONTEXT_PRIMARY };

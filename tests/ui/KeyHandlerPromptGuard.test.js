@@ -138,4 +138,74 @@ describe('KeyHandler - プロンプト待機時 (YNQ / アイテム選択 / 方�
     // '2' ではなく生キー 'KeyS' / 's' が送られること
     expect(mockCore.sendKey).toHaveBeenCalledWith('KeyS', false, false, false, 's');
   });
+
+  it('Nehww モード時: G キー ➔ W キー押下でダッシュ奔走シーケンス ["5", "8"] が C コアへ送信されること', () => {
+    const mockCore = {
+      currentPromptCategory: 'NONE',
+      activeResolver: null,
+      sendKey: vi.fn(),
+      sendKeySequence: vi.fn(),
+      getGKLPlugin: () => null
+    };
+
+    const mockUIConfig = {
+      get: () => ({ inputMode: 'nehww', bypassEnhancedSignals: true })
+    };
+
+    let updatedFacing = null;
+    const handler = new KeyHandler({
+      getCore: () => mockCore,
+      getUIConfigStore: () => mockUIConfig,
+      onFacingChanged: (dir) => { updatedFacing = dir; }
+    });
+
+    const preventDefaultG = vi.fn();
+    handler.handleGlobalKeyDown({
+      key: 'g', code: 'KeyG', shiftKey: false, ctrlKey: false, altKey: false, preventDefault: preventDefaultG
+    });
+    expect(preventDefaultG).toHaveBeenCalled();
+    expect(handler.inputCoordinator.isDashPrefixActive).toBe(true);
+    expect(mockCore.sendKeySequence).not.toHaveBeenCalled();
+
+    const preventDefaultW = vi.fn();
+    handler.handleGlobalKeyDown({
+      key: 'w', code: 'KeyW', shiftKey: false, ctrlKey: false, altKey: false, preventDefault: preventDefaultW
+    });
+    expect(preventDefaultW).toHaveBeenCalled();
+    expect(handler.inputCoordinator.isDashPrefixActive).toBe(false);
+    expect(updatedFacing).toBe('N');
+    expect(mockCore.sendKeySequence).toHaveBeenCalledWith(['5', '8']);
+  });
+
+  it('Nehww モード時: G キー ➔ Escape 押下でダッシュ待機が安全にキャンセルされること', () => {
+    const mockCore = {
+      currentPromptCategory: 'NONE',
+      activeResolver: null,
+      sendKey: vi.fn(),
+      sendKeySequence: vi.fn(),
+      getGKLPlugin: () => null
+    };
+
+    const mockUIConfig = {
+      get: () => ({ inputMode: 'nehww', bypassEnhancedSignals: true })
+    };
+
+    const handler = new KeyHandler({
+      getCore: () => mockCore,
+      getUIConfigStore: () => mockUIConfig
+    });
+
+    handler.handleGlobalKeyDown({
+      key: 'g', code: 'KeyG', shiftKey: false, ctrlKey: false, altKey: false, preventDefault: vi.fn()
+    });
+    expect(handler.inputCoordinator.isDashPrefixActive).toBe(true);
+
+    const preventDefaultEsc = vi.fn();
+    handler.handleGlobalKeyDown({
+      key: 'Escape', code: 'Escape', shiftKey: false, ctrlKey: false, altKey: false, preventDefault: preventDefaultEsc
+    });
+    expect(preventDefaultEsc).toHaveBeenCalled();
+    expect(handler.inputCoordinator.isDashPrefixActive).toBe(false);
+    expect(mockCore.sendKeySequence).not.toHaveBeenCalled();
+  });
 });
