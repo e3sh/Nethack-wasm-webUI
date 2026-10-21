@@ -3,7 +3,7 @@
 **ブラウザですぐ遊べる NetHack 5.0。** 日本語表示、装備やコンテナの直感的な操作、入力支援、そして遊ぶほど埋まっていく**冒険手帳(図鑑)**を備えた、モダンな Web クライアントです。
 
 👉 **[🎮 ブラウザでプレイ](https://e3sh.github.io/Nethack-wasm-webUI/)**  
-👉 **[📖 かんたん操作ガイド(遊び方・画面の見方)](./examples/gkl-pure-js-client/PLAYER_GUIDE.md)**
+👉 **[📖 操作ガイド(遊び方・画面の見方)](./examples/gkl-pure-js-client/PLAYER_GUIDE.md)**
 
 > 公式リファレンスクライアントの名前が **Nehww** です。タイトルメニューから「今すぐプレイ」で始められます。**タイトルメニューと Nehww は、日本語 / English を UI 全体で切り替えられます**(他のサンプルクライアントは実装によります)。
 
@@ -12,6 +12,7 @@
 ## ✨ こんな遊びができます
 
 - 📖 **冒険手帳(図鑑)** — 出会ったモンスター、見つけたアイテム、聞いた噂・神託、床の落書きが記録され、収集率が見える。新しい発見はその場でトースト通知。
+- 🗺️ **ダンジョン探索トラッカー＆メモ** — 階段・店・祭壇などの発見設備を自動集約。フロアメモの記録や足元への絵文字ピン打ちに対応。
 - 🇯🇵 **リアルタイム日本語表示** — メッセージログやステータスを日本語化。
 - 🧥 **ペーパードール装備管理** — 外套・鎧・シャツの重なりを視覚化。着脱にかかるターン数や AC・重量の変化を事前に確認。
 - 🎒 **2 カラムのコンテナ操作** — 宝箱や魔法の鞄を、ドラッグ&ドロップや数量指定でスムーズに整理。
@@ -182,7 +183,7 @@ Vitest による自動テストを備えています。全グリフの走査試�
 最新の進捗・構想は **[ROADMAP](docs/ROADMAP.md)** を参照してください。
 
 ## 📚 ドキュメント
-- [かんたん操作ガイド (Nehww)](examples/gkl-pure-js-client/PLAYER_GUIDE.md)
+- [操作ガイド (Nehww)](examples/gkl-pure-js-client/PLAYER_GUIDE.md)
 - [ドキュメントポータル](docs/README.md) / [ROADMAP](docs/ROADMAP.md) / [システム現有能力カタログ](docs/SYSTEM_CAPABILITIES.md)
 - [設定・セーブデータ FAQ](docs/FAQ_and_Configuration_Guide.md)
 - [GKL 仕様](docs/3_gkl/gkl_documentation.md) / [WASM Driver 仕様](docs/1_driver/driver_core_spec.md) / [WebUICore 利用ガイド](docs/2_client_ui/WebUICore_Usage_Guide.md) / [翻訳辞書運用](docs/9_translation/DICTIONARY_OPERATION.md)
