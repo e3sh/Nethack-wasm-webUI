@@ -126,6 +126,18 @@ export class ClientLocalization {
       btnOpenCodex.title = dict.codexTitle;
     }
 
+    const btnOpenKeymapHelp = document.getElementById('btn-open-keymap-help');
+    const lblKeymapHelp = document.getElementById('btn-keymap-help-label');
+    if (lblKeymapHelp) {
+      lblKeymapHelp.textContent = dict.keymapHeaderBtn;
+    } else if (btnOpenKeymapHelp) {
+      const span = btnOpenKeymapHelp.querySelector('span');
+      if (span) span.textContent = dict.keymapHeaderBtn;
+    }
+    if (btnOpenKeymapHelp) {
+      btnOpenKeymapHelp.title = dict.keymapHeaderBtnTitle;
+    }
+
     // 3. 設定ドロップダウンメニュー (settings-menu-dropdown)
     const btnSettingsToggle = document.getElementById('btn-settings-toggle');
     if (btnSettingsToggle) {
@@ -181,8 +193,6 @@ export class ClientLocalization {
     const chkGaugesSpan = document.querySelector('#chk-status-gauges ~ span');
     if (chkGaugesSpan) chkGaugesSpan.textContent = dict.statusGauges;
 
-    const chkGklSpan = document.querySelector('#chk-status-gkl-extra ~ span');
-    if (chkGklSpan) chkGklSpan.textContent = dict.statusGklExtra;
 
     // 3.35 キー入力 ＆ 操作
     const lblInputSec = document.getElementById('lbl-settings-input-section');
@@ -295,6 +305,115 @@ export class ClientLocalization {
         client.core.gkl.setLanguage(lang);
       }
       client.renderGklUi?.();
+    }
+
+    // 💡 キーガイドバー & ヘルプモーダルの多言語化
+    this._applyKeyGuideAndHelpLanguage(dict, lang);
+  }
+
+  /**
+   * スマートキーガイドバーおよびキーマップヘルプモーダルの言語テキスト更新
+   * @param {Object} dict
+   * @param {string} lang
+   * @private
+   */
+  _applyKeyGuideAndHelpLanguage(dict, lang) {
+    const isEn = lang === 'en';
+
+    // 1. スマートガイドバーの各チップ更新
+    const chipInteract = document.getElementById('guide-chip-interact');
+    if (chipInteract) chipInteract.innerHTML = `<kbd>Space</kbd> ${dict.guideInteract}`;
+
+    const chipFeet = document.getElementById('guide-chip-feet');
+    if (chipFeet) chipFeet.innerHTML = `<kbd>Shift+Space</kbd> ${dict.guideFeet}`;
+
+    const chipRotate = document.getElementById('guide-chip-rotate');
+    if (chipRotate) chipRotate.innerHTML = `<kbd>Shift+WASD</kbd> ${dict.guideRotate}`;
+
+    const chipDash = document.getElementById('guide-chip-dash');
+    if (chipDash && !chipDash.classList.contains('active')) {
+      chipDash.innerHTML = `<kbd>G</kbd>+<kbd>WASD</kbd> ${dict.guideDash}`;
+    }
+
+    const chipInv = document.getElementById('guide-chip-inv');
+    if (chipInv) chipInv.innerHTML = `<kbd>I</kbd> ${dict.guideInv}`;
+
+    const chipMap = document.getElementById('guide-chip-map');
+    if (chipMap) chipMap.innerHTML = `<kbd>Tab</kbd> ${dict.guideMap}`;
+
+    const chipMode = document.getElementById('guide-chip-mode');
+    if (chipMode) chipMode.innerHTML = `<kbd>F1</kbd> ${dict.guideMode}`;
+
+    const chipHelp = document.getElementById('guide-chip-help');
+    if (chipHelp) chipHelp.innerHTML = `<kbd>?</kbd> ${dict.guideHelp}`;
+
+    const btnCloseGuide = document.getElementById('btn-close-key-guide');
+    if (btnCloseGuide) btnCloseGuide.title = dict.guideCloseTitle;
+
+    const lblChkGuide = document.getElementById('lbl-chk-key-guide-bar');
+    if (lblChkGuide) lblChkGuide.textContent = dict.keyGuideToggle;
+
+    const lblKeymapGuide = document.getElementById('lbl-keymap-guide-toggle');
+    if (lblKeymapGuide) lblKeymapGuide.textContent = dict.keymapGuideBarToggle;
+
+    // 2. 操作ヘルプモーダル (#keymap-help-modal) のテキスト更新
+    const lblTitle = document.getElementById('lbl-keymap-help-title');
+    if (lblTitle) lblTitle.textContent = dict.keymapTitle;
+
+    const bannerSpan = document.querySelector('#keymap-mode-banner > span');
+    if (bannerSpan) bannerSpan.textContent = dict.keymapModeBanner;
+
+    const btnToggle = document.getElementById('btn-keymap-mode-toggle');
+    if (btnToggle) btnToggle.textContent = isEn ? '[F1] Switch Mode' : '[F1] モード切替';
+
+    const btnCloseKeymap = document.getElementById('btn-close-keymap-help');
+    if (btnCloseKeymap) btnCloseKeymap.title = dict.keymapCloseTitle;
+
+    // 現在の入力モード表示の即時反映 (Nehww モダンモード ⇄ Classic 等)
+    if (this.client?.updateInputModeUI) {
+      this.client.updateInputModeUI();
+    }
+
+    // 各セクションヘッダー & リスト全行
+    const sections = document.querySelectorAll('.keymap-sections-grid .keymap-section');
+    if (sections.length >= 4) {
+      const h4List = [dict.keymapSecMove, dict.keymapSecInteract, dict.keymapSecGui, dict.keymapSecClassic];
+      sections.forEach((sec, idx) => {
+        const h4 = sec.querySelector('h4');
+        if (h4 && h4List[idx]) h4.textContent = h4List[idx];
+      });
+
+      // セクション1: 移動リスト (<kbd> や日本語キー表記も多言語化)
+      const s1List = sections[0].querySelectorAll('.keymap-list li');
+      if (s1List[0] && dict.keymapMoveWasd) s1List[0].innerHTML = dict.keymapMoveWasd;
+      if (s1List[1] && dict.keymapMoveNumpad) s1List[1].innerHTML = dict.keymapMoveNumpad;
+      if (s1List[2] && dict.keymapMoveFace) s1List[2].innerHTML = dict.keymapMoveFace;
+      if (s1List[3] && dict.keymapMoveDash) s1List[3].innerHTML = dict.keymapMoveDash;
+      if (s1List[4] && dict.keymapMoveWait) s1List[4].innerHTML = dict.keymapMoveWait;
+
+      // セクション2: 文脈アクション
+      const s2List = sections[1].querySelectorAll('.keymap-list li');
+      if (s2List[0] && dict.keymapInteractSpace) s2List[0].innerHTML = dict.keymapInteractSpace;
+      if (s2List[1] && dict.keymapInteractShiftSpace) s2List[1].innerHTML = dict.keymapInteractShiftSpace;
+      if (s2List[2]) {
+        const hint = s2List[2].querySelector('span');
+        if (hint) hint.textContent = dict.keymapInteractHint;
+      }
+
+      // セクション3: GUI画面
+      const s3List = sections[2].querySelectorAll('.keymap-list li');
+      const s3Texts = [
+        dict.keymapGuiInv, dict.keymapGuiStatus, dict.keymapGuiMap,
+        dict.keymapGuiCodex, dict.keymapGuiLog, dict.keymapGuiSide, dict.keymapGuiInspect
+      ];
+      s3List.forEach((li, idx) => {
+        if (s3Texts[idx]) li.innerHTML = s3Texts[idx];
+      });
+
+      // セクション4: Classic
+      const s4List = sections[3].querySelectorAll('.keymap-list li');
+      if (s4List[0] && dict.keymapClassicToggle) s4List[0].innerHTML = dict.keymapClassicToggle;
+      if (s4List[1] && dict.keymapClassicDesc) s4List[1].innerHTML = dict.keymapClassicDesc;
     }
   }
 }

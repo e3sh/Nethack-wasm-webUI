@@ -130,7 +130,6 @@ export class LayoutController {
     if (client.statusView) {
       client.statusView.setLayoutMode(config.statusClassic2Line ? 'classic' : 'modern');
       client.statusView.setGaugeVisibility(config.statusGauges);
-      client.statusView.setGklExtraVisibility(config.statusGklExtra);
     }
 
     // 3. 設定メニュー内チェックボックスの同期
@@ -140,7 +139,6 @@ export class LayoutController {
     const chkDock = document.getElementById('chk-panel-history-dock');
     const chk2Line = document.getElementById('chk-status-classic-2line');
     const chkGauges = document.getElementById('chk-status-gauges');
-    const chkGkl = document.getElementById('chk-status-gkl-extra');
     const chkBypass = document.getElementById('chk-bypass-enhanced-signals');
 
     if (chkInv) chkInv.checked = Boolean(config.panelInventory);
@@ -149,7 +147,6 @@ export class LayoutController {
     if (chkDock) chkDock.checked = Boolean(config.panelHistoryDock);
     if (chk2Line) chk2Line.checked = Boolean(config.statusClassic2Line);
     if (chkGauges) chkGauges.checked = Boolean(config.statusGauges);
-    if (chkGkl) chkGkl.checked = Boolean(config.statusGklExtra);
     if (client.core) {
       client.core.bypassEnhancedSignals = true;
     }
@@ -257,7 +254,6 @@ export class LayoutController {
     bindLayoutCheckbox('chk-panel-history-dock', 'panelHistoryDock');
     bindLayoutCheckbox('chk-status-classic-2line', 'statusClassic2Line');
     bindLayoutCheckbox('chk-status-gauges', 'statusGauges');
-    bindLayoutCheckbox('chk-status-gkl-extra', 'statusGklExtra');
 
     // Web Components (<nh-ui-config> & <nh-modal>) 連携
     const nhUiConfig = document.getElementById('nh-ui-config-modal-panel');

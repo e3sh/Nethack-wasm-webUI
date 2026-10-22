@@ -687,15 +687,22 @@ class GklPureJSClient {
   updateInputModeUI(mode = null) {
     const currentMode = mode || this.uiConfigStore?.get()?.inputMode || 'nehww';
     const isNehww = currentMode === 'nehww';
+    const isEn = this.currentLanguage === 'en';
 
     const btnToggle = document.getElementById('btn-toggle-input-mode');
     const lblBadge = document.getElementById('btn-input-mode-label');
     if (btnToggle && lblBadge) {
       if (isNehww) {
         btnToggle.className = 'btn btn-secondary input-mode-header-btn mode-nehww';
+        btnToggle.title = isEn
+          ? 'Input Mode: Nehww (Smart Actions) [F1]'
+          : '入力モード切替: Nehww (論理アクション) ⇄ Classic (原作透過) [F1]';
         lblBadge.textContent = '🛡️ Nehww';
       } else {
         btnToggle.className = 'btn btn-secondary input-mode-header-btn mode-classic';
+        btnToggle.title = isEn
+          ? 'Input Mode: Classic (Raw Core) [F1]'
+          : '入力モード切替: Classic (原作透過) ⇄ Nehww (論理アクション) [F1]';
         lblBadge.textContent = '⚔️ Classic';
       }
     }
@@ -704,23 +711,27 @@ class GklPureJSClient {
     if (modalModeLabel) {
       if (isNehww) {
         modalModeLabel.className = 'mode-badge nehww';
-        modalModeLabel.textContent = '🛡️ Nehww モダンモード';
+        modalModeLabel.textContent = isEn ? '🛡️ Nehww Modern Mode' : '🛡️ Nehww モダンモード';
       } else {
         modalModeLabel.className = 'mode-badge classic';
-        modalModeLabel.textContent = '⚔️ Classic 原作互換モード';
+        modalModeLabel.textContent = isEn ? '⚔️ Classic Original Mode' : '⚔️ Classic 原作互換モード';
       }
     }
 
     const guideBar = document.getElementById('key-guide-bar');
     if (guideBar) {
       const chipInteract = document.getElementById('guide-chip-interact');
-      const chipInv = document.getElementById('guide-chip-inv');
-      const chipStatus = document.getElementById('guide-chip-status');
+      const chipFeet = document.getElementById('guide-chip-feet');
       const chipRotate = document.getElementById('guide-chip-rotate');
+      const chipDash = document.getElementById('guide-chip-dash');
+      const chipInv = document.getElementById('guide-chip-inv');
+      const chipMap = document.getElementById('guide-chip-map');
       if (chipInteract) chipInteract.style.display = isNehww ? 'inline-flex' : 'none';
-      if (chipInv) chipInv.style.display = isNehww ? 'inline-flex' : 'none';
-      if (chipStatus) chipStatus.style.display = isNehww ? 'inline-flex' : 'none';
+      if (chipFeet) chipFeet.style.display = isNehww ? 'inline-flex' : 'none';
       if (chipRotate) chipRotate.style.display = isNehww ? 'inline-flex' : 'none';
+      if (chipDash) chipDash.style.display = isNehww ? 'inline-flex' : 'none';
+      if (chipInv) chipInv.style.display = isNehww ? 'inline-flex' : 'none';
+      if (chipMap) chipMap.style.display = isNehww ? 'inline-flex' : 'none';
     }
   }
 

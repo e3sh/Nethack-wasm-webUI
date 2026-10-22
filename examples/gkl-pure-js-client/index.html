@@ -36,7 +36,7 @@
           <span id="btn-input-mode-label">🛡️ Nehww</span>
         </button>
         <button id="btn-open-keymap-help" class="btn btn-secondary keymap-help-header-btn" title="キーボード・操作ヘルプ [?]">
-          <span>❓ 操作ヘルプ</span>
+          <span id="btn-keymap-help-label">❓ 操作ヘルプ</span>
         </button>
         <div class="settings-dropdown-wrapper">
           <button id="btn-settings-toggle" class="btn btn-secondary" title="設定・システムメニュー">⚙️ 設定</button>
@@ -86,8 +86,8 @@
                 <span>📊 HP/MP ゲージバー</span>
               </label>
               <label class="settings-checkbox-item">
-                <input type="checkbox" id="chk-status-gkl-extra" checked />
-                <span>🧬 耐性・修得魔法・スキル行</span>
+                <input type="checkbox" id="chk-key-guide-bar" checked />
+                <span id="lbl-chk-key-guide-bar">💡 キーガイドバーの表示</span>
               </label>
             </div>
             <div class="settings-menu-separator"></div>
@@ -303,6 +303,7 @@
           <div class="key-guide-system">
             <span class="key-guide-chip system" id="guide-chip-mode"><kbd>F1</kbd> モード切替</span>
             <span class="key-guide-chip system" id="guide-chip-help"><kbd>?</kbd> ヘルプ</span>
+            <button id="btn-close-key-guide" class="btn-close-guide" title="ガイドバーを非表示 (再表示は設定または [?] から)">✕</button>
           </div>
         </div>
       </section>
@@ -942,6 +943,12 @@
                 <li><span>Classic モードでは、すべてのキーが NetHack C コアへ直接送信され、原作通りの操作が可能です。</span></li>
               </ul>
             </div>
+          </div>
+          <div class="keymap-footer" style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
+            <label style="font-size:12px; color:#cbd5e1; cursor:pointer; display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="chk-keymap-guide-toggle" checked />
+              <span id="lbl-keymap-guide-toggle">💡 スマートガイドバーを画面下に表示する</span>
+            </label>
           </div>
         </div>
       </div>

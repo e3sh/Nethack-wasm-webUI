@@ -186,7 +186,6 @@ export const UI_CONFIG_I18N = {
     sectionStatus: '📊 ステータス表示',
     statusClassic2Line: '2行クラシック表示',
     statusGauges: 'グラフィカルゲージ (HP/MP)',
-    statusGklExtra: 'GKL 拡張情報表示',
     sectionMessages: '⏱️ フローティングメッセージ',
     labelHudFadeDelay: '操作後の消去待機時間',
     hudFadeFast: '⚡ 1.2s - 早い',
@@ -225,7 +224,6 @@ export const UI_CONFIG_I18N = {
     sectionStatus: '📊 Status Display',
     statusClassic2Line: 'Classic 2-Line Status',
     statusGauges: 'Graphical Gauges (HP/MP)',
-    statusGklExtra: 'GKL Extended Status',
     sectionMessages: '⏱️ Floating Messages',
     labelHudFadeDelay: 'Fade delay after action',
     hudFadeFast: '⚡ 1.2s - Fast',
@@ -400,13 +398,6 @@ export class NhUiConfig extends NhBaseElement {
               <span class="toggle-label">${t.statusGauges}</span>
               <label class="toggle-switch">
                 <input type="checkbox" data-config-key="statusGauges">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="toggle-row">
-              <span class="toggle-label">${t.statusGklExtra}</span>
-              <label class="toggle-switch">
-                <input type="checkbox" data-config-key="statusGklExtra">
                 <span class="slider"></span>
               </label>
             </div>

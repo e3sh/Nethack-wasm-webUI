@@ -31,7 +31,6 @@ describe('UIConfigStore (Headless UI Layout Config)', () => {
     expect(config.panelCollapsed).toBe(false);
     expect(config.statusClassic2Line).toBe(false);
     expect(config.statusGauges).toBe(true);
-    expect(config.statusGklExtra).toBe(true);
     expect(config.panelDirectionPad).toBe(true);
     expect(config.mapActionIndicator).toBe(true);
     expect(config.stoneRenderingMode).toBe('smart');
@@ -108,7 +107,6 @@ describe('UIConfigStore (Headless UI Layout Config)', () => {
     expect(config.panelActions).toBe(false);
     expect(config.panelKnowledge).toBe(false);
     expect(config.statusClassic2Line).toBe(true);
-    expect(config.statusGklExtra).toBe(false);
   });
 
   it('applyPreset(modern) でモダンスタイルへ設定が一括変更されること', () => {
@@ -122,7 +120,6 @@ describe('UIConfigStore (Headless UI Layout Config)', () => {
     expect(config.panelActions).toBe(true);
     expect(config.panelKnowledge).toBe(true);
     expect(config.statusClassic2Line).toBe(false);
-    expect(config.statusGklExtra).toBe(true);
   });
 
   it('subscribe で登録したリスナーに変更が通知されること', () => {

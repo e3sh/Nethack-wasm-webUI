@@ -651,12 +651,16 @@ export class KeyHandler {
     if (typeof document === 'undefined') return;
     const chip = document.getElementById('guide-chip-dash');
     if (!chip) return;
+    const core = this.getCore?.();
+    const isEn = Boolean(core?.language === 'en' || (typeof window !== 'undefined' && window.gklClient?.currentLanguage === 'en'));
     if (isActive) {
       chip.classList.add('active');
-      chip.innerHTML = '<kbd>WASD/矢印</kbd> 🏃ダッシュ方向入力... <kbd style="margin-left:4px;">Esc</kbd> 取消';
+      chip.innerHTML = isEn
+        ? '<kbd>WASD/Arrows</kbd> 🏃Run Direction... <kbd style="margin-left:4px;">Esc</kbd> Cancel'
+        : '<kbd>WASD/矢印</kbd> 🏃ダッシュ方向入力... <kbd style="margin-left:4px;">Esc</kbd> 取消';
     } else {
       chip.classList.remove('active');
-      chip.innerHTML = '<kbd>G</kbd>+<kbd>WASD</kbd> ダッシュ';
+      chip.innerHTML = isEn ? '<kbd>G</kbd>+<kbd>WASD</kbd> Run' : '<kbd>G</kbd>+<kbd>WASD</kbd> ダッシュ';
     }
   }
 }

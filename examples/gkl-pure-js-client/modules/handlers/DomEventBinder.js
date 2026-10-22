@@ -224,6 +224,48 @@ export class DomEventBinder {
       guideChipMode.onclick = () => client.toggleInputMode();
     }
 
+    // 💡 スマートキーガイドバーの表示/非表示トグル連動
+    const guideBar = document.getElementById('key-guide-bar');
+    const chkKeyGuide = document.getElementById('chk-key-guide-bar');
+    const chkKeymapGuide = document.getElementById('chk-keymap-guide-toggle');
+    const btnCloseKeyGuide = document.getElementById('btn-close-key-guide');
+
+    const updateGuideVisibility = (visible) => {
+      if (guideBar) {
+        if (visible) guideBar.classList.remove('hidden');
+        else guideBar.classList.add('hidden');
+      }
+      if (chkKeyGuide) chkKeyGuide.checked = visible;
+      if (chkKeymapGuide) chkKeymapGuide.checked = visible;
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('nh.keyGuideVisible', visible ? 'true' : 'false');
+        }
+      } catch (_) {}
+    };
+
+    let initVisible = true;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem('nh.keyGuideVisible');
+        if (saved !== null) initVisible = (saved === 'true');
+      }
+    } catch (_) {}
+    updateGuideVisibility(initVisible);
+
+    if (btnCloseKeyGuide) {
+      btnCloseKeyGuide.onclick = (e) => {
+        e.stopPropagation();
+        updateGuideVisibility(false);
+      };
+    }
+    if (chkKeyGuide) {
+      chkKeyGuide.onchange = (e) => updateGuideVisibility(e.target.checked);
+    }
+    if (chkKeymapGuide) {
+      chkKeymapGuide.onchange = (e) => updateGuideVisibility(e.target.checked);
+    }
+
     // 🖥️ 全画面ウィンドウリサイズ追従 (Canvas 2D / WebGPU 解像度同期)
     const handleResize = () => {
       const w = window.innerWidth;

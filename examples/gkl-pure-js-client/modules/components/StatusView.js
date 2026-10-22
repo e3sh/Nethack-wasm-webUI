@@ -120,15 +120,6 @@ export class StatusView {
     }
   }
 
-  setGklExtraVisibility(visible) {
-    if (!this.elStatusBar) return;
-    if (visible) {
-      this.elStatusBar.classList.remove('hide-gkl-extra');
-    } else {
-      this.elStatusBar.classList.add('hide-gkl-extra');
-    }
-  }
-
   updateStatus(status) {
     if (!status) return;
     if (this.elStName) this.elStName.textContent = status.title || 'Hero';
