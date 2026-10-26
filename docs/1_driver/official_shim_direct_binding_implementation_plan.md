@@ -1,7 +1,7 @@
 ---
 title: official_shim_direct_binding_implementation_plan
-status: in-progress
-last_updated: 2026-10-11
+status: implemented
+last_updated: 2026-10-15
 related_code:
   - C:\Users\e3-sh\Desktop\works\NetHack-NetHack-5.0_org\NetHack-NetHack-5.0.1_Oct7_2026 (公式ソース最新原本)
   - src/driver/shim/shim_bridge.c (WebUIリポジトリ管理の単一窓口ブリッジ正本・ビルド時 win/shim/shim_bridge.c へ自動同期)

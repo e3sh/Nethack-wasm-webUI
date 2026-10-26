@@ -1,18 +1,22 @@
 ---
 title: NetHack WASM WebUI プロジェクト総合ロードマップ＆進捗ダッシュボード
 status: living-document
-last_updated: 2026-10-21
+last_updated: 2026-10-26
 ---
 
 # 🗺️ NetHack WASM WebUI 総合ロードマップ＆進捗ダッシュボード
 
 本ドキュメントは、NetHack WASM WebUI プロジェクトにおける**「現在実施中・最優先フォーカス (Active Focus)」「設計完了・着手待ち (Wait / Pending)」「実装待ちの構想・アイデア (Backlog)」「すでに実装完了している現行仕様 (Living Specs)」「過去の設計記録 (Archive)」**を一元管理する総合ダッシュボードです。
 
+> [!NOTE]
+> 🛡️ **全体整合性監査完了日: 2026-10-26**  
+> 全63現役仕様書とコードベース（`src/`, `tools/`, `tests/`）の100%完全一致検証が完了し、公式ベースラインが確立されました。次回以降のドキュメント監査は **本日（2026-10-26）以降に変更された差分ファイルのみ** を対象とする「差分監査（Incremental Audit）」プロトコルが適用されます。
+
 > [!IMPORTANT]
 > **🧭 設計・開発・リファクタリング時の最重要必読インベントリ**  
 > システムが現在持っている全機能、APIシグネチャ、WASM通信パイプライン、データ資産（全384体モンスター・481アイテム・787件の噂）、アーキテクチャの基本憲法、および機能重複統廃合・ギャップ分析は、**[システム現有能力カタログ (SYSTEM_CAPABILITIES.md)](./SYSTEM_CAPABILITIES.md)** にて一元集約されています。新機能の検討や改修時は必ずこちらをご一読ください。
 
-直近の総合評価・引き継ぎ資料: **[handover_20261015_stage8_completion.ja.md](./6_project_reports/handover_20261015_stage8_completion.ja.md)**
+直近の総合評価・引き継ぎ資料: **[handover_20261026_docs_and_codebase_baseline.ja.md](./6_project_reports/handover_20261026_docs_and_codebase_baseline.ja.md)**（全仕様書・実装整合性ベースライン確定報告書）
 
 ---
 
@@ -77,11 +81,17 @@ last_updated: 2026-10-21
     - [modern_inventory_dialog_and_weight_analytics_architecture.ja.md](./7_futures/modern_inventory_dialog_and_weight_analytics_architecture.ja.md)
     - [floor_pile_filer_and_dialog_navigation_architecture.ja.md](./7_futures/floor_pile_filer_and_dialog_navigation_architecture.ja.md)
   - 概要: Phase 8 の真の重量・BUC・床スタック直結（`SHIM_CMD_GET_OBJECT_AT`）を活かし、クラス別重量構成比バー付き2ペイン所持品コックピット（`i`）および足元山積み二画面ファイラー（`,` 拾う ⇄ `d` 置く）を実現。**※両構想とも、全ダイアログ共通の2ペイン・キーボード／ゲームパッド操作骨格（[`modal_interaction_and_navigation_guide.ja.md`](./2_client_ui/modal_interaction_and_navigation_guide.ja.md) 準拠）を共通基盤として実装する。**
+- **GKL ブランチ検出・フロアキャッシュ分離 ＆ エリア突入アナウンス演出構想**:
+  - 設計書: [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)
+  - 概要: Stage 8.4 で `u.uz.dnum` によるブランチ確定同定は完了。新エリア・特殊フロア突入時の `<nh-area-banner>` アナウンス演出および `AREA_ENTERED` ジングル音響連携構想（`💡 proposed`）。
 
 ### 3.2 独立した長期構想群
 - **外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想**:
   - 設計書: [external_wiki_knowledge_linking_architecture.ja.md](./7_futures/external_wiki_knowledge_linking_architecture.ja.md)
   - 概要: ナレッジカード（`<nh-knowledge-card>`）や詳細モーダルのヘッダーに `[🌐 NetHackWiki]` ボタンを配置し、英語真名（`entity.name`）で外部 Wiki へワンクリックジャンプ（約50行で独立実装可能）。
+- **GamePad 右ホイール・ボタンセット切替構想 (Radial Button Set Switching Concept)**:
+  - 設計書: [gamepad_radial_button_set_switching_concept.ja.md](./7_futures/gamepad/gamepad_radial_button_set_switching_concept.ja.md)
+  - 概要: ゲームパッド右ホイールのボタンセット動的切替構想（`💡 proposed`）。コンソールクライアントでの PoC 実験候補。
 
 ### 3.4 Nehww モダン入力の Web Components (`<nh-*>`) 昇格 ＆ Headless 純化構想 (Componentization & Input Architecture)
 - **ステータス**: `💡 proposed (Backlog / RFC)`
@@ -135,8 +145,9 @@ last_updated: 2026-10-21
 | :--- | :--- | :---: | :--- |
 | [canonical_item_schema_and_normalization_architecture.ja.md](./3_gkl/canonical_item_schema_and_normalization_architecture.ja.md) | `ItemNormalizer.js`, `ItemDisplayPresenter.js` | 2026-10-18 | 公式 `objnam.c` 準拠のアイテム正規化 (Canonical Schema) ＆ `\|\|` 根絶 |
 | [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) | `InventoryWasmAdapter.js`, `ItemSpecPresenter` | Stage 8.5 | 床アイテム・コンテナ Direct Binding ＆ 覗き見知恵 (Peek Wisdom) |
-| [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md) | `PlayerWasmAdapter.js`, `AttributeStateManager` | Stage 8.4 | ブランチ100%確定同定・耐性69要素・お祈りタイマー直結 |
-| [gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/gkl_multibyte_removal_and_ascii_purification_plan.ja.md) | `InventoryStateManager`, `EquipmentRules` | Stage 8.5 | モデル層からの日本語正規表現完全削除 ＆ 100% ASCII 純化 |
+| [levl_glyph_and_terrain_hybrid_architecture_plan.ja.md](./3_gkl/levl_glyph_and_terrain_hybrid_architecture_plan.ja.md) | `SpatialWasmAdapter.js`, `AreaStateManager.js` | 2026-10-21 | NetHack Cコア直接グリフ (`levl.glyph`) ＆ 抽象地形 (`typ`) ハイブリッド二重管理アーキテクチャ |
+| [official_shim_direct_binding_implementation_plan.md (Stage 8.4)](./1_driver/official_shim_direct_binding_implementation_plan.md) | `PlayerWasmAdapter.js`, `AttributeStateManager` | Stage 8.4 | ブランチ100%確定同定・耐性69要素・お祈りタイマー直結 |
+| [gkl_multibyte_removal_and_ascii_purification_plan.ja.md](./3_gkl/archive/gkl_multibyte_removal_and_ascii_purification_plan.ja.md) | `InventoryStateManager`, `EquipmentRules` | Stage 8.5 | モデル層からの日本語正規表現完全削除 ＆ 100% ASCII 純化 (archive 退避済) |
 | [AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md) | `AreaStateManager.js` (4分割) | Phase 8 先行 | 空間状態 4分割オーケストレーター化（コード71.8%スリム化） |
 | [GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md) | `GKLPlugin.js` (5分割) | Phase 8 先行 | GKLPlugin 神クラス解体 ＆ ファサード化（コード81.5%スリム化） |
 | [post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md) | `PostMortemKnowledgeResolver.js` | 2026-10-16 | 公式 xlogfile 準拠スコアボード ＆ 死因根本原因調停 (RCA) |
@@ -178,7 +189,8 @@ last_updated: 2026-10-21
 過去の検討経緯や完了済みプロジェクトレポート、旧アーキテクチャ資料です。
 
 - **直近引き継ぎ・状況評価レポート**:
-  - **[handover_20261015_stage8_completion.ja.md](./6_project_reports/handover_20261015_stage8_completion.ja.md)** (Phase 8 全ステージ 8.1〜8.5 完遂、4大リファクタリング・神クラス解体、全149スイート・1,811テスト 100% PASS)
+  - **[handover_20261026_docs_and_codebase_baseline.ja.md](./6_project_reports/handover_20261026_docs_and_codebase_baseline.ja.md)** (10/15〜10/26実装実績［Nehww操作系刷新、CコアSSOT確立、ダンジョントラッカー等］＋全63仕様書・3大ハブ完全整合ベースライン確立、ミスマッチ0件証明、全169スイート・2,177テスト 100% PASS)
+  - [handover_20261015_stage8_completion.ja.md](./6_project_reports/handover_20261015_stage8_completion.ja.md) (Phase 8 全ステージ 8.1〜8.5 完遂、4大リファクタリング・神クラス解体、全149スイート・1,811テスト 100% PASS)
   - [handover_20261008_status_reevaluation.ja.md](./6_project_reports/archive/handover_20261008_status_reevaluation.ja.md) (NetHack 5.0.1 追従、Phase 6 マルチドライバ分離完遂、Phase 7 冒険手帳/ナレッジカード完遂、3大不具合是正)
   - [handover_20260929_status_reevaluation.ja.md](./6_project_reports/archive/handover_20260929_status_reevaluation.ja.md) (Phase E / Phase 5 完遂、Web Audio API 動的音程シンセシス、現有能力カタログ、1,300テスト通過)
   - [handover_20260921_status_reevaluation.ja.md](./6_project_reports/archive/handover_20260921_status_reevaluation.ja.md) (レンダラー統合、WebGPU HD-2D、LORE、ペーパードール完成)
@@ -212,3 +224,6 @@ last_updated: 2026-10-21
    - 仕様部分を現行仕様書として整理し、`status: implemented` に更新。
    - 本ロードマップの「4. 実装完了コア機能 (Living Specs)」テーブルへ移動。
    - 一時的な移行メモや作業ログは各カテゴリの `archive/` へ退避。
+5. **🛡️ 定期・継続的ドキュメント監査（差分監査プロトコル）**:
+   - 2026-10-26 に確立されたベースライン（`handover_20261026_docs_and_codebase_baseline.ja.md`）以降、全件総当たり調査は不要です。
+   - 次回以降の監査では、`git diff --name-only <baseline-commit>..HEAD` 等で変更差分を抽出し、変更された仕様書とコードの対応関係のみを局所的に検証・更新してください。

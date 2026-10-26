@@ -1,3 +1,12 @@
+---
+title: Nehww 入力モード分離 ＆ 論理アクション（Semantic Action）駆動アーキテクチャ仕様書
+status: implemented
+last_updated: 2026-10-21
+related_code:
+  - src/ui-controller/InputCoordinator.js
+  - examples/gkl-pure-js-client/modules/handlers/KeyHandler.js
+---
+
 # Nehww 入力モード分離 ＆ 論理アクション（Semantic Action）駆動アーキテクチャ構想仕様書
 
 ## 1. 基本設計思想 (Design Philosophy)
@@ -192,7 +201,7 @@ flowchart LR
 
 ---
 
-## 8. UI層肥大化の解消とコンポーネント化 (`<nh-*>`) への移行方針
+## 8. UI層肥大化の解消とコンポーネント化 (`<nh-*>`) への移行方針 [Backlog / 将来課題: ROADMAP §3.4]
 
 ### 8.1 現状の課題（View-Handlerへの責務集中）
 現行の実装では、Nehww独自のモダン操作系（WASD移動、テンキー偽装返却、Facing向き管理、スマート文脈メニュー展開、プロンプトガード等）を迅速に成立させるため、暫定的に `examples/gkl-pure-js-client/modules/handlers/KeyHandler.js` に多くの調停ロジックが集約されています。

@@ -207,13 +207,13 @@ sequenceDiagram
 ## 6. 段階的実装ロードマップ (Phased Roadmap)
 
 ### Phase 1: GKL ロジック層 & 単体テスト
-- `src/core/knowledge/EncumbranceStateManager.js` の新設。
+- `src/core/knowledge/state/EncumbranceStateManager.js` の新設。
 - `OBJECT_KNOWLEDGE_BASE` からのアイテム重量引き当て。
 - `ContainerContentsManager` との連動フック（確認シーケンス時のスナップ更新）。
 - Vitest によるテストケース作成（BoH 軽減計算、出し入れ、未確認袋の挙動、`BL_CAP` 連動）。
 
 ### Phase 2: Presenter & 共通 UI コンポーネント
-- `src/core/knowledge/EncumbrancePresenter.js` の新設。
+- `src/core/knowledge/presenters/EncumbrancePresenter.js` の新設。
 - HTML/CSS による軽量ミニゲージ・ランプコンポーネント（テーマカラー対応、アニメーション）。
 
 ### Phase 3: 各 UI への段階的統合

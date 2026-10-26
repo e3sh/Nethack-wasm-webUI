@@ -1,3 +1,9 @@
+---
+title: GamePad 右ホイール・ボタンセット切替構想 (Radial Button Set Switching Concept)
+status: proposed
+last_updated: 2026-10-01
+---
+
 # 🎮 GamePad 右ホイール・ボタンセット切替構想 (Radial Button Set Switching Concept)
 
 **作成日**: 2026-10-01  

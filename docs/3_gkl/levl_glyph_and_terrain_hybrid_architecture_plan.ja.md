@@ -1,7 +1,7 @@
 ---
 title: NetHack Cコア直接グリフ (levl.glyph) ＆ 抽象地形 (typ) ハイブリッドアーキテクチャ設計計画書
-status: planned
-last_updated: 2026-10-16
+status: implemented
+last_updated: 2026-10-21
 related_code:
   - src/driver/shim/shim_bridge.c
   - src/core/knowledge/services/binding/BindingConstants.js

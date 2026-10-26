@@ -1,6 +1,6 @@
 ---
 title: JS層アイテムデータモデルの単一正規化（Canonical Item Schema）および防御的フォールバック根絶設計書
-status: in-progress
+status: implemented
 created: 2026-10-18
 updated: 2026-10-19
 author: Antigravity

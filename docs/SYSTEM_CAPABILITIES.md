@@ -1,11 +1,15 @@
 ---
 title: NetHack WASM WebUI システム現有能力カタログ
 status: implemented
-last_updated: 2026-10-21
+last_updated: 2026-10-26
 ---
 
 # 🧭 NetHack WASM WebUI システム現有能力カタログ (SYSTEM_CAPABILITIES.md)
 ### ―― システム全機能・API・データ資産インベントリ ＆ 責務境界・統廃合・ギャップ分析 ――
+
+> [!NOTE]
+> 🛡️ **全体整合性監査完了日: 2026-10-26**  
+> 全63現役仕様書とコードベース（`src/`, `tools/`, `tests/`）の100%完全一致検証が完了し、本カタログ記載の全能力・API・責務境界が公式ベースラインとして確立されました。次回以降のドキュメント監査は **本日（2026-10-26）以降に変更された差分ファイルのみ** を対象とする「差分監査（Incremental Audit）」プロトコルが適用されます。
 
 > [!IMPORTANT]
 > **設計・機能提案・リファクタリング時の最重要必読インベントリ**  
@@ -80,13 +84,13 @@ flowchart TD
   - `src/driver/shim/shim_bridge.c` (`_shim_bridge_call`)
   - `src/driver/NetHackMemory.js` (`bridgeCall`, `SHIM_CMD`, `SHIM_SYM`)
   - `src/driver/NetHackWasmWorkerBridge.js` (`callShim`)
-  - `src/core/knowledge/services/WasmDirectBindingService.js` (6分割・薄型ファサード)
-  - `src/core/knowledge/adapters/` (`InventoryWasmAdapter`, `PlayerWasmAdapter`, `SpatialWasmAdapter`, `MonsterWasmAdapter`, `DiscoveryWasmAdapter`)
-  - `src/core/knowledge/coordinators/WasmSyncCoordinator.js`
+  - `src/core/knowledge/services/WasmDirectBindingService.js` (7モジュール分割・薄型ファサード)
+  - `src/core/knowledge/services/binding/` (`InventoryWasmAdapter`, `PlayerWasmAdapter`, `SpatialWasmAdapter`, `MonsterWasmAdapter`, `DiscoveryWasmAdapter`, `BindingConstants`)
+  - `src/core/knowledge/services/binding/WasmSyncCoordinator.js`
 * **できること**:
   - 公式 NetHack C ソースを 1 行も改変せず、単一の外付けブリッジ (`shim_bridge.c`) 経由で C メモリ構造体（`levl[x][y]`, `fmon`, `fobj`, `invent`, `u` 等）を **0.1ms 未満・キー注入副作用ゼロ** で直接読み出し。
   - **主要コマンド実績**:
-    1. **フロア全域地形・階段一括ダンプ (`SHIM_CMD_DUMP_LEVEL_TERRAIN` / 0x15)**: 80×21 全マスの真の地形 (`typ`)・扉状態 (`flags`)・階段接続を 1 往復で取得。
+    1. **フロア全域地形・階段一括ダンプ (`SHIM_CMD_DUMP_LEVEL_TERRAIN` 0x11 / `SHIM_CMD_DUMP_LEVEL_GLYPHS` 0x15)**: 80×21 全マスの真の地形 (`typ`)・扉状態 (`flags`)・階段接続、および確定グリフ (`glyph`) を 1 往復で取得。
     2. **セル詳細＆床アイテム走査 (`SHIM_CMD_GET_CELL_INFO` / `GET_OBJECT_AT`)**: 足元や任意座標の地形・罠・部屋種別・床アイテムの BUC (`blessed`/`cursed`/`bknown`)・箱の施錠状態・死体/像のモンスター種別 (`corpsenm`)・既知フラグ (`known`) を直接取得。
     3. **インベントリ＆装備＆総重量直結 (`SHIM_CMD_DUMP_ALL_INVENT` / `GET_EQUIPMENT_PTRS` / `GET_INV_WEIGHT`)**: 全所持品構造体・14装備スロットポインタ・真の総重量 (`inv_weight()`) を一括取得。
     4. **モンスター＆プレイヤー状態直結 (`SHIM_CMD_GET_MONSTER_AT` / `GET_PLAYER_SUMMARY` / `GET_PLAYER_PROPS`)**: 平和NPC (`mpeaceful`)・ペット (`mtame`) 判定、ダンジョン番号 (`dnum`) による全9ブランチ 100% 確定同定、お祈りタイマー (`ublesscnt`)・神の怒り (`ugangr`) 直結、耐性配列 (`uprops` 69要素) 内因・外因分離直結。

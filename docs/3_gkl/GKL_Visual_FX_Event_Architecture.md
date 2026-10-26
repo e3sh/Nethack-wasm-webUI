@@ -4,7 +4,8 @@ status: implemented
 last_updated: 2026-10-11
 related_code:
   - src/core/WebUICore.js
-  - src/core/knowledge/coordinators/VisualFxDispatcher.js
+  - src/core/knowledge/coordinators/GKLFxCoordinator.js
+  - examples/gkl-pure-js-client/modules/effects/VisualFxDispatcher.js
   - examples/gkl-pure-js-client/renderers/MainViewportRenderer.js
   - examples/gkl-pure-js-client/renderers/WebGPUHD2DRenderer.js
 ---

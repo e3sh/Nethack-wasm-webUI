@@ -1,10 +1,14 @@
 ---
 title: NetHack WASM WebUI ドキュメントポータル
 status: living-document
-last_updated: 2026-10-19
+last_updated: 2026-10-26
 ---
 
 # 📚 NetHack WASM WebUI ドキュメントポータル
+
+> [!NOTE]
+> 🛡️ **全体整合性監査完了日: 2026-10-26**  
+> 全63現役仕様書とコードベース（`src/`, `tools/`, `tests/`）の100%完全一致検証が完了し、公式ベースラインが確立されました。次回以降のドキュメント監査は **本日（2026-10-26）以降に変更された差分ファイルのみ** を対象とする「差分監査（Incremental Audit）」プロトコルが適用されます。
 
 > [!TIP]
 > **🚀 プロジェクト全体の進捗状況・構想バックログはこちら**  
@@ -30,12 +34,13 @@ last_updated: 2026-10-19
 
 ## 📊 メイン仕様書・ガイド ダッシュボード (Core Documents)
 
-### 0. 🧭 システム現有能力カタログ ＆ 設計憲法 (`docs/SYSTEM_CAPABILITIES.md`)
-システム全体の機能・API・データ資産インベントリ、責務境界、アーキテクチャ6大原則、重複機能統廃合、未接続パイプライン分析を集約した総合カタログです。
+### 0. 🧭 システム現有能力カタログ ＆ 設計憲法・FAQ (`docs/SYSTEM_CAPABILITIES.md`)
+システム全体の機能・API・データ資産インベントリ、責務境界、アーキテクチャ6大原則、重複機能統廃合、未接続パイプライン分析を集約した総合カタログおよび運用FAQです。
 
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
 | **[SYSTEM_CAPABILITIES.md](./SYSTEM_CAPABILITIES.md)** | `🟢 implemented` | `src/` 全体 | システム現有能力カタログ、WASM通信・同期（Phase 8 `shim_bridge.c` / IRC）、状態解析、データ・伝承、UI制御、アーキテクチャ6大原則、統廃合・ギャップ分析 |
+| **[FAQ_and_Configuration_Guide.md](./FAQ_and_Configuration_Guide.md)** | `🟢 active` | `src/`, `examples/` | NetHack WASM / WebUI 逆引き設定・セーブデータ管理 FAQ / 開発者ガイド |
 
 ---
 
@@ -46,7 +51,9 @@ last_updated: 2026-10-19
 | :--- | :---: | :--- | :--- |
 | **[gkl_documentation.md](./3_gkl/gkl_documentation.md)** | `🟢 implemented` | `src/core/knowledge/` | GKL 総合アーキテクチャ・プラグイン構造・API利用ガイド |
 | **[GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md](./3_gkl/GKLPlugin_Modularization_and_Refactoring_Architecture.ja.md)** | `🟢 implemented` | `src/core/knowledge/GKLPlugin.js` | GKLPlugin モジュール分割・アーキテクチャ適正化設計書 (ROADMAP 2.2) |
-| **[floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md)** | `⏸️ pending` | `AreaStateManager.js`<br>`NhKnowledgeCard.js` | 床アイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵（Peek Wisdom）統合設計書 |
+| **[floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md)** | `🟢 implemented` | `src/core/knowledge/services/binding/InventoryWasmAdapter.js`<br>`src/core/knowledge/presenters/ItemSpecPresenter.js` | 床アイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵（Peek Wisdom）統合設計書 (Stage 8.5) |
+| **[canonical_item_schema_and_normalization_architecture.ja.md](./3_gkl/canonical_item_schema_and_normalization_architecture.ja.md)** | `🟢 implemented` | `src/core/knowledge/models/ItemNormalizer.js`<br>`src/core/knowledge/presenters/ItemDisplayPresenter.js` | 公式 `objnam.c` 準拠のアイテム正規化 (Canonical Schema) ＆ 防御的フォールバック (`\|\|`) 根絶設計書 |
+| **[levl_glyph_and_terrain_hybrid_architecture_plan.ja.md](./3_gkl/levl_glyph_and_terrain_hybrid_architecture_plan.ja.md)** | `🟢 implemented` | `src/core/knowledge/services/binding/SpatialWasmAdapter.js`<br>`src/core/knowledge/state/AreaStateManager.js` | NetHack Cコア直接グリフ (`levl.glyph`) ＆ 抽象地形 (`typ`) ハイブリッドアーキテクチャ設計書 |
 | **[AreaStateManager_Architecture_and_Specification.ja.md](./3_gkl/AreaStateManager_Architecture_and_Specification.ja.md)** | `🟢 implemented` | `src/core/knowledge/state/AreaStateManager.js` | 空間状態総合オーケストレーター仕様書（Stage 8.3-A フロア全域ダンプ対応）＆ 4分割計画 |
 | **[TacticalAdvisor_Specification_and_Architecture.md](./3_gkl/TacticalAdvisor_Specification_and_Architecture.md)** | `🟢 implemented` | `src/core/knowledge/engines/TacticalAdvisor.js` | データ駆動型戦術アドバイザー（ADVICE_DEFINITIONS 7系統）設計仕様 |
 | **[Assist_Signal_and_Stance_Architecture.md](./3_gkl/Assist_Signal_and_Stance_Architecture.md)** | `🟢 implemented` | `src/core/knowledge/engines/AssistSignalSynthesizer.js` | アシストシグナル＆スタンス（ASSIST_SIGNAL_DEFINITIONS）設計 |
@@ -58,9 +65,8 @@ last_updated: 2026-10-19
 | **[Control_Signal_and_Dedicated_UI_Architecture.md](./3_gkl/Control_Signal_and_Dedicated_UI_Architecture.md)** | `🟢 implemented` | `src/core/prompt/` | 制御シグナル同定基盤＆専用UI連携仕様書 |
 | **[Lore_and_Structured_Knowledge_Cross_Reference_Specification.ja.md](./3_gkl/Lore_and_Structured_Knowledge_Cross_Reference_Specification.ja.md)** | `🟢 implemented` | `src/core/knowledge/lore/` | 伝承・構造化知識クロスリファレンス設計仕様書 (Rumor/Oracleとモンスター/アイテム紐付け) |
 | **[Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)** | `💡 proposed` | - | GKL ブランチ検出・フロアキャッシュ分離 ＆ エリア突入アナウンス演出設計書 (Stage 8.4 連動) |
-| **[Spatial_Pattern_Engine_Architecture.md](./3_gkl/Spatial_Pattern_Engine_Architecture.md)** | `💡 proposed` | - | GKL空間幾何学認識エンジン設計書 (床パターン・密集シグナル認識) |
 | **[Dungeon_Tracker_and_Checkpoint_Architecture.md](./3_gkl/Dungeon_Tracker_and_Checkpoint_Architecture.md)** | `💡 proposed` | - | ダンジョン探索トラッカー＆チェックポイント（箱・旗立て🚩）構想書 |
-| **[📦 archive/ サブフォルダ](./3_gkl/archive/)** | `📦 archived` | - | ADR（意思決定記録）、完了済み設計書（SSOT統合、ポストコンバット同期等）・旧資料群（15ファイル退避済） |
+| **[📦 archive/ サブフォルダ](./3_gkl/archive/)** | `📦 archived` | - | ADR（意思決定記録）、完了済み設計書（SSOT統合、ポストコンバット同期等）・旧資料群（18ファイル退避済） |
 
 ---
 
@@ -81,6 +87,7 @@ Vitest による全自動単体・統合テスト基盤、プロトコル検証�
 
 | ドキュメント | ステータス | 関連ソースコード / ツール | 概要 |
 | :--- | :---: | :--- | :--- |
+| **[semantic_message_tokenization_and_interactive_rendering_specification.ja.md](./9_translation/semantic_message_tokenization_and_interactive_rendering_specification.ja.md)** | `⏸️ pending` | `tools/build_token_catalog.py`<br>`MessageTokenParser.js` | **【次期最優先着手】セマンティック・メッセージトークン化 ＆ 2層防壁戦闘検出 ＆ GKLナレッジカード連携仕様書 (ROADMAP §1 & §2.1)** |
 | **[DICTIONARY_OPERATION.md](./9_translation/DICTIONARY_OPERATION.md)** | `🟢 implemented` | `dictionary.csv`, `tools/dict_converter.py` | マスター翻訳辞書運用・Inspector未翻訳収集・CSV相互変換オペレーションガイド |
 | **[signal_driven_hybrid_translation_architecture.ja.md](./9_translation/signal_driven_hybrid_translation_architecture.ja.md)** | `💡 proposed` | `src/core/translation/` | シグナル駆動ハイブリッド翻訳＆辞書スリム化構想（Pinpoint/Synthesized/Fallback 3層モデル） |
 | **[📦 archive/ サブフォルダ](./9_translation/archive/)** | `📦 archived` | `tools/dev_scripts/` | 翻訳フロー解説、旧支援ツールガイド、Inspector統合設計、Lookup翻訳手順等（7ファイル退避済） |
@@ -92,7 +99,7 @@ WASM Cコアをバックグラウンド Web Worker で駆動し、Phase 8 単一
 
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[official_shim_direct_binding_implementation_plan.md](./1_driver/official_shim_direct_binding_implementation_plan.md)** | `🚧 in-progress` | `src/driver/shim/shim_bridge.c`<br>`WasmDirectBindingService.js` | **Phase 8: 公式Shim構造化バインディング ＆ C構造体メモリ直結 実装計画書** (Stage 8.1〜8.3-B 完了 / 8.3-C・8.4 は ROADMAP 参照) |
+| **[official_shim_direct_binding_implementation_plan.md](./1_driver/official_shim_direct_binding_implementation_plan.md)** | `🟢 implemented` | `src/driver/shim/shim_bridge.c`<br>`WasmDirectBindingService.js` | **Phase 8: 公式Shim構造化バインディング ＆ C構造体メモリ直結 実装計画書** (Stage 8.1〜8.5 全ステージ完遂) |
 | **[direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md](./1_driver/direct_binding_idle_arbitration_and_more_prompt_coordination_plan.ja.md)** | `🟢 implemented` | `src/driver/`<br>`WasmDirectBindingService.js` | Direct Binding (`CALL_SHIM`) アイドリング調停 ＆ `--More--` 待機・メッセージライフサイクル是正計画 (ROADMAP 2.5) |
 | **[driver_core_spec.md](./1_driver/driver_core_spec.md)** | `🟢 implemented` | `src/driver/NetHackWasmDriver.js` | NetHack WASM Driver コア仕様書（Phase 8 `shim_bridge.c` / ターン静止調停含む） |
 | **[driver_api_reference.md](./1_driver/driver_api_reference.md)** | `🟢 implemented` | `src/driver/` | Web Worker 通信プロトコル・Direct Binding RPC (`callShim`)・API リファレンス |
@@ -107,7 +114,7 @@ WASM Cコアをバックグラウンド Web Worker で駆動し、Phase 8 単一
 
 | ドキュメント | ステータス | 関連ソースコード | 概要 |
 | :--- | :---: | :--- | :--- |
-| **[input_mode_separation_and_semantic_action_architecture.ja.md](./2_client_ui/input_mode_separation_and_semantic_action_architecture.ja.md)** | `📋 proposed` | `src/ui-controller/InputCoordinator.js`<br>`src/ui-controller/UIConfigStore.js`<br>`KeyHandler.js` | 入力モード分離 (Classic vs Modern) ＆ 論理アクション駆動アーキテクチャ・Facing/Smart Auto設計構想 |
+| **[input_mode_separation_and_semantic_action_architecture.ja.md](./2_client_ui/input_mode_separation_and_semantic_action_architecture.ja.md)** | `🟢 implemented` | `src/ui-controller/InputCoordinator.js`<br>`src/ui-controller/UIConfigStore.js`<br>`KeyHandler.js` | 入力モード分離 (Classic vs Modern) ＆ 論理アクション駆動・Facing/Dash/YNQガード稼働中 (Web Component化は§8/ROADMAP§3.4) |
 | **[context_aware_stone_and_digging_rendering_spec.ja.md](./2_client_ui/context_aware_stone_and_digging_rendering_spec.ja.md)** | `🟢 implemented` | `AreaStateManager.js`<br>`UIConfigStore.js`<br>`MainViewportRenderer.js`<br>`WebGPUHD2DRenderer.js`<br>`hd2dFxOverlay.js` | コンテキスト連動型スマート岩盤可視化 ＆ 掘削アシスト・マップ上コマンド数バッジ仕様書 |
 | **[shim_driven_rendering_pipeline_architecture.ja.md](./2_client_ui/shim_driven_rendering_pipeline_architecture.ja.md)** | `🟢 implemented` | `AreaStateManager.js`<br>`VirtualDungeonScreen.js` | Shim-Driven 確定同期型レンダリング・パイプライン刷新設計書 (Stage 8.3-B) |
 | **[ui_controller_headless_architecture.ja.md](./2_client_ui/ui_controller_headless_architecture.ja.md)** | `🟢 implemented` | `src/ui-controller/`<br>`src/components/`<br>`<nh-*>` | UIController (Headless UI) アーキテクチャ設計仕様書（Model/View完全分離・Web Components共通基盤・Phase E） |
@@ -119,7 +126,7 @@ WASM Cコアをバックグラウンド Web Worker で駆動し、Phase 8 単一
 | **[gkl_inspect_cell_on_demand_guide.md](./2_client_ui/gkl_inspect_cell_on_demand_guide.md)** | `🟢 implemented` | `src/core/knowledge/services/OnDemandLookService.js` | セルオンデマンド照会・インスペクト実装ガイド |
 | **[unified_renderer_and_screen_architecture_plan.md](./2_client_ui/unified_renderer_and_screen_architecture_plan.md)** | `🟢 implemented` | `examples/gkl-pure-js-client/modules/renderers/` | 仮想スクリーン統合レンダラー (`VirtualDungeonScreen` / `MainViewportRenderer` / `MinimapHudRenderer`) 仕様書 |
 | **[webgpu_hd2d_diorama_renderer.ja.md](./2_client_ui/webgpu_hd2d_diorama_renderer.ja.md)** | `🟢 implemented` | `WebGPUHD2DRenderer.js` | WebGPU (WGSL) による HD-2D ジオラマレンダラー仕様＆移植ガイド（3Dパース吸着・ミニバッジ対応） |
-| **[📦 archive/ サブフォルダ](./2_client_ui/archive/)** | `📦 archived` | - | GKLクライアントUI刷新計画(Phase A〜D)、main.jsモジュール分割計画、ダイアログデザイン統一構想、Web Components規約等（12ファイル退避済） |
+| **[📦 archive/ サブフォルダ](./2_client_ui/archive/)** | `📦 archived` | - | GKLクライアントUI刷新計画(Phase A〜D)、main.jsモジュール分割計画、ダイアログデザイン統一構想、Web Components規約等（13ファイル退避済） |
 
 ---
 
@@ -139,17 +146,13 @@ Web Audio API を活用した 3 層分離サウンドコーディネーター �
 
 | ドキュメント | ステータス | 概要 |
 | :--- | :---: | :--- |
-| **[native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | `🚧 in-progress` | **標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジ仕様書 (Phase 7)**（Phase 1・2 実装完了、Phase 3 命名アシスト待機中） |
-| **[post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md)** | `🚧 in-progress` | **事後ナレッジ連携 ＆ 戦術アドバイザー刷新仕様書**（`scoreboard.html` / `PostMortemKnowledgeResolver.js` 実装完了、残タスク待機中） |
+| **[native_command_extension_and_dynamic_lookup_architecture.ja.md](./7_futures/native_command_extension_and_dynamic_lookup_architecture.ja.md)** | `🟢 implemented` | **標準操作プログレッシブ拡張 ＆ WASM動的ルックアップ統合ナレッジ仕様書 (Phase 7)**（命名アシスト・動的文学引用・冒険手帳 完遂） |
+| **[post_mortem_knowledge_and_tactical_advisor_redesign.ja.md](./7_futures/post_mortem_knowledge_and_tactical_advisor_redesign.ja.md)** | `🟢 implemented` | **事後ナレッジ連携 ＆ 戦術アドバイザー刷新仕様書**（`scoreboard.html` / `PostMortemKnowledgeResolver.js` 死因根本原因調停 実装完了） |
 | **[modern_inventory_dialog_and_weight_analytics_architecture.ja.md](./7_futures/modern_inventory_dialog_and_weight_analytics_architecture.ja.md)** | `💡 proposed` | モダン総合インベントリダイアログ ＆ 重量アナリティクス構想 (`i`キー専用2ペイン所持品コックピット) |
 | **[floor_pile_filer_and_dialog_navigation_architecture.ja.md](./7_futures/floor_pile_filer_and_dialog_navigation_architecture.ja.md)** | `💡 proposed` | 足元山積み（Floor Pile）の二画面ファイラー統合 ＆ ダイアログ操作系（Key/Pad）完全統一構想 |
-| **[nethack_fuel_gauge_spec.md](./7_futures/nethack_fuel_gauge_spec.md)** | `💡 proposed` | GKL タイムライン予測エンジン：神のご機嫌管理＆燃料計構想書 (`ublesscnt` / 耐性メモリ直結連動) |
-| **[enlightenment_dialog_signal_and_state_interception_architecture.ja.md](./7_futures/enlightenment_dialog_signal_and_state_interception_architecture.ja.md)** | `💡 proposed` | 啓蒙ダイアログ専用モーダルUI化 ＆ 隠れステータス補正構想 |
 | **[external_wiki_knowledge_linking_architecture.ja.md](./7_futures/external_wiki_knowledge_linking_architecture.ja.md)** | `💡 proposed` | 外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想 |
-| **[help_dialog_and_external_doc_system_architecture.ja.md](./7_futures/help_dialog_and_external_doc_system_architecture.ja.md)** | `💡 proposed` | ヘルプ専用ダイアログ化 (`HelpGuideModal`) ＆ 外部ドキュメント連携構想 |
 | **[gamepad/ (ゲームパッド構想群)](./7_futures/gamepad/README.md)** | `💡 proposed` | ゲームパッド・コンソールモード仕様（共通コンポーネント・`console-client` PoC 実装完了、Nehww オンデマンド統合構想） |
-| **[gkl_variant_adaptation_architecture.md](./7_futures/gkl_variant_adaptation_architecture.md)** | `💡 proposed` | GKL バリアント適応拡張・互換性構想（メタデータ契約・分離設計） |
-| **[📦 archive/ サブフォルダ](./7_futures/archive/)** | `📦 archived` | 完遂済み Phase 5 詳細計画群（全6ステージ）、旧マイクロカーネル構想、旧Gamepad独立クライアント構想等（15ファイル退避済） |
+| **[📦 archive/ サブフォルダ](./7_futures/archive/)** | `📦 archived` | 完遂済み Phase 5 詳細計画群（全6ステージ）、旧構想群（燃料計構想、啓蒙ダイアログ横取り、真値監査エンジン、ヘルプ専用モーダル等 19ファイル退避済） |
 
 ---
 
@@ -163,7 +166,7 @@ Web Audio API を活用した 3 層分離サウンドコーディネーター �
 | **[monster_list.ja.md](./5_gamedata/monster_list.ja.md)** / **[item_list.ja.md](./5_gamedata/item_list.ja.md)** | モンスター (384体) / アイテム (481種) の日英対訳一覧 |
 | **[ListofActionsbyTerrainTypeinNetHack.md](./5_gamedata/ListofActionsbyTerrainTypeinNetHack.md)** | 地形別アクション一覧リファレンス |
 | **[polymorph_carrying_capacity_mechanics.ja.md](./5_gamedata/polymorph_carrying_capacity_mechanics.ja.md)** | 多重変身（Polymorph）時の運搬許容量・所持重量減少メカニズム調査資料 |
-| **[Guidebook.ja.html](./5_gamedata/Guidebook.ja.html)** / **[Guidebook.txt](./5_gamedata/Guidebook.txt)** | NetHack 5.0 日本語公式ガイドブック / 英語原文ガイドブック |
+| **[Guidebook.ja.html](./5_gamedata/Guidebook.ja.html)** | NetHack 5.0 日本語公式ガイドブック |
 | **[📦 archive/ サブフォルダ](./5_gamedata/archive/)** | 店主仕様・アイテム効果レポート等（3ファイル退避済） |
 
 ---
@@ -173,8 +176,9 @@ Web Audio API を活用した 3 層分離サウンドコーディネーター �
 
 | ドキュメント | ステータス | 概要 |
 | :--- | :---: | :--- |
-| **[handover_20261008_status_reevaluation.ja.md](./6_project_reports/handover_20261008_status_reevaluation.ja.md)** | `🟢 latest` | **【最新】NetHack 5.0.1 移行・Phase 6/7 完遂・Phase 8 始動 現有能力再評価総合レポート（2026/10/08版）** |
-| **[📦 archive/ サブフォルダ](./6_project_reports/archive/)** | `📦 archived` | 過去の引き継ぎ資料（09/29版、09/21版、09/14版等）・進捗報告書群・不具合是正計画書（21ファイル退避済） |
+| **[handover_20261026_docs_and_codebase_baseline.ja.md](./6_project_reports/handover_20261026_docs_and_codebase_baseline.ja.md)** | `🟢 latest` | **【最新】10/15〜10/26実装実績（Nehww操作系刷新・CコアSSOT・ダンジョントラッカー）＆ 全63現役仕様書・コードベース完全整合ベースライン確定報告書（2026/10/26版）** |
+| **[handover_20261015_stage8_completion.ja.md](./6_project_reports/handover_20261015_stage8_completion.ja.md)** | `🟢 implemented` | Phase 8 Direct Binding 全ステージ 8.1〜8.5 完遂 ＆ 4大リファクタリング完了 総合評価レポート（2026/10/15版） |
+| **[📦 archive/ サブフォルダ](./6_project_reports/archive/)** | `📦 archived` | 過去の引き継ぎ資料（10/08版、09/29版、09/21版、09/14版等）・進捗報告書群・不具合是正計画書（22ファイル退避済） |
 
 ---
 
@@ -187,13 +191,13 @@ docs/
 ├── SYSTEM_CAPABILITIES.md          # システム現有能力カタログ＆アーキテクチャ6大原則
 ├── FAQ_and_Configuration_Guide.md  # 逆引き設定・セーブデータ管理 FAQ / 開発者ガイド
 ├── 1_driver/                       # WASM Driver & Phase 8 Direct Binding 仕様書 (直下6本 + archive/)
-├── 2_client_ui/                    # UI / WebUICore / レンダラー仕様書 (直下11本 + archive/)
-├── 3_gkl/                          # GKL 総合・戦術・空間・装備・コンテナ仕様書 (直下16本 + archive/)
+├── 2_client_ui/                    # UI / WebUICore / レンダラー仕様書 (直下13本 + archive/)
+├── 3_gkl/                          # GKL 総合・戦術・空間・装備・コンテナ仕様書 (直下17本 + archive/)
 ├── 4_sound/                        # 音響コーディネーター & 動的シンセシス仕様書 (直下2本 + archive/)
-├── 5_gamedata/                     # ゲームリファレンスデータ群 (直下9本 + archive/)
-├── 6_project_reports/              # 最新再評価レポート(1008版) & プロジェクト報告書 (直下1本 + archive/)
-├── 7_futures/                      # 次世代構想・Phase 7 (直下8本 + gamepad/ + archive/)
+├── 5_gamedata/                     # ゲームリファレンスデータ群 (直下8本 + archive/)
+├── 6_project_reports/              # 最新ベースラインレポート(1026版) & 引き継ぎ資料 (直下2本 + archive/)
+├── 7_futures/                      # 次世代構想・Phase 7 (直下5本 + gamepad/ + archive/)
 ├── 8_testing/                      # テストガイド & プロトコル/シナリオ検証仕様書 (直下3本 + archive/)
-└── 9_translation/                  # 辞書運用マニュアル & ハイブリッド翻訳構想 (直下2本 + archive/)
+└── 9_translation/                  # 辞書運用マニュアル & メッセージトークン化仕様書 (直下3本 + archive/)
 ```
 

@@ -333,7 +333,7 @@ Phase 8 において `sys/wasm/shim_bridge.c` および `WasmDirectBindingServic
 | 区分 | 第1選択 (Primary Path) | フォールバック / 補完 (Fallback Path) | 主な対象処理 |
 | :--- | :--- | :--- | :--- |
 | **1. 状態参照・知識同期 (Read-Only Sync)** | **Phase 8 Direct Binding (`CALL_SHIM`)**<br>C メモリ構造体から 0ターン・キー送信ゼロで JSON 直接取得 | **IRC モードA (`querySequenceSilent`)**<br>Direct Binding 非対応時（`fallback` モード等）にサイレント実行 | ・インベントリ・装備・総重量同期 (`DUMP_ALL_INVENT`)<br>・魔法/属性/スキル/発見台帳同期<br>・セル詳細・80×21全マップ地形ダンプ (`DUMP_LEVEL_TERRAIN`) |
-| **2. マルチステップ対話操作 (Active Recipe Execution)** | **IRC モードB (`executeSequence` / レシピ)**<br>`SessionLock` と `SignalDetector` による安全な連続コマンド自走 | `abortWithESC()` によるタイムアウト時の ESC 連打自動復帰 | ・二画面コンテナのアイテム出し入れ (`ContainerController`)<br>・ペーパードールの多段装備換装 (`EquipmentActionRecipeBuilder`)<br>・オンデマンド遠隔調査 (`OnDemandLookupService`) |
+| **2. マルチステップ対話操作 (Active Recipe Execution)** | **IRC モードB (`executeSequence` / レシピ)**<br>`SessionLock` と `SignalDetector` による安全な連続コマンド自走 | `abortWithESC()` によるタイムアウト時の ESC 連打自動復帰 | ・二画面コンテナのアイテム出し入れ (`ContainerController`)<br>・ペーパードールの多段装備換装 (`EquipmentActionPlanner`)<br>・オンデマンド遠隔調査 (`OnDemandLookupService`) |
 
 ### 7.2 コンテナ UI ＆ 装備ペーパードールのレシピ統合実績 【実装完了・全テスト通過】
 1. **正規の入口検知と `ContainerController`**:
@@ -345,7 +345,7 @@ Phase 8 において `sys/wasm/shim_bridge.c` および `WasmDirectBindingServic
    - トランザクション完了時に `core.gkl.syncInventorySilent()`（Direct Binding 優先）を実行して最新状態を即時反映。
 - **関連実装モジュール**:
   - `src/core/container/ContainerController.js`, `ContainerContentsManager.js`, `ContainerSafetyGuard.js`, `ContainerSequenceBuilder.js`
-  - `src/core/knowledge/equipment/EquipmentActionRecipeBuilder.js`
+  - `src/core/knowledge/equipment/EquipmentActionPlanner.js`, `src/core/request/ActionRecipeFactory.js`
   - `src/core/WebUICore.js`, `src/core/prompt/PromptPayloadBuilder.js`
   - `examples/gkl-pure-js-client/modules/components/ContainerModal.js`, `PaperdollModal.js`
 

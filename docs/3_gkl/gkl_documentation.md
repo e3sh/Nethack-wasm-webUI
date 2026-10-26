@@ -21,7 +21,7 @@ related_code:
   - src/core/knowledge/engines/ContextActionEngine.js
   - src/core/knowledge/engines/AssistSignalSynthesizer.js
   - src/core/knowledge/engines/ActionSignalResolver.js
-  - src/core/knowledge/engines/PostMortemKnowledgeResolver.js
+  - src/core/knowledge/services/PostMortemKnowledgeResolver.js
   - src/core/knowledge/services/WasmDirectBindingService.js
   - src/core/knowledge/services/OnDemandLookService.js
   - src/core/knowledge/services/OnDemandLookupService.js
@@ -129,7 +129,7 @@ GKL は `src/core/knowledge/` 配下の 8 つの専門サブディレクトリ�
 | **伝承・図鑑** | [`lore/LoreCodex.js`](/src/core/knowledge/lore/LoreCodex.js) / [`lore/AdventureLogManager.js`](/src/core/knowledge/lore/AdventureLogManager.js) | 世界観伝承（Lore）と構造化データの相互参照、および永続化冒険手帳（発見図鑑・マイルストーン）の管理。 |
 | **戦術・信号** | [`engines/TacticalAdvisor.js`](/src/core/knowledge/engines/TacticalAdvisor.js) / [`AssistSignalSynthesizer.js`](/src/core/knowledge/engines/AssistSignalSynthesizer.js) | 7系統の戦術助言生成、危険予知（コカトリス・溶岩等）、および AssistSignal / Stance 統合。 |
 | **アクション生成** | [`engines/ContextActionEngine.js`](/src/core/knowledge/engines/ContextActionEngine.js) / [`ActionSignalResolver.js`](/src/core/knowledge/engines/ActionSignalResolver.js) | 周辺状況・所持品・位置関係からワンタップで実行可能なスマートアクションの生成とアクション結果シグナル解決。 |
-| **死因分析** | [`engines/PostMortemKnowledgeResolver.js`](/src/core/knowledge/engines/PostMortemKnowledgeResolver.js) | ゲームオーバー時の死因名寄せ（Stage 1〜3 ハイブリッド解決）と根本原因分析（RCA）・教訓カードの生成。 |
+| **死因分析** | [`services/PostMortemKnowledgeResolver.js`](/src/core/knowledge/services/PostMortemKnowledgeResolver.js) | ゲームオーバー時の死因名寄せ（Stage 1〜3 ハイブリッド解決）と根本原因分析（RCA）・教訓カードの生成。 |
 | **対話制御** | [`src/core/request/InteractiveRequestController.js`](/src/core/request/InteractiveRequestController.js) | サイレントクエリ (`querySequenceSilent`) やマルチステップ自動シーケンス（換装・コンテナ操作等）の安全実行・中断ロールバック制御。 |
 
 ---

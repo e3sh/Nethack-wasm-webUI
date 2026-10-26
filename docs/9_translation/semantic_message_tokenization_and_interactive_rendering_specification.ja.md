@@ -1,7 +1,7 @@
 ---
 title: セマンティック・メッセージトークン化 ＆ インタラクティブ描画仕様書
 subtitle: 静的型付き構文カタログ・2層防壁戦闘検出・GKLナレッジカード連携
-status: proposed
+status: pending
 last_updated: 2026-10-21
 author: AI Pair Programmer & e3-sh
 related_docs:

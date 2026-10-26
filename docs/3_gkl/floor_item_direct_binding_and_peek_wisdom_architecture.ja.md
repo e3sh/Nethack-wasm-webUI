@@ -1,3 +1,13 @@
+---
+title: 床落ちアイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵（Peek Wisdom）統合アーキテクチャ設計書
+status: implemented
+last_updated: 2026-10-16
+related_code:
+  - src/core/knowledge/services/binding/InventoryWasmAdapter.js
+  - src/core/knowledge/presenters/ItemSpecPresenter.js
+  - tests/unit/floor_item_direct_binding_peek.test.js
+---
+
 # 床落ちアイテム・コンテナ・死体の Direct Binding 完全化 ＆ 覗き見知恵（Peek Wisdom）統合アーキテクチャ設計書
 
 **対象ロードマップ**: `docs/ROADMAP.md` §2.2 (旧 §2.6)  
