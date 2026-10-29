@@ -414,9 +414,13 @@
                 optManual: "手動入力 (従来通りダイアログ表示)",
                 labelSoundMode: "SOUND_MODE",
                 descSoundMode: "音声再生システムと音源モードを選択します",
+                optSoundAuto: "Auto (ハイブリッド推奨)",
+                optSoundWave: "Wave (音声ファイル)",
+                optSoundBeep: "Beep (オシレーター合成)",
+                optSoundMute: "Mute (消音)",
                 labelSoundVol: "SOUND_VOLUME",
                 descSoundVol: "効果音の音量を調整します",
-                btnTestSound: "サウンドテスト再生",
+                btnTestSound: "🔊 テスト再生",
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "NetHack本体のオプションを追加できます (改行区切り)",
                 labelQuickPresets: "クイックプリセット (クリックで追加/解除):",
@@ -444,9 +448,13 @@
                 optManual: "Manual (prompt for name)",
                 labelSoundMode: "SOUND_MODE",
                 descSoundMode: "Select sound playback system and audio engine",
+                optSoundAuto: "Auto (Recommended Hybrid)",
+                optSoundWave: "Wave (Audio Files)",
+                optSoundBeep: "Beep (Oscillator Synth)",
+                optSoundMute: "Mute (Off)",
                 labelSoundVol: "SOUND_VOLUME",
                 descSoundVol: "Adjust sound effect volume",
-                btnTestSound: "Test Sound",
+                btnTestSound: "🔊 Test Sound",
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "Add extra NetHack OPTIONS (newline separated)",
                 labelQuickPresets: "Quick Presets (Click to toggle):",
@@ -615,6 +623,10 @@
             if (document.getElementById("opt-manual")) document.getElementById("opt-manual").textContent = t.optManual;
             if (document.getElementById("label-sound-mode")) document.getElementById("label-sound-mode").textContent = t.labelSoundMode;
             if (document.getElementById("desc-sound-mode")) document.getElementById("desc-sound-mode").textContent = t.descSoundMode;
+            if (document.getElementById("opt-sound-auto")) document.getElementById("opt-sound-auto").textContent = t.optSoundAuto;
+            if (document.getElementById("opt-sound-wave")) document.getElementById("opt-sound-wave").textContent = t.optSoundWave;
+            if (document.getElementById("opt-sound-beep")) document.getElementById("opt-sound-beep").textContent = t.optSoundBeep;
+            if (document.getElementById("opt-sound-mute")) document.getElementById("opt-sound-mute").textContent = t.optSoundMute;
             if (document.getElementById("label-sound-vol")) document.getElementById("label-sound-vol").textContent = t.labelSoundVol;
             if (document.getElementById("desc-sound-vol")) document.getElementById("desc-sound-vol").textContent = t.descSoundVol;
             if (document.getElementById("btn-test-sound")) document.getElementById("btn-test-sound").textContent = t.btnTestSound;
@@ -784,10 +796,10 @@
                         <span class="config-desc" id="desc-sound-mode">効果音の再生モードを選択します</span>
                     </div>
                     <select id="sound_mode" style="background: rgba(0,0,0,0.5); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 10px; font-size: 13px;">
-                        <option value="auto">Auto (ハイブリッド推奨)</option>
-                        <option value="wave">Wave (音声ファイル)</option>
-                        <option value="beep">Beep (オシレーター合成)</option>
-                        <option value="mute">Mute (消音)</option>
+                        <option value="auto" id="opt-sound-auto">Auto (ハイブリッド推奨)</option>
+                        <option value="wave" id="opt-sound-wave">Wave (音声ファイル)</option>
+                        <option value="beep" id="opt-sound-beep">Beep (オシレーター合成)</option>
+                        <option value="mute" id="opt-sound-mute">Mute (消音)</option>
                     </select>
                 </div>
 
