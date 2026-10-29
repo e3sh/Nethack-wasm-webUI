@@ -77,11 +77,14 @@ export interface StatusState {
 }
 
 export interface VisualFxItem {
-  type: 'SLASH' | 'DAMAGE_FLASH' | 'KILL_BURST' | 'HEAL_RING' | 'DEATH_BURST' | string;
+  type: 'SLASH' | 'DAMAGE_FLASH' | 'KILL_BURST' | 'HEAL_RING' | 'DEATH_BURST' | 'DAMAGE_POPUP' | string;
   followPlayer?: boolean;
   gx?: number;
   gy?: number;
   amount?: number;
+  text?: string;
+  color?: string;
+  scale?: number;
   startTime?: number;
   triggerTime?: number;
   durationMs?: number;

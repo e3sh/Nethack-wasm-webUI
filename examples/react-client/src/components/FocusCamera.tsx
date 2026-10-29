@@ -50,9 +50,9 @@ export const FocusCamera: React.FC = () => {
         gx: activeFxEvent.gx,
         gy: activeFxEvent.gy,
         amount: activeFxEvent.amount,
-        text: (activeFxEvent as any).text,
-        color: (activeFxEvent as any).color,
-        scale: (activeFxEvent as any).scale,
+        text: activeFxEvent.text,
+        color: activeFxEvent.color,
+        scale: activeFxEvent.scale,
         startTime: activeFxEvent.triggerTime || performance.now(),
         durationMs: activeFxEvent.durationMs || (activeFxEvent.type === 'DEATH_BURST' ? 900 : 300),
       });
@@ -141,16 +141,16 @@ export const FocusCamera: React.FC = () => {
         const floatY = -easeOut * (zoomTileSize * 0.75);
         const textX = screenX + zoomTileSize / 2;
         const textY = screenY + (zoomTileSize * 0.25) + floatY;
-        const fontSize = Math.max(12, Math.round(zoomTileSize * 0.45 * ((fx as any).scale || 1)));
+        const fontSize = Math.max(12, Math.round(zoomTileSize * 0.45 * (fx.scale || 1)));
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `bold ${fontSize}px monospace, sans-serif`;
         ctx.lineWidth = 3;
         ctx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
-        const txt = (fx as any).text || (fx.amount ? `-${fx.amount}` : '');
+        const txt = fx.text || (fx.amount ? `-${fx.amount}` : '');
         ctx.strokeText(txt, textX, textY);
-        ctx.fillStyle = (fx as any).color || `rgba(255, 235, 59, ${textAlpha})`;
+        ctx.fillStyle = fx.color || `rgba(255, 235, 59, ${textAlpha})`;
         ctx.fillText(txt, textX, textY);
         ctx.restore();
       } else if (fx.type === 'DAMAGE_FLASH') {
