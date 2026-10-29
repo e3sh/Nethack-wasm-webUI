@@ -81,7 +81,8 @@ flowchart TD
 プレイヤーの周辺地形（扉、壁、階段、祭壇、流し台、泉、罠など）に対する操作メッセージが、モンスターやアイテムとして誤検出されることを物理的に防ぐ最前線の防壁です。
 
 - **遮断対象となる環境・地形語彙 (`TERRAIN_AND_ENV_STOP_NOUNS`)**:
-  - `door`, `doorway`, `wall`, `rock`, `stone`, `corridor`, `stairs`, `staircase`, `ladder`, `altar`, `sink`, `fountain`, `throne`, `tree`, `bars`, `iron bars`, `drawbridge`, `water`, `lava`, `pool`, `moat`, `ice`, `air`, `floor`, `ground`, `ceiling`, `pit`, `web`, `trap`, `boulder`, `grave`, `headstone`, `statue`（※石像がアイテム/モンスターとして扱われる文脈を除く）
+  - `door`, `doorway`, `wall`, `rock`, `stone`, `corridor`, `stairs`, `staircase`, `ladder`, `altar`, `sink`, `fountain`, `throne`, `tree`, `bars`, `iron bars`, `drawbridge`, `water`, `lava`, `pool`, `moat`, `ice`, `air`, `floor`, `ground`, `ceiling`, `pit`, `web`, `trap`, `boulder`, `grave`, `headstone`
+  - ※石像（`statue`: `onum 476`）および死体（`corpse`: `onum 265`）は C コアで操作・捕食可能な正規アイテムであるため、遮断リストから除外し `type: 'item'` としてモンスター詳細付きで解決。
   - 一般的な身体部位・抽象名詞: `hand`, `hands`, `foot`, `feet`, `head`, `body`, `leg`, `arm`, `finger`, `neck`, `mind`, `stomach`, `purse`, `knapsack`, `bag`, `nothing`, `something`, `someone`, `it`, `yourself`
 - **動作ルール**:
   - 抽出された名詞候補（冠詞・指示詞 `the`, `this`, `that`, `a`, `an`, `your` 除去後）が上記リストに一致する場合、あるいは数値のみ（`^\d+$`）である場合は、どのトラックで検出されたとしても **`interactive: false`（平文 `text`）へ強制降格** します。

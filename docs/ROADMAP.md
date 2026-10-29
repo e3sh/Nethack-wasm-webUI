@@ -36,35 +36,21 @@ last_updated: 2026-10-29
 
 ## 🔥 1. 現在実施中・最優先フォーカス (Active Focus: 次期着手スロット)
 
+現在進行中（`in-progress`）のタスクはありません。直近の最優先タスクであった **「§2.1 セマンティック・メッセージトークン化 V2」** を含む全開発タスクが完遂し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行済みです。
+
 | 候補 | 対象タスク | 実装内容 / スコープ | ステータス |
 | :--- | :--- | :--- | :--- |
-| **完了** | **[§2.1 セマンティック・メッセージトークン化 V2: 物理コンテキスト制約 ＆ 正規化パイプライン抜本改修](./9_translation/semantic_message_tokenization_and_interactive_rendering_specification.ja.md)** | 単純な文字列推測（V1）を廃止し、自己の周辺環境・地形・所持品（Direct Binding / GKL）から予測範囲を狭める V2 アーキテクチャへの刷新。日常アイテム（拾得・ドロップ・足元・金貨）の100%救済、地形誤爆（`the door` 等）の完全遮断、BUC/強化値の多段正規化パイプライン実装 | **🟢 実装完了・Living Spec 移行済 (`implemented`)**<br>全テスト 100% PASS ＆ DoD 完遂 |
 | **次期着手候補** | **[§3.1 モダン総合インベントリダイアログ (`i`) ＆ 足元山積み二画面ファイラー (`,`)](./7_futures/modern_inventory_dialog_and_weight_analytics_architecture.ja.md)** | Direct Binding 床スタック直結・重量構成比バー付き 2 ペイン所持品コックピット ＆ 足元山積み二画面ファイラー | **💡 proposed / Ready for Design Alignment** |
+| **次期着手候補** | **[§3.4 Nehww モダン入力の Web Components 昇格 ＆ Headless 純化](./2_client_ui/input_mode_separation_and_semantic_action_architecture.ja.md#8-ui層肥大化の解消とコンポーネント化-nh--への移行方針)** | InputCoordinator への完全カプセル化 ＆ `<nh-context-actions>` Web Components 化 | **💡 proposed / Backlog** |
 
 ---
 
 ## ⏸️ 2. 設計完了・着手待ち (Wait / Pending / Ready)
 
-仕様・設計が完了しており、実装ステップが明確化されている次期着手タスクです。  
-※なお、**過去の設計完了タスク（命名アシスト、事後ナレッジ連携、キャラクター詳細ダイアログ＆Quick Dock、床落ちアイテム・コンテナ・Peek Wisdom、ASCII純化、アイテム正規化など）はすべて完遂**し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・整理済みです。
+現在、設計完了・着手待ち（`pending`）のタスクはありません。  
+**直近の「セマンティック・メッセージトークン化 V2」を含め、過去の全設計完了タスク（命名アシスト、事後ナレッジ連携、キャラクター詳細ダイアログ＆Quick Dock、床落ちアイテム・コンテナ・Peek Wisdom、ASCII純化、アイテム正規化、ブランチ同定＆エリアアナウンス等）はすべて 100% 完遂**し、**[§4 実装完了コア機能 (Living Specs)](#living-specs)** へ移行・統合済みです。
 
-### 2.1 セマンティック・メッセージトークン化 V2: 物理コンテキスト制約 ＆ 正規化パイプライン抜本改修
-- **ステータス**: `🟢 implemented (Living Spec 移行済)`
-- **設計書**: **[semantic_message_tokenization_and_interactive_rendering_specification.ja.md](./9_translation/semantic_message_tokenization_and_interactive_rendering_specification.ja.md)**
-- **背景とパラダイムシフト（V1 からの転換）**:
-  - V1（文字列先行・全カタログ照合方式）では、「`prinv` 等の動的バッファ出力により拾得・足元アイテムがカタログから漏れる」「ドロップ品が BUC/強化値未除去により辞書不一致で平文に落ちる」「`steed.c` や `pickup.c` の単一動詞パターンにより `"the door"` 等の地形がモンスター/アイテムとして誤爆する」「`steal.c` の `"%s gold %s."` により金貨の数値 `"100"` だけがモンスター化する」という優先度逆転が発生した。
-  - V2 では発想を転換し、**「単純にメッセージ文字列から推察するのではなく、自己の周辺環境・地形・持ち物（物理コンテキスト）からメッセージの対象・予測範囲を事前に狭める」** トップダウン制約アーキテクチャを採用する。
-- **V2 改修 4 ステップ (Step 1〜4)**:
-  - [x] **Step 1: `TokenKnowledgeResolver.js` の多段正規化パイプライン ＆ 環境遮断リスト実装**:
-    - インベントリ文字（`f - `）、括弧注記（`(being worn)` 等）、冠詞・数量、B/U/C 状態、浸食度、強化値（`+0` 等）、`A of B` 複数形（`potions of ...` → `potion of ...`）、金貨表記を剥がして基底名へ還元する `cleanEntityName()` の刷新。
-    - 地形・環境物（`door`, `wall`, `altar` 等）および数値単体を即時除外する遮断ゲート実装。
-  - [x] **Step 2: `tools/build_token_catalog.py` のサニタイズと静的カタログ再生成**:
-    - 誤爆元となっていた `steal.c:L867`（`%s gold %s.`）、`steed.c:L134` / `spell.c:L1051`（`%s resists`）、`pickup.c:L2068`（`%s is locked.`）、`dokick.c:L209`（`You kick %s.`）等の過剰一般化パターンを排除し、`MessageTokenCatalog.js` を再生成。
-  - [x] **Step 3: `MessageTokenParser.js` への第 1 層（日常アイテム・所持品・足元バインド）＆ 事後辞書検証ゲートの実装**:
-    - 拾得（`f - 5 daggers.`）、ドロップ（`You drop ...`）、足元確認（`You see here ...`）、金貨一体抽出（`100 gold pieces`）を最優先トラックとして実装。
-    - 静的カタログ（第 3 層）マッチ時にも `TokenKnowledgeResolver` で実在検証を行い、解決不能な死にリンク・地形ノイズを平文へ降格させる事後検証ゲートを統合。
-  - [x] **Step 4: 回帰テスト (`MessageTokenParser.test.js`) の全面拡充と DoD 検証**:
-    - 拾得・ドロップ・足元アイテム 100% 解決、金貨一体認識、`"the door"` 等の地形誤爆 0% を検証するテストスイートの完備。
+次期タスクを開始する際は、**[§3 構想・将来バックログ](#3-構想将来バックログ-backlog--ideas)** より要件定義・設計（RFC）を策定して着手します。
 
 ---
 

@@ -303,5 +303,41 @@ describe('Phase 2: MessageTokenParser 単体テスト', () => {
                 expect(tokens.every(t => t.type === 'text' && !t.interactive)).toBe(true);
             }
         });
+
+        it('死体 (corpse) と石像 (statue) が正規アイテムとして認識・解決されること', () => {
+            const corpseMsg = "You see here a goblin corpse.";
+            const tokens1 = parser.parse(corpseMsg);
+            expect(tokens1.map(t => t.text).join('')).toBe(corpseMsg);
+
+            const corpseToken = tokens1.find(t => t.type === 'item');
+            expect(corpseToken).toBeDefined();
+            expect(corpseToken.text).toBe('a goblin corpse');
+            expect(corpseToken.interactive).toBe(true);
+
+            const resolvedCorpse = tokenKnowledgeResolver.resolveTokenKnowledge(corpseToken);
+            expect(resolvedCorpse).not.toBeNull();
+            expect(resolvedCorpse.onum).toBe(265);
+            expect(resolvedCorpse.name).toBe('goblin corpse');
+            expect(resolvedCorpse.nameJa).toBe('ゴブリンの死体');
+            expect(resolvedCorpse.corpseMonster).toBeDefined();
+            expect(resolvedCorpse.corpseMonster.name.toLowerCase()).toBe('goblin');
+
+            const statueMsg = "You drop a statue of a kobold.";
+            const tokens2 = parser.parse(statueMsg);
+            expect(tokens2.map(t => t.text).join('')).toBe(statueMsg);
+
+            const statueToken = tokens2.find(t => t.type === 'item');
+            expect(statueToken).toBeDefined();
+            expect(statueToken.text).toBe('a statue of a kobold');
+            expect(statueToken.interactive).toBe(true);
+
+            const resolvedStatue = tokenKnowledgeResolver.resolveTokenKnowledge(statueToken);
+            expect(resolvedStatue).not.toBeNull();
+            expect(resolvedStatue.onum).toBe(476);
+            expect(resolvedStatue.name).toBe('statue of kobold');
+            expect(resolvedStatue.nameJa).toBe('コボルドの彫像');
+            expect(resolvedStatue.statueMonster).toBeDefined();
+            expect(resolvedStatue.statueMonster.name.toLowerCase()).toBe('kobold');
+        });
     });
 });

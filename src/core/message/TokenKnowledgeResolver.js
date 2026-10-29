@@ -15,11 +15,12 @@ import { OBJECT_KNOWLEDGE_MAP } from '../knowledge/data/OBJECT_KNOWLEDGE_FULL.js
 import { MONSTER_KNOWLEDGE_MAP } from '../knowledge/data/MONSTER_KNOWLEDGE_FULL.js';
 
 // 環境・地形・身体部位・抽象名詞ストップワード (V2: 誤爆完全遮断用)
+// ※ statue は正規オブジェクト (onum: 476) のため除外
 export const TERRAIN_AND_ENV_STOP_NOUNS = new Set([
     'door', 'doorway', 'wall', 'rock', 'stone', 'corridor', 'stairs', 'staircase',
     'ladder', 'altar', 'sink', 'fountain', 'throne', 'tree', 'bars', 'iron bars',
     'drawbridge', 'water', 'lava', 'pool', 'moat', 'ice', 'air', 'floor', 'ground',
-    'ceiling', 'pit', 'web', 'trap', 'boulder', 'grave', 'headstone', 'statue',
+    'ceiling', 'pit', 'web', 'trap', 'boulder', 'grave', 'headstone',
     'hand', 'hands', 'foot', 'feet', 'head', 'body', 'leg', 'arm', 'finger', 'neck',
     'mind', 'stomach', 'purse', 'knapsack', 'bag', 'nothing', 'something', 'someone',
     'it', 'yourself'
@@ -194,6 +195,52 @@ export class TokenKnowledgeResolver {
             }
         }
 
+        // 🍖 死体 (corpse: onum 265) 形式の還元
+        // 例: "goblin corpse" -> "corpse"
+        // 例: "lichen corpses" -> "corpse"
+        // 例: "corpse of a kobold" -> "corpse"
+        const corpseSuffixMatch = lower.match(/^(.+?)\s+corpses?$/);
+        if (corpseSuffixMatch) {
+            list.push('corpse');
+            const monPart = corpseSuffixMatch[1].trim();
+            list.push(monPart);
+            for (const r of this._getPluralReductions(monPart)) {
+                list.push(r);
+            }
+        }
+        const corpseOfMatch = lower.match(/^corpses?\s+of\s+(?:an?\s+|the\s+)?(.+)$/);
+        if (corpseOfMatch) {
+            list.push('corpse');
+            const monPart = corpseOfMatch[1].trim();
+            list.push(monPart);
+            for (const r of this._getPluralReductions(monPart)) {
+                list.push(r);
+            }
+        }
+
+        // 🗿 石像 (statue: onum 476) 形式の還元
+        // 例: "statue of a kobold" -> "statue"
+        // 例: "historic statue of a goblin" -> "statue"
+        // 例: "kobold statue" -> "statue"
+        const statueOfMatch = lower.match(/^(?:historic\s+)?statues?\s+of\s+(?:an?\s+|the\s+)?(.+)$/);
+        if (statueOfMatch) {
+            list.push('statue');
+            const monPart = statueOfMatch[1].trim();
+            list.push(monPart);
+            for (const r of this._getPluralReductions(monPart)) {
+                list.push(r);
+            }
+        }
+        const statueSuffixMatch = lower.match(/^(?:historic\s+)?(.+?)\s+statues?$/);
+        if (statueSuffixMatch) {
+            list.push('statue');
+            const monPart = statueSuffixMatch[1].trim();
+            list.push(monPart);
+            for (const r of this._getPluralReductions(monPart)) {
+                list.push(r);
+            }
+        }
+
         // 通常の複数形還元
         const baseReductions = this._getPluralReductions(lower);
         list.push(...baseReductions);
@@ -300,6 +347,41 @@ export class TokenKnowledgeResolver {
                         result.unidentifiedNameJa = matchedAppearanceItem.unidentifiedNameJa;
                     }
                 }
+
+                // 🍖 死体 (corpse: onum 265) のモンスター情報補強
+                if (result.onum === 265) {
+                    const lowerClean = cleanName.toLowerCase();
+                    const corpseMatch = lowerClean.match(/^(.+?)\s+corpses?$/) || lowerClean.match(/^corpses?\s+of\s+(?:an?\s+|the\s+)?(.+)$/);
+                    if (corpseMatch) {
+                        const monCandidate = corpseMatch[1].trim();
+                        const mon = this.monsterMap?.get(monCandidate) || this.monsterMap?.get(this._getPluralReductions(monCandidate)[0]);
+                        if (mon) {
+                            result.corpseMonster = mon;
+                            result.name = `${mon.name} corpse`;
+                            if (mon.nameJa) {
+                                result.nameJa = `${mon.nameJa}の死体`;
+                            }
+                        }
+                    }
+                }
+
+                // 🗿 石像 (statue: onum 476) のモンスター情報補強
+                if (result.onum === 476) {
+                    const lowerClean = cleanName.toLowerCase();
+                    const statueMatch = lowerClean.match(/^(?:historic\s+)?statues?\s+of\s+(?:an?\s+|the\s+)?(.+)$/) || lowerClean.match(/^(?:historic\s+)?(.+?)\s+statues?$/);
+                    if (statueMatch) {
+                        const monCandidate = statueMatch[1].trim();
+                        const mon = this.monsterMap?.get(monCandidate) || this.monsterMap?.get(this._getPluralReductions(monCandidate)[0]);
+                        if (mon) {
+                            result.statueMonster = mon;
+                            result.name = `statue of ${mon.name}`;
+                            if (mon.nameJa) {
+                                result.nameJa = `${mon.nameJa}の彫像`;
+                            }
+                        }
+                    }
+                }
+
                 return result;
             }
         }
@@ -372,6 +454,30 @@ export class TokenKnowledgeResolver {
             }
 
             if (token.type === 'item') {
+                const lowerClean = this.cleanEntityName(token.text).toLowerCase();
+
+                // 🍖 死体の合成和名 (例: "ゴブリンの死体")
+                const corpseMatch = lowerClean.match(/^(.+?)\s+corpses?$/) || lowerClean.match(/^corpses?\s+of\s+(?:an?\s+|the\s+)?(.+)$/);
+                if (corpseMatch) {
+                    const monCandidate = corpseMatch[1].trim();
+                    const mon = this.monsterMap?.get(monCandidate) || this.monsterMap?.get(this._getPluralReductions(monCandidate)[0]);
+                    if (mon && mon.nameJa) {
+                        return `${mon.nameJa}の死体`;
+                    }
+                    return '死体';
+                }
+
+                // 🗿 石像の合成和名 (例: "コボルドの彫像")
+                const statueMatch = lowerClean.match(/^(?:historic\s+)?statues?\s+of\s+(?:an?\s+|the\s+)?(.+)$/) || lowerClean.match(/^(?:historic\s+)?(.+?)\s+statues?$/);
+                if (statueMatch) {
+                    const monCandidate = statueMatch[1].trim();
+                    const mon = this.monsterMap?.get(monCandidate) || this.monsterMap?.get(this._getPluralReductions(monCandidate)[0]);
+                    if (mon && mon.nameJa) {
+                        return `${mon.nameJa}の彫像`;
+                    }
+                    return '彫像';
+                }
+
                 for (const item of this.objectMap.values()) {
                     if (item.name && item.name.toLowerCase() === lower) {
                         return item.nameJa || item.name;
@@ -429,6 +535,7 @@ export class TokenKnowledgeResolver {
 
             // 5. 浸食度・耐性・状態修飾子
             s = s.replace(EROSION_PREFIX_REGEX, '');
+            s = s.replace(/^(?:historic)\s+/i, '');
 
             // 6. 強化値 (+0, +1, -2 等)
             s = s.replace(ENCHANTMENT_PREFIX_REGEX, '');
