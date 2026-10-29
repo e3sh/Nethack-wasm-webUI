@@ -1,4 +1,5 @@
 import { FloorMarkerService } from "../../../../../src/core/knowledge/services/FloorMarkerService.js";
+import { drawDamagePopup } from "../fx/drawDamagePopup.js";
 
 /**
  * hd2dFxOverlay.js - WebGPU HD2D ジオラマ用 2D Canvas オーバーレイ描画マネージャー
@@ -76,6 +77,12 @@ export class HD2DFxOverlay {
 
   addVisualFx(fx) {
     if (!fx) return;
+    if (fx.type === 'DAMAGE_POPUP') {
+      const sameCellCount = this.activeFxList.filter(item =>
+        item.type === 'DAMAGE_POPUP' && item.gx === fx.gx && item.gy === fx.gy
+      ).length;
+      fx.stackIndex = sameCellCount;
+    }
     this.activeFxList.push(fx);
     this.wakeUp();
   }
@@ -634,6 +641,9 @@ export class HD2DFxOverlay {
           ctx.lineTo(screenX + 8, screenY + ts - 8);
           ctx.stroke();
         }
+      } else if (fx.type === 'DAMAGE_POPUP') {
+        // 🔢 敵モンスター被弾ポップアップ (セルの赤フラッシュなし)
+        drawDamagePopup(ctx, fx, screenX, screenY, ts, progress);
       } else if (fx.type === 'DAMAGE_FLASH') {
         const flashProgress = Math.min(1.0, elapsed / 160);
         if (flashProgress < 1.0) {
@@ -646,25 +656,7 @@ export class HD2DFxOverlay {
         }
 
         if (fx.amount !== undefined && fx.amount > 0) {
-          const textAlpha = Math.max(0, 1 - progress);
-          const floatY = -easeOut * (ts * 0.75);
-          const textX = screenX + ts / 2;
-          const textY = screenY + (ts * 0.25) + floatY;
-
-          ctx.save();
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          const fontSize = Math.max(12, Math.round(ts * 0.45));
-          ctx.font = `bold ${fontSize}px monospace, sans-serif`;
-
-          const text = `-${fx.amount}`;
-          ctx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
-          ctx.lineWidth = 3;
-          ctx.strokeText(text, textX, textY);
-
-          ctx.fillStyle = `rgba(255, 68, 68, ${textAlpha})`;
-          ctx.fillText(text, textX, textY);
-          ctx.restore();
+          drawDamagePopup(ctx, { text: `-${fx.amount}`, color: 'rgba(255, 68, 68, 1)' }, screenX, screenY, ts, progress);
         }
       } else if (fx.type === 'KILL_BURST') {
         const alpha = 1 - progress;

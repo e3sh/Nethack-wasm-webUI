@@ -24,6 +24,8 @@ enum ShimBridgeCmd {
     SHIM_CMD_GET_MONSTER_AT     = 0x21, /* a1=x, a2=y -> struct monst* */
     SHIM_CMD_GET_MONSTER_INFO   = 0x22, /* a1=x, a2=y -> mpeaceful(1) | mtame(1) | mhp(12) | mhpmax(12) */
     SHIM_CMD_GET_MONSTER_STATE  = 0x23, /* a1=x, a2=y -> msleeping(1) | mflee(1) | mcanmove(1) | isshk(1) | ispriest(1) */
+    SHIM_CMD_DUMP_VISIBLE_MONSTERS = 0x24, /* buf=int[N*8], len=bytes -> 視認可能モンスター一括ダンプ (返値: 件数) */
+    SHIM_CMD_GET_MVITALS_DIED      = 0x25, /* a1=mnum -> svm.mvitals[mnum].died (範囲外 -1) */
 
     /* 3. プレイヤー状態系 (0x30〜0x3F) */
     SHIM_CMD_GET_PLAYER_SUMMARY = 0x30, /* buf=long[8] -> [dnum, dlevel, ublesscnt, ugangr, uluck, ualign_record, uhunger, moves] */
@@ -190,6 +192,46 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
                 ((m->ispriest ? 1 : 0) << 6) |
                 ((m->cham ? 1 : 0) << 7)
             );
+        }
+        case SHIM_CMD_DUMP_VISIBLE_MONSTERS: {
+            /* 1 エントリ = int[8]:
+             *  [0] m_id  [1] mx  [2] my  [3] mhp  [4] mhpmax  [5] mnum
+             *  [6] flags (bit0 peaceful, bit1 tame, bit2 canseemon(直接視認), bit3 isshk, bit4 ispriest)
+             *  [7] reserved(0)
+             */
+            const int FIELDS = 8;
+            if (!buf || len < (int) (sizeof(int) * FIELDS)) return -1;
+            int *out = (int *) buf;
+            int max = len / (int) (sizeof(int) * FIELDS);
+            int n = 0;
+            struct monst *mtmp;
+            for (mtmp = fmon; mtmp && n < max; mtmp = mtmp->nmon) {
+                if (DEADMONSTER(mtmp)) continue;
+                if (mtmp == u.usteed) continue;                    /* 騎乗中の馬は対象外 */
+                if (!isok(mtmp->mx, mtmp->my)) continue;
+                if (!canspotmon(mtmp)) continue;                   /* 視認判定は C 真値 */
+                if (M_AP_TYPE(mtmp) != M_AP_NOTHING) continue;     /* 擬態中のミミックは情報を漏らさない */
+                int *e = out + n * FIELDS;
+                e[0] = (int) mtmp->m_id;
+                e[1] = mtmp->mx;
+                e[2] = mtmp->my;
+                e[3] = mtmp->mhp;
+                e[4] = mtmp->mhpmax;
+                e[5] = monsndx(mtmp->data);
+                e[6] = (mtmp->mpeaceful ? 1 : 0)
+                     | ((mtmp->mtame ? 1 : 0) << 1)
+                     | ((canseemon(mtmp) ? 1 : 0) << 2)
+                     | ((mtmp->isshk ? 1 : 0) << 3)
+                     | ((mtmp->ispriest ? 1 : 0) << 4);
+                e[7] = 0;
+                n++;
+            }
+            return (long) n;
+        }
+        case SHIM_CMD_GET_MVITALS_DIED: {
+            int mnum = (int) arg1;
+            if (mnum < LOW_PM || mnum >= NUMMONS) return -1;
+            return (long) svm.mvitals[mnum].died;
         }
 
         /* 3. プレイヤー状態 */

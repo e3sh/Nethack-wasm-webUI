@@ -392,6 +392,27 @@ export class WasmSyncCoordinator {
                     }
                 }
 
+                // 8.5 視認可能モンスターの一括同期 & 前回種族の mvitals[].died 同期 (DAMAGE_DEALT 判定用)
+                if (options.syncVisibleMonsters !== false && adapters.monster && typeof adapters.monster.fetchVisibleMonsters === 'function') {
+                    try {
+                        const prevSnapshot = adapters.monster._visibleSnapshot || [];
+                        const prevMnums = new Set(prevSnapshot.map(m => m.monOffset));
+                        await adapters.monster.fetchVisibleMonsters(bridge);
+                        if (isStale()) return false;
+                        for (const mnum of prevMnums) {
+                            if (typeof mnum === 'number' && mnum >= 0) {
+                                const diedRes = await bridge.callShim(SHIM_CMD.GET_MVITALS_DIED, mnum, 0);
+                                if (isStale()) return false;
+                                if (diedRes && typeof diedRes.result === 'number' && diedRes.result >= 0) {
+                                    adapters.monster.setDiedCache(mnum, diedRes.result);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // silent fallback
+                    }
+                }
+
                 // 9. プレイヤー属性・耐性 (SHIM_CMD_GET_PLAYER_PROPS: 69 * 4 = 276 bytes)
                 if (options.syncPlayerProps !== false && player) {
                     try {

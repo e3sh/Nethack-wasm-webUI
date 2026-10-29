@@ -239,6 +239,22 @@ describe('Combat Sound & EffectFX Integration Tests', () => {
         const dmgFx = engine.handleFxTrigger({ type: 'DAMAGE_TAKEN', targetX: 5, targetY: 5 });
         expect(dmgFx).not.toBeNull();
         expect(dmgFx.id).toBe('se_player_damaged');
+
+        // DAMAGE_DEALT (通常被弾: 直前に ATTACK_HIT がない場合)
+        const isolatedEngine = new SoundEngine({ soundMode: 'auto' });
+        const dealtFx = isolatedEngine.handleFxTrigger({ type: 'DAMAGE_DEALT', targetX: 6, targetY: 6, isKill: false });
+        expect(dealtFx).not.toBeNull();
+        expect(dealtFx.id).toBe('se_enemy_damaged');
+
+        // DAMAGE_DEALT (撃破: isKill=true は KILL_CONFIRMED が担当するためスキップ)
+        const killDealtFx = isolatedEngine.handleFxTrigger({ type: 'DAMAGE_DEALT', targetX: 6, targetY: 6, isKill: true });
+        expect(killDealtFx).toBeNull();
+
+        // suppressIfRecent: 直前に ATTACK_HIT が発生していた場合は DAMAGE_DEALT を抑止
+        const freshEngine = new SoundEngine({ soundMode: 'auto' });
+        freshEngine.handleFxTrigger({ type: 'ATTACK_HIT', targetX: 5, targetY: 5 });
+        const suppressedFx = freshEngine.handleFxTrigger({ type: 'DAMAGE_DEALT', targetX: 5, targetY: 5, isKill: false });
+        expect(suppressedFx).toBeNull();
     });
 
     it('should subscribe to core fx_trigger via attachCore', () => {

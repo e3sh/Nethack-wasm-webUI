@@ -100,6 +100,22 @@ export class SoundArbiter {
                 this._log('COOLDOWN_SKIP', `Sound ${rule.id} skipped due to cooldown (${rule.cooldownMs}ms)`, { rule, context });
                 return null;
             }
+        }
+
+        // 1.5 直近の特定 SE による抑止 (suppressIfRecent)
+        if (rule.suppressIfRecent && Array.isArray(rule.suppressIfRecent.ids)) {
+            const withinMs = rule.suppressIfRecent.withinMs || 400;
+            const suppressed = rule.suppressIfRecent.ids.some(supId => {
+                const supTime = this.cooldownMap.get(supId) || 0;
+                return (now - supTime) < withinMs;
+            });
+            if (suppressed) {
+                this._log('SUPPRESS_RECENT_SKIP', `Sound ${rule.id} suppressed due to recent sound within ${withinMs}ms`, { rule, context });
+                return null;
+            }
+        }
+
+        if (rule.id) {
             this.cooldownMap.set(rule.id, now);
         }
 

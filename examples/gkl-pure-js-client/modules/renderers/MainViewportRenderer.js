@@ -15,6 +15,7 @@ import { DEFAULT_TOMBSTONE_GLYPH } from "../../../../src/core/knowledge/state/Ar
 import { classifyGlyph, GLYPH_STONE } from "../../../../src/core/knowledge/engines/glyphClassifier.js";
 import { getTileCandidatePaths } from "../config/TileConfig.js";
 import { FloorMarkerService } from "../../../../src/core/knowledge/services/FloorMarkerService.js";
+import { drawDamagePopup } from "./fx/drawDamagePopup.js";
 
 export class MainViewportRenderer {
   constructor({
@@ -254,6 +255,12 @@ export class MainViewportRenderer {
   }
 
   addVisualFx(fx) {
+    if (fx && fx.type === 'DAMAGE_POPUP') {
+      const sameCellCount = this.activeFxList.filter(item =>
+        item.type === 'DAMAGE_POPUP' && item.gx === fx.gx && item.gy === fx.gy
+      ).length;
+      fx.stackIndex = sameCellCount;
+    }
     this.activeFxList.push(fx);
   }
 
@@ -882,6 +889,9 @@ export class MainViewportRenderer {
           this.ctx.lineTo(screenX + 8, screenY + ts - 8);
           this.ctx.stroke();
         }
+      } else if (fx.type === 'DAMAGE_POPUP') {
+        // 🔢 敵モンスター被弾ポップアップ (セルの赤フラッシュなし)
+        drawDamagePopup(this.ctx, fx, screenX, screenY, ts, progress);
       } else if (fx.type === 'DAMAGE_FLASH') {
         // 💥 被弾赤フラッシュ（最初の160msで素早く点滅）
         const flashProgress = Math.min(1.0, elapsed / 160);
@@ -894,27 +904,9 @@ export class MainViewportRenderer {
           this.ctx.strokeRect(screenX, screenY, ts, ts);
         }
 
-        // 🔢 ダメージ数値ポップアップ（上方向へ浮遊しながらフェードアウト）
+        // 🔢 ダメージ数値ポップアップ（共通ヘルパーを利用）
         if (fx.amount !== undefined && fx.amount > 0) {
-          const textAlpha = Math.max(0, 1 - progress);
-          const floatY = -easeOut * (ts * 0.75);
-          const textX = screenX + ts / 2;
-          const textY = screenY + (ts * 0.25) + floatY;
-
-          this.ctx.save();
-          this.ctx.textAlign = 'center';
-          this.ctx.textBaseline = 'middle';
-          const fontSize = Math.max(12, Math.round(ts * 0.45));
-          this.ctx.font = `bold ${fontSize}px monospace, sans-serif`;
-
-          const text = `-${fx.amount}`;
-          this.ctx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
-          this.ctx.lineWidth = 3;
-          this.ctx.strokeText(text, textX, textY);
-
-          this.ctx.fillStyle = `rgba(255, 68, 68, ${textAlpha})`;
-          this.ctx.fillText(text, textX, textY);
-          this.ctx.restore();
+          drawDamagePopup(this.ctx, { text: `-${fx.amount}`, color: 'rgba(255, 68, 68, 1)' }, screenX, screenY, ts, progress);
         }
       } else if (fx.type === 'KILL_BURST') {
         // 💀 撃破消滅バースト

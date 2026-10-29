@@ -1,4 +1,5 @@
 import { getTileCandidatePaths } from "../config/TileConfig.js";
+import { drawDamagePopup } from "./fx/drawDamagePopup.js";
 
 /**
  * @deprecated
@@ -133,6 +134,12 @@ export class ZoomRenderer {
   }
 
   addVisualFx(fx) {
+    if (fx && fx.type === 'DAMAGE_POPUP') {
+      const sameCellCount = this.activeFxList.filter(item =>
+        item.type === 'DAMAGE_POPUP' && item.gx === fx.gx && item.gy === fx.gy
+      ).length;
+      fx.stackIndex = sameCellCount;
+    }
     this.activeFxList.push(fx);
   }
 
@@ -362,6 +369,9 @@ export class ZoomRenderer {
           this.zoomCtx.lineTo(screenX + 8, screenY + zoomTileSize - 8);
           this.zoomCtx.stroke();
         }
+      } else if (fx.type === 'DAMAGE_POPUP') {
+        // 🔢 敵モンスター被弾ポップアップ (セルの赤フラッシュなし)
+        drawDamagePopup(this.zoomCtx, fx, screenX, screenY, zoomTileSize, progress);
       } else if (fx.type === 'DAMAGE_FLASH') {
         // 💥 被弾赤フラッシュ (最初の160msで素早く点滅)
         const flashProgress = Math.min(1.0, elapsed / 160);
@@ -374,27 +384,9 @@ export class ZoomRenderer {
           this.zoomCtx.strokeRect(screenX, screenY, zoomTileSize, zoomTileSize);
         }
 
-        // 🔢 ダメージ数値ポップアップ（上方向へ浮遊しながらフェードアウト）
+        // 🔢 ダメージ数値ポップアップ（共通ヘルパーを利用）
         if (fx.amount !== undefined && fx.amount > 0) {
-          const textAlpha = Math.max(0, 1 - progress);
-          const floatY = -easeOut * (zoomTileSize * 0.75);
-          const textX = screenX + zoomTileSize / 2;
-          const textY = screenY + (zoomTileSize * 0.25) + floatY;
-
-          this.zoomCtx.save();
-          this.zoomCtx.textAlign = 'center';
-          this.zoomCtx.textBaseline = 'middle';
-          const fontSize = Math.max(12, Math.round(zoomTileSize * 0.45));
-          this.zoomCtx.font = `bold ${fontSize}px monospace, sans-serif`;
-
-          const text = `-${fx.amount}`;
-          this.zoomCtx.strokeStyle = `rgba(0, 0, 0, ${textAlpha * 0.9})`;
-          this.zoomCtx.lineWidth = 3;
-          this.zoomCtx.strokeText(text, textX, textY);
-
-          this.zoomCtx.fillStyle = `rgba(255, 68, 68, ${textAlpha})`;
-          this.zoomCtx.fillText(text, textX, textY);
-          this.zoomCtx.restore();
+          drawDamagePopup(this.zoomCtx, { text: `-${fx.amount}`, color: 'rgba(255, 68, 68, 1)' }, screenX, screenY, zoomTileSize, progress);
         }
       } else if (fx.type === 'KILL_BURST') {
         // 💀 撃破消滅バースト (放射状パーティクル・クロス光)

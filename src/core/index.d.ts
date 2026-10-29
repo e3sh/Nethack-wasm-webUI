@@ -190,10 +190,12 @@ export interface GameOverResult {
 export type FxTriggerType = 
     | 'ATTACK_HIT' 
     | 'DAMAGE_TAKEN' 
+    | 'DAMAGE_DEALT'
     | 'KILL_CONFIRMED' 
     | 'RECOVER_HEAL'
     | 'PLAYER_DIED'
-    | 'PLAYER_RESURRECTED';
+    | 'PLAYER_RESURRECTED'
+    | 'AREA_ENTERED';
 
 export interface FxTriggerPayload {
     type: FxTriggerType;
@@ -206,6 +208,53 @@ export interface FxTriggerPayload {
     text?: string;
     reason?: string;
     timestamp: number;
+
+    /** C コア m_id (個体識別子) */
+    monsterId?: number;
+    /** 種族 (mnum / monsndx) */
+    monOffset?: number;
+    /** 前回のターン確定時の HP */
+    prevHp?: number;
+    /** 撃破による消失 (currentHp = 0) */
+    isKill?: boolean;
+    /** true の場合 amount は下限値 (撃破時は実ダメージ >= prevHp) */
+    amountIsLowerBound?: boolean;
+    /** 撃破メッセージ ("You kill" 等) でプレイヤーの撃破と確認できたか */
+    byPlayer?: boolean;
+    isPeaceful?: boolean;
+    isTame?: boolean;
+}
+
+/** C コア 0x24 DUMP_VISIBLE_MONSTERS の 1 エントリ */
+export interface VisibleMonsterSnapshot {
+    monsterId: number;
+    x: number;
+    y: number;
+    hp: number;
+    maxHp: number;
+    monOffset: number;
+    peaceful: boolean;
+    tame: boolean;
+    directlySeen: boolean;
+    isShopkeeper: boolean;
+    isPriest: boolean;
+}
+
+/** MonsterVitalsTracker.reconcile() の出力 */
+export interface MonsterDamageEvent {
+    monsterId: number;
+    monOffset: number;
+    x: number;
+    y: number;
+    amount: number;
+    prevHp: number;
+    currentHp: number;
+    maxHp: number;
+    isKill: boolean;
+    amountIsLowerBound: boolean;
+    byPlayer: boolean;
+    isPeaceful: boolean;
+    isTame: boolean;
 }
 
 // --- ステータス ＆ ナレッジ層 (GKL) ---

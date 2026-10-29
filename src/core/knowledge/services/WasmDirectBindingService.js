@@ -631,6 +631,23 @@ export class WasmDirectBindingService {
     }
 
     /**
+     * 視認可能モンスターの一括スナップショットを取得 (LiveMemory: 同期 / Worker: キャッシュ参照)
+     * @returns {import('../../../index').VisibleMonsterSnapshot[]|null}
+     */
+    dumpVisibleMonsters() {
+        return this.monsterAdapter.dumpVisibleMonsters(this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
+     * 指定種族の死亡数 (svm.mvitals[mnum].died) を取得
+     * @param {number} mnum
+     * @returns {number|null}
+     */
+    getMvitalsDied(mnum) {
+        return this.monsterAdapter.getMvitalsDied(mnum, this.memory, this.isAvailable(), this.hasLiveMemory);
+    }
+
+    /**
      * テスト用 / Worker 受信用 モンスターキャッシュ設定
      * @param {number} x
      * @param {number} y

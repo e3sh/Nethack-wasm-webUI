@@ -384,6 +384,19 @@ export class SoundEventRouter {
                 };
                 break;
 
+            case 'DAMAGE_DEALT':
+                // 撃破 SE は KILL_CONFIRMED (messageText 時点) が担当 → 二重再生しない
+                if (fx.isKill) break;
+                soundEvent = {
+                    id: 'se_enemy_damaged',
+                    sound: 'enemy_hit.mp3',
+                    beep: { notes: ["A4", "E4"], wave: "triangle", duration: 40 },
+                    priority: 30,
+                    cooldownMs: 120,
+                    suppressIfRecent: { ids: ['se_attack_hit'], withinMs: 400 }
+                };
+                break;
+
             case 'RULE_MATCH':
                 soundEvent = fx.rule;
                 break;

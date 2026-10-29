@@ -227,6 +227,34 @@ export class GKLFxCoordinator {
     }
 
     /**
+     * MonsterVitalsTracker の差分結果を DAMAGE_DEALT として発行
+     * @param {import('../../index').MonsterDamageEvent[]} events
+     */
+    emitDamageEvents(events) {
+        if (!Array.isArray(events) || events.length === 0 || this.isPlayerDead) return;
+        for (const ev of events) {
+            if (!(ev.amount > 0)) continue;
+            this.plugin.emitFxTrigger({
+                type: 'DAMAGE_DEALT',
+                targetX: ev.x,
+                targetY: ev.y,
+                isPlayer: false,
+                monsterId: ev.monsterId,
+                monOffset: ev.monOffset,
+                amount: ev.amount,
+                prevHp: ev.prevHp,
+                currentHp: ev.currentHp,
+                maxHp: ev.maxHp,
+                isKill: ev.isKill,
+                amountIsLowerBound: ev.amountIsLowerBound,
+                byPlayer: ev.byPlayer,
+                isPeaceful: ev.isPeaceful,
+                isTame: ev.isTame
+            });
+        }
+    }
+
+    /**
      * HP 変動時の被ダメージ・回復・フェイルセーフ蘇生検知
      * @param {number|string} value
      */

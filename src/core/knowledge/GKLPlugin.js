@@ -14,6 +14,7 @@ import { OnDemandLookService } from "./services/OnDemandLookService.js";
 import { OnDemandLookupService } from "./services/OnDemandLookupService.js";
 import { DiscoveryStateManager } from "./state/DiscoveryStateManager.js";
 import { MonsterTracker } from "./state/MonsterTracker.js";
+import { MonsterVitalsTracker } from "./state/MonsterVitalsTracker.js";
 import { WishService } from "./services/WishService.js";
 import { GenocideService } from "./services/GenocideService.js";
 import { PolymorphService } from "./services/PolymorphService.js";
@@ -43,6 +44,7 @@ export class GKLPlugin {
     constructor(options = {}) {
         this.statusAccessor = new StatusAccessor();
         this.monsterTracker = options.monsterTracker || new MonsterTracker();
+        this.monsterVitalsTracker = options.monsterVitalsTracker || new MonsterVitalsTracker();
         this.areaStateManager = new AreaStateManager(80, 24, this.monsterTracker);
         this.areaStateManager.onFloorChange = () => {
             this.syncDungeonOverviewOnDemand();
@@ -281,6 +283,7 @@ export class GKLPlugin {
     reset() {
         this.fxCoordinator.reset();
         this.monsterTracker?.reset?.();
+        this.monsterVitalsTracker?.reset?.();
         if (this.areaStateManager) {
             if (typeof this.areaStateManager.resetAll === 'function') {
                 this.areaStateManager.resetAll();
@@ -631,6 +634,7 @@ export class GKLPlugin {
     getConditionStateManager() { return this.conditionStateManager; }
     getAreaStateManager() { return this.areaStateManager; }
     getMonsterTracker() { return this.monsterTracker; }
+    getMonsterVitalsTracker() { return this.monsterVitalsTracker; }
     getStatusAccessor() { return this.statusAccessor; }
     getDiscoveryStateManager() { return this.discoveryStateManager; }
     getInteractionContext() { return this.interactionContext; }

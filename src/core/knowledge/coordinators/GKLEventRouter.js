@@ -168,6 +168,7 @@ export class GKLEventRouter {
                             syncedAreaInfo = p.areaStateManager.syncPlayerSummary(syncedSummary);
                             if (syncedAreaInfo && syncedAreaInfo.isNewFloor && p.monsterTracker && typeof p.monsterTracker.handleDlevelChange === 'function') {
                                 p.monsterTracker.handleDlevelChange(syncedAreaInfo.floorKey);
+                                p.monsterVitalsTracker?.reset();
                             }
                             if (typeof p.syncDungeonOverviewOnDemand === 'function') {
                                 p.syncDungeonOverviewOnDemand();
@@ -253,8 +254,8 @@ export class GKLEventRouter {
                     if (syncedSummary) {
                         if (syncedAreaInfo && syncedAreaInfo.isNewBranch) {
                             core.emit('areaEntered', syncedAreaInfo);
-                            if (p.gklFxCoordinator && typeof p.gklFxCoordinator.emitFxTrigger === 'function') {
-                                p.gklFxCoordinator.emitFxTrigger({
+                            if (p.fxCoordinator && typeof p.fxCoordinator.emitFxTrigger === 'function') {
+                                p.fxCoordinator.emitFxTrigger({
                                     type: 'AREA_ENTERED',
                                     branchId: syncedAreaInfo.branchId,
                                     title: syncedAreaInfo.branchName,
@@ -266,6 +267,16 @@ export class GKLEventRouter {
                             }
                         }
                         core.emit('playerSummaryUpdated', syncedSummary);
+                    }
+
+                    // 🎯 11. モンスター HP 差分 (DAMAGE_DEALT) の導出 — C 真値スナップショット比較
+                    if (p.monsterVitalsTracker) {
+                        const dbs = p.wasmDirectBindingService;
+                        const snapshot = dbs.dumpVisibleMonsters();
+                        const events = p.monsterVitalsTracker.reconcile(snapshot, {
+                            getDied: (mnum) => dbs.getMvitalsDied(mnum)
+                        });
+                        p.fxCoordinator.emitDamageEvents(events);
                     }
                 }
 
@@ -359,6 +370,14 @@ export class GKLEventRouter {
                 }
                 if (killedInfo) {
                     p.fxCoordinator.onMonsterKilled(killedInfo);
+                    if (p.monsterVitalsTracker) {
+                        const pos = killedInfo.lastKnownPos ?? p._lastAttackTarget ?? null;
+                        p.monsterVitalsTracker.noteKillMessage({
+                            x: pos?.x,
+                            y: pos?.y,
+                            byPlayer: /\byou (kill|destroy|defeated)\b/i.test(text)
+                        });
+                    }
                 }
                 if (typeof p.inventoryStateManager.updateFromMessage === 'function') {
                     const updated = p.inventoryStateManager.updateFromMessage(text);

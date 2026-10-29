@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-NH_ROOT="${1:-/mnt/c/Users/e3-sh/Desktop/works/NetHack-NetHack-5.0_org/NetHack-NetHack-5.0.1_Oct16_2026}"
+NH_ROOT="${1:-/mnt/c/Users/e3-sh/Desktop/works/NetHack-NetHack-5.0_org/NetHack-NetHack-5.0.1_Oct29_2026}"
 EMSDK_PATH="${2:-$HOME/emsdk}"
 LUA_SOURCE_FALLBACK="/mnt/c/Users/e3-sh/Documents/Antigravity/NetHack/lib/lua-5.4.8"
 

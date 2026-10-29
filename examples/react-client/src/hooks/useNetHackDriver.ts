@@ -142,6 +142,27 @@ class NetHackDriverController {
           durationMs: 160,
         });
         s.triggerScreenShake(3, 100);
+      } else if (fx.type === 'DAMAGE_DEALT') {
+        const ratio = (fx.maxHp && fx.maxHp > 0) ? (fx.amount / fx.maxHp) : 0;
+        const isCritical = !fx.isKill && ratio >= 0.5;
+        const color = fx.isTame ? '#4dd0e1'
+          : fx.isPeaceful ? '#b0bec5'
+          : fx.isKill ? '#ff9100'
+          : isCritical ? '#ffea00'
+          : '#fff59d';
+        s.triggerFx({
+          type: 'DAMAGE_POPUP',
+          gx: fx.targetX,
+          gy: fx.targetY,
+          followPlayer: false,
+          amount: fx.amount,
+          text: `-${fx.amount}`,
+          color,
+          scale: (fx.isKill || isCritical) ? 1.3 : 1.0,
+          startTime: now,
+          durationMs: fx.isKill ? 700 : 500,
+        });
+        if (isCritical) s.triggerScreenShake(1, 80);
       } else if (fx.type === 'KILL_CONFIRMED') {
         s.triggerFx({
           type: 'KILL_BURST',

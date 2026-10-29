@@ -65,6 +65,27 @@ export class VisualFxDispatcher {
         color: '#ff1744'
       });
       this.dispatchShake(3, 100);
+    } else if (fx.type === 'DAMAGE_DEALT') {
+      const ratio = (fx.maxHp && fx.maxHp > 0) ? (fx.amount / fx.maxHp) : 0;
+      const isCritical = !fx.isKill && ratio >= 0.5;
+      const color = fx.isTame ? '#4dd0e1'          // ペット被弾: シアン
+        : fx.isPeaceful ? '#b0bec5'                // 平和モンスター: グレー
+        : fx.isKill ? '#ff9100'                    // 撃破: オレンジ
+        : isCritical ? '#ffea00'                   // 大ダメージ: 明るい黄色
+        : '#fff59d';                               // 通常: 淡い黄色
+      this.dispatchFx({
+        type: 'DAMAGE_POPUP',
+        gx: fx.targetX,
+        gy: fx.targetY,
+        followPlayer: false,
+        amount: fx.amount,
+        text: `-${fx.amount}`,
+        color,
+        scale: (fx.isKill || isCritical) ? 1.3 : 1.0,
+        startTime: now,
+        durationMs: fx.isKill ? 700 : 550
+      });
+      if (isCritical) this.dispatchShake(1, 80);
     } else if (fx.type === 'KILL_CONFIRMED') {
       this.dispatchFx({
         type: 'KILL_BURST',

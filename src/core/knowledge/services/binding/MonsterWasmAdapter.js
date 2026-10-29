@@ -7,9 +7,44 @@
 
 import { SHIM_CMD } from './BindingConstants.js';
 
+export const VIS_MON_FIELDS = 8;
+export const VIS_MON_MAX = 256;
+
+/**
+ * C コア 0x24 DUMP_VISIBLE_MONSTERS の int32 配列をアンパック
+ * @param {Int32Array|number[]} raw
+ * @param {number} count
+ * @returns {import('../../../index').VisibleMonsterSnapshot[]}
+ */
+export function unpackVisibleMonsters(raw, count) {
+    const list = [];
+    for (let i = 0; i < count; i++) {
+        const b = i * VIS_MON_FIELDS;
+        const flags = raw[b + 6] | 0;
+        list.push({
+            monsterId: raw[b] >>> 0,
+            x: raw[b + 1],
+            y: raw[b + 2],
+            hp: raw[b + 3],
+            maxHp: raw[b + 4],
+            monOffset: raw[b + 5],
+            peaceful: Boolean(flags & 0x01),
+            tame: Boolean(flags & 0x02),
+            directlySeen: Boolean(flags & 0x04),
+            isShopkeeper: Boolean(flags & 0x08),
+            isPriest: Boolean(flags & 0x10)
+        });
+    }
+    return list;
+}
+
 export class MonsterWasmAdapter {
     constructor() {
         this._cachedMonsters = new Map();
+        /** @type {import('../../../index').VisibleMonsterSnapshot[]|null} */
+        this._visibleSnapshot = null;
+        /** @type {Map<number, number>} mnum -> died */
+        this._diedCache = new Map();
     }
 
     get cachedMonsters() {
@@ -253,11 +288,94 @@ export class MonsterWasmAdapter {
     }
 
     /**
+     * 視認可能モンスターの一括スナップショットを取得 (LiveMemory: 同期 / Worker: キャッシュ参照)
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {import('../../../index').VisibleMonsterSnapshot[]|null}
+     */
+    dumpVisibleMonsters(memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return null;
+        if (hasLiveMemory && memory) {
+            const bufSize = VIS_MON_MAX * VIS_MON_FIELDS * 4;
+            const bufPtr = memory.allocateBuffer(bufSize);
+            if (!bufPtr) return null;
+            try {
+                const count = memory.bridgeCall(SHIM_CMD.DUMP_VISIBLE_MONSTERS, 0, 0, bufPtr, bufSize);
+                if (count < 0) return null;
+                const raw = memory.readInt32Array(bufPtr, count * VIS_MON_FIELDS);
+                this._visibleSnapshot = unpackVisibleMonsters(raw, count);
+                return this._visibleSnapshot;
+            } finally {
+                memory.freeBuffer(bufPtr);
+            }
+        }
+        return this._visibleSnapshot ?? null;
+    }
+
+    /**
+     * Worker モード用: 非同期に視認可能モンスターを一括取得して内部キャッシュに格納
+     * @param {Object} bridge
+     * @returns {Promise<import('../../../index').VisibleMonsterSnapshot[]|null>}
+     */
+    async fetchVisibleMonsters(bridge) {
+        if (!bridge || typeof bridge.callShim !== 'function') return null;
+        try {
+            const bufSize = VIS_MON_MAX * VIS_MON_FIELDS * 4;
+            const res = await bridge.callShim(SHIM_CMD.DUMP_VISIBLE_MONSTERS, 0, 0, bufSize, 'int32');
+            const count = (res && typeof res.result === 'number') ? res.result : -1;
+            if (count >= 0 && Array.isArray(res.buffer)) {
+                this._visibleSnapshot = unpackVisibleMonsters(res.buffer, count);
+                return this._visibleSnapshot;
+            }
+            this._visibleSnapshot = null;
+            return null;
+        } catch (err) {
+            console.warn('[MonsterWasmAdapter] fetchVisibleMonsters error:', err);
+            return null;
+        }
+    }
+
+    /**
+     * 指定種族の死亡数 (svm.mvitals[mnum].died) を取得
+     * @param {number} mnum
+     * @param {Object} memory
+     * @param {boolean} isAvailable
+     * @param {boolean} hasLiveMemory
+     * @returns {number|null}
+     */
+    getMvitalsDied(mnum, memory, isAvailable, hasLiveMemory) {
+        if (!isAvailable) return null;
+        if (typeof mnum !== 'number' || mnum < 0) return null;
+
+        if (hasLiveMemory && memory) {
+            const val = memory.bridgeCall(SHIM_CMD.GET_MVITALS_DIED, mnum, 0, 0, 0);
+            return (val >= 0) ? val : null;
+        }
+
+        return this._diedCache?.get(mnum) ?? null;
+    }
+
+    /**
+     * Worker モード / テスト用: 種族別死亡数キャッシュを設定
+     * @param {number} mnum
+     * @param {number} val
+     */
+    setDiedCache(mnum, val) {
+        if (!this._diedCache) this._diedCache = new Map();
+        this._diedCache.set(mnum, val);
+    }
+
+    /**
      * フロア移動時のモンスターキャッシュクリア
      */
     clearFloorCaches() {
         if (this._cachedMonsters) {
             this._cachedMonsters.clear();
+        }
+        this._visibleSnapshot = null;
+        if (this._diedCache) {
+            this._diedCache.clear();
         }
     }
 }

@@ -2,7 +2,7 @@
 # Official 100% Unmodified C-Core Build
 
 param(
-    [string]$NH_ROOT = "C:\Users\e3-sh\Desktop\works\NetHack-NetHack-5.0_org\NetHack-NetHack-5.0.1_Oct16_2026",
+    [string]$NH_ROOT = "C:\Users\e3-sh\Desktop\works\NetHack-NetHack-5.0_org\NetHack-NetHack-5.0.1_Oct29_2026",
     [string]$EMSDK_PATH = "C:\Users\e3-sh\Documents\GitHub\emsdk",
     [string]$VCVARS_PATH = "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat",
     [string]$LUA_SOURCE_FALLBACK = "C:\Users\e3-sh\Documents\Antigravity\NetHack\lib\lua-5.4.8"
