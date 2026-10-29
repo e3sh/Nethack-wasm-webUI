@@ -1,8 +1,8 @@
 ---
-title: セマンティック・メッセージトークン化 ＆ インタラクティブ描画仕様書
-subtitle: 静的型付き構文カタログ・2層防壁戦闘検出・GKLナレッジカード連携
-status: pending
-last_updated: 2026-10-21
+title: セマンティック・メッセージトークン化 ＆ 物理コンテキスト制約アーキテクチャ仕様書 (V2)
+subtitle: 周辺環境・所持品からの予測範囲狭小化・静的カタログ浄化・GKLナレッジ連携
+status: implemented
+last_updated: 2026-10-29
 author: AI Pair Programmer & e3-sh
 related_docs:
   - docs/ROADMAP.md
@@ -12,251 +12,242 @@ related_docs:
   - docs/3_gkl/canonical_item_schema_and_normalization_architecture.ja.md
 ---
 
-# 🧩 セマンティック・メッセージトークン化 ＆ インタラクティブ描画仕様書
-*(Semantic Message Tokenization & Interactive Rendering Specification: Static-Typed Catalog to GKL Pipeline)*
+# 🧩 セマンティック・メッセージトークン化 ＆ 物理コンテキスト制約アーキテクチャ仕様書 (V2)
+*(Context-Constrained Semantic Message Tokenization & Interactive Rendering Specification)*
 
-## 1. 背景と基本方針 (Background & Core Philosophy)
+## 1. 背景とパラダイムシフト (Background & Paradigm Shift)
 
-### 1.1 「メッセージ内の名詞特定 → クリック → GKL ナレッジ表示」への純化
-NetHack のテキスト出力（WASM C コアからの `putstr` / `pline` 等）は、伝統的に単一のフラットな文字列として画面に流されてきました。
-本仕様は、**NetHack 本体の C コアを一切改変せず（公式 C 非改変・SSOT 原則）**、C ソースコード静的解析データ（`c_arguments`）および Direct Binding 物理状態監視を活用し、メッセージ内の名詞（モンスター名・アイテム名）を安全にトークン化し、ユーザーのクリック操作から GKL ナレッジカード（`<nh-knowledge-card>`）へシームレスに連携するアーキテクチャを定義します。
+### 1.1 V1（文字列先行・全カタログ照合方式）の反省と構造的欠陥
+初期実装（V1）では、「画面に流れてきた文字列（`rawText`）を、C ソース全 14,849 件から自動抽出した静的正規表現カタログ（第 1 トラック）に無差別で当てはめる」というボトムアップ（文字列ドリブン）のアプローチを採っていました。
+その結果、実際のゲームプレイにおいて以下の **「重要情報とノイズの優先度逆転（本末転倒）」** が発生しました：
+
+1. **最重要である「拾ったアイテム・置いたアイテム・足元の品」が一切リンク化されない**:
+   - **拾得時 (`f - 5 daggers.`)**: C コアの `prinv()` が `pline("%s%s%s%s", ...)` という動的バッファ結合で出力するため、固定文字列を持たず静的カタログから 100% 除外されていた。
+   - **足元確認 (`You see here an uncursed dagger.`)**: `invent.c` の `You("%s here %s.", ...)` が固定語 `"here"` をストップワード判定されてカタログから脱落していた。
+   - **ドロップ時 (`You drop an uncursed +0 dagger.`)**: カタログにはマッチするものの、`TokenKnowledgeResolver` 側に B/U/C（`uncursed`）や強化値（`+0`）の除去パイプラインがなく、辞書（真名 `"dagger"`）との完全一致照合が 100% 失敗して平文にフォールバックしていた。
+2. **無意味な地形や環境物（`"the door"` 等）がモンスター/アイテムとして誤爆する**:
+   - `steed.c`（騎乗動物の抵抗: `^(.*?) resists!$`）や `pickup.c`（宝箱の施錠: `^(.*?) is locked\.$`）、`dokick.c`（`^You kick (.*?)\.$`）など、動詞 1 語しか固定部分を持たない過剰一般化パターンが、扉を開けようとした時や蹴った時の `"The door resists!"` / `"The door is locked."` に誤爆し、扉をモンスターやアイテムとしてリンク化していた。
+3. **金貨メッセージで「最初の数字（100）」だけが切り取られてモンスターになる**:
+   - `steal.c:L867`（番兵死亡時の所持金消滅: `pline("%s gold %s.", s_suffix(Monnam(mtmp)), ...)`）から生成された `^(.*?) gold (.*?)\.$`（第 1 引数 = `monster` 型）が、通常の `"100 gold pieces."` にマッチし、数値の **`"100"` だけをモンスターとして切り取る** 致命的誤爆を引き起こしていた。
+
+---
+
+### 1.2 V2 の基本思想：「周辺環境・物理コンテキストによる予測範囲の狭小化」
+NetHack の世界において、**「プレイヤーが今どこに立ち、足元に何が落ち、インベントリに何を持ち、隣接マスにどのモンスターや地形（扉・祭壇等）が存在するか」は、Wasm Direct Binding および GKL（Game Knowledge Layer）がすでに 100% 把握している【確定した物理真値（SSOT）】** です。
+
+馬にも乗っていないのに騎乗メッセージを疑い、番兵もいないのに泥棒メッセージを疑う必要はありません。
+V2 アーキテクチャでは発想を 180 度転換し、**「単純にメッセージ文字列から推察するのではなく、自己の周辺環境・地形・持ち物（物理コンテキスト）からメッセージの予測範囲を事前に狭める」** トップダウン制約方式を採用します。
 
 ```mermaid
 flowchart TD
-    Raw["生テキスト (pline / rawText)"]
-    --> Branch{"メッセージ系統の判定"}
-    
-    Branch -->|通常メッセージ| Catalog["【第1トラック】静的型付きカタログ照合<br>(source_messages_mapped.json 由来)"]
-    Branch -->|戦闘ターン内メッセージ| Combat["【第2トラック】2層防壁 戦闘検出<br>(Direct Binding 物理状態 × SVO 構文解析)"]
-    
-    Catalog --> Tokenizer["MessageTokenParser<br>範囲スライス ＆ 静的型 (monster/item) 付与"]
-    Combat --> Tokenizer
-    
-    Tokenizer --> AST["軽量構造化トークン配列 (Message Tokens)<br>・[Text: 'You hit the ']<br>・[Token: 'jackal' (type: monster, range: [12, 18])]<br>・[Text: '.']"]
-    
-    AST --> RouteA["【DOM レイヤー描画】<br>メッセージ履歴ドロワー / HUD<br>・CSS シンタックスハイライト<br>・クリック / キーボード選択可能化"]
-    
-    RouteA -->|ユーザーがトークンをクリック| Resolver["クリック時遅延解決 (Lazy Resolution)<br>・Item: OBJECT_KNOWLEDGE_MAP 照合 → onum 確定<br>・Monster: MONSTER_KNOWLEDGE_MAP 照合 → monNum 確定"]
-    
-    Resolver -->|解決成功| Card["GKL ナレッジカード表示<br>&lt;nh-knowledge-card&gt;<br>・公式解説 / 耐性 / 弱点 / スペック"]
-    Resolver -->|未識別・曖昧| Plain["平文フォールバック<br>(推測・捏造せず安全に平文表示)"]
-```
-
-### 1.2 確定設計方針（不変原則）
-1. **NetHack C コア非改変の SSOT 原則**:
-   - C 側でメッセージに型情報を能動的に付与する改変（`putmixed` 等）は不採用。
-   - `shim_bridge.c` はプロジェクト管理下の読み取り専用拡張とし、メッセージ発生時のリアルタイム状態照会も行わない。
-2. **2 つのトラックによる完全カバー**:
-   - **第 1 トラック（通常メッセージ）**: ビルド時に `tools/data/source_messages_mapped.json` の `c_arguments`（C 引数式）から静的に分類・カタログ化。
-   - **第 2 トラック（戦闘メッセージ）**: バッファ組立て文に対し、「Direct Binding 物理状態遷移」と「S-V-O 構文解析」の 2 層防壁で誤検出ゼロの動的判定。
-3. **クリック時遅延解決（Lazy Resolution）と名詞解決の一本化**:
-   - トークン自身は「範囲（range）＋型（type: monster/item）＋原文（rawText）」のみを保持し、冠詞・複数形正規化の新規実装は行わない。
-   - ID 解決（`onum` / `monNum`）はクリック時に既存の静的名称表（`OBJECT_KNOWLEDGE_MAP` / `MONSTER_KNOWLEDGE_MAP`）へ委譲する。一意に決まらない場合は推測せず平文のままとする。
-4. **スコープの明確な分離**:
-   - **VFX/SFX 演出**: Direct Binding から直接駆動済みのため本仕様のスコープ外とする。
-   - **インベントリ連携**: `InventoryStateManager` および `ItemNormalizer` で別途実現済みのため除外。
-   - **既存カタログ保護**: 既存の `MessageContextCatalog.js`（250KB 上限・DoD 準拠）は既存機能が依存しているため破壊せず、トークン化用カタログを独立して設計する。
-
----
-
-## 2. トークン・データ構造仕様 (Message Token Schema)
-
-トークン構造体は不要なメタデータ（関係性や推測属性）を削ぎ落とし、最小限の構造を保ちます。
-
-### 2.1 MessageToken スキーマ
-```typescript
-export type TokenType = 'monster' | 'item' | 'text';
-
-export interface MessageToken {
-  // トークン種別: 'text' (平文) | 'monster' (モンスター) | 'item' (アイテム)
-  type: TokenType;
-  
-  // 表示文字列 (原文)
-  text: string;
-  
-  // 原文メッセージ内の文字範囲 [startIndex, endIndex]
-  range: [number, number];
-  
-  // クリック操作可能フラグ (type !== 'text')
-  interactive: boolean;
-  
-  // メタデータ (静的カタログまたは戦闘検出由来)
-  meta?: {
-    callee?: string;       // C 呼出元 ('You', 'pline' 等)
-    sourceFile?: string;   // C ソースファイル ('eat.c', 'uhitm.c' 等)
-    cArgExpr?: string;     // 分類根拠となった引数式 ('mon_nam(mtmp)', 'doname(otmp)' 等)
-    combatRole?: 'attacker' | 'target'; // 戦闘時ロール (主語/目的語)
-  };
-}
-```
-
-### 2.2 出力例
-メッセージ: `"You displace the kitten."`
-```json
-[
-  { 
-    "type": "text", 
-    "text": "You displace the ", 
-    "range": [0, 17], 
-    "interactive": false 
-  },
-  { 
-    "type": "monster", 
-    "text": "kitten", 
-    "range": [17, 23], 
-    "interactive": true,
-    "meta": {
-      "callee": "You",
-      "sourceFile": "do.c",
-      "cArgExpr": "mon_nam(mtmp)"
-    }
-  },
-  { 
-    "type": "text", 
-    "text": ".", 
-    "range": [23, 24], 
-    "interactive": false 
-  }
-]
-```
-
----
-
-## 3. 第 1 トラック: 通常メッセージの静的型付けカタログ
-
-### 3.1 `%s` 静的型付けルール (`tools/data/source_messages_mapped.json`)
-C ソース全メッセージ（14,849 件）のうち、プレースホルダーを持つメッセージの引数式（`c_arguments`）を以下の決定ルールで分類します：
-
-| 分類先型 (`TokenType`) | 抽出対象となる主な C 引数式・関数パターン | カバー率（実測） |
-| :--- | :--- | :---: |
-| **`monster`** | `Monnam`, `mon_nam`, `y_monnam`, `some_mon_nam`, `x_monnam`, `noit_mon_nam`, `Shknam`, `shkname`, `Amonnam`, `a_monnam`, `noit_mhis`, `m_monnam`, `mons[...]` | **18.79%** (829件) |
-| **`item`** | `doname`, `xname`, `yname`, `Yname2`, `the()`, `an()`, `simpleonames`, `cxname`, `aobjnam`, `Tobjnam`, `bare_why_name`, `objects[...]` | **13.85%** (611件) |
-| **平文 / 対象外** | `body_part`（部位）, `u_gname`（神名）, `buf`/`msg`（バッファ変数）, `what`/`verb`/`something`（代名詞・動詞） | **67.36%** |
-
-> **合計網羅性**: `%s` 全 4,413 件中、モンスター・アイテムの特定エンティティだけで **1,440 件 (32.63%)**、拡張型付け全体で **1,825 件 (41.36%)** を静的に確定可能。
-
-### 3.2 クリック時遅延解決（Lazy Resolution）フロー
-トークンがクリックされた際、以下の決定論的パイプラインで GKL ナレッジカードへ渡す ID を解決します。
-
-1. **アイテム (`type: 'item'`)**:
-   - `OBJECT_KNOWLEDGE_MAP` の名称辞書（英語名 `name`、外見名 `appearance`）と照合。
-   - 冠詞（`a `, `an `, `the `）や数量・修飾語を除去した文字列で `onum` を逆引き。
-   - `onum` が確定した場合: `ItemNormalizer.normalize({ onum })` を生成し、`<nh-knowledge-card>` の `setTarget(canonicalItem)` を呼び出す。
-2. **モンスター (`type: 'monster'`)**:
-   - `MONSTER_KNOWLEDGE_MAP` の名称辞書（英語名 `name`）と照合。
-   - 冠詞等を除去した文字列で `monNum`（PM 番号: 0〜390）を逆引き。
-   - `monNum` が確定した場合: 対象モンスターオブジェクトを構築し、`<nh-knowledge-card>` の `setTarget(monsterData)` を呼び出す。
-3. **解決失敗時**:
-   - 推測や捏造を行わず、カードを開かない（安全な平文フォールバック）。
-
----
-
-## 4. 第 2 トラック: 戦闘メッセージ検出（2層防壁方式）
-
-### 4.1 なぜテキスト単体の後追い正規表現ではいけないのか
-`uhitm.c` / `mhitu.c` / `mhitm.c` の戦闘メッセージは、C 側で主語・動詞・目的語・追加効果が動的に結合（`pline("%s", buf)` 等）されています。
-これらをテキスト単体の正規表現（例: `/(hits|bites|misses)/`）で評価しようとすると、店主のセリフ（`"That bites!"`）やベアトラップの作動メッセージ（`"A bear trap bites into your leg!"`）を戦闘と誤認する誤検出（False Positive）が発生します。
-
-これを根絶するため、**「Direct Binding 物理状態」と「S-V-O 構文解析」を組み合わせた 2 層防壁** を採用します。
-
-```mermaid
-flowchart TD
-    subgraph Wall1["第 1 防壁: Direct Binding 物理状態遷移の確認"]
-        Frame["1操作のメッセージフレーム (ContextFrameBuffer)"]
-        --> CheckState{"このフレームで戦闘状態が発生したか？<br>① 直前の入力が攻撃方向キー (GKLFxCoordinator)<br>② プレイヤーHPの減少 (u.uhp 差分)<br>③ 視界内モンスターのHP減少 または 死亡"}
+    subgraph World["1. 自己の周辺環境・物理状態 (Direct Binding / GKL SSOT)"]
+        Inv["所持品 (Inventory)<br>InventoryStateManager"]
+        Floor["足元オブジェクト (Floor)<br>AreaStateManager / Floor Stack"]
+        Env["周囲の地形・環境 (Terrain)<br>扉・壁・祭壇・罠・泉"]
+        Mon["視界内・隣接モンスター<br>MonsterTracker"]
     end
 
-    CheckState -->|No (通常ターン)| Bypass["戦闘パーサーを完全バイパス<br>(誤検出リスク 0%)"]
-    CheckState -->|Yes (戦闘ターン)| Wall2
+    Raw["受信メッセージ (rawText)"]
+    --> GateEnv{"【環境・地形遮断ゲート】<br>対象が地形・環境物 (door, wall, altar 等) か？"}
 
-    subgraph Wall2["第 2 防壁: S-V-O 構文解析 (戦闘動詞 × モンスター辞書)"]
-        Parser["S-V-O 構文パーサー<br>[主語] + [戦闘動詞] + [目的語]"]
-        --> DictCheck{"主語または目的語が<br>MONSTER_KNOWLEDGE_MAP (390種) に合致するか？"}
-    end
+    GateEnv -->|Yes (扉の施錠・抵抗・壁蹴り)| PlainEnv["平文維持 (リンク化完全遮断)<br>※ 'the door' 等の誤爆を根絶"]
+    GateEnv -->|No| Track0{"【第1層: 日常アイテム＆所持品・足元バインド】<br>拾得 (f - ...) / ドロップ (You drop ...) / 足元 (You see here ...) / 金貨"}
 
-    DictCheck -->|No| Plain["平文維持 (推測せず)"]
-    DictCheck -->|Yes| CombatToken["確実な戦闘メッセージとしてトークン化<br>・モンスター名部分を 'monster' 型で抽出<br>・クリックで <nh-knowledge-card> 連携"]
+    Track0 -->|一致| ItemToken["確定アイテムトークン抽出<br>・金貨は '100 gold pieces' 全体を item 化<br>・所持品/足元アイテムと優先照合"]
+    Track0 -->|不一致| Track2{"【第2層: 2層防壁 戦闘メッセージ検出】<br>物理戦闘ゲート × S-V-O 構文 × 視界内モンスター"}
+
+    Track2 -->|一致| CombatToken["確定戦闘モンスタートークン抽出"]
+    Track2 -->|不一致| Track3{"【第3層: 浄化済 静的カタログ (補助)】<br>+ 事後辞書実在検証ゲート"}
+
+    Track3 -->|パターン一致 ＆ 辞書実在| CatToken["特殊イベントトークン抽出"]
+    Track3 -->|不一致 または 辞書不在| PlainFallback["安全な平文フォールバック"]
+
+    World -.->|予測範囲の制限| GateEnv
+    World -.->|所持品・足元照合| Track0
+    World -.->|隣接敵照合| Track2
+
+    ItemToken --> Resolver["TokenKnowledgeResolver<br>(正規化パイプライン: BUC/強化値/数量除去)"]
+    CombatToken --> Resolver
+    CatToken --> Resolver
+
+    Resolver --> Card["GKL ナレッジカード (&lt;nh-knowledge-card&gt;)"]
 ```
-
-### 4.2 第 1 防壁：物理状態遷移によるフレーム限定
-- メッセージを 1 行ずつバラバラに評価するのではなく、1 ターンのメッセージフレーム（`ContextFrameBuffer`）単位で評価します。
-- そのターン内で以下の **Direct Binding 物理的事実** のいずれかが発生している場合のみ、「戦闘コンテキスト」のフラグを立てます：
-  1. 直前のユーザー入力が「隣接敵対モンスターへの方向キー（攻撃）」である（`GKLFxCoordinator` で既に検知可能）。
-  2. プレイヤーの現在 HP（`u.uhp`）が前フレームから減少した。
-  3. 攻撃対象マスのモンスター HP が減少した、またはモンスターが死亡消滅した（`DEADMONSTER()`）。
-- **効果**: 探索中・売買中・祈り時などはこの条件を満たさないため、戦闘パーサー自体が起動せず、**誤検出の可能性が構造的にゼロ**になります。
-
-### 4.3 第 2 防壁：S-V-O 構文解析（戦闘動詞マスター × モンスター辞書）
-第 1 防壁を通過したフレーム内のメッセージに対してのみ、NetHack の規則正しい英文法（主語-動詞-目的語）を評価します。
-
-C ソース（`attack.h`, `uhitm.c`, `mhitu.c`）で定義された攻撃動詞は有限個（約30語）に限定されています：
-- **プレイヤー攻撃動詞**: `hit`, `slash`, `stab`, `thrust`, `chop`, `hack`, `cleave`, `smite`, `strike`, `punch`, `kick`, `miss`
-- **モンスター攻撃動詞**: `bites`, `claws`, `stings`, `touches`, `butts`, `engulfs`, `crushes`, `hugs`, `kicks`, `misses`
-
-構文解析器は、文中の主語または目的語が **`MONSTER_KNOWLEDGE_MAP`（390種）の英語名と完全一致するか** を検証します：
-- 例: `"The jackal bites you!"`  
-  → 主語: `"jackal"`（モンスター辞書に完全一致 → `monNum` 確定）  
-  → 動詞: `"bites"`（モンスター攻撃動詞テーブルに完全一致）  
-  → 目的語: `"you"`  
-  ⇒ **100% の確度で戦闘メッセージと断定**し、`"jackal"` のみを `monster` トークンとして抽出。
-
-### 4.4 連鎖メッセージ（撃破・状態異常）のコンテキスト継承
-戦闘メッセージ直後に同一フレーム内で届く撃破・状態異常メッセージ（`"You kill the newt!"`, `"The newt is killed!"`, `"The newt is poisoned!"`）は、直前の攻撃メッセージで確定した対象モンスターのコンテキストを引き継ぎ、定型パターン（`is killed!`, `dies!`, `is destroyed!` 等の 10 パターン）と照合して安全にトークン化します。
 
 ---
 
-## 5. 名詞解決の一本化（翻訳システムとの整合性）
+## 2. 物理コンテキスト制約による 3 層解析パイプライン
 
-### 5.1 二重化の解消アーキテクチャ
-既存の `TranslationEngine`（`dictionary.csv` の文字列置換）と `ItemNormalizer`（`OBJECT_KNOWLEDGE_MAP` の構造化）の間で発生していた和名や判定の不一致を、以下のパイプラインに一本化します。
+### 2.1 環境・地形遮断ゲート (Environmental & Terrain Suppression Gate)
+プレイヤーの周辺地形（扉、壁、階段、祭壇、流し台、泉、罠など）に対する操作メッセージが、モンスターやアイテムとして誤検出されることを物理的に防ぐ最前線の防壁です。
+
+- **遮断対象となる環境・地形語彙 (`TERRAIN_AND_ENV_STOP_NOUNS`)**:
+  - `door`, `doorway`, `wall`, `rock`, `stone`, `corridor`, `stairs`, `staircase`, `ladder`, `altar`, `sink`, `fountain`, `throne`, `tree`, `bars`, `iron bars`, `drawbridge`, `water`, `lava`, `pool`, `moat`, `ice`, `air`, `floor`, `ground`, `ceiling`, `pit`, `web`, `trap`, `boulder`, `grave`, `headstone`, `statue`（※石像がアイテム/モンスターとして扱われる文脈を除く）
+  - 一般的な身体部位・抽象名詞: `hand`, `hands`, `foot`, `feet`, `head`, `body`, `leg`, `arm`, `finger`, `neck`, `mind`, `stomach`, `purse`, `knapsack`, `bag`, `nothing`, `something`, `someone`, `it`, `yourself`
+- **動作ルール**:
+  - 抽出された名詞候補（冠詞・指示詞 `the`, `this`, `that`, `a`, `an`, `your` 除去後）が上記リストに一致する場合、あるいは数値のみ（`^\d+$`）である場合は、どのトラックで検出されたとしても **`interactive: false`（平文 `text`）へ強制降格** します。
+  - これにより、`"The door resists!"` や `"The door is locked."`、`"You kick the door."`、および数値単体 `"100"` の誤爆は **構造的に 100% 発生しなくなります**。
+
+---
+
+### 2.2 第 1 層: 日常アイテム・インベントリ・足元バインド (Core Item & Inventory Track)
+プレイヤーが最も頻繁に確認したい「拾ったもの」「置いたもの」「足元にあるもの」「金貨」を、静的カタログの制約を受けずに **最優先（Track 0/1）で 100% 捕捉** します。
+
+#### (A) インベントリ・ピックアップ構文 (`prinv` / Inventory Line)
+NetHack C コアの `prinv()`（`pline("%s%s%s%s")`）が出力するインベントリレター付きメッセージ：
+- **対象フォーマット**:
+  - `^([a-zA-Z\$]\s+-\s+)(.+?)(\s+\(\d+\s+in\s+total\))?([\.\!]?)$`
+  - 例: `"f - 5 daggers."`, `"a - an uncursed +1 long sword (weapon in hand)."`, `"$ - 100 gold pieces."`
+- **抽出仕様**:
+  - プレフィックス `"f - "` と末尾の `" (10 in total)."` を平文（`text`）として分離し、中央のアイテム記述句（`"5 daggers"`）を確実に `type: 'item'` としてトークン化します。
+
+#### (B) ドロップ・所持品操作構文 (`dodrop` / `use` / `wear`)
+プレイヤーの所持品（`InventoryStateManager`）を対象とする操作メッセージ：
+- **対象フォーマット**:
+  - `^(You\s+drop\s+)(.+?)([\.\!])$` （例: `"You drop an uncursed +0 dagger."`）
+  - `^(You\s+(?:put\s+on|wear|take\s+off|remove|wield|read|quaff|eat|zap|apply)\s+)(.+?)([\.\!])$`
+- **物理コンテキスト連携**:
+  - `context.gkl.inventory`（所持品リスト）が存在する場合、抽出されたアイテム句が直近の所持品（またはドロップされたアイテム）と合致するかを優先検証します。
+
+#### (C) 足元・フロア確認構文 (`look_here` / Floor Items)
+プレイヤーが移動した際や `:` コマンドで足元を確認した際のメッセージ：
+- **対象フォーマット**:
+  - `^(You\s+(?:see|feel)\s+here\s+)(.+?)(\.)$` （例: `"You see here an uncursed dagger."`, `"You see here 100 gold pieces."`）
+  - `^(There\s+(?:is|are)\s+)(.+?)(\s+here\.)$` （※ただし中身の対象が環境・地形語彙 `a doorway`, `an altar`, `molten lava` 等の場合は環境遮断ゲートにより平文維持）
+- **物理コンテキスト連携**:
+  - 足元座標 `(u.ux, u.uy)` の床スタック（`AreaStateManager` / `FloorMarkerService`）に存在する実在オブジェクトと照合します。
+
+#### (D) 金貨（Gold Pieces）の完全一体トークン化
+- **対象フォーマット**:
+  - 文中または単独の `\b(\d+\s+gold\s+pieces?)\b` または `\b(a\s+gold\s+piece)\b`
+- **抽出仕様**:
+  - 数値部分（`100`）だけを切り取るのではなく、**`"100 gold pieces"` 全体** を単一の `type: 'item'` トークン（基底名 `"gold piece"`）として抽出します。
+
+---
+
+### 2.3 第 2 層: 2 層防壁 戦闘メッセージ検出 (Combat SVO Track)
+戦闘中の動的結合メッセージ（`uhitm.c`, `mhitu.c`, `mhitm.c`）を処理するトラックです（現行設計を継承・強化）。
+
+1. **第 1 防壁（Direct Binding 物理状態ゲート）**:
+   - 直前の攻撃入力（`GKLFxCoordinator.lastAttackTarget`）、フレーム内の戦闘ダメージ、または視界内・隣接マスに実在モンスター（`MonsterTracker` / `AreaStateManager`）が存在する場合のみ起動。
+2. **第 2 防壁（S-V-O 構文解析 × 実在モンスター照合）**:
+   - 視界内にいるモンスター名、および `MONSTER_KNOWLEDGE_MAP`（384種）の英語名と完全一致する場合のみ `type: 'monster'` としてトークン化。
+
+---
+
+### 2.4 第 3 層: 浄化済 静的型付きカタログ ＆ 事後辞書検証ゲート (Sanitized Static Catalog Track)
+物理的な日常操作（拾う・置く・戦う）以外の特殊イベント（店主のセリフ、魔法や罠の特殊効果、ペットの行動など）を補完するトラックです。
+
+V1 での誤爆を根絶するため、**ビルド時（`build_token_catalog.py`）の浄化** と **ランタイム（`MessageTokenParser.js`）の事後検証ゲート** の二重対策を施します。
+
+#### (1) ビルド時の危険パターン排除 (`tools/build_token_catalog.py`)
+以下の過剰一般化パターン・誤爆パターンをカタログ生成時に完全除外します：
+
+| 除外対象 ID / パターン | 原文フォーマット | 除外理由 |
+| :--- | :--- | :--- |
+| `steal.c:L867:pline:25` | `"%s gold %s."` | `"100 gold pieces."` に誤爆し、数値 `"100"` をモンスター化するため |
+| `steed.c:L134:pline:10` | `"%s resists!"` | `"The door resists!"` 等の地形・環境抵抗メッセージに誤爆するため |
+| `spell.c:L1051:pline:44` | `"%s resists."` | 同上（固定語が動詞 1 語のみで主語を限定できないため） |
+| `pickup.c:L2068:pline:34` | `"%s is locked."` | `"The door is locked."` 等の扉施錠メッセージに誤爆するため |
+| `pickup.c:L4038` / `L4108` | `"%s is locked."` / `"%s is empty."` | 固定語が短すぎ、一般文脈と衝突するため |
+| `dokick.c:L209:You:5` | `"You kick %s."` | 蹴る対象はモンスターに限らず扉・壁・箱・流し台など多岐にわたるため |
+| **汎用ルール: 単一動詞パターン** | `^%s <verb>[.!]$` | 先頭が `%s` で固定単語が一般動詞・形容詞 1 語のみのパターンは、主語の型を静的に保証できないため原則除外または事後辞書検証必須とする |
+
+また、`STOP_WORDS` から `'here'` を除外（または `You("%s here %s.")` を救済）し、必要な固定文脈が消えないようにします。
+
+#### (2) ランタイムの「事後辞書検証ゲート (Post-Match Dictionary Validation Gate)」
+第 3 層（静的カタログ）の正規表現にマッチして切り出されたキャプチャ文字列であっても、**無条件でリンク化（`interactive: true`）してはなりません**。
+- キャプチャされた文字列を正規化（`cleanEntityName`）した結果が：
+  1. 環境・地形遮断リスト（`"door"`, `"wall"` 等）に含まれる場合は **平文（`text`）に降格**。
+  2. `TokenKnowledgeResolver` で `MONSTER_KNOWLEDGE_MAP` または `OBJECT_KNOWLEDGE_MAP`（未識別外見名を含む）、あるいは現在の GKL 物理コンテキスト（所持品・足元・視界内モンスター）のいずれにも解決できない場合は、**`interactive: false`（平文）に降格** します。
+- **効果**: 「クリックしてもカードが開かない（あるいは無関係なものがリンクになる）死にリンク・ノイズリンク」が画面上に一切出現しなくなります。
+
+---
+
+## 3. `TokenKnowledgeResolver` の正規化パイプライン刷新
+
+NetHack のアイテム表記（`doname` / `xname` 出力）は多くの状態修飾子を含みます。抽出されたトークン（例: `"an uncursed +0 dagger (weapon in hand)"`、`"5 blessed potions of extra healing"`）から、辞書の基底名（`"dagger"`, `"potion of extra healing"`）を 100% 確実に逆引きするため、以下の **多段正規化パイプライン（Canonical Entity Cleaning Pipeline）** を実装します。
 
 ```mermaid
 flowchart LR
-    TokenText["英語名詞句<br>('a silver dagger')"]
-    --> Resolver["静的マスタ逆引き<br>(OBJECT_KNOWLEDGE_MAP)"]
-    
-    Resolver -->|ID確定| UnifiedID["確定 ID (onum / monNum)"]
-    
-    UnifiedID --> GKL["GKL ナレッジカード<br>&lt;nh-knowledge-card&gt;"]
-    UnifiedID --> Presenter["ItemDisplayPresenter<br>/ mon_jp (公式和名)"]
-    
-    Presenter --> Translation["TranslationEngine<br>(画面表示用和名の一致)"]
+    Raw["生トークン文字列<br>'f - 5 blessed rustproof +1 daggers (in quiver)'"]
+    --> Step1["① スロット接頭辞除去<br>'5 blessed rustproof +1 daggers (in quiver)'"]
+    --> Step2["② 末尾括弧注記除去<br>'5 blessed rustproof +1 daggers'"]
+    --> Step3["③ 冠詞・数量除去<br>'blessed rustproof +1 daggers'"]
+    --> Step4["④ BUC・浸食・状態除去<br>'+1 daggers'"]
+    --> Step5["⑤ 強化値・チャージ除去<br>'daggers'"]
+    --> Step6["⑥ 単数形還元 & 辞書照合<br>'dagger' → onum 確定!"]
 ```
 
-- **単一源泉化**: アイテムの和名は `OBJECT_KNOWLEDGE_MAP`（`objects.c` 準拠）、モンスターの和名は `MONSTER_KNOWLEDGE_MAP`（`mon_jp.c` 準拠）を真値（SSOT）とする。
-- **翻訳エンジンへの還元**: `TranslationEngine` がアイテム・モンスターを和名化する際も、この同一の ID 解決機構を共有することで、メッセージ内の翻訳名とナレッジカードの名称が完全に一致する。
+### 3.1 正規化ステップ詳細 (`cleanEntityName`)
+以下の順序（ループまたは段階的 RegExp）で先頭・末尾の修飾語を剥離します：
+
+1. **インベントリスロット接頭辞の除去**:
+   - `/^[a-zA-Z\$]\s+-\s+/` （例: `"f - "`）
+2. **末尾の括弧付き状態注記・価格の除去**:
+   - `/(\s*\([^)]*\))+$/` （例: `"(being worn)"`, `"(weapon in hand)"`, `"(0:5)"`, `"(unpaid, 50 zorkmids)"`, `"(f)"`）
+   - `/,\s+\d+\s+zorkmids?.*$/i`
+3. **冠詞・所有格・数量表現の除去**:
+   - `/^(?:the|an?|your|some|several|many|a\s+few|a\s+pair\s+of|\d+|two|three|four|five|six|seven|eight|nine|ten)\s+/i`
+4. **B/U/C（祝福・呪い）および既知フラグの除去**:
+   - `/^(?:blessed|uncursed|cursed|holy|unholy)\s+/i`
+   - `/^(?:partly\s+used| partly\s+eaten|diluted)\s+/i`
+5. **浸食度・耐性・状態修飾子の除去（複数連続対応）**:
+   - `/^(?:(?:very|thoroughly|extremely)\s+)?(?:rusty|corroded|burnt|rotted|damaged|rustproof|corrodeproof|fireproof|fixed|greased|poisoned|wet|lit|unlit|empty|unlocked|locked|broken)\s+/i`
+6. **強化値（Enchantment）の除去**:
+   - `/^[+-]\d+\s+/` （例: `"+0 "`, `"+2 "`, `"-1 "`）
+7. **命名（`named ...` / `called ...`）の除去**:
+   - `/\s+(?:named|called)\s+.+$/i` （プレイヤーが付与した個別名や類推名を剥がし、基底名または外見名を取り出す）
+8. **金貨の正規化**:
+   - `/^\d*\s*gold\s+pieces?$/i` → `"gold piece"` に正規化。
+9. **複数形から単数形への還元（英語形態素ルール）**:
+   - `"potions of healing"` のような `A of B` 形式にも対応するため、文末だけでなく `of` の直前の主要名詞の複数形も還元候補に追加します：
+     - 例: `"potions of healing"` → `"potion of healing"`
+     - 例: `"scrolls of identify"` → `"scroll of identify"`
+     - 例: `"wands of striking"` → `"wand of striking"`
+     - 例: `"pairs of leather gloves"` → `"pair of leather gloves"` / `"leather gloves"`
 
 ---
 
-## 6. UI / UX 実装仕様 (Interaction & Rendering)
+## 4. リンク化ポリシーと優先順位の明確化
 
-### 6.1 メッセージ履歴ドロワー（主戦場）
-- `FloatingMessageHud` はゲームプレイを阻害しないよう `pointer-events: none` で設計されているため、**トークンのインタラクティブ操作の主戦場はメッセージ履歴ドロワー（History Drawer / Message Log）** とする。
-- ドロワー内では、トークンが `<span class="nh-token ...">` として描画される。
-  - `.token-monster`: モンスター固有の視認色（アンバー/赤系）＋点線下線
-  - `.token-item`: アイテム固有の視認色（シアン/緑系）＋点線下線
-- キーボード（`Tab` / `Shift+Tab`）およびゲームパッドのフォーカス移動に対応（`tabindex="0"`）。
-- `Enter` キー、クリック、またはゲームパッド `A` ボタンでナレッジカードを開く。
+ユーザー体験（UX）を損なわないため、**「何がリンクになるべきで、何が平文であるべきか」** の基準を以下に定めます。
 
-### 6.2 ダイレクト・アクションパレット（条件付き有効化）
-メッセージ内のアイテムトークンからクイックアクション（拾う、調べる、食べる等）を実行するアクションパレットは、以下の**厳格な安全条件**を満たす場合のみ有効化する：
-1. **コマンド入力待ち（poskey 等）状態であること**:
-   - `ContextFrameBuffer` または `WebUICore.driver` がプロンプト待機中であることを確認。
-2. **Yes/No 等の質問プロンプト待機中ではないこと**:
-   - 割り込み入力を防止し、安全なタイミングでのみコマンド入力を WASM キューへ注入する。
+| 優先度 | カテゴリ | 具体例 | リンク化 (`interactive`) | 理由 |
+| :---: | :--- | :--- | :---: | :--- |
+| **P1 (最高)** | **拾得・ドロップ・足元アイテム** | `f - 5 daggers.`, `You drop an uncursed +0 dagger.`, `You see here a ruby potion.` | **⭕ ON (`item`)** | プレイヤーが最も頻繁に効果・重量・未識別候補を確認したい対象であるため |
+| **P1 (最高)** | **戦闘・隣接モンスター** | `You hit the jackal.`, `The goblin bites you!` | **⭕ ON (`monster`)** | 交戦中の敵の危険度・耐性・攻撃手段を即座に確認するため |
+| **P2 (高)** | **金貨 (Gold)** | `100 gold pieces.` | **⭕ ON (`item`)** | 数値単体ではなく金貨オブジェクト全体として一貫性を持たせるため |
+| **P2 (高)** | **イベント内の確定アイテム/モンスター** | `The nymph steals your ring!`, `Your amulet glows.` | **⭕ ON** | 辞書または所持品で実在が確認できる重要エンティティ |
+| **対象外** | **地形・建築物・家具** | `the door`, `the wall`, `the altar`, `the fountain`, `the stairs` | **❌ OFF (`text`)** | インスペクタやナレッジカードを出す対象ではなく、画面上のノイズになるため |
+| **対象外** | **身体部位・一般名詞・数値** | `your hand`, `your purse`, `100`, `something` | **❌ OFF (`text`)** | ゲーム知識としての参照価値がないため |
 
 ---
 
-## 7. パフォーマンス制約・受入基準 (DoD)
+## 5. 次期実装ロードマップ (Implementation Steps for V2)
 
-1. **カタログサイズ制限**:
-   - トークン化専用カタログの追加に伴う JS バンドル増分は **300KB 以内** に抑制すること。
-   - 既存の `MessageContextCatalog.js`（250KB 制約）の挙動を破壊・劣化させないこと。
-2. **実行時性能**:
-   - メッセージ 1 件あたりのトークン化処理時間は **0.01ms 以内**（正規表現および部分文字列スライスのみで完了すること）。
-   - クリック時の GKL ナレッジ表示開始までのレイテンシは **16ms（1フレーム）以内** であること。
-3. **誤検出防止の厳格保証**:
-   - 第 2 トラック（戦闘メッセージ）において、非戦闘メッセージが誤って戦闘トークン化される誤検出率 **0%** を維持すること（第 1 防壁の物理状態ゲートによる保証）。
-4. **SSOT 原則の遵守**:
-   - C コアのコード変更は 0 行。
-   - トークン化の失敗や ID 未解決によって、メッセージの平文表示が欠落・破壊されないこと（安全なフォールバック保証）。
+本設計書に基づき、以下の 4 ステップでコード改修と検証を実施します：
+
+- [x] **Step 1: `TokenKnowledgeResolver.js` の多段正規化パイプライン実装**:
+  - `cleanEntityName()` を刷新し、B/U/C・強化値・浸食・スロット文字・括弧注記・`A of B` 複数形（`potions of ...` → `potion of ...`）・金貨表記を完全に正規化できるようにする。
+  - 環境・地形ストップワード（`door`, `wall` 等）の判定メソッド `isIgnoredEntity(text)` を追加。
+- [x] **Step 2: `tools/build_token_catalog.py` のサニタイズとカタログ再生成**:
+  - 誤爆を引き起こす危険パターン（`steal.c:L867` の gold、`steed.c` / `spell.c` の resists、`pickup.c` の is locked、`dokick.c` の kick 等）を `EXCLUDED_MESSAGE_IDS` および単一動詞除外フィルタで排除。
+  - `MessageTokenCatalog.js` を再ビルド。
+- [x] **Step 3: `MessageTokenParser.js` への物理コンテキスト・第 1 層トラック ＆ 事後検証ゲートの実装**:
+  - 日常アイテム定型トラック（`prinv` の `f - ...`、`You drop ...`、`You see here ...`、`\d+ gold pieces`）を最優先トラックとして実装。
+  - 環境遮断ゲートおよび「辞書で解決できないトークンは `interactive: false`（平文）に戻す」事後検証ゲートを統合。
+- [x] **Step 4: 単体テスト・回帰テスト (`MessageTokenParser.test.js`) の全面拡充**:
+  - 今回発生した全不具合ケース（`"f - 5 daggers."`, `"You drop an uncursed +0 dagger."`, `"You see here a blessed potion of healing."`, `"The door resists!"`, `"The door is locked."`, `"You kick the door."`, `"100 gold pieces."`）を網羅したテストスイートを追加し、誤爆ゼロ・重要アイテム 100% 解決を検証する。
+
+---
+
+## 6. 受入基準 (Definition of Done for V2)
+
+1. **日常アイテムの 100% リンク化と解決**:
+   - `"f - 5 daggers."`、`"You drop an uncursed +0 dagger."`、`"You see here a ruby potion."` 等において、アイテム句が `type: 'item', interactive: true` として抽出され、かつ `TokenKnowledgeResolver.resolveTokenKnowledge()` が `null` ではなく正しいアイテム図鑑データ（未識別時は外見図鑑）を返すこと。
+2. **金貨の一体認識**:
+   - `"100 gold pieces."` において、`"100"` だけがモンスターになることなく、`"100 gold pieces"` 全体が `type: 'item'` として認識されること。
+3. **環境物・地形ノイズの完全排除（誤爆率 0%）**:
+   - `"The door resists!"`、`"The door is locked."`、`"You kick the door."` において、`"the door"` がモンスターやアイテムとしてトークン化されず、平文（`type: 'text', interactive: false`）のままであること。
+4. **死にリンク（Dead Links）の根絶**:
+   - `interactive: true` となったすべてのトークンが、`TokenKnowledgeResolver` によって確実に有効なナレッジまたは和名へ解決できること。

@@ -79,6 +79,12 @@ export class UiComponentFactory {
         if (minimapBox) minimapBox.classList.toggle('with-pinned-drawer', isPinned);
       },
       getCore: () => client.core,
+      getKnowledgeModal: () => client.knowledgeDetailModal,
+      onTokenClick: (token, knowledge) => {
+        if (knowledge && client.knowledgeDetailModal) {
+          client.knowledgeDetailModal.open(knowledge);
+        }
+      },
       floorMarkerService: client.floorMarkerService
     });
 
@@ -130,6 +136,12 @@ export class UiComponentFactory {
       virtualScreen: client.virtualScreen,
       getSituation: () => client.core?.gkl?.getSituation(),
       getCore: () => client.core,
+      getKnowledgeModal: () => client.knowledgeDetailModal,
+      onTokenClick: (token, knowledge) => {
+        if (knowledge && client.knowledgeDetailModal) {
+          client.knowledgeDetailModal.open(knowledge);
+        }
+      },
       floorMarkerService: client.floorMarkerService
     });
     client.zoomRenderer = client.mainViewportRenderer; // 後方互換
@@ -337,6 +349,10 @@ export class UiComponentFactory {
       },
       onActionTriggered: () => client.floatingMessageHud?.notifyUserAction()
     });
+
+    if (client.messageHistoryDrawer) {
+      client.messageHistoryDrawer.knowledgeModal = client.knowledgeDetailModal;
+    }
 
     // 8.9 Smart Floating ContextActions Menu
     const viewportContainer = typeof document !== 'undefined' ? document.querySelector('.game-viewport') : null;

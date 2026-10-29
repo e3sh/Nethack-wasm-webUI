@@ -22,7 +22,7 @@ import { InteractiveRequestController } from './request/InteractiveRequestContro
 import { SignalDetector } from './prompt/SignalDetector.js';
 import { LoreCodex } from './knowledge/index.js';
 import { FloorMarkerService } from './knowledge/services/FloorMarkerService.js';
-import { MessageContextResolver, ContextFrameBuffer } from './message/index.js';
+import { MessageContextResolver, ContextFrameBuffer, MessageTokenParser } from './message/index.js';
 
 
 export const KEYS = {
@@ -157,6 +157,8 @@ export class WebUICore {
         // 📡 Phase 5 - Stage 5.2: 状況シグナル基盤 (第1層) とメッセージ履歴バッファ
         this.messageResolver = options.messageResolver || new MessageContextResolver();
         this.contextFrameBuffer = options.contextFrameBuffer || new ContextFrameBuffer(options.contextFrameBufferSize || 10);
+        // 🧩 セマンティック・メッセージトークンパーサー (Phase 2)
+        this.tokenParser = options.tokenParser || new MessageTokenParser();
 
         this.state = CoreState.UNINITIALIZED;
         this.currentPromptCategory = PROMPT_CATEGORY.NONE;
@@ -1597,6 +1599,22 @@ export class WebUICore {
             }
             this.renderer.appendMessage(translated);
 
+            // 🧩 4.5. セマンティック・メッセージトークン解析 (Phase 2)
+            let tokens = null;
+            try {
+                if (this.tokenParser) {
+                    tokens = this.tokenParser.parse(rawText, {
+                        gkl: this.gkl,
+                        contextFrameBuffer: this.contextFrameBuffer
+                    });
+                }
+            } catch (tokenErr) {
+                console.warn('[WebUICore] Semantic token parse fallback to plain text:', tokenErr);
+            }
+            if (!tokens || !tokens.length) {
+                tokens = [{ type: 'text', text: rawText, range: [0, rawText.length], interactive: false }];
+            }
+
             // 📜 5. メッセージ履歴アイテム（MessageItem）の生成・管理
             const prevItem = this.messageItems.length > 0 ? this.messageItems[this.messageItems.length - 1] : null;
             if (prevItem) {
@@ -1606,6 +1624,7 @@ export class WebUICore {
                 id: this.nextMessageId++,
                 rawText,
                 text: translated,
+                tokens,
                 isBold: !!isBold,
                 attr: typeof attr === 'number' ? attr : 0,
                 isLatest: true,

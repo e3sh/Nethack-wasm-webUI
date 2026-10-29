@@ -319,6 +319,69 @@
             background: rgba(63, 185, 80, 0.05);
             border-color: rgba(63, 185, 80, 0.2);
         }
+
+        /* Quick Chips (Preset Options) */
+        .quick-chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+            margin-bottom: 12px;
+        }
+
+        .quick-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+            line-height: 1.2;
+            text-align: left;
+        }
+
+        .quick-chip:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--accent-color);
+            color: var(--text-primary);
+            transform: translateY(-1px);
+        }
+
+        .quick-chip.active {
+            background: rgba(63, 185, 80, 0.15);
+            border-color: var(--accent-color);
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(63, 185, 80, 0.25);
+        }
+
+        .quick-chip-icon {
+            display: inline-block;
+            font-weight: 700;
+            font-size: 11px;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+
+        .quick-chip.active .quick-chip-icon {
+            color: var(--accent-color);
+        }
+
+        .quick-chip-name {
+            font-weight: 600;
+        }
+
+        .quick-chip-desc {
+            font-size: 11px;
+            opacity: 0.75;
+            font-family: 'Inter', sans-serif;
+        }
     </style>
     <script type="module">
         import { SoundCoordinator } from "../src/core/sound/SoundCoordinator.js";
@@ -356,6 +419,7 @@
                 btnTestSound: "サウンドテスト再生",
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "NetHack本体のオプションを追加できます (改行区切り)",
+                labelQuickPresets: "クイックプリセット (クリックで追加/解除):",
                 btnBackTitle: "← タイトルへ戻る",
                 btnReset: "設定を初期化",
                 toolsTitle: "関連ツール & 開発者ポータル",
@@ -385,6 +449,7 @@
                 btnTestSound: "Test Sound",
                 labelExtraOpts: "Additional NetHack OPTIONS",
                 descExtraOpts: "Add extra NetHack OPTIONS (newline separated)",
+                labelQuickPresets: "Quick Presets (Click to toggle):",
                 btnBackTitle: "← Back to Title",
                 btnReset: "Reset to Default",
                 toolsTitle: "Related Tools & Dev Portal",
@@ -397,6 +462,145 @@
                 resetConfirm: "Are you sure you want to reset all configurations?"
             }
         };
+
+        
+        const QUICK_PRESETS = [
+            {
+                opt: "mention_decor",
+                ja: { desc: "足元地形メッセージ (階段・泉等)" },
+                en: { desc: "Underfoot terrain messages" }
+            },
+            {
+                opt: "!tutorial",
+                ja: { desc: "チュートリアル無効化" },
+                en: { desc: "Disable tutorial" }
+            },
+            {
+                opt: "explorer",
+                ja: { desc: "探索モード (死亡回避可能)" },
+                en: { desc: "Explore mode (non-fatal)" }
+            },
+            {
+                opt: "autopickup",
+                ja: { desc: "自動拾い" },
+                en: { desc: "Auto-pickup items" }
+            },
+            {
+                opt: "lit_corridor",
+                ja: { desc: "通過した通路の視界確保" },
+                en: { desc: "Lit traversed corridors" }
+            },
+            {
+                opt: "showexp",
+                ja: { desc: "経験値数値表示" },
+                en: { desc: "Show numerical EXP" }
+            },
+            {
+                opt: "showscore",
+                ja: { desc: "スコア常時表示" },
+                en: { desc: "Show score on status" }
+            },
+            {
+                opt: "time",
+                ja: { desc: "経過ターン数表示" },
+                en: { desc: "Show turn count" }
+            }
+        ];
+
+        function getExtraOptionLines() {
+            const textarea = document.getElementById("extra_options");
+            if (!textarea) return [];
+            return textarea.value.split('\n')
+                .map(l => l.trim())
+                .filter(l => l.length > 0);
+        }
+
+        function isOptionActive(opt) {
+            const lines = getExtraOptionLines();
+            return lines.some(l => {
+                const clean = l.replace(/^OPTIONS=/, '').trim();
+                return clean === opt;
+            });
+        }
+
+        function toggleQuickOption(opt) {
+            const textarea = document.getElementById("extra_options");
+            if (!textarea) return;
+            let lines = textarea.value.split('\n');
+
+            const existingIdx = lines.findIndex(l => {
+                const clean = l.trim().replace(/^OPTIONS=/, '').trim();
+                return clean === opt;
+            });
+
+            if (existingIdx >= 0) {
+                lines.splice(existingIdx, 1);
+            } else {
+                while (lines.length > 0 && lines[lines.length - 1].trim() === "") {
+                    lines.pop();
+                }
+                lines.push(opt);
+            }
+
+            textarea.value = lines.join('\n');
+            saveCurrentConfig();
+            updateQuickChipsState();
+        }
+
+        function updateQuickChipsState() {
+            const container = document.getElementById("quick-chips");
+            if (!container) return;
+
+            const chips = container.querySelectorAll(".quick-chip");
+            chips.forEach(chip => {
+                const opt = chip.dataset.opt;
+                const active = isOptionActive(opt);
+                chip.classList.toggle("active", active);
+                const icon = chip.querySelector(".quick-chip-icon");
+                if (icon) {
+                    icon.textContent = active ? "✓" : "+";
+                }
+            });
+        }
+
+        function renderQuickChips(isJp) {
+            const container = document.getElementById("quick-chips");
+            if (!container) return;
+            container.innerHTML = "";
+
+            QUICK_PRESETS.forEach(preset => {
+                const data = isJp ? preset.ja : preset.en;
+                const chip = document.createElement("button");
+                chip.type = "button";
+                chip.className = "quick-chip";
+                chip.dataset.opt = preset.opt;
+                chip.title = `${preset.opt}: ${data.desc}`;
+
+                const icon = document.createElement("span");
+                icon.className = "quick-chip-icon";
+                icon.textContent = "+";
+
+                const label = document.createElement("span");
+                label.className = "quick-chip-name";
+                label.textContent = preset.opt;
+
+                const descSpan = document.createElement("span");
+                descSpan.className = "quick-chip-desc";
+                descSpan.textContent = `(${data.desc})`;
+
+                chip.appendChild(icon);
+                chip.appendChild(label);
+                chip.appendChild(descSpan);
+
+                chip.addEventListener("click", () => {
+                    toggleQuickOption(preset.opt);
+                });
+
+                container.appendChild(chip);
+            });
+
+            updateQuickChipsState();
+        }
 
         function updateLanguageUI(isJp) {
             const t = isJp ? I18N_TEXTS.ja : I18N_TEXTS.en;
@@ -416,6 +620,10 @@
             if (document.getElementById("btn-test-sound")) document.getElementById("btn-test-sound").textContent = t.btnTestSound;
             document.getElementById("label-extra-opts").textContent = t.labelExtraOpts;
             document.getElementById("desc-extra-opts").textContent = t.descExtraOpts;
+            if (document.getElementById("label-quick-presets")) {
+                document.getElementById("label-quick-presets").textContent = t.labelQuickPresets;
+            }
+            renderQuickChips(isJp);
             if (document.getElementById("btn-back-nav")) document.getElementById("btn-back-nav").textContent = t.btnBackTitle;
             if (document.getElementById("btn-back-title")) document.getElementById("btn-back-title").textContent = t.btnBackTitle;
             if (document.getElementById("btn-reset")) document.getElementById("btn-reset").textContent = t.btnReset;
@@ -533,6 +741,7 @@
             if (extraEl) {
                 extraEl.addEventListener("input", () => {
                     saveCurrentConfig();
+                    updateQuickChipsState();
                 });
             }
         }
@@ -622,11 +831,17 @@
 
                 <!-- Additional Options Area -->
                 <div style="margin-top: 20px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 16px; border: 1px solid var(--border-color);">
-                    <div class="config-info" style="margin-bottom: 10px;">
+                    <div class="config-info" style="margin-bottom: 6px;">
                         <span class="config-label" id="label-extra-opts">Additional NetHack OPTIONS</span>
                         <span class="config-desc" id="desc-extra-opts">NetHack本体のオプションを追加できます (改行区切り)</span>
                     </div>
-                    <textarea id="extra_options" placeholder="autopickup&#10;pickup_types:$&#10;fruit:orange"
+
+                    <div style="margin-top: 10px;">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary);" id="label-quick-presets">クイックプリセット (クリックで追加/解除):</span>
+                        <div class="quick-chips-container" id="quick-chips"></div>
+                    </div>
+
+                    <textarea id="extra_options" placeholder="mention_decor&#10;!tutorial&#10;autopickup&#10;pickup_types:$&#10;fruit:orange"
                         style="width: 100%; height: 90px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-family: monospace; font-size: 13px; resize: vertical;"></textarea>
                 </div>
             </div>

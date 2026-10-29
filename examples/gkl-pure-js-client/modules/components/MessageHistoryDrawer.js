@@ -1,3 +1,4 @@
+import { tokenKnowledgeResolver } from '../../../../src/core/message/TokenKnowledgeResolver.js';
 /**
  * MessageHistoryDrawer.js
  *
@@ -37,6 +38,12 @@ export class MessageHistoryDrawer {
     language = 'ja',
     onPinStateChanged,
     getCore,
+    knowledgeModal,
+    knowledgeCard,
+    getKnowledgeModal,
+    getKnowledgeCard,
+    onTokenClick,
+    tokenResolver,
     document: doc = null
   } = {}) {
     this.drawerElement = drawerElement;
@@ -51,7 +58,14 @@ export class MessageHistoryDrawer {
     this.titleElement = titleElement || (this.drawerElement?.querySelector ? this.drawerElement.querySelector('.drawer-title-text') : null);
     this.onPinStateChanged = onPinStateChanged || null;
     this.getCore = getCore || (() => null);
+    this.knowledgeModal = knowledgeModal || null;
+    this.knowledgeCard = knowledgeCard || null;
+    this.getKnowledgeModal = getKnowledgeModal || (() => null);
+    this.getKnowledgeCard = getKnowledgeCard || (() => null);
+    this.onTokenClick = onTokenClick || null;
+    this.tokenResolver = tokenResolver || tokenKnowledgeResolver;
     this.document = doc || (typeof document !== 'undefined' ? document : null);
+    this._injectStyles();
 
     this.displayMode = language === 'en' ? 'raw' : 'bilingual'; // 'bilingual' | 'ja' | 'raw'
     this.currentLanguage = language;
@@ -298,24 +312,24 @@ export class MessageHistoryDrawer {
       if (this.displayMode === 'bilingual') {
         const jaEl = this.document.createElement('div');
         jaEl.className = 'drawer-msg-text-ja';
-        jaEl.textContent = jaText;
+        this.renderContentWithTokens(jaEl, jaText, item.tokens, true);
         contentBox.appendChild(jaEl);
 
         if (rawText && rawText !== jaText) {
           const rawEl = this.document.createElement('div');
           rawEl.className = 'drawer-msg-text-raw';
-          rawEl.textContent = rawText;
+          this.renderContentWithTokens(rawEl, rawText, item.tokens, false);
           contentBox.appendChild(rawEl);
         }
       } else if (this.displayMode === 'ja') {
         const jaEl = this.document.createElement('div');
         jaEl.className = 'drawer-msg-text-ja';
-        jaEl.textContent = jaText;
+        this.renderContentWithTokens(jaEl, jaText, item.tokens, true);
         contentBox.appendChild(jaEl);
       } else if (this.displayMode === 'raw') {
         const rawEl = this.document.createElement('div');
         rawEl.className = 'drawer-msg-text-raw primary';
-        rawEl.textContent = rawText;
+        this.renderContentWithTokens(rawEl, rawText, item.tokens, false);
         contentBox.appendChild(rawEl);
       }
 
@@ -428,5 +442,181 @@ export class MessageHistoryDrawer {
     if (this._isOpen) {
       this.renderList();
     }
+  }
+
+  /**
+   * トークン要素を含むテキスト描画
+   * @param {HTMLElement} container
+   * @param {string} text 表示テキスト
+   * @param {Array<Object>} tokens MessageToken[]
+   * @param {boolean} [isJa=false] 日本語文か
+   */
+  renderContentWithTokens(container, text, tokens, isJa = false) {
+    if (!tokens || !tokens.length || !tokens.some(t => t.interactive)) {
+      container.textContent = text;
+      return;
+    }
+
+    if (!isJa) {
+      // 🇺🇸 英語原文: tokens の range スライスを忠実に配置
+      container.innerHTML = '';
+      for (const t of tokens) {
+        if (!t.interactive) {
+          container.appendChild(this.document.createTextNode(t.text));
+        } else {
+          const span = this._createTokenElement(t);
+          container.appendChild(span);
+        }
+      }
+      return;
+    }
+
+    // 🇯🇵 日本語文: tokens 内の interactive トークンに対応する和名を探索・置換
+    container.innerHTML = '';
+    const interactiveTokens = tokens.filter(t => t.interactive);
+    const replacements = [];
+
+    for (const t of interactiveTokens) {
+      const nameJa = this.tokenResolver?.getJapaneseName(t);
+      if (nameJa && text.includes(nameJa)) {
+        replacements.push({ nameJa, token: t });
+      }
+    }
+
+    if (replacements.length === 0) {
+      container.textContent = text;
+      return;
+    }
+
+    // 和名の長い順（部分一致衝突防止）でソート
+    replacements.sort((a, b) => b.nameJa.length - a.nameJa.length);
+
+    const pieces = [{ text, token: null }];
+
+    for (const { nameJa, token } of replacements) {
+      const nextPieces = [];
+      for (const piece of pieces) {
+        if (piece.token !== null) {
+          nextPieces.push(piece);
+          continue;
+        }
+        const parts = piece.text.split(nameJa);
+        for (let i = 0; i < parts.length; i++) {
+          if (parts[i]) {
+            nextPieces.push({ text: parts[i], token: null });
+          }
+          if (i < parts.length - 1) {
+            nextPieces.push({ text: nameJa, token });
+          }
+        }
+      }
+      pieces.length = 0;
+      pieces.push(...nextPieces);
+    }
+
+    for (const piece of pieces) {
+      if (piece.token) {
+        const span = this._createTokenElement(piece.token, piece.text);
+        container.appendChild(span);
+      } else {
+        container.appendChild(this.document.createTextNode(piece.text));
+      }
+    }
+  }
+
+  /**
+   * インタラクティブなトークン DOM 要素を生成
+   */
+  _createTokenElement(token, displayText = null) {
+    const span = this.document.createElement('span');
+    span.className = 'nh-token token-' + token.type;
+    span.tabIndex = 0;
+    span.setAttribute('role', 'button');
+    span.setAttribute('aria-label', 'Look up ' + token.text);
+    span.textContent = displayText || token.text;
+
+    span.onclick = (e) => {
+      e.stopPropagation();
+      this.handleTokenActivation(token);
+    };
+
+    span.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleTokenActivation(token);
+      }
+    };
+
+    return span;
+  }
+
+  /**
+   * トークン選択時（クリック / Enter / Gamepad Aボタン）の遅延解決と図鑑起動
+   */
+  handleTokenActivation(token) {
+    if (!token) return;
+    const core = this.getCore();
+    const gkl = core?.gkl;
+
+    const knowledge = this.tokenResolver
+      ? this.tokenResolver.resolveTokenKnowledge(token, gkl, { language: this.currentLanguage })
+      : null;
+
+    console.log('[MessageHistoryDrawer] Token activated:', token.text, 'Resolved knowledge:', knowledge);
+
+    if (typeof this.onTokenClick === 'function') {
+      this.onTokenClick(token, knowledge);
+    }
+
+    if (knowledge) {
+      const modal = this.knowledgeModal || (typeof this.getKnowledgeModal === 'function' ? this.getKnowledgeModal() : null);
+      const card = this.knowledgeCard || (typeof this.getKnowledgeCard === 'function' ? this.getKnowledgeCard() : null);
+
+      if (modal && typeof modal.open === 'function') {
+        modal.open(knowledge);
+      } else if (card && typeof card.setTarget === 'function') {
+        card.setTarget(knowledge);
+      } else if (typeof window !== 'undefined' && window.app?.knowledgeDetailModal && typeof window.app.knowledgeDetailModal.open === 'function') {
+        window.app.knowledgeDetailModal.open(knowledge);
+      } else {
+        const domCard = this.document?.querySelector('nh-knowledge-card');
+        if (domCard && typeof domCard.setTarget === 'function') {
+          domCard.setTarget(knowledge);
+        }
+      }
+    }
+  }
+
+  /**
+   * ゲームパッド A ボタンまたはボタン入力時のフォーカストークン起動
+   */
+  handleGamepadButton(buttonIndex) {
+    if (!this._isOpen) return false;
+    // Aボタン (buttonIndex === 0)
+    if (buttonIndex === 0) {
+      const activeEl = this.document?.activeElement;
+      if (activeEl && activeEl.classList && activeEl.classList.contains('nh-token')) {
+        activeEl.click();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * トークン用ハイライトスタイルの自動注入
+   */
+  _injectStyles() {
+    if (!this.document || !this.document.head || typeof this.document.getElementById !== 'function') {
+      return;
+    }
+    if (this.document.getElementById('nh-token-drawer-styles')) {
+      return;
+    }
+    const styleEl = this.document.createElement('style');
+    styleEl.id = 'nh-token-drawer-styles';
+    styleEl.textContent = ".nh-token { display: inline; cursor: pointer; border-radius: 3px; padding: 0 2px; font-weight: 600; text-decoration: underline dotted 1px; transition: all 0.15s ease; }\n.nh-token.token-monster { color: #e5c07b; border-bottom: 1px dashed #e5c07b; }\n.nh-token.token-monster:hover, .nh-token.token-monster:focus-visible { background: rgba(229, 192, 123, 0.2); outline: 2px solid #e5c07b; outline-offset: 1px; }\n.nh-token.token-item { color: #56b6c2; border-bottom: 1px dashed #56b6c2; }\n.nh-token.token-item:hover, .nh-token.token-item:focus-visible { background: rgba(86, 182, 194, 0.2); outline: 2px solid #56b6c2; outline-offset: 1px; }";
+    this.document.head.appendChild(styleEl);
   }
 }

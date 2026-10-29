@@ -47,7 +47,10 @@ function createMockElement(tagName = 'div') {
     clientHeight: 200,
     scrollTo: vi.fn(({ top }) => {
       el.scrollTop = top;
-    })
+    }),
+    setAttribute: vi.fn((k, v) => { el[k] = v; }),
+    getAttribute: vi.fn((k) => el[k]),
+    click: vi.fn(() => { if (typeof el.onclick === 'function') el.onclick({ stopPropagation: () => {} }); })
   };
 
   Object.defineProperty(el, 'className', {
@@ -87,7 +90,10 @@ describe('MessageHistoryDrawer - 過去ログドロワー', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockDoc = {
-      createElement: vi.fn((tagName) => createMockElement(tagName))
+      createElement: vi.fn((tagName) => createMockElement(tagName)),
+      createTextNode: vi.fn((text) => ({ textContent: text, nodeType: 3 })),
+      getElementById: vi.fn(() => null),
+      head: createMockElement('head')
     };
     drawerElement = createMockElement('div');
     drawerElement.classList.add('hidden');
@@ -313,5 +319,118 @@ describe('MessageHistoryDrawer - 過去ログドロワー', () => {
     expect(titleEl.textContent).toBe('メッセージ過去ログ (Message History)');
     expect(btnClose.title).toBe('閉じる [ESC]');
   });
-});
 
+  describe('Phase 4: セマンティック・メッセージトークン描画 ＆ インタラクティブ図鑑連携', () => {
+    it('13. 原文(rawText)モード時、トークンが .nh-token 要素として描画され、tabindex="0" を持つこと', () => {
+      const mockTokens = [
+        { type: 'text', text: 'You drop ', range: [0, 9], interactive: false },
+        { type: 'item', text: 'an elven dagger', range: [9, 24], interactive: true }
+      ];
+
+      mockCore.getMessageItems.mockReturnValue([
+        { id: 1, rawText: 'You drop an elven dagger.', text: 'あなたはエルフのダガーを落とした。', tokens: mockTokens, isBold: false }
+      ]);
+
+      drawer.setDisplayMode('raw');
+      expect(drawer.displayMode).toBe('raw');
+
+      const tokenSpans = [];
+      const traverse = (node) => {
+        if (!node) return;
+        if (node.classList?.contains?.('nh-token')) tokenSpans.push(node);
+        if (node.children) node.children.forEach(traverse);
+      };
+      traverse(listElement);
+
+      expect(tokenSpans.length).toBe(1);
+      const itemSpan = tokenSpans[0];
+      expect(itemSpan.classList.contains('token-item')).toBe(true);
+      expect(itemSpan.textContent).toBe('an elven dagger');
+      expect(itemSpan.tabIndex).toBe(0);
+      expect(itemSpan.setAttribute).toHaveBeenCalledWith('role', 'button');
+    });
+
+    it('14. 日本語(ja)モード時、解決済み和名に対応するトークンがハイライト描画されること', () => {
+      const mockTokens = [
+        { type: 'text', text: 'You release ', range: [0, 12], interactive: false },
+        { type: 'monster', text: 'the cockatrice', range: [12, 26], interactive: true }
+      ];
+
+      mockCore.getMessageItems.mockReturnValue([
+        { id: 2, rawText: 'You release the cockatrice.', text: 'あなたはコカトリスを解放した。', tokens: mockTokens, isBold: false }
+      ]);
+
+      drawer.setDisplayMode('ja');
+
+      const tokenSpans = [];
+      const traverse = (node) => {
+        if (!node) return;
+        if (node.classList?.contains?.('nh-token')) tokenSpans.push(node);
+        if (node.children) node.children.forEach(traverse);
+      };
+      traverse(listElement);
+
+      expect(tokenSpans.length).toBe(1);
+      const monSpan = tokenSpans[0];
+      expect(monSpan.classList.contains('token-monster')).toBe(true);
+      expect(monSpan.textContent).toBe('コカトリス');
+    });
+
+    it('15. トークンクリックまたは Enter キー押下時に図鑑モーダル/カードが起動されること', () => {
+      const mockModal = { open: vi.fn() };
+      const mockCard = { setTarget: vi.fn() };
+      const onTokenClick = vi.fn();
+
+      const interactiveDrawer = new MessageHistoryDrawer({
+        drawerElement,
+        listElement,
+        knowledgeModal: mockModal,
+        knowledgeCard: mockCard,
+        onTokenClick,
+        getCore: () => ({
+          ...mockCore,
+          gkl: {
+            structuredKnowledge: {
+              getMonsterKnowledge: vi.fn(() => ({ id: 'cockatrice', name: 'cockatrice', nameJa: 'コカトリス' }))
+            }
+          }
+        }),
+        document: mockDoc
+      });
+
+      const token = { type: 'monster', text: 'the cockatrice', interactive: true };
+      interactiveDrawer.handleTokenActivation(token);
+
+      expect(onTokenClick).toHaveBeenCalled();
+      expect(mockModal.open).toHaveBeenCalledWith(expect.objectContaining({ nameJa: 'コカトリス' }));
+    });
+
+    it('16. ゲームパッド A ボタン押下時にアクティブなトークンが起動されること', () => {
+      const mockModal = { open: vi.fn() };
+      const interactiveDrawer = new MessageHistoryDrawer({
+        drawerElement,
+        listElement,
+        knowledgeModal: mockModal,
+        getCore: () => ({
+          ...mockCore,
+          gkl: {
+            structuredKnowledge: {
+              getMonsterKnowledge: vi.fn(() => ({ id: 'jackal', name: 'jackal' }))
+            }
+          }
+        }),
+        document: mockDoc
+      });
+
+      interactiveDrawer.open();
+
+      const activeTokenSpan = createMockElement('span');
+      activeTokenSpan.classList.add('nh-token');
+      mockDoc.activeElement = activeTokenSpan;
+
+      const handled = interactiveDrawer.handleGamepadButton(0); // A button
+      expect(handled).toBe(true);
+      expect(activeTokenSpan.click).toHaveBeenCalled();
+    });
+  });
+});

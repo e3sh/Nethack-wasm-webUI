@@ -1,3 +1,5 @@
+import { OBJECT_KNOWLEDGE_MAP } from '../knowledge/data/OBJECT_KNOWLEDGE_FULL.js';
+import { MONSTER_KNOWLEDGE_MAP } from '../knowledge/data/MONSTER_KNOWLEDGE_FULL.js';
 /**
  * TranslationEngine.js - NetHack オンデマンドローカライズファイルリゾルバー (404 ログ抑止版)
  *
@@ -126,8 +128,62 @@ export class TranslationEngine {
     /**
      * 品詞対応単語辞書引き (noun, adj, verb)
      */
+    /**
+     * 名詞解決の一本化 (仕様書 §5):
+     * 明示辞書 (lookupDict / entitiesAndItems) ➔ 公式マスタ (MONSTER_KNOWLEDGE_MAP / OBJECT_KNOWLEDGE_MAP)
+     * @param {string} word
+     * @returns {string|null}
+     */
+    translateNoun(word) {
+        if (!word || typeof word !== 'string') return null;
+        this.ensureDictionariesLoaded();
+
+        // 1. 明示辞書 (lookupDict / entitiesAndItems) 最優先
+        const entry = this.entitiesAndItems[word] || this.lookupDict[word];
+        if (entry) {
+            if (typeof entry === 'string') return entry;
+            if (entry['noun']) return entry['noun'];
+        }
+
+        const lower = word.trim().toLowerCase();
+        const lowerEntry = this.entitiesAndItems[lower] || this.lookupDict[lower];
+        if (lowerEntry) {
+            if (typeof lowerEntry === 'string') return lowerEntry;
+            if (lowerEntry['noun']) return lowerEntry['noun'];
+        }
+
+        // 2. モンスター公式マスタ (MONSTER_KNOWLEDGE_MAP)
+        if (MONSTER_KNOWLEDGE_MAP) {
+            const mon = MONSTER_KNOWLEDGE_MAP.get(lower);
+            if (mon && mon.nameJa) {
+                return mon.nameJa;
+            }
+        }
+
+        // 3. アイテム公式マスタ (OBJECT_KNOWLEDGE_MAP)
+        if (OBJECT_KNOWLEDGE_MAP) {
+            for (const item of OBJECT_KNOWLEDGE_MAP.values()) {
+                if (item.name && item.name.toLowerCase() === lower) {
+                    return item.nameJa || item.name;
+                }
+                if (item.unidentifiedNameEn && item.unidentifiedNameEn.toLowerCase() === lower) {
+                    return item.unidentifiedNameJa || item.unidentifiedNameEn;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 品詞対応単語辞書引き (noun, adj, verb)
+     */
     lookupWord(word, pos = 'noun') {
         if (!word) return null;
+        if (pos === 'noun') {
+            const nounTr = this.translateNoun(word);
+            if (nounTr) return nounTr;
+        }
         this.ensureDictionariesLoaded();
         const entry = this.entitiesAndItems[word] || this.lookupDict[word];
         if (!entry) return null;
