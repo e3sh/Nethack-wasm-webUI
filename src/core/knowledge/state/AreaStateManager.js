@@ -257,6 +257,12 @@ export class AreaStateManager {
         this.isTurnTransitioning = false;
         this.isFloorTransitioning = false;
         this._needsFullTerrainDump = true;
+        this._hasPlayerPosOnCurrentFloor = false;
+        this._pendingStatusFloorKey = null;
+        this.currentBranchId = 'dungeon';
+        this.currentDnum = 0;
+        this.currentDlevel = 1;
+        this.playerSummary = null;
         if (this.directBindingService && typeof this.directBindingService.clearFloorCaches === 'function') {
             this.directBindingService.clearFloorCaches();
         }

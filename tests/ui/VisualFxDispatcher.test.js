@@ -110,4 +110,33 @@ describe('VisualFxDispatcher - DAMAGE_DEALT to DAMAGE_POPUP dispatching', () => 
         expect(shaken).toHaveLength(1);
         expect(shaken[0]).toEqual({ intensity: 3, duration: 100 });
     });
+
+    it('AREA_ENTERED 時: AREA_ENTERED が mainViewportRenderer および webgpuRenderer へディスパッチされること', () => {
+        let webgpuFx = [];
+        let webgpuWoken = false;
+        clientMock.webgpuRenderer = {
+            addVisualFx: (fx) => webgpuFx.push(fx),
+            wakeUp: () => { webgpuWoken = true; }
+        };
+
+        dispatcher.handleFxTrigger({
+            type: 'AREA_ENTERED',
+            branchId: 'mines',
+            floorKey: 'mines:2',
+            dlevel: 2,
+            title: 'The Gnomish Mines',
+            titleJa: 'ノームの鉱山',
+            theme: 'mines',
+            bannerDurationMs: 4000
+        });
+
+        expect(dispatchedFx).toHaveLength(1);
+        expect(dispatchedFx[0].type).toBe('AREA_ENTERED');
+        expect(dispatchedFx[0].branchId).toBe('mines');
+        expect(dispatchedFx[0].durationMs).toBe(4000);
+
+        expect(webgpuFx).toHaveLength(1);
+        expect(webgpuFx[0].type).toBe('AREA_ENTERED');
+        expect(webgpuWoken).toBe(true);
+    });
 });

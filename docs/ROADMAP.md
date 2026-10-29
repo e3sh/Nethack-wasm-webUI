@@ -81,9 +81,6 @@ last_updated: 2026-10-26
     - [modern_inventory_dialog_and_weight_analytics_architecture.ja.md](./7_futures/modern_inventory_dialog_and_weight_analytics_architecture.ja.md)
     - [floor_pile_filer_and_dialog_navigation_architecture.ja.md](./7_futures/floor_pile_filer_and_dialog_navigation_architecture.ja.md)
   - 概要: Phase 8 の真の重量・BUC・床スタック直結（`SHIM_CMD_GET_OBJECT_AT`）を活かし、クラス別重量構成比バー付き2ペイン所持品コックピット（`i`）および足元山積み二画面ファイラー（`,` 拾う ⇄ `d` 置く）を実現。**※両構想とも、全ダイアログ共通の2ペイン・キーボード／ゲームパッド操作骨格（[`modal_interaction_and_navigation_guide.ja.md`](./2_client_ui/modal_interaction_and_navigation_guide.ja.md) 準拠）を共通基盤として実装する。**
-- **GKL ブランチ検出・フロアキャッシュ分離 ＆ エリア突入アナウンス演出構想**:
-  - 設計書: [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)
-  - 概要: Stage 8.4 で `u.uz.dnum` によるブランチ確定同定は完了。新エリア・特殊フロア突入時の `<nh-area-banner>` アナウンス演出および `AREA_ENTERED` ジングル音響連携構想（`💡 proposed`）。
 
 ### 3.2 独立した長期構想群
 - **外部ナレッジ連携 (NetHackWiki) ＆ 翻訳モード連動 Web ジャンプ構想**:
@@ -144,6 +141,7 @@ last_updated: 2026-10-26
 | 機能・仕様書 | 主要コード / モジュール | 完了期 | 概要 |
 | :--- | :--- | :---: | :--- |
 | [canonical_item_schema_and_normalization_architecture.ja.md](./3_gkl/canonical_item_schema_and_normalization_architecture.ja.md) | `ItemNormalizer.js`, `ItemDisplayPresenter.js` | 2026-10-18 | 公式 `objnam.c` 準拠のアイテム正規化 (Canonical Schema) ＆ `\|\|` 根絶 |
+| [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md) | `AreaStateManager.js`, `GKLEventRouter.js`, `drawAreaBanner.js` | 2026-10-29 | ブランチ100%確定同定・`branch:dlvl`キャッシュ分離 ＆ `AREA_ENTERED` 演出バナーパイプライン |
 | [floor_item_direct_binding_and_peek_wisdom_architecture.ja.md](./3_gkl/floor_item_direct_binding_and_peek_wisdom_architecture.ja.md) | `InventoryWasmAdapter.js`, `ItemSpecPresenter` | Stage 8.5 | 床アイテム・コンテナ Direct Binding ＆ 覗き見知恵 (Peek Wisdom) |
 | [levl_glyph_and_terrain_hybrid_architecture_plan.ja.md](./3_gkl/levl_glyph_and_terrain_hybrid_architecture_plan.ja.md) | `SpatialWasmAdapter.js`, `AreaStateManager.js` | 2026-10-21 | NetHack Cコア直接グリフ (`levl.glyph`) ＆ 抽象地形 (`typ`) ハイブリッド二重管理アーキテクチャ |
 | [official_shim_direct_binding_implementation_plan.md (Stage 8.4)](./1_driver/official_shim_direct_binding_implementation_plan.md) | `PlayerWasmAdapter.js`, `AttributeStateManager` | Stage 8.4 | ブランチ100%確定同定・耐性69要素・お祈りタイマー直結 |
@@ -158,6 +156,7 @@ last_updated: 2026-10-26
 ### 4.3 盤面描画・レンダラー・空間可視化
 | 機能・仕様書 | 主要コード / モジュール | 完了期 | 概要 |
 | :--- | :--- | :---: | :--- |
+| [GKL_Visual_FX_Event_Architecture.md](./3_gkl/GKL_Visual_FX_Event_Architecture.md) | `VisualFxDispatcher.js`, `drawAreaBanner.js`, `drawDamagePopup.js` | 2026-10-29 | GKL 演出トリガー (`fx_trigger`) 仕様 ＆ スクリーン空間/グリッド空間 FX ライフサイクル |
 | [context_aware_stone_and_digging_rendering_spec.ja.md](./2_client_ui/context_aware_stone_and_digging_rendering_spec.ja.md) | `AreaStateManager.js`, `MainViewportRenderer.js` | 2026-10-19 | スマート岩盤可視化（3モード）＆ 掘削連動アンバー枠・3D壁投影 |
 | [webgpu_hd2d_diorama_renderer.ja.md](./2_client_ui/webgpu_hd2d_diorama_renderer.ja.md) | `WebGPUHD2DRenderer.js` | Phase 3 | 生WGSLシェーダーによる WebGPU HD-2D クオータビュージオラマ描画 |
 | [unified_renderer_and_screen_architecture_plan.md](./2_client_ui/unified_renderer_and_screen_architecture_plan.md) | `VirtualDungeonScreen.js`, `MainViewportRenderer` | Phase 1〜3 | 仮想スクリーン統合オフスクリーン描画 ＆ ミニマップスマート退避 |

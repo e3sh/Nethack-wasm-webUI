@@ -1,7 +1,7 @@
 ---
 title: NetHack WASM WebUI システム現有能力カタログ
 status: implemented
-last_updated: 2026-10-26
+last_updated: 2026-10-29
 ---
 
 # 🧭 NetHack WASM WebUI システム現有能力カタログ (SYSTEM_CAPABILITIES.md)
@@ -93,7 +93,10 @@ flowchart TD
     1. **フロア全域地形・階段一括ダンプ (`SHIM_CMD_DUMP_LEVEL_TERRAIN` 0x11 / `SHIM_CMD_DUMP_LEVEL_GLYPHS` 0x15)**: 80×21 全マスの真の地形 (`typ`)・扉状態 (`flags`)・階段接続、および確定グリフ (`glyph`) を 1 往復で取得。
     2. **セル詳細＆床アイテム走査 (`SHIM_CMD_GET_CELL_INFO` / `GET_OBJECT_AT`)**: 足元や任意座標の地形・罠・部屋種別・床アイテムの BUC (`blessed`/`cursed`/`bknown`)・箱の施錠状態・死体/像のモンスター種別 (`corpsenm`)・既知フラグ (`known`) を直接取得。
     3. **インベントリ＆装備＆総重量直結 (`SHIM_CMD_DUMP_ALL_INVENT` / `GET_EQUIPMENT_PTRS` / `GET_INV_WEIGHT`)**: 全所持品構造体・14装備スロットポインタ・真の総重量 (`inv_weight()`) を一括取得。
-    4. **モンスター＆プレイヤー状態直結 (`SHIM_CMD_GET_MONSTER_AT` / `GET_PLAYER_SUMMARY` / `GET_PLAYER_PROPS`)**: 平和NPC (`mpeaceful`)・ペット (`mtame`) 判定、ダンジョン番号 (`dnum`) による全9ブランチ 100% 確定同定、お祈りタイマー (`ublesscnt`)・神の怒り (`ugangr`) 直結、耐性配列 (`uprops` 69要素) 内因・外因分離直結。
+    4. **モンスター＆プレイヤー状態直結 (`SHIM_CMD_GET_MONSTER_INFO` / `GET_MONSTER_STATE` / `DUMP_VISIBLE_MONSTERS` / `GET_PLAYER_SUMMARY` / `GET_PLAYER_PROPS`)**:
+       - モンスター情報 (`0x22`): 平和NPC (`mpeaceful`)・ペット (`mtame`) 判定、現在HP/最大HPの 12bit 安全クランプ（0..4095）パッキング取得。wasm32 負数化対策（`unpackMonsterInfo` での `>>> 0` アンパック）により高 HP モンスターも安全に識別。
+       - 視界内モンスター一括ダンプ (`0x24`) ＆ 撃破数 (`0x25`): C 真値スナップショット比較による与ダメージ (`DAMAGE_DEALT`) のリアルタイム導出。
+       - プレイヤー＆ダンジョン情報 (`0x30`): ダンジョン番号 (`dnum`) による全9ブランチ 100% 確定同定（`branch:dlvl` キャッシュ分離と `AREA_ENTERED` シネマティックバナー演出トリガー）、お祈りタイマー (`ublesscnt`)・神の怒り (`ugangr`) 直結、耐性配列 (`uprops` 69要素) 内因・外因分離直結。
     5. **確定同期待ちによる不可分起動 (Stage 8.5)**: `completeStartup` の完全 async 化と Promise 調停により、セーブ再開時のインベントリ空化や初期描画チラつきを完全根絶。
   - **3モード検証切替 (`DIRECT_BINDING_MODE`)**: `auto`（直結優先＋自動フォールバック）、`strict`（フォールバック遮断・直結強制検証）、`fallback`（旧マクロ強制）を実行時切替可能。
 
@@ -329,19 +332,23 @@ flowchart TD
   - `<nh-discovery-codex>` / `<nh-codex-grid>`: ゲーム内 `\` 発見済みアイテム対照図鑑およびシルエット解禁対応の冒険手帳グリッド。
   - `<nh-radial-palette-hud>` / `<nh-shiren-inventory-drawer>` / `<nh-gamepad-guide-bar>` / `<nh-context-hint-pill>`: ゲームパッド・コンソール操作向け UI コンポーネント群。
 
-### 4.3 コンテキスト連動型岩盤可視化 ＆ 掘削アシスト・マップ上コマンド数バッジ (`Renderers & Overlays`)
+### 4.3 コンテキスト連動型岩盤可視化 ＆ 掘削アシスト・マップ上コマンド数バッジ・演出オーバーレイ (`Renderers & Overlays`)
 
 * **主要クラス / モジュール**:
   - `src/ui-controller/UIConfigStore.js` (`stoneRenderingMode`, `mapActionIndicator`)
+  - `examples/gkl-pure-js-client/modules/effects/VisualFxDispatcher.js` (演出ディスパッチャー)
+  - `examples/gkl-pure-js-client/modules/renderers/fx/drawAreaBanner.js` (エリア突入バナー描画)
+  - `examples/gkl-pure-js-client/modules/renderers/fx/drawDamagePopup.js` (浮遊ダメージポップアップ)
   - `examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js` (2D Canvas レンダラー)
   - `examples/gkl-pure-js-client/modules/renderers/WebGPUHD2DRenderer.js` (WebGPU 3D ジオラマレンダラー)
   - `examples/gkl-pure-js-client/modules/renderers/hd2d/hd2dFxOverlay.js` (3D 空間 2D オーバーレイ)
-  - 詳細仕様書: [context_aware_stone_and_digging_rendering_spec.ja.md](./2_client_ui/context_aware_stone_and_digging_rendering_spec.ja.md)
+  - 詳細仕様書: [context_aware_stone_and_digging_rendering_spec.ja.md](./2_client_ui/context_aware_stone_and_digging_rendering_spec.ja.md), [GKL_Visual_FX_Event_Architecture.md](./3_gkl/GKL_Visual_FX_Event_Architecture.md), [Branch_Detection_and_Area_Announcement_Architecture.ja.md](./3_gkl/Branch_Detection_and_Area_Announcement_Architecture.ja.md)
 * **できること**:
   - **スマート岩盤可視化 (`stoneRenderingMode: 'smart'`)**: 普段は部屋・通路のネットワーク構造がくっきり見える「黒抜き」を維持しつつ、つるはし等の掘削アクション（`hasDig`）が発生したときのみ、隣接する観測済み岩盤（`isObservedStone` / `3929`）を浮かび上がらせてアンバー枠（`#fbbf24`）で強調描画。
   - **3大描画モード切替**: `smart`（既定）、`minimal`（常時完全黒抜き）、`classic_tile`（観測済み岩盤の常時クッキリ描画）を `<nh-ui-config>` からオンデマンド切替・LocalStorage 永続化。
   - **HD-2D 3D 壁インスタンス動的投影**: WebGPU 3D モードにおいて、掘削可能岩盤を立体的な壁天面および前面インスタンス（不透明度 0.85）として動的に立ち上げ。
   - **マップ上 ContextActions コマンド数ミニバッジ (`mapActionIndicator`)**: 自キャラ周囲（隣接8方向＋足元）のマス上に、GKL の推奨固有アクション数をピル型ミニバッジ（および控えめなガイド枠）としてオーバーレイ描画。盤面クリックにより `FloatingContextActions` を直接起動可能。
+  - **新エリア突入シネマティックバナー演出 (`AREA_ENTERED`)**: 新ブランチ（鉱山、倉庫番、ゲヘナ等）到達時に、スクリーン空間（Canvas 中央上部）へ 9 種類のブランチ別テーマカラー（`dungeon`, `cave`, `hell`, `puzzle`, `quest`, `gold`, `vampire`, `celestial`, `tutorial`）で発光するオーバーレイバナーをフェードイン・ホールド・フェードアウト描画（2D Canvas / WebGPU 3D 共通）。連続突入時の上書き置換やリスタート時の初期フロア誤発火抑止を完備。
 
 ---
 

@@ -254,29 +254,38 @@ export class GKLEventRouter {
                     if (syncedSummary) {
                         if (syncedAreaInfo && syncedAreaInfo.isNewBranch) {
                             core.emit('areaEntered', syncedAreaInfo);
-                            if (p.fxCoordinator && typeof p.fxCoordinator.emitFxTrigger === 'function') {
-                                p.fxCoordinator.emitFxTrigger({
-                                    type: 'AREA_ENTERED',
-                                    branchId: syncedAreaInfo.branchId,
-                                    title: syncedAreaInfo.branchName,
-                                    titleJa: syncedAreaInfo.branchNameJa,
-                                    subtitle: `Level ${syncedAreaInfo.dlevel}`,
-                                    theme: syncedAreaInfo.theme || 'dungeon',
-                                    bannerDurationMs: 4000
-                                });
+                            if (p.fxCoordinator) {
+                                if (typeof p.fxCoordinator.onAreaEntered === 'function') {
+                                    p.fxCoordinator.onAreaEntered(syncedAreaInfo);
+                                } else if (typeof p.fxCoordinator.emitFxTrigger === 'function') {
+                                    p.fxCoordinator.emitFxTrigger({
+                                        type: 'AREA_ENTERED',
+                                        branchId: syncedAreaInfo.branchId,
+                                        floorKey: syncedAreaInfo.floorKey,
+                                        dlevel: syncedAreaInfo.dlevel,
+                                        title: syncedAreaInfo.branchName,
+                                        titleJa: syncedAreaInfo.branchNameJa,
+                                        subtitle: `Level ${syncedAreaInfo.dlevel}`,
+                                        subtitleJa: `地下 ${syncedAreaInfo.dlevel} 階`,
+                                        theme: syncedAreaInfo.theme || 'dungeon',
+                                        bannerDurationMs: 4000
+                                    });
+                                }
                             }
                         }
                         core.emit('playerSummaryUpdated', syncedSummary);
                     }
 
                     // 🎯 11. モンスター HP 差分 (DAMAGE_DEALT) の導出 — C 真値スナップショット比較
-                    if (p.monsterVitalsTracker) {
+                    if (p.monsterVitalsTracker && p.wasmDirectBindingService && typeof p.wasmDirectBindingService.dumpVisibleMonsters === 'function') {
                         const dbs = p.wasmDirectBindingService;
                         const snapshot = dbs.dumpVisibleMonsters();
                         const events = p.monsterVitalsTracker.reconcile(snapshot, {
-                            getDied: (mnum) => dbs.getMvitalsDied(mnum)
+                            getDied: (mnum) => typeof dbs.getMvitalsDied === 'function' ? dbs.getMvitalsDied(mnum) : 0
                         });
-                        p.fxCoordinator.emitDamageEvents(events);
+                        if (p.fxCoordinator && typeof p.fxCoordinator.emitDamageEvents === 'function') {
+                            p.fxCoordinator.emitDamageEvents(events);
+                        }
                     }
                 }
 

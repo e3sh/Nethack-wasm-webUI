@@ -1,7 +1,7 @@
 ---
 title: official_shim_direct_binding_implementation_plan
 status: implemented
-last_updated: 2026-10-15
+last_updated: 2026-10-29
 related_code:
   - C:\Users\e3-sh\Desktop\works\NetHack-NetHack-5.0_org\NetHack-NetHack-5.0.1_Oct7_2026 (公式ソース最新原本)
   - src/driver/shim/shim_bridge.c (WebUIリポジトリ管理の単一窓口ブリッジ正本・ビルド時 win/shim/shim_bridge.c へ自動同期)
@@ -91,10 +91,12 @@ enum ShimBridgeCmd {
     SHIM_CMD_GET_ROOM_TYPE      = 0x14, /* a1=roomno -> rtype (SHOP, TEMPLE, ZOO, VAULT等) */
 
     /* 2. マップ上のエンティティ系 (0x20〜0x2F) */
-    SHIM_CMD_GET_OBJECT_AT      = 0x20, /* a1=x, a2=y -> 先頭 struct obj* */
-    SHIM_CMD_GET_MONSTER_AT     = 0x21, /* a1=x, a2=y -> struct monst* */
-    SHIM_CMD_GET_MONSTER_INFO   = 0x22, /* a1=x, a2=y -> mpeaceful(1) | mtame(1) | mhp(12) | mhpmax(12) */
-    SHIM_CMD_GET_MONSTER_STATE  = 0x23, /* a1=x, a2=y -> msleeping(1) | mflee(1) | mcanmove(1) | isshk(1) | ispriest(1) */
+    SHIM_CMD_GET_OBJECT_AT          = 0x20, /* a1=x, a2=y -> 先頭 struct obj* */
+    SHIM_CMD_GET_MONSTER_AT         = 0x21, /* a1=x, a2=y -> struct monst* */
+    SHIM_CMD_GET_MONSTER_INFO       = 0x22, /* a1=x, a2=y -> mpeaceful(1) | mtame(1) | 予約(6) | mhp(12) | mhpmax(12) */
+    SHIM_CMD_GET_MONSTER_STATE      = 0x23, /* a1=x, a2=y -> msleeping(1) | mflee(1) | mcanmove(1) | isshk(1) | ispriest(1) */
+    SHIM_CMD_DUMP_VISIBLE_MONSTERS  = 0x24, /* buf=int32[256*8] -> 視界内モンスター一括ダンプ */
+    SHIM_CMD_GET_MVITALS_DIED       = 0x25, /* a1=mnum -> mvitals[mnum].died (撃破数) */
 
     /* 3. プレイヤー状態・ダンジョン系 (0x30〜0x3F) */
     SHIM_CMD_GET_PLAYER_SUMMARY = 0x30, /* buf=long[8] -> [dnum, dlevel, ublesscnt, ugangr, uluck, ualign_record, uhunger, moves] */
@@ -123,6 +125,59 @@ enum ShimBridgeCmd {
 ```
 
 > ※完全な実装コードは [`src/driver/shim/shim_bridge.c`](../../src/driver/shim/shim_bridge.c) を参照してください。
+
+### 3.1 モンスター情報取得 (`SHIM_CMD_GET_MONSTER_INFO` 0x22) の 32bit パッキング仕様 ＆ 符号反転対策
+
+C コアと JS (GKL) 間の通信オーバーヘッドを極小化するため、`0x22` は 1 回の 32bit long 戻り値でモンスターの友好度・ペット状態・HP・最大HPをパッキングして返却します。
+
+#### ① ビットレイアウト
+| ビット位置 | 幅 | 意味 | 範囲・説明 |
+| :--- | :---: | :--- | :--- |
+| **bit 0** | 1 bit | `mpeaceful` (友好フラグ) | `0`: 敵対 / `1`: 友好 |
+| **bit 1** | 1 bit | `mtame` (ペットフラグ) | `0`: 野生 / `1`: ペット |
+| **bit 2..7** | 6 bits | 予約ビット (Reserved) | 常に `0` (安全検証用 `0xFC`) |
+| **bit 8..19** | 12 bits | `hp` (現在HP) | `0..4095` (0xFFFU 安全クランプ) |
+| **bit 20..31** | 12 bits | `hpmax` (最大HP) | `0..4095` (0xFFFU 安全クランプ) |
+
+#### ② C 側 (shim_bridge.c) の安全パッキング
+```c
+case SHIM_CMD_GET_MONSTER_INFO: {
+    int x = (int) arg1, y = (int) arg2;
+    if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return -1;
+    struct monst *m = svl.level.monsters[x][y];
+    if (!m) return 0;
+    uint32_t hp = m->mhp > 0 ? ((uint32_t) m->mhp > 0xFFFU ? 0xFFFU : (uint32_t) m->mhp) : 0U;
+    uint32_t hpmax = m->mhpmax > 0 ? ((uint32_t) m->mhpmax > 0xFFFU ? 0xFFFU : (uint32_t) m->mhpmax) : 0U;
+    uint32_t packed = (m->mpeaceful ? 1U : 0U)
+                    | ((m->mtame ? 1U : 0U) << 1)
+                    | (hp << 8)
+                    | (hpmax << 20);
+    return (long) packed;
+}
+```
+
+#### ③ wasm32 符号反転と JS 側 (MonsterWasmAdapter.js) の符号なし解釈
+- **課題（符号反転問題）**:
+  - wasm32 では C の `long` 型戻り値が符号付き 32bit 整数（Signed 32-bit Integer）として JavaScript に渡されます。
+  - `hpmax >= 2048 (0x800)` となる高 HP モンスター（上級ドラゴン、魔王等）では最上位ビット（bit 31）が立つため、JavaScript 側で負数（例: `-1073741824` 等）となり、従来の単純な `res <= 0` 判定では「モンスター不在またはエラー」と誤判定されて情報が消失するバグがありました。
+- **解決策 (`unpackMonsterInfo`)**:
+  - 純粋関数 `unpackMonsterInfo(res)` を導入。
+  - 不在 (`res === 0`)、範囲外エラー (`res === -1`)、および予約ビット不正 (`(res & 0xFC) !== 0`) のみを `null` として除外。
+  - `const u = res >>> 0;` により符号なし 32bit 整数にキャストした上で、ゼロ埋め右シフト (`>>> 8`, `>>> 20`) を用いて安全にアンパックします：
+    ```javascript
+    export function unpackMonsterInfo(res) {
+        if (typeof res !== 'number' || res === 0 || res === -1 || (res & 0xFC) !== 0) {
+            return null;
+        }
+        const u = res >>> 0;
+        return {
+            peaceful: Boolean(u & 0x01),
+            tame: Boolean((u >>> 1) & 0x01),
+            hp: (u >>> 8) & 0xFFF,
+            hpmax: (u >>> 20) & 0xFFF
+        };
+    }
+    ```
 
 ---
 
@@ -251,10 +306,14 @@ flowchart TD
 
 ### 【Stage 8.4】プレイヤー完全ステータス・呪文・スキル・鑑定図鑑直結（一部完了・進行中）
 - [x] `SHIM_CMD_DUMP_DISCOVERIES (0x60)` ＆ `SHIM_CMD_DUMP_DESCR_INDEXES (0x62)`: `DiscoveryStateManager` の `\` パース依存を解消し、鑑定図鑑（`oc_name_known`）および外見シャッフル配列（`oc_descr_idx`）を即時同期
-- [ ] `SHIM_CMD_GET_PLAYER_SUMMARY (0x30)`:
-  - `dnum` によるブランチ同定（`branch:dlvl` キャッシュ分離と `AREA_ENTERED` 発火）
+- [x] `SHIM_CMD_GET_PLAYER_SUMMARY (0x30)`:
+  - `dnum` による全9ブランチ同定（`branch:dlvl` キャッシュ分離と `AREA_ENTERED` 発火）
   - `ublesscnt` と `ugangr`（神の怒り）から絶対安全お祈りインジケーターを構築
   - `uhunger`（空腹度真値）の反映
+- [x] `SHIM_CMD_GET_MONSTER_INFO (0x22)` 符号反転対応 ＆ `DUMP_VISIBLE_MONSTERS (0x24)` / `GET_MVITALS_DIED (0x25)`:
+  - HP/HPMAX の 12bit 安全クランプと `unpackMonsterInfo` による 32bit 符号なしアンパック
+  - 視界内モンスター HP 差分検出による `DAMAGE_DEALT` 発行基盤
+- [ ] `SHIM_CMD_GET_PLAYER_PROPS (0x32)`: 耐性配列（`uprops`）を `AttributeStateManager` へ注入
 - [ ] `SHIM_CMD_GET_PLAYER_PROPS (0x32)`: 耐性配列（`uprops`）を `AttributeStateManager` へ注入
 - [ ] `SHIM_CMD_DUMP_SPELL_BOOK (0x50)`: `SpellStateManager` のメニューパースを撤廃し、習得呪文を0ms同期
 - [ ] `SHIM_CMD_DUMP_SKILLS (0x51)`: `SkillStateManager` の `#enhance` パースを撤廃し、スキル熟練度を即時同期

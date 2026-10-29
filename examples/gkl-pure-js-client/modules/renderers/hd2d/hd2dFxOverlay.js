@@ -1,5 +1,6 @@
 import { FloorMarkerService } from "../../../../../src/core/knowledge/services/FloorMarkerService.js";
 import { drawDamagePopup } from "../fx/drawDamagePopup.js";
+import { drawAreaBanner } from "../fx/drawAreaBanner.js";
 
 /**
  * hd2dFxOverlay.js - WebGPU HD2D ジオラマ用 2D Canvas オーバーレイ描画マネージャー
@@ -77,7 +78,9 @@ export class HD2DFxOverlay {
 
   addVisualFx(fx) {
     if (!fx) return;
-    if (fx.type === 'DAMAGE_POPUP') {
+    if (fx.type === 'AREA_ENTERED') {
+      this.activeFxList = this.activeFxList.filter(item => item.type !== 'AREA_ENTERED');
+    } else if (fx.type === 'DAMAGE_POPUP') {
       const sameCellCount = this.activeFxList.filter(item =>
         item.type === 'DAMAGE_POPUP' && item.gx === fx.gx && item.gy === fx.gy
       ).length;
@@ -594,6 +597,12 @@ export class HD2DFxOverlay {
 
       const progress = Math.min(1.0, elapsed / fx.durationMs);
       const easeOut = 1 - Math.pow(1 - progress, 2);
+
+      if (fx.type === 'AREA_ENTERED') {
+        const lang = (this.getCore && this.getCore() && this.getCore().language) || 'ja';
+        drawAreaBanner(ctx, fx, canvasW, canvasH, progress, lang);
+        return true;
+      }
 
       const targetGx = fx.followPlayer ? playerPos.x : fx.gx;
       const targetGy = fx.followPlayer ? playerPos.y : fx.gy;

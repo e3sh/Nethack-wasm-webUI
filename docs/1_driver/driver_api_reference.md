@@ -1,7 +1,7 @@
 ---
 title: driver_api_reference
 status: active
-last_updated: 2026-10-11
+last_updated: 2026-10-29
 related_code:
   - src/driver/
 ---
@@ -178,7 +178,15 @@ import {
   - `memory.isBridgeAvailable()`: Wasm モジュールに `_shim_bridge_call` がエクスポートされているか判定します。
   - `memory.bridgeCall(cmdId, arg0, arg1, outPtr, outMaxLen)`: `shim_bridge.c` の単一エントリポイント `_shim_bridge_call` を同期実行します。
   - `memory.allocateBuffer(byteLength)` / `memory.freeBuffer(ptr)`: Wasm 線形メモリ (`_malloc` / `_free`) の確保と解放を行います。
-  - `NetHackMemory.SHIM_CMD` / `NetHackMemory.SHIM_SYM`: `shim_bridge.c` の全コマンド ID（`PING`, `GET_CELL_INFO`, `DUMP_LEVEL_TERRAIN`, `GET_EQUIPMENT_PTRS`, `DUMP_ALL_INVENT`, `DUMP_DESCR_INDEXES` 等）およびシンボル ID 定数マップ。
+  - `NetHackMemory.SHIM_CMD`: `shim_bridge.c` と同期する全コマンド定数マップ：
+    - 地形・セル系: `GET_CELL_INFO (0x10)`, `DUMP_LEVEL_TERRAIN (0x11)`, `GET_TRAP_AT (0x12)`, `GET_ENGRAVING_AT (0x13)`, `GET_ROOM_TYPE (0x14)`, `DUMP_LEVEL_GLYPHS (0x15)`
+    - エンティティ・モンスター系: `GET_OBJECT_AT (0x20)`, `GET_MONSTER_AT (0x21)`, `GET_MONSTER_INFO (0x22)`, `GET_MONSTER_STATE (0x23)`, `DUMP_VISIBLE_MONSTERS (0x24)`, `GET_MVITALS_DIED (0x25)`
+      - ※ `GET_MONSTER_INFO (0x22)` は bit 0: `peaceful`, bit 1: `tame`, bit 8..19: `hp` (12bit クランプ), bit 20..31: `hpmax` (12bit クランプ) を 32bit パッキング。wasm32 では `hpmax >= 2048` で戻り値が負数となるため、JS 側での `>>> 0` 符号なしアンパックが必須。
+    - プレイヤー・ダンジョン系: `GET_PLAYER_SUMMARY (0x30)`, `GET_PLAYER_PTR (0x31)`, `GET_PLAYER_PROPS (0x32)`, `DUMP_MAPSEEN (0x34)`
+    - インベントリ・装備系: `GET_INVENT_PTR (0x40)`, `GET_EQUIPMENT_PTRS (0x41)`, `DUMP_OBJECT_INFO (0x42)`, `DUMP_ALL_INVENT (0x43)`, `GET_INV_WEIGHT (0x44)`
+    - 呪文・スキル系: `DUMP_SPELL_BOOK (0x50)`, `DUMP_SKILLS (0x51)`
+    - 図鑑系: `DUMP_DISCOVERIES (0x60)`, `GET_OBJECT_UNAME (0x61)`, `DUMP_DESCR_INDEXES (0x62)`
+  - `NetHackMemory.SHIM_SYM`: 主要 C 構造体基底アドレス取得用シンボル定数マップ。
 
 ---
 

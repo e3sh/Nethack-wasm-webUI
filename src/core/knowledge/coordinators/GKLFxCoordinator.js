@@ -3,9 +3,9 @@ import { MONSTER_KNOWLEDGE_MAP } from "../data/MONSTER_KNOWLEDGE_FULL.js";
 
 /**
  * GKLFxCoordinator
- * 攻撃ヒット (ATTACK_HIT)、被ダメージ (DAMAGE_TAKEN)、回復 (RECOVER_HEAL)、
- * プレイヤー死亡/蘇生 (PLAYER_DIED / PLAYER_RESURRECTED)、モンスター撃破 (KILL_CONFIRMED) の
- * 視覚演出トリガー (fx_trigger) と関連する内部状態を管理する。
+ * 攻撃ヒット (ATTACK_HIT)、被ダメージ (DAMAGE_TAKEN)、与ダメージ (DAMAGE_DEALT)、回復 (RECOVER_HEAL)、
+ * プレイヤー死亡/蘇生 (PLAYER_DIED / PLAYER_RESURRECTED)、モンスター撃破 (KILL_CONFIRMED)、
+ * エリア突入 (AREA_ENTERED) の視覚演出トリガー (fx_trigger) と関連する内部状態を管理する。
  */
 export class GKLFxCoordinator {
     /**
@@ -223,6 +223,27 @@ export class GKLFxCoordinator {
             type: 'KILL_CONFIRMED',
             targetX: tx,
             targetY: ty
+        });
+    }
+
+    /**
+     * 新規ダンジョンブランチ突入時の AREA_ENTERED 発火
+     * @param {Object} areaInfo
+     */
+    onAreaEntered(areaInfo) {
+        if (!areaInfo || areaInfo.isNewBranch === false) return;
+        const dlevel = areaInfo.dlevel ?? 1;
+        this.emitFxTrigger({
+            type: 'AREA_ENTERED',
+            branchId: areaInfo.branchId,
+            floorKey: areaInfo.floorKey,
+            dlevel,
+            title: areaInfo.branchName || areaInfo.title || 'Dungeon',
+            titleJa: areaInfo.branchNameJa || areaInfo.titleJa || areaInfo.branchName || 'ダンジョン',
+            subtitle: areaInfo.subtitle || `Level ${dlevel}`,
+            subtitleJa: areaInfo.subtitleJa || `地下 ${dlevel} 階`,
+            theme: areaInfo.theme || 'dungeon',
+            bannerDurationMs: areaInfo.bannerDurationMs || 4000
         });
     }
 

@@ -223,6 +223,26 @@ export interface FxTriggerPayload {
     byPlayer?: boolean;
     isPeaceful?: boolean;
     isTame?: boolean;
+
+    // --- AREA_ENTERED 固有フィールド ---
+    /** ダンジョンブランチID ('dungeon' | 'mines' | 'sokoban' | 'gehennom' | 'quest' | 'fort_ludios' | 'vlad_tower' | 'elemental_planes' | 'tutorial') */
+    branchId?: string;
+    /** フロア識別キー (例: 'Dlvl:1', 'mines:2') */
+    floorKey?: string;
+    /** 階層の深さ (1〜) */
+    dlevel?: number;
+    /** ブランチ英語名 (例: 'The Gnomish Mines') */
+    title?: string;
+    /** ブランチ日本語名 (例: 'ノームの鉱山') */
+    titleJa?: string;
+    /** サブタイトル英語表記 (例: 'Level 2') */
+    subtitle?: string;
+    /** サブタイトル日本語表記 (例: '地下 2 階') */
+    subtitleJa?: string;
+    /** 演出テーマ ('dungeon' | 'cave' | 'hell' | 'puzzle' | 'quest' | 'gold' | 'vampire' | 'celestial' | 'tutorial') */
+    theme?: string;
+    /** バナー表示持続時間 (ミリ秒、デフォルト 4000) */
+    bannerDurationMs?: number;
 }
 
 /** C コア 0x24 DUMP_VISIBLE_MONSTERS の 1 エントリ */

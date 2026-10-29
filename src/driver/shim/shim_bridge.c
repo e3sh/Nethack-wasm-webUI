@@ -168,14 +168,13 @@ long shim_bridge_call(int cmd, long arg1, long arg2, void *buf, int len) {
             if (x < 1 || x >= COLNO || y < 0 || y >= ROWNO) return -1;
             struct monst *m = svl.level.monsters[x][y];
             if (!m) return 0;
-            int hp = m->mhp > 0 ? (m->mhp & 0xFFF) : 0;
-            int hpmax = m->mhpmax > 0 ? (m->mhpmax & 0xFFF) : 0;
-            return (long) (
-                (m->mpeaceful ? 1 : 0) |
-                ((m->mtame ? 1 : 0) << 1) |
-                (hp << 8) |
-                (hpmax << 20)
-            );
+            uint32_t hp = m->mhp > 0 ? ((uint32_t) m->mhp > 0xFFFU ? 0xFFFU : (uint32_t) m->mhp) : 0U;
+            uint32_t hpmax = m->mhpmax > 0 ? ((uint32_t) m->mhpmax > 0xFFFU ? 0xFFFU : (uint32_t) m->mhpmax) : 0U;
+            uint32_t packed = (m->mpeaceful ? 1U : 0U)
+                            | ((m->mtame ? 1U : 0U) << 1)
+                            | (hp << 8)
+                            | (hpmax << 20);
+            return (long) packed;
         }
         case SHIM_CMD_GET_MONSTER_STATE: {
             int x = (int) arg1, y = (int) arg2;

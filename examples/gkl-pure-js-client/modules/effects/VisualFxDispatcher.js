@@ -154,6 +154,22 @@ export class VisualFxDispatcher {
       }
       webgpu?.markDirty();
       webgpu?.wakeUp();
+    } else if (fx.type === 'AREA_ENTERED') {
+      const durationMs = fx.bannerDurationMs || fx.durationMs || 4000;
+      this.dispatchFx({
+        type: 'AREA_ENTERED',
+        branchId: fx.branchId,
+        floorKey: fx.floorKey,
+        dlevel: fx.dlevel,
+        title: fx.title,
+        titleJa: fx.titleJa,
+        subtitle: fx.subtitle,
+        subtitleJa: fx.subtitleJa,
+        theme: fx.theme || 'dungeon',
+        startTime: now,
+        durationMs
+      });
+      webgpu?.wakeUp();
     }
   }
 }

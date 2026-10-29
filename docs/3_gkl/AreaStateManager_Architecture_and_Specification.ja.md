@@ -1,7 +1,7 @@
 ---
 title: AreaStateManager 空間状態総合オーケストレーター 仕様書 ＆ モジュール機能整理計画
 status: implemented
-last_updated: 2026-10-19
+last_updated: 2026-10-29
 domain: GKL (Spatial State / Exploration Knowledge / Rendering Bridge)
 related_code:
   - src/core/knowledge/state/AreaStateManager.js
@@ -9,6 +9,7 @@ related_code:
   - src/core/knowledge/state/area/DungeonLandmarkRegistry.js
   - src/core/knowledge/state/area/ViewportTileProjector.js
   - src/core/knowledge/services/WasmDirectBindingService.js
+  - tests/core/knowledge/AreaEnteredFxIntegration.test.js
 ---
 
 # 🗺️ AreaStateManager 空間状態総合オーケストレーター 仕様書 ＆ モジュール機能整理計画
@@ -113,6 +114,36 @@ NetHack の `print_glyph` では無地の岩盤（`glyph 0` または `3929`）�
 - `glyphId === 0` または `3929 (GLYPH_CMAP_STONE_OFF)` の受信時、空白文字であっても `isObservedStone: true` を明示的に保持します。
 - DirectBinding 接続時は `getCellInfo(x, y)` から真の地形（`typ === 0: STONE`）を `cell.bottom.typ` として同期保持します。
 - これにより、レンダラー層（`MainViewportRenderer` / `WebGPUHD2DRenderer`）における「普段は黒抜き・掘削アクション連動で岩盤ハイライト」を行うスマート岩盤可視化（[仕様書](../2_client_ui/context_aware_stone_and_digging_rendering_spec.ja.md) 参照）を完全に支えています。
+
+### ⑤ ブランチ追跡同期 (`syncPlayerSummary`) ＆ リスタート完全初期化 (`resetAll`)
+`AreaStateManager` は、単一フロアのグリッドだけでなく、現在の階層とブランチ状態の追跡を行っています：
+
+1. **ブランチ同期 (`syncPlayerSummary(summary)`)**:
+   - `WasmDirectBindingService.getPlayerSummary()` から取得した `dnum`, `dlevel`, `moves` を受け取り、現在の状態と比較。
+   - `this.currentBranchId !== summary.branchId` を検知した際、`isNewBranch: true` を含む `syncedAreaInfo` を返却し、`GKLEventRouter` 経由で `areaEntered` および `AREA_ENTERED` 演出バナーの発火をトリガーします。
+2. **リスタート時の状態完全初期化 (`resetAll()`)**:
+   - ゲームオーバー後の再開やセーブデータ切り替え時、前回のセッションのブランチ状態（例: `mines` や `sokoban`）がメモリに残存していると、ゲーム開始時の階層 `dungeon:1` への突入時に「ブランチが変わった」と判定され、初期フロアでバナーが誤発火するリスクがあります。
+   - そのため `resetAll()` では、グリッド消去に加えて以下のプロパティを安全に初期化します：
+     ```javascript
+     resetAll() {
+         this.clearGrid();
+         this.isTurnTransitioning = false;
+         this.isFloorTransitioning = false;
+         this._needsFullTerrainDump = true;
+         this._hasPlayerPosOnCurrentFloor = false;
+         this._pendingStatusFloorKey = null;
+
+         // ブランチ追跡状態の完全初期化 (初期フロアでの誤発火を防止)
+         this.currentBranchId = 'dungeon';
+         this.currentDnum = 0;
+         this.currentDlevel = 1;
+         this.playerSummary = null;
+
+         if (this.directBindingService && typeof this.directBindingService.clearFloorCaches === 'function') {
+             this.directBindingService.clearFloorCaches();
+         }
+     }
+     ```
 
 ---
 

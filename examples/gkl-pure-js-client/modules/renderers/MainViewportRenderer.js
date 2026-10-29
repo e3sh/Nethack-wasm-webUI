@@ -16,6 +16,7 @@ import { classifyGlyph, GLYPH_STONE } from "../../../../src/core/knowledge/engin
 import { getTileCandidatePaths } from "../config/TileConfig.js";
 import { FloorMarkerService } from "../../../../src/core/knowledge/services/FloorMarkerService.js";
 import { drawDamagePopup } from "./fx/drawDamagePopup.js";
+import { drawAreaBanner } from "./fx/drawAreaBanner.js";
 
 export class MainViewportRenderer {
   constructor({
@@ -255,7 +256,10 @@ export class MainViewportRenderer {
   }
 
   addVisualFx(fx) {
-    if (fx && fx.type === 'DAMAGE_POPUP') {
+    if (!fx) return;
+    if (fx.type === 'AREA_ENTERED') {
+      this.activeFxList = this.activeFxList.filter(item => item.type !== 'AREA_ENTERED');
+    } else if (fx.type === 'DAMAGE_POPUP') {
       const sameCellCount = this.activeFxList.filter(item =>
         item.type === 'DAMAGE_POPUP' && item.gx === fx.gx && item.gy === fx.gy
       ).length;
@@ -850,6 +854,11 @@ export class MainViewportRenderer {
 
       const progress = Math.min(1.0, elapsed / fx.durationMs);
       const easeOut = 1 - Math.pow(1 - progress, 2);
+
+      if (fx.type === 'AREA_ENTERED') {
+        drawAreaBanner(this.ctx, fx, canvasW, canvasH, progress, this.currentLanguage);
+        return true;
+      }
 
       const targetGx = fx.followPlayer ? this.camX : fx.gx;
       const targetGy = fx.followPlayer ? this.camY : fx.gy;

@@ -1,13 +1,18 @@
 ---
 title: GKL 演出トリガーイベント仕様 & クライアント実装設計書
 status: implemented
-last_updated: 2026-10-11
+last_updated: 2026-10-29
 related_code:
   - src/core/WebUICore.js
+  - src/core/index.d.ts
+  - src/core/knowledge/coordinators/GKLEventRouter.js
   - src/core/knowledge/coordinators/GKLFxCoordinator.js
   - examples/gkl-pure-js-client/modules/effects/VisualFxDispatcher.js
-  - examples/gkl-pure-js-client/renderers/MainViewportRenderer.js
-  - examples/gkl-pure-js-client/renderers/WebGPUHD2DRenderer.js
+  - examples/gkl-pure-js-client/modules/renderers/fx/drawAreaBanner.js
+  - examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js
+  - examples/gkl-pure-js-client/modules/renderers/ZoomRenderer.js
+  - examples/gkl-pure-js-client/modules/renderers/hd2d/hd2dFxOverlay.js
+  - tests/core/knowledge/AreaEnteredFxIntegration.test.js
 ---
 
 # GKL 演出トリガーイベント仕様 & クライアント実装設計書
@@ -54,17 +59,19 @@ related_code:
 
 ## 2. 演出トリガーイベント仕様
 
-イベント名は `fx_trigger` として統一し、`payload.type` で識別します。
+イベント名は `fx_trigger` として統一し、`payload.type` で識別します（型定義: `src/core/index.d.ts` の `FxTriggerPayload` 準拠）。
 
 ```typescript
-interface FxTriggerPayload {
+export interface FxTriggerPayload {
   type: 
     | 'ATTACK_HIT' 
     | 'DAMAGE_TAKEN' 
+    | 'DAMAGE_DEALT'
     | 'KILL_CONFIRMED' 
     | 'RECOVER_HEAL'
     | 'PLAYER_DIED'
-    | 'PLAYER_RESURRECTED';
+    | 'PLAYER_RESURRECTED'
+    | 'AREA_ENTERED';
   targetX?: number;      // 発生対象のマップ座標 X (0〜79)
   targetY?: number;      // 発生対象のマップ座標 Y (0〜23)
   isPlayer?: boolean;    // 自キャラ対象フラグ
@@ -73,81 +80,121 @@ interface FxTriggerPayload {
   maxHp?: number;        // 最大HP
   text?: string;         // トリガーとなった元テキストメッセージ
   timestamp: number;     // 発火時刻 (Date.now())
+  byPlayer?: boolean;    // プレイヤーによる攻撃フラグ
+  isPeaceful?: boolean;  // 平和NPCフラグ
+  isTame?: boolean;      // ペットフラグ
+
+  // --- AREA_ENTERED 固有フィールド ---
+  /** ダンジョンブランチID ('dungeon' | 'mines' | 'sokoban' | 'gehennom' | 'quest' | 'fort_ludios' | 'vlad_tower' | 'elemental_planes' | 'tutorial') */
+  branchId?: string;
+  /** フロア識別キー (例: 'Dlvl:1', 'mines:2') */
+  floorKey?: string;
+  /** 階層の深さ (1〜) */
+  dlevel?: number;
+  /** ブランチ英語名 (例: 'The Gnomish Mines') */
+  title?: string;
+  /** ブランチ日本語名 (例: 'ノームの鉱山') */
+  titleJa?: string;
+  /** サブタイトル英語表記 (例: 'Level 2') */
+  subtitle?: string;
+  /** サブタイトル日本語表記 (例: '地下 2 階') */
+  subtitleJa?: string;
+  /** 演出テーマ ('dungeon' | 'cave' | 'hell' | 'puzzle' | 'quest' | 'gold' | 'vampire' | 'celestial' | 'tutorial') */
+  theme?: string;
+  /** バナー表示持続時間 (ミリ秒、デフォルト 4000) */
+  bannerDurationMs?: number;
 }
 ```
 
 ### イベント種別一覧
 
-| 種別 (`type`) | 発火タイミング（GKL側 `VisualFxDispatcher`） | ペイロード情報 | 推奨される演出表現（UI側） |
+| 種別 (`type`) | 発火タイミング（GKL側 `GKLFxCoordinator` / `GKLEventRouter`） | ペイロード情報 | 推奨される演出表現（UI側） |
 | :--- | :--- | :--- | :--- |
-| `ATTACK_HIT` | 隣接する**敵対モンスター**への近接攻撃成立時（※Stage 8.3-A により平和NPC `mpeaceful`・ペット `mtame` との位置交換や会話時は誤爆抑止） | `targetX, targetY` | 敵マスの一瞬の白/赤フラッシュ、または斜め斬撃・火花スプライト（約100ms） |
+| `ATTACK_HIT` | 隣接する**敵対モンスター**への近接攻撃成立時（※平和NPC `mpeaceful`・ペット `mtame` との位置交換や会話時は誤爆抑止） | `targetX, targetY` | 敵マスの一瞬の白/赤フラッシュ、または斜め斬撃・火花スプライト（約100ms） |
 | `DAMAGE_TAKEN` | 自キャラの `currentHP < prevHP` を検知した時 | `targetX, targetY, amount` | 自キャラマスの赤色点滅、**頭上への浮遊ダメージ数値 (`-X`, 赤色/黒縁取り) ポップアップ**、画面の微小シェイク（1〜2px振動）、被弾SE |
+| `DAMAGE_DEALT` | C コア 0x24 / 0x25 差分検知によりモンスターへの与ダメージが確定した時 | `targetX, targetY, amount, isTame, isPeaceful` | **敵頭上への浮遊与ダメージ数値 (`-X`, 橙色/白縁取り) ポップアップ** |
 | `KILL_CONFIRMED` | 攻撃直後に敵Glyphが消滅、または死体/アイテムが出現した時 | `targetX, targetY` | 対象マスに煙・消滅パーティクル、または撃破SE |
 | `RECOVER_HEAL` | 自キャラの `currentHP > prevHP`（回復）またはレベルアップ時 | `targetX, targetY, amount` | 自キャラ足元からの緑/黄色の光のエフェクト上昇、**頭上への浮遊回復数値 (`+X`, 緑色/黒縁取り) ポップアップ** |
 | `PLAYER_DIED` | メッセージ `You die...` / `あなたは死んだ` 受信時 | `targetX, targetY, isPlayer, text` | **自キャラマスへの墓石タイル (glyph 4011 / tile 1310) 描画**、バウンス停止、死亡エフェクト・画面シェイク |
 | `PLAYER_RESURRECTED` | 命の魔除け等による蘇生メッセージ受信時 | `targetX, targetY, isPlayer, text` | 墓石表示の解除・自キャラタイルの復元、蘇生光輪エフェクト |
+| `AREA_ENTERED` | 新規ブランチ突入時 (`AreaStateManager.syncPlayerSummary` で `isNewBranch: true` 確定時) | `branchId, floorKey, dlevel, title, titleJa, subtitle, subtitleJa, theme, bannerDurationMs` | **ビューポート中央上部へのシネマティックブランチバナー表示**（フェードイン・ホールド・フェードアウト、テーマカラー発光） |
 
 ---
 
 ## 3. GklPureJSClient での演出実装ガイド
 
-`examples/gkl-pure-js-client/renderers/MainViewportRenderer.js`（2D ズームビュー）および `WebGPUHD2DRenderer.js`（3D ジオラマビュー）での組み込み構成です。
+`examples/gkl-pure-js-client/modules/renderers/MainViewportRenderer.js`（2D ビューポート）、`ZoomRenderer.js`、および `hd2d/hd2dFxOverlay.js`（WebGPU 3D オーバーレイ）での組み込み構成です。
 
-### 3.1. エフェクトキュー（FX Queue）の管理
-UIクライアント内で、一時的な演出オブジェクトを配列（またはMap）で保持します。
+### 3.1. 空間分類：グリッド空間 FX と スクリーン空間 FX
+演出エフェクトは、描画対象の座標系によって 2 種類に分類されます：
 
-```javascript
-// クライアントの初期化時
-this.activeFxList = []; // { type, gx, gy, startTime, durationMs, color }
+1. **グリッド追従型 FX (`DAMAGE_POPUP`, `SLASH` 等)**:
+   - マップ上の特定マス（`gx, gy`）に紐付き、カメラのスクロールやズーム移動に追従して描画されます。
+2. **スクリーン空間固定 FX (`AREA_ENTERED` エリアバナー)**:
+   - マップ座標に依存せず、常に Canvas ビューポートの中央上部に固定描画されます。
 
-// イベント購読
-this.core.on('fx_trigger', (fx) => {
-  if (fx.type === 'ATTACK_HIT') {
-    this.activeFxList.push({
-      type: 'SLASH',
-      gx: fx.targetX,
-      gy: fx.targetY,
-      startTime: performance.now(),
-      durationMs: 120,
-      color: '#fff'
-    });
-  } else if (fx.type === 'DAMAGE_TAKEN') {
-    // 画面シェイクをトリガー
-    this.triggerScreenShake(2, 100);
-  }
-});
-```
-
-### 3.2. FocusCamera（`renderZoomMap`）での描画
-FocusCamera の Layer 4 (Effect) または最前面オーバーレイとして描画ループ内で描画・破棄します。
+### 3.2. エフェクトキュー（FX Queue）と上書き置換ルール
+UI クライアントの `VisualFxDispatcher` が `fx_trigger` を受信し、各レンダラーの `addVisualFx(fx)` に投入します。
 
 ```javascript
-// レンダリングループ内 (renderZoomMap)
-const now = performance.now();
-this.activeFxList = this.activeFxList.filter(fx => {
-  const elapsed = now - fx.startTime;
-  if (elapsed >= fx.durationMs) return false; // 期限切れで自動破棄
-
-  const progress = elapsed / fx.durationMs; // 0.0 〜 1.0
-
-  // FocusCamera 中心からの相対画面座標を算出
-  const screenX = (fx.gx - px + halfRangeX) * zoomTileSize;
-  const screenY = (fx.gy - py + halfRangeY) * zoomTileSize;
-
-  if (screenX >= 0 && screenX < canvasW && screenY >= 0 && screenY < canvasH) {
-    if (fx.type === 'SLASH') {
-      // 斬撃エフェクトの描画（斜めライン）
-      this.zoomCtx.strokeStyle = `rgba(255, 255, 255, ${1 - progress})`;
-      this.zoomCtx.lineWidth = 3;
-      this.zoomCtx.beginPath();
-      this.zoomCtx.moveTo(screenX + 6, screenY + 6);
-      this.zoomCtx.lineTo(screenX + zoomTileSize - 6, screenY + zoomTileSize - 6);
-      this.zoomCtx.stroke();
-    }
-  }
-  return true;
-});
+// VisualFxDispatcher.js
+else if (fx.type === 'AREA_ENTERED') {
+  const durationMs = fx.bannerDurationMs || fx.durationMs || 4000;
+  this.dispatchFx({
+    type: 'AREA_ENTERED',
+    branchId: fx.branchId,
+    floorKey: fx.floorKey,
+    dlevel: fx.dlevel,
+    title: fx.title,
+    titleJa: fx.titleJa,
+    subtitle: fx.subtitle,
+    subtitleJa: fx.subtitleJa,
+    theme: fx.theme || 'dungeon',
+    startTime: now,
+    durationMs
+  });
+  webgpu?.wakeUp();
+}
 ```
+
+#### 上書き置換（単一性保証）
+階段を素早く連続昇降するなどして複数の `AREA_ENTERED` が発生した場合、古いバナーが重なって表示されるのを防ぐため、投入時に既存の `AREA_ENTERED` を除外して最新のものに置き換えます：
+
+```javascript
+// MainViewportRenderer.js / ZoomRenderer.js / hd2dFxOverlay.js
+addVisualFx(fx) {
+  if (!fx) return;
+  if (fx.type === 'AREA_ENTERED') {
+    // 既存の AREA_ENTERED を除外して最新バナーに置換
+    this.activeFxList = this.activeFxList.filter(item => item.type !== 'AREA_ENTERED');
+  } else if (fx.type === 'DAMAGE_POPUP') {
+    // ...
+  }
+  this.activeFxList.push(fx);
+}
+```
+
+### 3.3. スクリーン空間バナーの描画ライフサイクル (`drawAreaBanner.js`)
+レンダリングループ内で経過時間（`elapsed`）から進行度（`progress = elapsed / fx.durationMs`）を計算し、`drawAreaBanner` を呼び出します：
+
+```javascript
+// レンダリングループ内
+if (fx.type === 'AREA_ENTERED') {
+  drawAreaBanner(this.ctx, fx, canvasW, canvasH, progress, this.currentLanguage);
+  return true; // エフェクト継続
+}
+```
+
+#### 描画ライフサイクル（進行度別フェーズ）
+- **フェーズ 1: フェードイン & スライドイン (`0.0 <= progress < 0.15`, 約 0〜600ms)**:
+  - $\alpha = \frac{\text{progress}}{0.15}$ で滑らかに透明度が増加。
+  - 初期位置から上方向に 10px オフセットされた状態から目標位置へスムーズにスライド。
+- **フェーズ 2: ホールド表示 (`0.15 <= progress <= 0.80`, 約 600〜3200ms)**:
+  - $\alpha = 1.0$ で静止。テーマ別アクセント枠線（`border`）とグロー（`glow`）が輝く。
+  - 日本語設定時は大見出しに和名（`titleJa`）、サブ見出しに「英名 — 階層」をコントラスト高く描画。
+- **フェーズ 3: フェードアウト (`0.80 < progress <= 1.0`, 約 3200〜4000ms)**:
+  - $\alpha = \frac{1.0 - \text{progress}}{0.20}$ で静かにフェードアウト。
+  - $1.0$ に達した時点で配列から自動破棄。
 
 ---
 

@@ -11,6 +11,27 @@ export const VIS_MON_FIELDS = 8;
 export const VIS_MON_MAX = 256;
 
 /**
+ * C コア 0x22 GET_MONSTER_INFO の 32bit パック整数をアンパック
+ * レイアウト: bit0=peaceful, bit1=tame, bit2..7=0(予約), bit8..19=hp(12bit), bit20..31=hpmax(12bit)
+ * ※ wasm32 では long が signed 32-bit として返るため、hpmax >= 2048 (0x800) で負数になる。
+ *    不在 (0) と範囲外エラー (-1 または予約ビット 0xFC 非ゼロ) のみを除外し、>>> 0 で符号なし解釈する。
+ * @param {number} res
+ * @returns {{ peaceful: boolean, tame: boolean, hp: number, hpmax: number }|null}
+ */
+export function unpackMonsterInfo(res) {
+    if (typeof res !== 'number' || res === 0 || res === -1 || (res & 0xFC) !== 0) {
+        return null;
+    }
+    const u = res >>> 0;
+    return {
+        peaceful: Boolean(u & 0x01),
+        tame: Boolean((u >>> 1) & 0x01),
+        hp: (u >>> 8) & 0xFFF,
+        hpmax: (u >>> 20) & 0xFFF
+    };
+}
+
+/**
  * C コア 0x24 DUMP_VISIBLE_MONSTERS の int32 配列をアンパック
  * @param {Int32Array|number[]} raw
  * @param {number} count
@@ -86,19 +107,7 @@ export class MonsterWasmAdapter {
 
         if (hasLiveMemory && memory) {
             const res = memory.bridgeCall(SHIM_CMD.GET_MONSTER_INFO, x, y, 0, 0);
-            if (res <= 0) return null;
-
-            const peaceful = Boolean(res & 0x01);
-            const tame = Boolean((res >> 1) & 0x01);
-            const hp = (res >> 8) & 0xFFF;
-            const hpmax = (res >> 20) & 0xFFF;
-
-            return {
-                peaceful,
-                tame,
-                hp,
-                hpmax
-            };
+            return unpackMonsterInfo(res);
         }
 
         const cached = this._cachedMonsters ? this._cachedMonsters.get(`${x},${y}`) : null;
@@ -235,12 +244,13 @@ export class MonsterWasmAdapter {
                 ]);
 
                 const iVal = (infoRes && typeof infoRes.result === 'number') ? infoRes.result : 0;
-                const sVal = (stateRes && typeof stateRes.result === 'number') ? stateRes.result : 0;
+                const sVal = (stateRes && typeof stateRes.result === 'number' && stateRes.result >= 0) ? (stateRes.result >>> 0) : 0;
+                const info = unpackMonsterInfo(iVal);
 
-                const peaceful = Boolean(iVal & 0x01);
-                const tame = Boolean((iVal >> 1) & 0x01);
-                const hp = (iVal >> 8) & 0xFFF;
-                const hpmax = (iVal >> 20) & 0xFFF;
+                const peaceful = info ? info.peaceful : false;
+                const tame = info ? info.tame : false;
+                const hp = info ? info.hp : 0;
+                const hpmax = info ? info.hpmax : 0;
 
                 const mon = {
                     x,
@@ -251,13 +261,13 @@ export class MonsterWasmAdapter {
                     hp,
                     hpmax,
                     sleeping: Boolean(sVal & 0x01),
-                    fleeing: Boolean((sVal >> 1) & 0x01),
-                    paralyzed: Boolean((sVal >> 2) & 0x01),
-                    confused: Boolean((sVal >> 3) & 0x01),
-                    stunned: Boolean((sVal >> 4) & 0x01),
-                    isShopkeeper: Boolean((sVal >> 5) & 0x01),
-                    isPriest: Boolean((sVal >> 6) & 0x01),
-                    isChameleon: Boolean((sVal >> 7) & 0x01)
+                    fleeing: Boolean((sVal >>> 1) & 0x01),
+                    paralyzed: Boolean((sVal >>> 2) & 0x01),
+                    confused: Boolean((sVal >>> 3) & 0x01),
+                    stunned: Boolean((sVal >>> 4) & 0x01),
+                    isShopkeeper: Boolean((sVal >>> 5) & 0x01),
+                    isPriest: Boolean((sVal >>> 6) & 0x01),
+                    isChameleon: Boolean((sVal >>> 7) & 0x01)
                 };
 
                 if (!this._cachedMonsters) this._cachedMonsters = new Map();
